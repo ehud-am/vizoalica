@@ -102,26 +102,26 @@
 
 ### Tests for User Story 2
 
-- [ ] T035 [P] [US2] Add OpenAPI contract tests for `POST /v1/events:batch` in `apps/ingest-api/tests/contract/events-batch.contract.test.ts`
-- [ ] T036 [P] [US2] Add JWT ingest token verification tests in `apps/ingest-api/tests/unit/token-verifier.test.ts`
-- [ ] T037 [P] [US2] Add quota policy decision tests in `apps/ingest-api/tests/unit/quota-policy.test.ts`
-- [ ] T038 [P] [US2] Add ingestion schema rejection tests in `apps/ingest-api/tests/unit/event-validator.test.ts`
-- [ ] T039 [P] [US2] Add project isolation integration tests in `apps/ingest-api/tests/integration/project-isolation.test.ts`
-- [ ] T040 [P] [US2] Add abuse/load validation scenario for 1,000 events per second in `apps/ingest-api/tests/load/ingestion-smoke.test.ts`
+- [X] T035 [P] [US2] Add OpenAPI contract tests for `POST /v1/events:batch` in `apps/ingest-api/tests/contract/events-batch.contract.test.ts`
+- [X] T036 [P] [US2] Add JWT ingest token verification tests in `apps/ingest-api/tests/unit/token-verifier.test.ts`
+- [X] T037 [P] [US2] Add quota policy decision tests in `apps/ingest-api/tests/unit/quota-policy.test.ts`
+- [X] T038 [P] [US2] Add ingestion schema rejection tests in `apps/ingest-api/tests/unit/event-validator.test.ts`
+- [X] T039 [P] [US2] Add project isolation integration tests in `apps/ingest-api/tests/integration/project-isolation.test.ts`
+- [X] T040 [P] [US2] Add abuse/load validation scenario for 1,000 events per second in `apps/ingest-api/tests/load/ingestion-smoke.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T041 [P] [US2] Implement JWT/JOSE ingest token verifier in `apps/ingest-api/src/auth/token-verifier.ts`
-- [ ] T042 [P] [US2] Implement origin and source authorization checks in `apps/ingest-api/src/auth/source-authorizer.ts`
-- [ ] T043 [P] [US2] Implement CloudEvents and event-data schema validator in `apps/ingest-api/src/ingestion/event-validator.ts`
-- [ ] T044 [P] [US2] Implement quota policy evaluator in `apps/ingest-api/src/quotas/quota-policy.ts`
-- [ ] T045 [US2] Implement replay, expiry, event age, and max-events-per-token checks in `apps/ingest-api/src/auth/token-constraints.ts`
-- [ ] T046 [US2] Implement event batch ingestion pipeline with early rejection ordering in `apps/ingest-api/src/ingestion/pipeline.ts`
-- [ ] T047 [US2] Implement `POST /v1/events:batch` HTTP handler in `apps/ingest-api/src/http/events.ts`
-- [ ] T048 [US2] Persist accepted events and ingestion decisions through repository interfaces in `apps/ingest-api/src/ingestion/pipeline.ts`
-- [ ] T049 [US2] Emit safe operational metrics for accepted, rejected, throttled, and oversized traffic in `apps/ingest-api/src/observability/metrics.ts`
-- [ ] T050 [US2] Add demo token issuer for local validation in `apps/token-demo/src/index.ts`
-- [ ] T051 [US2] Wire ingest API routes into server startup in `apps/ingest-api/src/http/server.ts`
+- [X] T041 [P] [US2] Implement JWT/JOSE ingest token verifier in `apps/ingest-api/src/auth/token-verifier.ts`
+- [X] T042 [P] [US2] Implement origin and source authorization checks in `apps/ingest-api/src/auth/source-authorizer.ts`
+- [X] T043 [P] [US2] Implement CloudEvents and event-data schema validator in `apps/ingest-api/src/ingestion/event-validator.ts`
+- [X] T044 [P] [US2] Implement quota policy evaluator in `apps/ingest-api/src/quotas/quota-policy.ts`
+- [X] T045 [US2] Implement replay, expiry, event age, and max-events-per-token checks in `apps/ingest-api/src/auth/token-constraints.ts`
+- [X] T046 [US2] Implement event batch ingestion pipeline with early rejection ordering in `apps/ingest-api/src/ingestion/pipeline.ts`
+- [X] T047 [US2] Implement `POST /v1/events:batch` HTTP handler in `apps/ingest-api/src/http/events.ts`
+- [X] T048 [US2] Persist accepted events and ingestion decisions through repository interfaces in `apps/ingest-api/src/ingestion/pipeline.ts`
+- [X] T049 [US2] Emit safe operational metrics for accepted, rejected, throttled, and oversized traffic in `apps/ingest-api/src/observability/metrics.ts`
+- [X] T050 [US2] Add demo token issuer for local validation in `apps/token-demo/src/index.ts`
+- [X] T051 [US2] Wire ingest API routes into server startup in `apps/ingest-api/src/http/server.ts`
 
 **Checkpoint**: User Story 2 should accept signed valid batches and reject unsafe traffic independently of browser SDK UX work.
 

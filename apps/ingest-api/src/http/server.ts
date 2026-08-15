@@ -1,10 +1,25 @@
 import { loadConfig } from '../config.js';
+import type { PipelineDependencies } from '../ingestion/pipeline.js';
+import { InMemoryRepositories } from '../storage/memory.js';
+import { eventsBatchResponse } from './events.js';
 import { healthResponse } from './health.js';
 
-export function createRequestHandler(): (request: Request) => Promise<Response> | Response {
+function defaultDependencies(): PipelineDependencies {
+  return {
+    repositories: new InMemoryRepositories(),
+    tokenSecret: process.env.VIZOALICA_TOKEN_SECRET ?? 'dev-secret',
+    allowUnsignedDemo: process.env.VIZOALICA_DEMO_MODE === 'true'
+  };
+}
+
+export function createRequestHandler(
+  dependencies: PipelineDependencies = defaultDependencies()
+): (request: Request) => Promise<Response> | Response {
   return (request: Request) => {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/healthz') return healthResponse();
+    if (request.method === 'POST' && url.pathname === '/v1/events:batch')
+      return eventsBatchResponse(request, dependencies);
     return Response.json({ error: 'not_found' }, { status: 404 });
   };
 }

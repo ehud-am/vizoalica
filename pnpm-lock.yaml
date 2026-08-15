@@ -49,7 +49,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/privacy
 
-  apps/token-demo: {}
+  apps/token-demo:
+    dependencies:
+      '@vizoalica/event-contracts':
+        specifier: workspace:*
+        version: link:../../packages/event-contracts
 
   packages/browser-sdk:
     dependencies:
