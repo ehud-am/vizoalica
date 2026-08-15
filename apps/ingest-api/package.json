@@ -1,0 +1,15 @@
+{
+  "name": "@vizoalica/ingest-api",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/http/server.js",
+  "types": "dist/http/server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/http/server.js"
+  },
+  "dependencies": {
+    "@vizoalica/event-contracts": "workspace:*",
+    "@vizoalica/privacy": "workspace:*"
+  }
+}

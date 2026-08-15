@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/v0.1.0/token-claims.schema.json",
+  "title": "Vizoalica Ingest Token Claims",
+  "type": "object",
+  "required": [
+    "iss",
+    "aud",
+    "sub",
+    "project_id",
+    "source_id",
+    "origin",
+    "scope",
+    "iat",
+    "nbf",
+    "exp",
+    "jti"
+  ],
+  "properties": {
+    "iss": { "type": "string", "maxLength": 256 },
+    "aud": { "const": "vizoalica-ingest" },
+    "sub": { "type": "string", "maxLength": 256 },
+    "project_id": { "type": "string", "maxLength": 128 },
+    "source_id": { "type": "string", "maxLength": 128 },
+    "origin": { "type": "string", "format": "uri", "maxLength": 512 },
+    "scope": { "const": "events:write" },
+    "iat": { "type": "integer" },
+    "nbf": { "type": "integer" },
+    "exp": { "type": "integer" },
+    "jti": { "type": "string", "maxLength": 128 },
+    "visitor_id": { "type": "string", "maxLength": 128 },
+    "session_id": { "type": "string", "maxLength": 128 },
+    "consent_state": { "enum": ["analytics-granted", "analytics-denied", "unknown"] },
+    "max_events": { "type": "integer", "minimum": 1, "maximum": 25 }
+  },
+  "additionalProperties": false
+}

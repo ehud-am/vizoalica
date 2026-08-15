@@ -30,13 +30,13 @@
 
 **Purpose**: Initialize the TypeScript monorepo and base project structure.
 
-- [ ] T001 Create monorepo directories `apps/ingest-api`, `apps/token-demo`, `packages/browser-sdk`, `packages/event-contracts`, `packages/privacy`, `deploy/compose`, and `docs/operations`
-- [ ] T002 Create root package/workspace configuration in `package.json`, `pnpm-workspace.yaml`, and `tsconfig.base.json`
-- [ ] T003 [P] Configure linting and formatting in `eslint.config.js`, `.prettierrc.json`, and `.prettierignore`
-- [ ] T004 [P] Configure test tooling and shared test scripts in `package.json` and `vitest.config.ts`
-- [ ] T005 [P] Add TypeScript package manifests for `packages/browser-sdk/package.json`, `packages/event-contracts/package.json`, and `packages/privacy/package.json`
-- [ ] T006 [P] Add application manifests for `apps/ingest-api/package.json` and `apps/token-demo/package.json`
-- [ ] T007 [P] Add environment example files in `apps/ingest-api/.env.example` and `apps/token-demo/.env.example`
+- [X] T001 Create monorepo directories `apps/ingest-api`, `apps/token-demo`, `packages/browser-sdk`, `packages/event-contracts`, `packages/privacy`, `deploy/compose`, and `docs/operations`
+- [X] T002 Create root package/workspace configuration in `package.json`, `pnpm-workspace.yaml`, and `tsconfig.base.json`
+- [X] T003 [P] Configure linting and formatting in `eslint.config.js`, `.prettierrc.json`, and `.prettierignore`
+- [X] T004 [P] Configure test tooling and shared test scripts in `package.json` and `vitest.config.ts`
+- [X] T005 [P] Add TypeScript package manifests for `packages/browser-sdk/package.json`, `packages/event-contracts/package.json`, and `packages/privacy/package.json`
+- [X] T006 [P] Add application manifests for `apps/ingest-api/package.json` and `apps/token-demo/package.json`
+- [X] T007 [P] Add environment example files in `apps/ingest-api/.env.example` and `apps/token-demo/.env.example`
 
 ---
 
@@ -46,20 +46,20 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T008 Copy draft JSON Schemas from `specs/001-event-collection-foundation/contracts/schemas/` into `packages/event-contracts/schemas/`
-- [ ] T009 [P] Implement schema exports and type generation entrypoint in `packages/event-contracts/src/index.ts`
-- [ ] T010 [P] Add schema validation tests for CloudEvents batch, page-view event, custom event, and token claims in `packages/event-contracts/tests/schema-validation.test.ts`
-- [ ] T011 Implement privacy policy constants for sensitive URL keys, forbidden property names, and field limits in `packages/privacy/src/policy.ts`
-- [ ] T012 [P] Add privacy policy unit tests for default forbidden keys and limits in `packages/privacy/tests/policy.test.ts`
-- [ ] T013 Implement shared privacy redaction utilities in `packages/privacy/src/redaction.ts`
-- [ ] T014 [P] Add privacy redaction tests for URLs, query strings, and property names in `packages/privacy/tests/redaction.test.ts`
-- [ ] T015 Define ingestion service configuration loader in `apps/ingest-api/src/config.ts`
-- [ ] T016 [P] Define core data types for Project, Source, SigningKey, QuotaPolicy, EventBatch, Event, and IngestionDecision in `apps/ingest-api/src/domain/types.ts`
-- [ ] T017 [P] Define storage repository interfaces in `apps/ingest-api/src/storage/repositories.ts`
-- [ ] T018 [P] Define in-memory storage adapter for local validation in `apps/ingest-api/src/storage/memory.ts`
-- [ ] T019 [P] Define safe structured logging and metrics interfaces in `apps/ingest-api/src/observability/index.ts`
-- [ ] T020 Create base HTTP server entrypoint and router skeleton in `apps/ingest-api/src/http/server.ts`
-- [ ] T021 Create `/healthz` endpoint and health tests in `apps/ingest-api/src/http/health.ts` and `apps/ingest-api/tests/integration/health.test.ts`
+- [X] T008 Copy draft JSON Schemas from `specs/001-event-collection-foundation/contracts/schemas/` into `packages/event-contracts/schemas/`
+- [X] T009 [P] Implement schema exports and type generation entrypoint in `packages/event-contracts/src/index.ts`
+- [X] T010 [P] Add schema validation tests for CloudEvents batch, page-view event, custom event, and token claims in `packages/event-contracts/tests/schema-validation.test.ts`
+- [X] T011 Implement privacy policy constants for sensitive URL keys, forbidden property names, and field limits in `packages/privacy/src/policy.ts`
+- [X] T012 [P] Add privacy policy unit tests for default forbidden keys and limits in `packages/privacy/tests/policy.test.ts`
+- [X] T013 Implement shared privacy redaction utilities in `packages/privacy/src/redaction.ts`
+- [X] T014 [P] Add privacy redaction tests for URLs, query strings, and property names in `packages/privacy/tests/redaction.test.ts`
+- [X] T015 Define ingestion service configuration loader in `apps/ingest-api/src/config.ts`
+- [X] T016 [P] Define core data types for Project, Source, SigningKey, QuotaPolicy, EventBatch, Event, and IngestionDecision in `apps/ingest-api/src/domain/types.ts`
+- [X] T017 [P] Define storage repository interfaces in `apps/ingest-api/src/storage/repositories.ts`
+- [X] T018 [P] Define in-memory storage adapter for local validation in `apps/ingest-api/src/storage/memory.ts`
+- [X] T019 [P] Define safe structured logging and metrics interfaces in `apps/ingest-api/src/observability/index.ts`
+- [X] T020 Create base HTTP server entrypoint and router skeleton in `apps/ingest-api/src/http/server.ts`
+- [X] T021 Create `/healthz` endpoint and health tests in `apps/ingest-api/src/http/health.ts` and `apps/ingest-api/tests/integration/health.test.ts`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin in priority order or in parallel if staffed.
 
@@ -73,22 +73,22 @@
 
 ### Tests for User Story 1
 
-- [ ] T022 [P] [US1] Add browser SDK initialization tests in `packages/browser-sdk/tests/init.test.ts`
-- [ ] T023 [P] [US1] Add browser SDK event queue and batching tests in `packages/browser-sdk/tests/queue.test.ts`
-- [ ] T024 [P] [US1] Add browser SDK failure-behavior tests for unavailable ingestion in `packages/browser-sdk/tests/failure.test.ts`
-- [ ] T025 [P] [US1] Add browser SDK event-building tests for CloudEvents page views and custom events in `packages/browser-sdk/tests/events.test.ts`
+- [X] T022 [P] [US1] Add browser SDK initialization tests in `packages/browser-sdk/tests/init.test.ts`
+- [X] T023 [P] [US1] Add browser SDK event queue and batching tests in `packages/browser-sdk/tests/queue.test.ts`
+- [X] T024 [P] [US1] Add browser SDK failure-behavior tests for unavailable ingestion in `packages/browser-sdk/tests/failure.test.ts`
+- [X] T025 [P] [US1] Add browser SDK event-building tests for CloudEvents page views and custom events in `packages/browser-sdk/tests/events.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T026 [P] [US1] Implement browser SDK public API `init`, `track`, and `flush` in `packages/browser-sdk/src/index.ts`
-- [ ] T027 [P] [US1] Implement non-blocking bounded event queue in `packages/browser-sdk/src/queue.ts`
-- [ ] T028 [P] [US1] Implement CloudEvents page-view and custom-event builders in `packages/browser-sdk/src/events.ts`
-- [ ] T029 [US1] Integrate privacy redaction utilities into event building in `packages/browser-sdk/src/events.ts`
-- [ ] T030 [US1] Implement safe delivery transport with timeout, retry limits, and silent failure in `packages/browser-sdk/src/transport.ts`
-- [ ] T031 [US1] Implement token provider hook without exposing signing secrets in `packages/browser-sdk/src/auth.ts`
-- [ ] T032 [US1] Create browser SDK package build output configuration in `packages/browser-sdk/tsconfig.json`
-- [ ] T033 [US1] Add minimal example HTML page using the SDK in `packages/browser-sdk/examples/basic.html`
-- [ ] T034 [US1] Document embed snippet and failure guarantees in `docs/operations/browser-sdk.md`
+- [X] T026 [P] [US1] Implement browser SDK public API `init`, `track`, and `flush` in `packages/browser-sdk/src/index.ts`
+- [X] T027 [P] [US1] Implement non-blocking bounded event queue in `packages/browser-sdk/src/queue.ts`
+- [X] T028 [P] [US1] Implement CloudEvents page-view and custom-event builders in `packages/browser-sdk/src/events.ts`
+- [X] T029 [US1] Integrate privacy redaction utilities into event building in `packages/browser-sdk/src/events.ts`
+- [X] T030 [US1] Implement safe delivery transport with timeout, retry limits, and silent failure in `packages/browser-sdk/src/transport.ts`
+- [X] T031 [US1] Implement token provider hook without exposing signing secrets in `packages/browser-sdk/src/auth.ts`
+- [X] T032 [US1] Create browser SDK package build output configuration in `packages/browser-sdk/tsconfig.json`
+- [X] T033 [US1] Add minimal example HTML page using the SDK in `packages/browser-sdk/examples/basic.html`
+- [X] T034 [US1] Document embed snippet and failure guarantees in `docs/operations/browser-sdk.md`
 
 **Checkpoint**: User Story 1 should be functional and independently demonstrable with a mock or unavailable backend.
 

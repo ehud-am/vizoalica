@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Vizoalica build/test outputs
+node_modules/
+dist/
+build/
+coverage/
+.env.local
