@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Vizoalica Event Ingestion API
+  version: 0.1.0-draft
+  description: Draft public contract for v0.1.0 browser event ingestion.
+paths:
+  /v1/events:batch:
+    post:
+      summary: Ingest a batch of browser analytics events
+      description: Accepts CloudEvents JSON batch payloads from configured website sources.
+      security:
+        - ingestToken: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Vizoalica-Source
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Public source identifier used for routing, not a secret.
+      requestBody:
+        required: true
+        content:
+          application/cloudevents-batch+json:
+            schema:
+              $ref: './schemas/cloudevent-batch.schema.json'
+          application/json:
+            schema:
+              $ref: './schemas/cloudevent-batch.schema.json'
+      responses:
+        '202':
+          description: Batch accepted or partially accepted for processing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decision, accepted_count, rejected_count]
+                properties:
+                  decision:
+                    enum: [accepted, partial]
+                  accepted_count:
+                    type: integer
+                    minimum: 0
+                  rejected_count:
+                    type: integer
+                    minimum: 0
+                  reason_codes:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Invalid schema, oversized payload, unsupported event type, or invalid event data.
+        '401':
+          description: Missing, expired, invalid, or mismatched ingest token for production ingestion.
+        '403':
+          description: Source, project, origin, or token scope is not allowed.
+        '413':
+          description: Request body is too large.
+        '429':
+          description: Project, source, token, or origin quota exceeded.
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy.
+components:
+  securitySchemes:
+    ingestToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

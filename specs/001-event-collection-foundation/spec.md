@@ -101,9 +101,9 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **FR-011**: The backend MUST provide abuse controls that bound traffic, storage, and processing per project and per source.
 - **FR-012**: The backend MUST isolate abusive or over-quota projects so they cannot degrade unrelated projects.
 - **FR-013**: The system MUST treat browser-distributed identifiers as public and MUST NOT rely on them as private proof of authenticity.
-- **FR-014**: The system MUST support a path for stronger server-issued or server-attested event authenticity for customers that can integrate it.
+- **FR-014**: Production ingestion MUST require short-lived server-issued or server-attested ingest tokens, while any unsigned public-ID ingestion MUST be explicitly limited to demo/development mode and marked lower trust.
 - **FR-015**: Administrative access and future integrations SHOULD prefer standard authorization and identity mechanisms over proprietary account systems where practical.
-- **FR-016**: The system MUST record enough structured event metadata to support future analytics, export, and AI-assisted insights without storing unnecessary sensitive raw data.
+- **FR-016**: The system MUST use a standards-aligned event envelope and versioned event schemas to support future analytics, export, and AI-assisted insights without storing unnecessary sensitive raw data.
 - **FR-017**: The system MUST provide documented safe defaults for privacy, security, quotas, and self-hosted operation.
 - **FR-018**: The system MUST make ingestion health observable to operators without exposing visitor-sensitive data in logs.
 
@@ -133,6 +133,6 @@ As a product team, I want collected events to follow clear names, schemas, and p
 
 - v0.1.0 focuses on collection and ingestion, not full dashboards, session replay, in-app guides, or advanced reporting.
 - Anonymous usage analytics are in scope; authenticated visitor identity is optional and must use a privacy-reviewed integration path.
-- Browser-only event authenticity cannot be perfect because browser-delivered identifiers are visible to visitors; v0.1.0 will provide bounded abuse resistance and an extension path for stronger authenticity.
+- Browser-only event authenticity cannot be perfect because browser-delivered identifiers are visible to visitors; v0.1.0 production mode will require short-lived signed ingest tokens and retain a clearly marked unsigned demo mode only for onboarding and local validation.
 - Self-hosted deployment is a primary scenario, so defaults must work without relying on an expensive managed service.
 - Consent handling will be represented in event context, while site owners remain responsible for showing consent UI appropriate to their jurisdiction.

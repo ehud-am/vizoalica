@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/v0.1.0/event-data-page-view.schema.json",
+  "title": "Page View Event Data",
+  "type": "object",
+  "required": ["page", "visitor", "session"],
+  "properties": {
+    "page": {
+      "type": "object",
+      "required": ["url_origin", "url_path", "url_query_redacted"],
+      "properties": {
+        "url_origin": { "type": "string", "format": "uri", "maxLength": 512 },
+        "url_path": { "type": "string", "maxLength": 1024 },
+        "url_query_redacted": { "type": "boolean" },
+        "title": { "type": ["string", "null"], "maxLength": 256 }
+      },
+      "additionalProperties": false
+    },
+    "visitor": {
+      "type": "object",
+      "required": ["anonymous_id"],
+      "properties": {
+        "anonymous_id": { "type": "string", "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
+    "referrer": {
+      "type": "object",
+      "properties": {
+        "origin": { "type": "string", "format": "uri", "maxLength": 512 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
