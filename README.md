@@ -101,6 +101,10 @@ Client-side filtering is convenience, not a trust boundary. The ingestion backen
 
 See [docs/operations/privacy.md](docs/operations/privacy.md).
 
+## Hosting on GCP
+
+For a cheap and simple GCP deployment plan, see [docs/operations/gcp-hosting.md](docs/operations/gcp-hosting.md).
+
 ## High-level architecture
 
 ```text
