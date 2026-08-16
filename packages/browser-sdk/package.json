@@ -10,5 +10,9 @@
   },
   "dependencies": {
     "@vizoalica/privacy": "workspace:*"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./embed": "./dist/embed.js"
   }
 }

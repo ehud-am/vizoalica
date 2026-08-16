@@ -55,32 +55,27 @@ The v0.1.0 backend currently includes an in-memory repository for local validati
 
 ## Quick website implementation
 
-Install the browser SDK package from this monorepo during development:
-
-```bash
-corepack pnpm --filter @vizoalica/browser-sdk build
-```
-
-Example website integration:
+Add one script tag to your website, similar to Google Analytics-style installs:
 
 ```html
-<script type="module">
-  import { init } from './path/to/@vizoalica/browser-sdk/dist/index.js';
+<script
+  async
+  src="https://analytics.example.com/vizoalica.js"
+  data-endpoint="https://analytics.example.com/v1/events:batch"
+  data-source="public_source_key"
+  data-project="project_id"
+  data-token-url="/vizoalica/ingest-token"
+  data-consent="analytics-granted"
+></script>
+```
 
-  const analytics = init({
-    endpoint: 'https://analytics.example.com/v1/events:batch',
-    sourceKey: 'public_source_key',
-    projectId: 'project_id',
-    consentState: 'analytics-granted',
-    tokenProvider: async () => {
-      const response = await fetch('/vizoalica/ingest-token', {
-        credentials: 'same-origin'
-      });
-      return response.ok ? response.text() : undefined;
-    }
-  });
+That is enough for the default page-view tracking path. The script loads asynchronously, reads its own `data-*` attributes, obtains a short-lived ingest token from `data-token-url`, and sends non-blocking CloudEvents batches to the backend.
 
-  analytics.track('signup_click', {
+Track a custom event later from page code if needed:
+
+```html
+<script>
+  window.vizoalica?.track('signup_click', {
     properties: {
       plan: 'pro'
     }
@@ -88,7 +83,7 @@ Example website integration:
 </script>
 ```
 
-Production websites should mint short-lived ingest tokens from their own backend. Never place long-lived signing secrets in browser code.
+Production websites should mint short-lived ingest tokens from their own backend at the configured `data-token-url`. Never place long-lived signing secrets in browser code.
 
 If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fail silently so the host website keeps operating.
 

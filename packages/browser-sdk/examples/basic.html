@@ -3,22 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <title>Vizoalica basic SDK example</title>
+    <script
+      async
+      src="../dist/embed.js"
+      data-endpoint="http://localhost:4318/v1/events:batch"
+      data-source="demo_source"
+      data-project="demo_project"
+      data-token-url="/vizoalica/ingest-token"
+      data-consent="analytics-granted"
+    ></script>
   </head>
   <body>
     <button id="signup">Track signup click</button>
-    <script type="module">
-      import { init } from '../dist/index.js';
-
-      const client = init({
-        endpoint: 'http://localhost:4318/v1/events:batch',
-        sourceKey: 'demo_source',
-        projectId: 'demo_project',
-        tokenProvider: async () => window.VIZOALICA_DEMO_TOKEN,
-        consentState: 'analytics-granted'
-      });
-
+    <script>
       document.getElementById('signup').addEventListener('click', () => {
-        client.track('signup_click', { properties: { plan: 'demo' } });
+        window.vizoalica?.track('signup_click', { properties: { plan: 'demo' } });
       });
     </script>
   </body>
