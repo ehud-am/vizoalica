@@ -9,6 +9,7 @@ import { recordIngestionDecision } from '../observability/metrics.js';
 import { evaluateQuota } from '../quotas/quota-policy.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
+import { applyPrivacyGuard } from './privacy-guard.js';
 
 export interface PipelineRequest {
   body: string;
@@ -87,6 +88,9 @@ export async function ingestBatch(
     if (!constraints.ok) return reject(401, constraints.reason, project, source);
   }
 
+  const privacy = applyPrivacyGuard(validation.events);
+  if (!privacy.ok) return reject(400, privacy.reason, project, source);
+
   const policy = await dependencies.repositories.findQuotaPolicy(project.quotaPolicyId);
   if (!policy) return reject(403, 'quota_policy_not_found', project, source);
   const quotaInput: Parameters<typeof evaluateQuota>[0] = {
@@ -100,7 +104,7 @@ export async function ingestBatch(
     return reject(quota.reason === 'request_too_large' ? 413 : 429, quota.reason, project, source);
 
   const trustLevel = claims ? 'signed-session' : 'unsigned-demo';
-  const storedEvents: StoredEvent[] = validation.events.map((event) => ({
+  const storedEvents: StoredEvent[] = privacy.events.map((event) => ({
     projectId: project.id,
     sourceId: source.id,
     trustLevel,

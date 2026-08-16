@@ -135,17 +135,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T052 [P] [US3] Add end-to-end privacy integration tests in `apps/ingest-api/tests/integration/privacy-defaults.test.ts`
-- [ ] T053 [P] [US3] Add browser-side no-form-capture tests in `packages/browser-sdk/tests/privacy.test.ts`
-- [ ] T054 [P] [US3] Add backend sensitive property rejection tests in `apps/ingest-api/tests/unit/privacy-guard.test.ts`
+- [X] T052 [P] [US3] Add end-to-end privacy integration tests in `apps/ingest-api/tests/integration/privacy-defaults.test.ts`
+- [X] T053 [P] [US3] Add browser-side no-form-capture tests in `packages/browser-sdk/tests/privacy.test.ts`
+- [X] T054 [P] [US3] Add backend sensitive property rejection tests in `apps/ingest-api/tests/unit/privacy-guard.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T055 [P] [US3] Implement browser-side URL and referrer minimization in `packages/browser-sdk/src/privacy.ts`
-- [ ] T056 [P] [US3] Implement backend privacy guard for accepted event data in `apps/ingest-api/src/ingestion/privacy-guard.ts`
-- [ ] T057 [US3] Integrate backend privacy guard before persistence in `apps/ingest-api/src/ingestion/pipeline.ts`
-- [ ] T058 [US3] Ensure logs and rejection reason codes exclude raw sensitive payload values in `apps/ingest-api/src/observability/index.ts`
-- [ ] T059 [US3] Document default privacy behavior and unsafe custom property examples in `docs/operations/privacy.md`
+- [X] T055 [P] [US3] Implement browser-side URL and referrer minimization in `packages/browser-sdk/src/privacy.ts`
+- [X] T056 [P] [US3] Implement backend privacy guard for accepted event data in `apps/ingest-api/src/ingestion/privacy-guard.ts`
+- [X] T057 [US3] Integrate backend privacy guard before persistence in `apps/ingest-api/src/ingestion/pipeline.ts`
+- [X] T058 [US3] Ensure logs and rejection reason codes exclude raw sensitive payload values in `apps/ingest-api/src/observability/index.ts`
+- [X] T059 [US3] Document default privacy behavior and unsafe custom property examples in `docs/operations/privacy.md`
 
 **Checkpoint**: User Story 3 should prove sensitive content is not stored by default across client and backend paths.
 
