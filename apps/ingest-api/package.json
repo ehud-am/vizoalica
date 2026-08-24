@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@vizoalica/event-contracts": "workspace:*",
-    "@vizoalica/privacy": "workspace:*"
+    "@vizoalica/privacy": "workspace:*",
+    "parquetjs-lite": "^0.8.7"
   }
 }

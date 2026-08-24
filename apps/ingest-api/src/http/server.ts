@@ -1,15 +1,52 @@
 import { loadConfig } from '../config.js';
 import type { PipelineDependencies } from '../ingestion/pipeline.js';
+import type { AcceptedEventSink } from '../storage/accepted-event-sink.js';
+import { JsonlGzipBatchSink } from '../storage/jsonl-gzip-batch.js';
 import { InMemoryRepositories } from '../storage/memory.js';
+import { ParquetChunkSink } from '../storage/parquet-chunk.js';
 import { eventsBatchResponse } from './events.js';
 import { healthResponse } from './health.js';
 
 function defaultDependencies(): PipelineDependencies {
-  return {
+  const config = loadConfig();
+  const dependencies: PipelineDependencies = {
     repositories: new InMemoryRepositories(),
     tokenSecret: process.env.VIZOALICA_TOKEN_SECRET ?? 'dev-secret',
-    allowUnsignedDemo: process.env.VIZOALICA_DEMO_MODE === 'true'
+    allowUnsignedDemo: config.demoMode
   };
+  const acceptedEventSink = createAcceptedEventSink(config);
+  if (acceptedEventSink) {
+    dependencies.acceptedEventSink = acceptedEventSink;
+    schedulePeriodicFlush(acceptedEventSink, config.storageFlushIntervalMs);
+  }
+  return dependencies;
+}
+
+function createAcceptedEventSink(
+  config: ReturnType<typeof loadConfig>
+): PipelineDependencies['acceptedEventSink'] {
+  if (!config.storageRoot || config.storageFormat === 'memory') return undefined;
+  if (config.storageFormat === 'jsonl-gzip') {
+    return new JsonlGzipBatchSink({
+      rootDir: config.storageRoot,
+      maxEventsPerFile: config.storageMaxEventsPerFile
+    });
+  }
+  return new ParquetChunkSink({
+    rootDir: config.storageRoot,
+    maxEventsPerFile: config.storageMaxEventsPerFile,
+    maxBufferedEvents: config.storageMaxBufferedEvents
+  });
+}
+
+function schedulePeriodicFlush(sink: AcceptedEventSink, intervalMs: number): void {
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
+  const timer = setInterval(() => {
+    sink.flush().catch((error: unknown) => {
+      console.error('accepted event sink flush failed', error);
+    });
+  }, intervalMs);
+  timer.unref?.();
 }
 
 export function createRequestHandler(

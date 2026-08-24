@@ -275,3 +275,33 @@ Task: "T044 [P] [US2] Implement quota policy evaluator in apps/ingest-api/src/qu
 - Each task includes an exact file path for LLM execution.
 - Commit after each task or logical group.
 - Do not add dashboards, session replay, in-app guides, or AI insight generation in this feature.
+
+---
+
+## Phase 8: Cost-Optimized Raw Storage & Parquet Foundation
+
+**Purpose**: Implement the v0.1.0 ultra-low-cost raw storage path with JSON wire batches and bounded Parquet chunk files.
+
+- [X] T077 [P] Add JSONL gzip batch sink unit tests in `apps/ingest-api/tests/unit/jsonl-gzip-batch.test.ts`
+- [X] T078 [P] Add ingestion-to-JSONL-gzip sink integration test in `apps/ingest-api/tests/integration/jsonl-gzip-sink.test.ts`
+- [X] T079 [P] Implement Parquet-ready raw record conversion in `apps/ingest-api/src/storage/jsonl-gzip-batch.ts`
+- [X] T080 Implement compressed JSONL batch file sink with project/date/hour partitions in `apps/ingest-api/src/storage/jsonl-gzip-batch.ts`
+- [X] T081 Integrate optional accepted-event sink into ingestion pipeline in `apps/ingest-api/src/ingestion/pipeline.ts`
+- [X] T082 Update specification, plan, and research notes for JSON wire format, bounded Parquet storage, and optional JSONL gzip fallback in `specs/001-event-collection-foundation/`
+- [X] T083 Update README mission and architecture/cost notes in `README.md`
+- [X] T084 Update GCP hosting doc with ≤$0.50 per 1M visits target, loss-rate metric, and Parquet chunk strategy in `docs/operations/gcp-hosting.md`
+- [X] T085 [P] Add Parquet chunk sink unit tests in `apps/ingest-api/tests/unit/parquet-chunk.test.ts`
+- [X] T086 Implement bounded in-memory Parquet chunk sink in `apps/ingest-api/src/storage/parquet-chunk.ts`
+- [X] T087 Make Parquet the default durable sink when `VIZOALICA_STORAGE_ROOT` is configured in `apps/ingest-api/src/http/server.ts`
+
+
+## Phase 9: DuckDB MVP Analysis
+
+**Purpose**: Complete an end-to-end MVP from browser-shaped JSON ingestion to Parquet persistence to DuckDB summaries.
+
+- [X] T088 [P] Add analytics CLI workspace package in `apps/analytics-cli/`
+- [X] T089 Implement DuckDB Parquet summary queries in `apps/analytics-cli/src/duckdb-analysis.ts`
+- [X] T090 Add analytics CLI entry point in `apps/analytics-cli/src/index.ts`
+- [X] T091 Add end-to-end ingestion → Parquet → DuckDB integration test in `apps/analytics-cli/tests/integration/end-to-end-analysis.test.ts`
+- [X] T092 Add storage flush/tuning environment options to the ingest API
+- [X] T093 Update README/spec/plan/tasks for the MVP end-to-end flow

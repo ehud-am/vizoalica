@@ -123,19 +123,19 @@ The customer's website backend should serve `/vizoalica/ingest-token` and mint a
 
 Vizoalica should support multiple storage adapters because the cheapest option depends on traffic and query expectations.
 
-### Option A: Cloud Storage batch files — cheapest archive-first path
+### Option A: Cloud Storage Parquet chunks — cheapest analytics-ready path
 
 Best for:
 
 - very low cost;
-- raw event retention;
-- later batch processing;
+- raw event retention in analytics-ready columnar files;
+- low-cost batch or external-table analysis;
 - teams that do not need immediate dashboard queries.
 
 Shape:
 
 ```text
-Cloud Run → Cloud Storage object batches → later batch jobs / BigQuery load
+Cloud Run → bounded in-memory buffer → Cloud Storage Parquet chunks → DuckDB/BigQuery/external-table analysis
 ```
 
 Pros:
@@ -143,7 +143,7 @@ Pros:
 - Very cheap storage.
 - Simple operational model.
 - Good for open-source self-hosting and backups.
-- Batch loading into BigQuery later can avoid streaming ingestion cost.
+- Parquet can be queried later with DuckDB, Spark, or BigQuery external/load workflows without changing the browser SDK.
 
 Cons:
 
@@ -153,7 +153,7 @@ Cons:
 Suggested object layout:
 
 ```text
-gs://vizoalica-events/{project_id}/dt=YYYY-MM-DD/hour=HH/{source_id}-{timestamp}-{uuid}.jsonl.gz
+gs://vizoalica-events/project_id={project_id}/dt=YYYY-MM-DD/hour=HH/{source_id}-{timestamp}-{uuid}.parquet
 ```
 
 ### Option B: Firestore — simplest queryable small-site path
@@ -265,10 +265,14 @@ Use for:
 
 Deliver one of:
 
-- Cloud Storage JSONL batch adapter; or
+- Cloud Storage Parquet chunk adapter; or
 - Firestore adapter for tiny installs.
 
-Recommended default: **Cloud Storage JSONL batch adapter**, because it is cheaper and more analytics-friendly as volume grows.
+Recommended default: **Cloud Storage Parquet chunk adapter**, because it is cheap, analytics-ready, and avoids per-event writes as volume grows.
+
+### DuckDB MVP analysis layer
+
+For the first analysis stage, run DuckDB as an embedded CLI/job against the Parquet chunk layout. This avoids a managed warehouse for small and medium self-hosted installs. Schedule it to produce hourly/daily summary JSON or small derived tables for dashboards. Move to BigQuery, ClickHouse, or another warehouse only when concurrency, governance, or query volume justifies the extra operating cost.
 
 ### Phase GCP-3: Buffered scale path
 
@@ -336,7 +340,7 @@ For the simplest and cheapest default:
 ```text
 Cloud Run ingest service
 + Secret Manager token secret
-+ Cloud Storage JSONL gzip batches
++ Cloud Storage / bucket-compatible Parquet chunks
 + max instances cap
 + min instances 0
 + no load balancer

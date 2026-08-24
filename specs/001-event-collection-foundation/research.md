@@ -64,3 +64,16 @@
 **Alternatives considered**:
 - Serverless-only design: can scale well but may cause vendor lock-in and variable costs.
 - Kubernetes-first design: powerful but too operationally heavy for the first release.
+
+
+## Decision: JSON wire format with Parquet chunk storage in v0.1.0
+
+**Rationale**: Browser-to-backend events should remain CloudEvents JSON because JSON is web-native, easy to validate with JSON Schema, debuggable, and compatible with sendBeacon/fetch. For storage, accepted events should be cached briefly in bounded process memory and flushed as larger partitioned Parquet chunk files. This keeps object count and query cost low, prepares the project for the analysis stage immediately, and avoids per-event document/database writes.
+
+**Loss posture**: The low-cost mode explicitly accepts bounded in-memory loss. Operators track accepted, buffered, persisted, dropped, and flush-failure counters, with a target accepted-event loss rate at or below 0.5% over 24 hours.
+
+**Alternatives considered**:
+- Per-event Firestore documents: simple but too expensive for analytics-scale writes.
+- Direct BigQuery streaming: useful later, but it puts analytics infrastructure on the hot path and requires stronger query governance.
+- JSONL gzip as primary storage: very simple and retained as an optional fallback/legacy adapter, but less analysis-ready than Parquet.
+- Per-event or tiny Parquet files: rejected because it creates object churn and poor query performance.

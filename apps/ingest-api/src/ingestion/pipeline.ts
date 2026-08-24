@@ -7,6 +7,7 @@ import type { MetricsSink, SafeLogger } from '../observability/index.js';
 import { InMemoryMetricsSink, consoleLogger } from '../observability/index.js';
 import { recordIngestionDecision } from '../observability/metrics.js';
 import { evaluateQuota } from '../quotas/quota-policy.js';
+import type { AcceptedEventSink } from '../storage/accepted-event-sink.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
@@ -25,6 +26,7 @@ export interface PipelineDependencies {
   metrics?: MetricsSink;
   logger?: SafeLogger;
   allowUnsignedDemo?: boolean;
+  acceptedEventSink?: AcceptedEventSink;
 }
 
 export interface PipelineResult {
@@ -118,6 +120,7 @@ export async function ingestBatch(
     receivedAt: request.now ?? new Date()
   }));
   await dependencies.repositories.saveAcceptedEvents(storedEvents);
+  await dependencies.acceptedEventSink?.writeAcceptedEvents(storedEvents);
 
   const decision: IngestionDecision = {
     decision: 'accepted',

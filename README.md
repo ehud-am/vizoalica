@@ -11,9 +11,10 @@ The current v0.1.0 work focuses on:
 - JSON Schema validation;
 - short-lived ingest tokens for production traffic;
 - privacy filtering before storage;
-- quota and abuse controls before expensive processing.
+- quota and abuse controls before expensive processing;
+- bounded in-memory Parquet chunk buffering for cheap analytics-ready object storage.
 
-> Status: early implementation. The SDK, shared contracts, privacy utilities, and ingestion pipeline skeleton are under active development.
+> Status: early MVP implementation. The SDK, shared contracts, privacy utilities, ingestion pipeline, Parquet chunk sink, and DuckDB analytics CLI are under active development.
 
 ## Quick backend install
 
@@ -36,6 +37,8 @@ Start the local ingestion backend:
 ```bash
 VIZOALICA_PORT=4318 \
 VIZOALICA_TOKEN_SECRET=dev-secret \
+VIZOALICA_STORAGE_ROOT=./.vizoalica/events \
+VIZOALICA_STORAGE_FORMAT=parquet \
 corepack pnpm --filter @vizoalica/ingest-api start
 ```
 
@@ -51,7 +54,7 @@ Expected response:
 { "ok": true, "service": "vizoalica-ingest-api" }
 ```
 
-The v0.1.0 backend currently includes an in-memory repository for local validation. Durable production storage and deployment packaging are planned in later tasks.
+The v0.1.0 backend defaults to an in-memory repository for local validation. Set `VIZOALICA_STORAGE_ROOT=/path/to/events` to enable the default Parquet chunk sink; set `VIZOALICA_STORAGE_FORMAT=jsonl-gzip` only for the legacy raw JSONL gzip path. Low-volume local runs flush buffered storage every `VIZOALICA_STORAGE_FLUSH_INTERVAL_MS` milliseconds, default 60 seconds.
 
 ## Quick website implementation
 
@@ -86,6 +89,20 @@ Track a custom event later from page code if needed:
 Production websites should mint short-lived ingest tokens from their own backend at the configured `data-token-url`. Never place long-lived signing secrets in browser code.
 
 If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fail silently so the host website keeps operating.
+
+## MVP analytics analysis
+
+After events have flushed to Parquet chunks, run the DuckDB-powered analytics CLI:
+
+```bash
+corepack pnpm build
+corepack pnpm analyze -- \
+  --storage-root ./.vizoalica/events \
+  --project-id proj_1 \
+  --date 2026-08-23
+```
+
+The MVP summary includes total events, page views, visitor/session counts, events by type, and page views by path. DuckDB reads the Parquet files directly, so the default self-hosted stack does not need BigQuery, ClickHouse, Postgres, or an always-on analytics warehouse.
 
 ## Privacy defaults
 
@@ -133,8 +150,10 @@ Vizoalica ingest API
   └─ event repository abstraction
 
 Storage / processing
-  └─ v0.1.0 local in-memory adapter now;
-     durable store and batching/queue adapters planned next.
+  ├─ bounded in-memory accepted-event buffer
+  ├─ partitioned Parquet chunks at rest
+  ├─ optional JSONL gzip fallback adapter
+  └─ DuckDB analytics CLI for MVP summaries
 ```
 
 ## Standards direction

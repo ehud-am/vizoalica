@@ -106,6 +106,11 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **FR-016**: The system MUST use a standards-aligned event envelope and versioned event schemas to support future analytics, export, and AI-assisted insights without storing unnecessary sensitive raw data.
 - **FR-017**: The system MUST provide documented safe defaults for privacy, security, quotas, and self-hosted operation.
 - **FR-018**: The system MUST make ingestion health observable to operators without exposing visitor-sensitive data in logs.
+- **FR-019**: The system MUST support a cost-optimized raw storage path that batches accepted events into larger Parquet chunk files instead of writing one database row, object, or document per event.
+- **FR-020**: The raw event record shape MUST be Parquet-native, with stable top-level columns for schema version, project, source, event type, event time, received time, trust level, consent state, subject, source, trace context, and bounded event data.
+- **FR-021**: Parquet writing MUST use bounded in-memory micro-batches and MUST avoid per-event files or per-event database/document writes in the hot ingestion path.
+- **FR-022**: The system MUST define accepted data-loss metrics for the ultra-low-cost mode, including queued, sent, accepted, persisted, rejected, dropped, and flush-failure counters.
+- **FR-023**: The MVP analysis layer MUST read persisted Parquet chunks with DuckDB and produce basic product analytics summaries without requiring a managed warehouse.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -128,6 +133,10 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **SC-006**: A project that exceeds configured traffic limits is throttled without causing unrelated projects to fail in abuse tests.
 - **SC-007**: Privacy tests confirm that raw form input, password-like values, and common secret-like URL parameters are not stored by default.
 - **SC-008**: Operators can understand ingestion volume, rejection counts, and quota status without inspecting visitor-sensitive payloads.
+- **SC-009**: For the low-cost GCP deployment profile, estimated backend infrastructure cost is at or below $0.50 per 1 million visits when each visit produces up to 5 batched events, excluding free-tier assumptions, custom domains, dashboards, and analyst query costs.
+- **SC-010**: In normal operation, accepted valid-event loss attributable to client delivery and backend micro-batch flushing is measurable and remains at or below 0.5% over a 24-hour validation window.
+- **SC-011**: Accepted events can be flushed into partitioned Parquet chunk files with at least 1,000 events per file in validation, and each row includes stable analytics-ready top-level columns.
+- **SC-012**: An end-to-end MVP test can ingest browser-shaped JSON events, flush Parquet chunks, and use DuckDB to report total events, page views, visitors, sessions, events by type, and page views by path.
 
 ## Assumptions
 
@@ -136,3 +145,4 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - Browser-only event authenticity cannot be perfect because browser-delivered identifiers are visible to visitors; v0.1.0 production mode will require short-lived signed ingest tokens and retain a clearly marked unsigned demo mode only for onboarding and local validation.
 - Self-hosted deployment is a primary scenario, so defaults must work without relying on an expensive managed service.
 - Consent handling will be represented in event context, while site owners remain responsible for showing consent UI appropriate to their jurisdiction.
+- Browser-to-backend wire format remains CloudEvents JSON for simplicity and standards compatibility; backend raw storage defaults to bounded in-memory Parquet chunks for v0.1.0; JSONL gzip remains an optional fallback/legacy adapter.

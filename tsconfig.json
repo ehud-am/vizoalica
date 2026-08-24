@@ -1,10 +1,23 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/event-contracts" },
-    { "path": "packages/privacy" },
-    { "path": "packages/browser-sdk" },
-    { "path": "apps/ingest-api" },
-    { "path": "apps/token-demo" }
+    {
+      "path": "packages/event-contracts"
+    },
+    {
+      "path": "packages/privacy"
+    },
+    {
+      "path": "packages/browser-sdk"
+    },
+    {
+      "path": "apps/ingest-api"
+    },
+    {
+      "path": "apps/token-demo"
+    },
+    {
+      "path": "apps/analytics-cli"
+    }
   ]
 }

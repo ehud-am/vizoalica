@@ -14,7 +14,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "validate": "pnpm typecheck && pnpm test"
+    "validate": "pnpm typecheck && pnpm test",
+    "analyze": "pnpm --filter @vizoalica/analytics-cli start"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
