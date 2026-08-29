@@ -28,7 +28,7 @@ As a website owner, I want to add one small analytics snippet to my site so Vizo
 
 ### User Story 2 - Receive high-volume activity safely (Priority: P1)
 
-As a self-hosting operator, I want the backend to accept large volumes of analytics messages while protecting availability and operating cost.
+As an operator, I want the Cloudflare-hosted backend to accept large volumes of analytics messages while protecting availability and operating cost.
 
 **Why this priority**: The public ingestion endpoint is the highest-risk and highest-volume part of the first release.
 
@@ -104,17 +104,14 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **FR-014**: Production ingestion MUST require short-lived server-issued or server-attested ingest tokens, while any unsigned public-ID ingestion MUST be explicitly limited to demo/development mode and marked lower trust.
 - **FR-015**: Administrative access and future integrations SHOULD prefer standard authorization and identity mechanisms over proprietary account systems where practical.
 - **FR-016**: The system MUST use a standards-aligned event envelope and versioned event schemas to support future analytics, export, and AI-assisted insights without storing unnecessary sensitive raw data.
-- **FR-017**: The system MUST provide documented safe defaults for privacy, security, quotas, and self-hosted operation.
+- **FR-017**: The system MUST provide documented safe defaults for privacy, security, quotas, retention, and Cloudflare operation.
 - **FR-018**: The system MUST make ingestion health observable to operators without exposing visitor-sensitive data in logs.
-- **FR-019**: The system MUST support a cost-optimized raw storage path that batches accepted events into larger Parquet chunk files instead of writing one database row, object, or document per event.
-- **FR-020**: The raw event record shape MUST be Parquet-native, with stable top-level columns for schema version, project, source, event type, event time, received time, trust level, consent state, subject, source, trace context, and bounded event data.
-- **FR-021**: Parquet writing MUST use bounded in-memory micro-batches and MUST avoid per-event files or per-event database/document writes in the hot ingestion path.
-- **FR-022**: The system MUST define accepted data-loss metrics for the ultra-low-cost mode, including queued, sent, accepted, persisted, rejected, dropped, and flush-failure counters.
-- **FR-023**: The MVP analysis layer MUST read persisted Parquet chunks with DuckDB and produce basic product analytics summaries without requiring a managed warehouse.
+- **FR-019**: v0.1.0 MUST provide a native Cloudflare deployment profile for ingestion, durable event storage, project configuration, token metadata, and quota enforcement.
+- **FR-020**: The Cloudflare deployment profile MUST keep configuration/metadata storage separate from raw event storage so future deployment targets can be added without changing the browser event contract.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Project**: A configured analytics property owned by a self-hosting operator or team; contains allowed origins, limits, privacy settings, and ingestion identifiers.
+- **Project**: A configured analytics property owned by an operator or team; contains allowed origins, limits, privacy settings, and ingestion identifiers.
 - **Source**: A website or application environment allowed to send events for a project.
 - **Event**: A normalized activity record such as page view or custom action, with name, timestamp, source, project, consent state, anonymous visitor/session context, and validated properties.
 - **Visitor Context**: A privacy-preserving identifier or attributes used to group activity where allowed; must avoid sensitive personal data by default.
@@ -133,16 +130,13 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **SC-006**: A project that exceeds configured traffic limits is throttled without causing unrelated projects to fail in abuse tests.
 - **SC-007**: Privacy tests confirm that raw form input, password-like values, and common secret-like URL parameters are not stored by default.
 - **SC-008**: Operators can understand ingestion volume, rejection counts, and quota status without inspecting visitor-sensitive payloads.
-- **SC-009**: For the low-cost GCP deployment profile, estimated backend infrastructure cost is at or below $0.50 per 1 million visits when each visit produces up to 5 batched events, excluding free-tier assumptions, custom domains, dashboards, and analyst query costs.
-- **SC-010**: In normal operation, accepted valid-event loss attributable to client delivery and backend micro-batch flushing is measurable and remains at or below 0.5% over a 24-hour validation window.
-- **SC-011**: Accepted events can be flushed into partitioned Parquet chunk files with at least 1,000 events per file in validation, and each row includes stable analytics-ready top-level columns.
-- **SC-012**: An end-to-end MVP test can ingest browser-shaped JSON events, flush Parquet chunks, and use DuckDB to report total events, page views, visitors, sessions, events by type, and page views by path.
+- **SC-009**: An operator can deploy and validate a Cloudflare-backed ingestion endpoint using the documented v0.1.0 procedure without provisioning an alternative cloud provider or self-managed server.
 
 ## Assumptions
 
 - v0.1.0 focuses on collection and ingestion, not full dashboards, session replay, in-app guides, or advanced reporting.
 - Anonymous usage analytics are in scope; authenticated visitor identity is optional and must use a privacy-reviewed integration path.
 - Browser-only event authenticity cannot be perfect because browser-delivered identifiers are visible to visitors; v0.1.0 production mode will require short-lived signed ingest tokens and retain a clearly marked unsigned demo mode only for onboarding and local validation.
-- Self-hosted deployment is a primary scenario, so defaults must work without relying on an expensive managed service.
+- v0.1.0 has one native production deployment target: Cloudflare. Self-hosted, GCP, and other deployment profiles are explicitly deferred to future releases.
+- Cloudflare configuration/metadata and raw-event persistence will remain behind repository interfaces so a future deployment target does not require browser SDK or event-contract changes.
 - Consent handling will be represented in event context, while site owners remain responsible for showing consent UI appropriate to their jurisdiction.
-- Browser-to-backend wire format remains CloudEvents JSON for simplicity and standards compatibility; backend raw storage defaults to bounded in-memory Parquet chunks for v0.1.0; JSONL gzip remains an optional fallback/legacy adapter.

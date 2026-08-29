@@ -1,7 +1,7 @@
 import type { TokenClaims } from '@vizoalica/event-contracts';
 import { validateTokenConstraints } from '../auth/token-constraints.js';
 import { authorizeSource } from '../auth/source-authorizer.js';
-import { TokenVerifier } from '../auth/token-verifier.js';
+import { TokenVerifier, type TokenVerificationResult } from '../auth/token-verifier.js';
 import type { IngestionDecision, Project, Source, StoredEvent } from '../domain/types.js';
 import type { MetricsSink, SafeLogger } from '../observability/index.js';
 import { InMemoryMetricsSink, consoleLogger } from '../observability/index.js';
@@ -27,6 +27,7 @@ export interface PipelineDependencies {
   logger?: SafeLogger;
   allowUnsignedDemo?: boolean;
   acceptedEventSink?: AcceptedEventSink;
+  verifyAuthorization?: (header: string | null | undefined) => Promise<TokenVerificationResult>;
 }
 
 export interface PipelineResult {
@@ -61,8 +62,9 @@ export async function ingestBatch(
   const validation = validateEventBatch(request.body, request.now);
   if (!validation.ok) return reject(400, validation.reason);
 
-  const verifier = new TokenVerifier(dependencies.tokenSecret);
-  const token = verifier.verifyAuthorizationHeader(request.authorization);
+  const token = dependencies.verifyAuthorization
+    ? await dependencies.verifyAuthorization(request.authorization)
+    : new TokenVerifier(dependencies.tokenSecret).verifyAuthorizationHeader(request.authorization);
   let claims: TokenClaims | undefined;
   if (token.ok) claims = token.verified.claims;
 
@@ -97,7 +99,7 @@ export async function ingestBatch(
   if (!policy) return reject(403, 'quota_policy_not_found', project, source);
   const quotaInput: Parameters<typeof evaluateQuota>[0] = {
     policy,
-    requestBytes: Buffer.byteLength(request.body),
+    requestBytes: new TextEncoder().encode(request.body).byteLength,
     eventCount: validation.events.length
   };
   if (claims?.max_events !== undefined) quotaInput.tokenMaxEvents = claims.max_events;

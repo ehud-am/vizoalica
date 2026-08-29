@@ -177,3 +177,7 @@ corepack pnpm format:check
 ```
 
 Current validation status includes unit, contract, integration, and load smoke coverage for the SDK, contracts, privacy utilities, and ingestion pipeline.
+
+## Cloudflare deployment
+
+The v0.1.0 Cloudflare profile uses a Worker for ingestion, D1 for configuration and quota state, and R2 for immutable accepted batches. See [Cloudflare operations](docs/operations/cloudflare.md).

@@ -1,0 +1,17 @@
+name = "vizoalica-ingest"
+main = "../../apps/ingest-worker/src/index.ts"
+compatibility_date = "2026-08-29"
+
+[[d1_databases]]
+binding = "VIZOALICA_DB"
+database_name = "vizoalica-config"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "VIZOALICA_EVENTS"
+bucket_name = "vizoalica-events"
+
+[vars]
+VIZOALICA_DEMO_MODE = "false"
+VIZOALICA_MAX_REQUEST_BYTES = "131072"

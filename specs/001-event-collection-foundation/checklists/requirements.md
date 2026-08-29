@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Ready for architecture discussion and `$speckit-plan` after product decisions are confirmed.
+- Revalidated 2026-08-28 after selecting Cloudflare as the v0.1.0 deployment target. The target is explicit in the specification because it is a deliberate scope boundary; Cloudflare implementation details remain in the plan and tasks.

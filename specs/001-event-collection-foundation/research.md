@@ -57,23 +57,25 @@
 - Store then filter: simpler pipeline, but unsafe and expensive under abuse.
 - Rely only on infrastructure rate limiting: insufficient because limits must be project/source-aware.
 
-## Decision: Container-first self-hosting with a simple durable store
+## Decision: Cloudflare-native deployment with separated configuration and raw-event storage
 
-**Rationale**: v0.1.0 should be easy to run locally and on a small server. A single durable store can support the first release if the ingestion code keeps a clear boundary for future queue/batch storage.
-
-**Alternatives considered**:
-- Serverless-only design: can scale well but may cause vendor lock-in and variable costs.
-- Kubernetes-first design: powerful but too operationally heavy for the first release.
-
-
-## Decision: JSON wire format with Parquet chunk storage in v0.1.0
-
-**Rationale**: Browser-to-backend events should remain CloudEvents JSON because JSON is web-native, easy to validate with JSON Schema, debuggable, and compatible with sendBeacon/fetch. For storage, accepted events should be cached briefly in bounded process memory and flushed as larger partitioned Parquet chunk files. This keeps object count and query cost low, prepares the project for the analysis stage immediately, and avoids per-event document/database writes.
-
-**Loss posture**: The low-cost mode explicitly accepts bounded in-memory loss. Operators track accepted, buffered, persisted, dropped, and flush-failure counters, with a target accepted-event loss rate at or below 0.5% over 24 hours.
+**Rationale**: v0.1.0 targets Cloudflare Workers for global ingestion, D1 for project/token/quota metadata, and R2 for retained raw-event batches. This fits the public-ingestion workload, keeps low-volume setup economical, and avoids making raw-event rows the long-term database model. Repository boundaries keep the browser contract and core validation portable for future deployment profiles.
 
 **Alternatives considered**:
-- Per-event Firestore documents: simple but too expensive for analytics-scale writes.
-- Direct BigQuery streaming: useful later, but it puts analytics infrastructure on the hot path and requires stronger query governance.
-- JSONL gzip as primary storage: very simple and retained as an optional fallback/legacy adapter, but less analysis-ready than Parquet.
-- Per-event or tiny Parquet files: rejected because it creates object churn and poor query performance.
+- GCP serverless deployment: deferred so v0.1.0 can concentrate on one supported operational model.
+- Self-hosted container deployment: deferred to a future release; open-source code and portable contracts remain in scope.
+- Kubernetes-first design: too operationally heavy for the first release.
+
+## Decision: Acknowledge accepted batches after a direct R2 write
+
+**Rationale**: The browser SDK already sends bounded event batches. Writing each accepted batch as
+one immutable R2 object provides a simple, durable v0.1.0 acknowledgement path without using D1
+as an event-row store or requiring a second asynchronous consumer before data is durable. Object
+keys will be derived from project/source/time partitions and server-generated opaque IDs, never
+visitor or token identifiers. Lifecycle rules enforce each project's configured retention period.
+
+**Alternatives considered**:
+- D1 row per event: simple queries but storage and write patterns do not suit retained raw analytics events.
+- Workers Queues before R2: useful for later compaction and asynchronous processing, but adds delivery
+  semantics and operating surface not needed for the initial durable-ingestion path.
+- In-memory Worker batching: rejected because a successful acknowledgement would not prove durability.

@@ -4,7 +4,8 @@ This guide defines validation scenarios for v0.1.0. It is not an implementation 
 
 ## Prerequisites
 
-- A local self-hosted Vizoalica deployment is running.
+- A Cloudflare deployment of the Vizoalica ingestion Worker is running.
+- The deployment has a D1 database binding for configuration and quota state, an R2 bucket binding for accepted event batches, and a retention lifecycle rule.
 - One project and one source are configured.
 - The source has an allowed origin such as `http://localhost:8080`.
 - A token issuer for the source can mint short-lived ingest tokens.
@@ -70,3 +71,13 @@ This guide defines validation scenarios for v0.1.0. It is not an implementation 
 3. Inspect stored records.
 
 **Expected outcome**: Events may be accepted only under demo policy and are marked as `unsigned-demo`, never `signed-session`.
+
+## Scenario 8: Accepted batches are durably retained without sensitive object metadata
+
+1. Send one valid signed event batch to the deployed Worker.
+2. Verify the response reports an accepted decision only after the batch is available in the configured R2 bucket.
+3. Inspect the object key and metadata without reading the payload.
+4. Verify the key is partitioned only by server-approved project/source/time context and an opaque identifier.
+5. Verify no visitor, session, token, or raw URL value appears in the object key or metadata.
+
+**Expected outcome**: The raw batch is durably retained in R2 with privacy-safe metadata and can be expired by lifecycle policy.

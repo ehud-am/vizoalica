@@ -117,6 +117,31 @@ Represents a normalized product analytics event.
 - Event type must map to a known JSON Schema.
 - Event data must pass schema and privacy policy validation.
 
+## Stored Event Batch
+
+Represents the immutable durable record written after a batch passes all production checks.
+
+**Fields**:
+- `object_key`: server-generated R2 key partitioned by project, source, and received date
+- `project_id`, `source_id`
+- `received_at`
+- `event_count`, `byte_count`
+- `trust_level`
+- `schema_versions`
+- `retention_expires_at`
+
+**Validation rules**:
+- The object key and object metadata must not contain visitor IDs, session IDs, token IDs, raw origins,
+  or unredacted payload values.
+- A batch is acknowledged as accepted only after its object write succeeds.
+- Retention lifecycle policy must remove the batch at or before the project's retention expiry.
+
+## Cloudflare Storage Mapping
+
+- D1 stores Project, Source, Signing Key metadata, Quota Policy, and bounded ingestion decisions/counters.
+- R2 stores Stored Event Batches only; it is the source of truth for accepted raw event payloads.
+- The repository interfaces hide D1 and R2 from event contracts and browser SDK consumers.
+
 ## Page View Event Data
 
 **Fields**:

@@ -1,10 +1,11 @@
 <!--
 Sync Impact Report
-Version change: template → 1.0.0
-Modified principles: placeholder principles replaced with Vizoalica governance principles
-Added sections: Product & Architecture Constraints; Development Workflow & Quality Gates
-Removed sections: none
-Follow-up TODOs: none
+Version change: 1.0.0 → 2.0.0
+Modified principles: IV. Self-Hosted, Low-Cost Operations → IV. Cloudflare-First,
+Low-Cost Operations
+Added sections: none
+Removed sections: self-hosted/no-paid-managed-service default requirement
+Follow-up TODOs: Define alternative deployment profiles when they are proposed for a future release.
 -->
 # Vizoalica Constitution
 
@@ -39,14 +40,15 @@ not meet the documented need, and an export or migration path MUST be provided.
 Rationale: Open-source product analytics should avoid vendor lock-in and be easy to adopt,
 audit, replace, and integrate.
 
-### IV. Self-Hosted, Low-Cost Operations
-Vizoalica MUST be practical for small teams to deploy and operate. Designs MUST favor simple
-operational models, bounded resource usage, predictable storage growth, graceful degradation,
-and cost controls before adding scale-oriented complexity. Features that increase recurring
-cost or operational burden MUST justify the benefit and include limits.
+### IV. Cloudflare-First, Low-Cost Operations
+Vizoalica v0.1.0 MUST use Cloudflare as its native production deployment platform. Designs
+MUST favor managed edge ingestion, bounded resource usage, predictable storage growth,
+graceful degradation, and cost controls before adding scale-oriented complexity. Alternative
+deployment profiles, including self-hosted and other cloud providers, are deferred until a
+later release and MUST preserve the portable event and storage boundaries established in v0.1.0.
 
-Rationale: The project goal is not only open-source code, but affordable ownership of the
-analytics stack.
+Rationale: A single native deployment model lets the first release focus on secure, low-cost
+operation rather than splitting implementation and support effort across infrastructure stacks.
 
 ### V. AI-Ready, Human-Governed Product Data
 Analytics events, schemas, documentation, and administrative workflows MUST be structured so
@@ -68,8 +70,10 @@ structured, and safe.
   downstream fan-out.
 - Data models MUST support future expansion without requiring a breaking rewrite of captured
   event history.
-- Default deployments MUST be documented for self-hosting and MUST not require a paid managed
-  service to demonstrate the core product value.
+- The v0.1.0 default deployment MUST be documented for Cloudflare and MUST keep raw-event
+  storage separate from configuration and quota metadata.
+- Future deployment profiles MUST use the documented event and storage interfaces; they MUST
+  not require breaking changes to browser integrations or accepted event history.
 
 ## Development Workflow & Quality Gates
 
@@ -98,4 +102,4 @@ Amendments require:
 Release readiness requires documented evidence that the applicable quality gates were met or
 that any exception was explicitly accepted with a follow-up plan.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-08-15
+**Version**: 2.0.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-08-28

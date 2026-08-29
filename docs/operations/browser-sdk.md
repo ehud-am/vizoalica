@@ -68,3 +68,5 @@ client.track('signup_click', { properties: { plan: 'pro' } });
 ```
 
 Production ingestion should use short-lived server-issued tokens; unsigned ingestion is only for explicitly configured demo/development mode.
+
+For the Cloudflare profile, set `endpoint` to the deployed Worker URL ending in `/v1/events:batch` and provide the short-lived token through `tokenProvider`.
