@@ -15,7 +15,6 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "validate": "pnpm typecheck && pnpm test",
-    "analyze": "pnpm --filter @vizoalica/analytics-cli start",
     "worker:dev": "wrangler dev --config deploy/cloudflare/wrangler.toml",
     "worker:deploy": "wrangler deploy --config deploy/cloudflare/wrangler.toml"
   },

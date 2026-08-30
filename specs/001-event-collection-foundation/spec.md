@@ -58,18 +58,18 @@ As a privacy-conscious product owner, I want Vizoalica to collect useful product
 
 ---
 
-### User Story 4 - Prepare for future analysis and AI (Priority: P2)
+### User Story 4 - View bounded dashboard rollups (Priority: P2)
 
-As a product team, I want collected events to follow clear names, schemas, and project boundaries so future dashboards, exports, and AI-assisted insights can be built on trustworthy data.
+As an operator, I want basic dashboard totals without placing raw analytics events in a relational database.
 
 **Why this priority**: v0.1.0 should stay minimal but must not create a data foundation that blocks expansion.
 
-**Independent Test**: Inspect stored activity from multiple projects and verify each event has consistent identity, time, source, consent, schema, and project context.
+**Independent Test**: Ingest events for multiple projects and verify their daily D1 rollups are isolated and correctly count event types and page views.
 
 **Acceptance Scenarios**:
 
 1. **Given** events from multiple websites, **When** they are collected, **Then** each event is associated with exactly one project and source configuration.
-2. **Given** events are stored for future use, **When** they are inspected, **Then** they include enough structured context to support later reporting without relying on raw sensitive content.
+2. **Given** accepted events, **When** the Worker updates daily rollups, **Then** D1 contains only bounded counts and non-sensitive grouping fields, while R2 remains the raw-event source of truth.
 
 ---
 
@@ -108,6 +108,7 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **FR-018**: The system MUST make ingestion health observable to operators without exposing visitor-sensitive data in logs.
 - **FR-019**: v0.1.0 MUST provide a native Cloudflare deployment profile for ingestion, durable event storage, project configuration, token metadata, and quota enforcement.
 - **FR-020**: The Cloudflare deployment profile MUST keep configuration/metadata storage separate from raw event storage so future deployment targets can be added without changing the browser event contract.
+- **FR-021**: The Cloudflare deployment profile MUST maintain bounded, privacy-safe D1 dashboard rollups for accepted events, grouped only by project, source, date, event type, and page path where applicable.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -116,6 +117,7 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **Event**: A normalized activity record such as page view or custom action, with name, timestamp, source, project, consent state, anonymous visitor/session context, and validated properties.
 - **Visitor Context**: A privacy-preserving identifier or attributes used to group activity where allowed; must avoid sensitive personal data by default.
 - **Quota Policy**: Per-project and per-source limits for requests, event volume, payload size, and storage growth.
+- **Dashboard Rollup**: A daily D1 counter keyed by project, source, event type, and optional page path; it never contains raw event payloads or visitor identifiers.
 - **Consent State**: A representation of whether analytics collection is allowed for a visitor/session and which categories of data may be collected.
 
 ## Success Criteria *(mandatory)*
@@ -131,6 +133,7 @@ As a product team, I want collected events to follow clear names, schemas, and p
 - **SC-007**: Privacy tests confirm that raw form input, password-like values, and common secret-like URL parameters are not stored by default.
 - **SC-008**: Operators can understand ingestion volume, rejection counts, and quota status without inspecting visitor-sensitive payloads.
 - **SC-009**: An operator can deploy and validate a Cloudflare-backed ingestion endpoint using the documented v0.1.0 procedure without provisioning an alternative cloud provider or self-managed server.
+- **SC-010**: Accepted events update the correct D1 dashboard rollup without storing visitor, session, token, or raw event payload values in D1.
 
 ## Assumptions
 

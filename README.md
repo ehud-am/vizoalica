@@ -1,6 +1,6 @@
 # Vizoalica
 
-Vizoalica is an open-source, self-hosted product analytics foundation for the web.
+Vizoalica is an open-source, Cloudflare-native product analytics foundation for the web.
 It aims to provide Pendo-like visibility into website and product activity while staying inexpensive to deploy, privacy-aware by default, and built on open standards.
 
 The current v0.1.0 work focuses on:
@@ -12,11 +12,11 @@ The current v0.1.0 work focuses on:
 - short-lived ingest tokens for production traffic;
 - privacy filtering before storage;
 - quota and abuse controls before expensive processing;
-- bounded in-memory Parquet chunk buffering for cheap analytics-ready object storage.
+- Cloudflare R2 raw-event storage and bounded D1 dashboard rollups.
 
-> Status: early MVP implementation. The SDK, shared contracts, privacy utilities, ingestion pipeline, Parquet chunk sink, and DuckDB analytics CLI are under active development.
+> Status: early MVP implementation. The SDK, shared contracts, privacy utilities, ingestion pipeline, R2 event storage, and D1 dashboard rollups are under active development.
 
-## Quick backend install
+## Cloudflare deployment
 
 Prerequisites:
 
@@ -32,29 +32,7 @@ corepack pnpm validate
 corepack pnpm build
 ```
 
-Start the local ingestion backend:
-
-```bash
-VIZOALICA_PORT=4318 \
-VIZOALICA_TOKEN_SECRET=dev-secret \
-VIZOALICA_STORAGE_ROOT=./.vizoalica/events \
-VIZOALICA_STORAGE_FORMAT=parquet \
-corepack pnpm --filter @vizoalica/ingest-api start
-```
-
-Health check:
-
-```bash
-curl http://localhost:4318/healthz
-```
-
-Expected response:
-
-```json
-{ "ok": true, "service": "vizoalica-ingest-api" }
-```
-
-The v0.1.0 backend defaults to an in-memory repository for local validation. Set `VIZOALICA_STORAGE_ROOT=/path/to/events` to enable the default Parquet chunk sink; set `VIZOALICA_STORAGE_FORMAT=jsonl-gzip` only for the legacy raw JSONL gzip path. Low-volume local runs flush buffered storage every `VIZOALICA_STORAGE_FLUSH_INTERVAL_MS` milliseconds, default 60 seconds.
+Deploy the Worker, D1 schema, and R2 bucket using the [Cloudflare operations guide](docs/operations/cloudflare.md). Self-hosted and other cloud profiles are deferred beyond v0.1.
 
 ## Quick website implementation
 
@@ -90,19 +68,9 @@ Production websites should mint short-lived ingest tokens from their own backend
 
 If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fail silently so the host website keeps operating.
 
-## MVP analytics analysis
+## MVP dashboard data
 
-After events have flushed to Parquet chunks, run the DuckDB-powered analytics CLI:
-
-```bash
-corepack pnpm build
-corepack pnpm analyze -- \
-  --storage-root ./.vizoalica/events \
-  --project-id proj_1 \
-  --date 2026-08-23
-```
-
-The MVP summary includes total events, page views, visitor/session counts, events by type, and page views by path. DuckDB reads the Parquet files directly, so the default self-hosted stack does not need BigQuery, ClickHouse, Postgres, or an always-on analytics warehouse.
+The Worker retains immutable raw batches in R2 and writes bounded daily D1 rollups by project, source, event type, and page path. These rollups support basic dashboard totals without making D1 the raw-event store.
 
 ## Privacy defaults
 
@@ -117,10 +85,6 @@ Vizoalica avoids collecting sensitive information by default:
 Client-side filtering is convenience, not a trust boundary. The ingestion backend also rejects sensitive-looking payloads before persistence.
 
 See [docs/operations/privacy.md](docs/operations/privacy.md).
-
-## Hosting on GCP
-
-For a cheap and simple GCP deployment plan, see [docs/operations/gcp-hosting.md](docs/operations/gcp-hosting.md).
 
 ## High-level architecture
 
@@ -137,7 +101,7 @@ Customer backend
   └─ Token issuer
       └─ mints short-lived JWT/JOSE-compatible ingest tokens
 
-Vizoalica ingest API
+Cloudflare Worker
   ├─ /healthz
   ├─ /v1/events:batch
   ├─ token verification
@@ -149,11 +113,9 @@ Vizoalica ingest API
   ├─ safe metrics/logging
   └─ event repository abstraction
 
-Storage / processing
-  ├─ bounded in-memory accepted-event buffer
-  ├─ partitioned Parquet chunks at rest
-  ├─ optional JSONL gzip fallback adapter
-  └─ DuckDB analytics CLI for MVP summaries
+Storage / dashboard data
+  ├─ R2 immutable raw JSON event batches
+  └─ D1 bounded daily dashboard rollups
 ```
 
 ## Standards direction
@@ -178,6 +140,4 @@ corepack pnpm format:check
 
 Current validation status includes unit, contract, integration, and load smoke coverage for the SDK, contracts, privacy utilities, and ingestion pipeline.
 
-## Cloudflare deployment
-
-The v0.1.0 Cloudflare profile uses a Worker for ingestion, D1 for configuration and quota state, and R2 for immutable accepted batches. See [Cloudflare operations](docs/operations/cloudflare.md).
+The v0.1.0 deployment uses a Worker for ingestion, D1 for configuration, quota state, and dashboard rollups, and R2 for immutable accepted batches. See [Cloudflare operations](docs/operations/cloudflare.md).

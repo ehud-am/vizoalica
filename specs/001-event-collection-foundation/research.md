@@ -79,3 +79,11 @@ visitor or token identifiers. Lifecycle rules enforce each project's configured 
 - Workers Queues before R2: useful for later compaction and asynchronous processing, but adds delivery
   semantics and operating surface not needed for the initial durable-ingestion path.
 - In-memory Worker batching: rejected because a successful acknowledgement would not prove durability.
+
+## Decision: D1 daily dashboard rollups, not embedded analytics compute
+
+**Rationale**: D1 stores only privacy-safe, bounded counters grouped by project, source, date, event type, and page path. R2 remains the raw-event source of truth. This gives v0.1 basic dashboard data using only Cloudflare services and avoids adding a separate query engine.
+
+**Alternatives considered**:
+- Store raw events in D1: rejected because event volume and payload cardinality do not suit the bounded relational state.
+- External analytics engine: deferred because v0.1 has one Cloudflare-native deployment target.

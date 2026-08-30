@@ -7,7 +7,6 @@ import type { MetricsSink, SafeLogger } from '../observability/index.js';
 import { InMemoryMetricsSink, consoleLogger } from '../observability/index.js';
 import { recordIngestionDecision } from '../observability/metrics.js';
 import { evaluateQuota } from '../quotas/quota-policy.js';
-import type { AcceptedEventSink } from '../storage/accepted-event-sink.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
@@ -26,7 +25,6 @@ export interface PipelineDependencies {
   metrics?: MetricsSink;
   logger?: SafeLogger;
   allowUnsignedDemo?: boolean;
-  acceptedEventSink?: AcceptedEventSink;
   verifyAuthorization?: (header: string | null | undefined) => Promise<TokenVerificationResult>;
 }
 
@@ -107,6 +105,19 @@ export async function ingestBatch(
   if (!quota.ok)
     return reject(quota.reason === 'request_too_large' ? 413 : 429, quota.reason, project, source);
 
+  if (dependencies.repositories.reserveQuota) {
+    const reserved = await dependencies.repositories.reserveQuota({
+      projectId: project.id,
+      sourceId: source.id,
+      eventCount: validation.events.length,
+      requestBytes: quotaInput.requestBytes,
+      maxEventsPerSecond: policy.maxEventsPerSecond,
+      maxEventsPerDay: policy.maxEventsPerDay,
+      now: request.now ?? new Date()
+    });
+    if (!reserved) return reject(429, 'project_quota_exceeded', project, source);
+  }
+
   const trustLevel = claims ? 'signed-session' : 'unsigned-demo';
   const storedEvents: StoredEvent[] = privacy.events.map((event) => ({
     projectId: project.id,
@@ -122,7 +133,7 @@ export async function ingestBatch(
     receivedAt: request.now ?? new Date()
   }));
   await dependencies.repositories.saveAcceptedEvents(storedEvents);
-  await dependencies.acceptedEventSink?.writeAcceptedEvents(storedEvents);
+  await dependencies.repositories.recordDashboardRollups?.(storedEvents);
 
   const decision: IngestionDecision = {
     decision: 'accepted',

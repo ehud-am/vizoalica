@@ -1,7 +1,7 @@
 export interface D1Statement {
   bind(...values: unknown[]): D1Statement;
   first<T = Record<string, unknown>>(): Promise<T | null>;
-  run(): Promise<unknown>;
+  run(): Promise<{ meta?: { changes?: number } }>;
 }
 
 export interface D1Database {

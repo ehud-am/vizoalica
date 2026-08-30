@@ -20,6 +20,8 @@ export class R2EventBatchRepository implements EventRepository {
         source: first.sourceId,
         count: String(events.length),
         trust: first.trustLevel,
+        consent: first.consentState,
+        schema_version: first.event.specversion,
         received_at: first.receivedAt.toISOString()
       }
     });

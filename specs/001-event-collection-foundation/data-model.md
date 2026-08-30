@@ -138,9 +138,23 @@ Represents the immutable durable record written after a batch passes all product
 
 ## Cloudflare Storage Mapping
 
-- D1 stores Project, Source, Signing Key metadata, Quota Policy, and bounded ingestion decisions/counters.
+- D1 stores Project, Source, Signing Key metadata, Quota Policy, bounded ingestion decisions/counters, and bounded daily dashboard rollups.
 - R2 stores Stored Event Batches only; it is the source of truth for accepted raw event payloads.
 - The repository interfaces hide D1 and R2 from event contracts and browser SDK consumers.
+
+## Dashboard Rollup
+
+Represents a bounded daily counter used for the v0.1 dashboard.
+
+**Fields**:
+- `project_id`, `source_id`, `event_date`, `event_type`
+- `page_path`: page-view path only; empty for other event types
+- `event_count`
+
+**Validation rules**:
+- Rollups are updated only after an accepted batch is durably written to R2.
+- Rollups never include raw event payloads, origins, token identifiers, visitor identifiers, or session identifiers.
+- The composite key bounds D1 cardinality to project/source/date/event type/path.
 
 ## Page View Event Data
 

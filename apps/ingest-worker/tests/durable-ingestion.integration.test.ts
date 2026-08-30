@@ -18,7 +18,7 @@ const claims = {
   jti: 'test-token'
 };
 
-function database(): D1Database {
+function database(queries: string[]): D1Database {
   const project = {
     id: 'project-a',
     name: 'Project A',
@@ -46,6 +46,7 @@ function database(): D1Database {
   };
   return {
     prepare(query: string): D1Statement {
+      queries.push(query);
       let values: unknown[] = [];
       const statement: D1Statement = {
         bind: (...next) => {
@@ -81,8 +82,9 @@ describe('Cloudflare Worker durable ingestion', () => {
         );
       }
     };
+    const queries: string[] = [];
     const env: Env = {
-      VIZOALICA_DB: database(),
+      VIZOALICA_DB: database(queries),
       VIZOALICA_EVENTS: bucket,
       VIZOALICA_TOKEN_SECRET: 'test-secret'
     };
@@ -127,5 +129,6 @@ describe('Cloudflare Worker durable ingestion', () => {
       source: 'source-a',
       count: '1'
     });
+    expect(queries.some((query) => query.includes('dashboard_rollups'))).toBe(true);
   });
 });

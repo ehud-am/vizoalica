@@ -8,7 +8,7 @@
 
 ## Summary
 
-Build the v0.1.0 analytics foundation: a non-blocking browser SDK that emits privacy-filtered CloudEvents JSON batches and an ingestion service that validates short-lived signed ingest tokens, enforces strict JSON Schemas and quotas, and stores accepted events for future analysis. The first release intentionally excludes dashboards, session replay, heatmaps, in-app guides, and AI insight generation while preserving expansion paths for them.
+Build the v0.1.0 analytics foundation: a non-blocking browser SDK that emits privacy-filtered CloudEvents JSON batches and a Cloudflare Worker that validates short-lived signed ingest tokens, enforces strict JSON Schemas and quotas, stores immutable raw batches in R2, and records bounded dashboard rollups in D1. The first release excludes ad-hoc analytics, session replay, heatmaps, in-app guides, and AI insight generation.
 
 ## Technical Context
 
@@ -16,7 +16,7 @@ Build the v0.1.0 analytics foundation: a non-blocking browser SDK that emits pri
 
 **Primary Dependencies**: Browser SDK with no runtime dependency requirement; Cloudflare Workers runtime; Web Crypto-compatible JWT verification; JSON Schema validator; CloudEvents-compatible event envelope; OpenAPI for HTTP contracts; Wrangler for deployment and local validation
 
-**Storage**: Cloudflare D1 for project/source configuration, public identifiers, signing-key metadata, quota policies, and non-sensitive ingestion counters; Cloudflare R2 for immutable, lifecycle-managed raw event batches. A successful production response is returned only after the accepted batch is durably written to R2. Ingestion must preserve repository boundaries so future deployment targets can replace these implementations without changing event contracts.
+**Storage**: Cloudflare D1 for project/source configuration, public identifiers, signing-key metadata, quota policies, bounded ingestion counters, and daily dashboard rollups; Cloudflare R2 for immutable, lifecycle-managed raw event batches. A successful production response is returned only after the accepted batch is durably written to R2 and its bounded rollups are updated. Ingestion must preserve repository boundaries so future deployment targets can replace these implementations without changing event contracts.
 
 **Testing**: Unit tests for privacy filters, schemas, token validation, quota decisions, and Cloudflare adapters; contract tests from OpenAPI/JSON Schema; Miniflare/Wrangler integration tests for snippet-to-Worker flows; load/abuse tests for high-volume valid and invalid traffic.
 
@@ -28,7 +28,7 @@ Build the v0.1.0 analytics foundation: a non-blocking browser SDK that emits pri
 
 **Constraints**: Browser integration must fail silently; no long-lived secrets in the browser; signed ingest tokens required for production mode; public-ID unsigned ingestion allowed only for explicitly marked demo/dev mode; strict event/payload limits before D1 or R2 access; no raw form content or sensitive URL query values stored by default; D1 is not the raw-event store; R2 object keys and metadata must not disclose visitor-sensitive data.
 
-**Scale/Scope**: v0.1.0 supports page-view and custom-event collection, Cloudflare project/source configuration, event ingestion, validation, quota enforcement, R2 retention, and minimal operator health metrics. Dashboards, account UI, consent-banner UI, session replay, AI insights, and non-Cloudflare deployment profiles are deferred.
+**Scale/Scope**: v0.1.0 supports page-view and custom-event collection, Cloudflare project/source configuration, event ingestion, validation, quota enforcement, R2 retention, bounded D1 dashboard rollups, and minimal operator health metrics. Account UI, ad-hoc analytics, consent-banner UI, session replay, AI insights, and non-Cloudflare deployment profiles are deferred.
 
 ## Constitution Check
 
@@ -64,7 +64,7 @@ specs/001-event-collection-foundation/
 
 ```text
 apps/
-├── ingest-api/
+├── ingest-api/ # runtime-neutral validation and ingestion core
 │   ├── src/
 │   │   ├── http/
 │   │   ├── ingestion/
@@ -101,7 +101,7 @@ docs/
 └── operations/
 ```
 
-**Structure Decision**: Use a TypeScript monorepo with a Cloudflare Worker adapter as the deployable ingestion surface and a runtime-neutral ingestion core. Shared contracts live in `packages/event-contracts` so the browser SDK, worker, tests, and docs validate against the same event definitions. Cloudflare adapters implement the storage boundary: D1 holds configuration and bounded operational state, while R2 holds immutable accepted batches. Alternative deployment profiles are deferred.
+**Structure Decision**: Use a TypeScript monorepo with a Cloudflare Worker adapter as the deployable ingestion surface and a runtime-neutral ingestion core. Shared contracts live in `packages/event-contracts` so the browser SDK, worker, tests, and docs validate against the same event definitions. Cloudflare adapters implement the storage boundary: D1 holds configuration and bounded operational/dashboard rollup state, while R2 holds immutable accepted batches. Alternative deployment profiles are deferred.
 
 ## Complexity Tracking
 

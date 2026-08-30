@@ -2,15 +2,11 @@
   "name": "@vizoalica/ingest-api",
   "version": "0.1.0",
   "type": "module",
-  "main": "dist/http/server.js",
-  "types": "dist/http/server.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/http/server.js"
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@vizoalica/event-contracts": "workspace:*",
-    "@vizoalica/privacy": "workspace:*",
-    "parquetjs-lite": "^0.8.7"
+    "@vizoalica/privacy": "workspace:*"
   }
 }

@@ -5,11 +5,19 @@ export async function eventsBatchResponse(
   request: Request,
   dependencies: PipelineDependencies
 ): Promise<Response> {
+  return eventsBatchResponseForBody(request, await request.text(), dependencies);
+}
+
+export async function eventsBatchResponseForBody(
+  request: Request,
+  body: string,
+  dependencies: PipelineDependencies
+): Promise<Response> {
   const publicSourceKey = request.headers.get('x-vizoalica-source');
   if (!publicSourceKey) return Response.json({ error: 'missing_source' }, { status: 400 });
   const result = await ingestBatch(
     {
-      body: await request.text(),
+      body,
       publicSourceKey,
       origin: request.headers.get('origin'),
       authorization: request.headers.get('authorization')

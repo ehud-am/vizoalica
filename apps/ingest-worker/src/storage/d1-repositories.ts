@@ -9,6 +9,8 @@ import type {
   ProjectRepository
 } from '../../../ingest-api/src/storage/repositories.js';
 import type { D1Database } from '../env.js';
+import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
+import type { QuotaReservation } from '../../../ingest-api/src/storage/repositories.js';
 
 type ProjectRow = {
   id: string;
@@ -105,6 +107,53 @@ export class D1Repositories implements ProjectRepository, IngestionDecisionRepos
         decision.receivedAt.toISOString()
       )
       .run();
+  }
+  async reserveQuota(reservation: QuotaReservation): Promise<boolean> {
+    const reserve = async (windowKind: 'second' | 'day', windowStart: string, limit: number) => {
+      const result = await this.db
+        .prepare(
+          `INSERT INTO quota_windows (project_id, source_id, window_kind, window_start, accepted_events, accepted_bytes)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(project_id, source_id, window_kind, window_start) DO UPDATE SET
+             accepted_events = accepted_events + excluded.accepted_events,
+             accepted_bytes = accepted_bytes + excluded.accepted_bytes
+           WHERE quota_windows.accepted_events + excluded.accepted_events <= ?`
+        )
+        .bind(
+          reservation.projectId,
+          reservation.sourceId,
+          windowKind,
+          windowStart,
+          reservation.eventCount,
+          reservation.requestBytes,
+          limit
+        )
+        .run();
+      return (result.meta?.changes ?? 1) > 0;
+    };
+    const second = reservation.now.toISOString().slice(0, 19);
+    const day = reservation.now.toISOString().slice(0, 10);
+    return (
+      (await reserve('second', second, reservation.maxEventsPerSecond)) &&
+      (await reserve('day', day, reservation.maxEventsPerDay))
+    );
+  }
+  async recordDashboardRollups(events: StoredEvent[]): Promise<void> {
+    for (const stored of events) {
+      const day = stored.receivedAt.toISOString().slice(0, 10);
+      const eventType = stored.event.type;
+      const data = stored.event.data as { page?: { url_path?: unknown } };
+      const pagePath =
+        eventType === 'com.vizoalica.page_view.v1' && typeof data.page?.url_path === 'string'
+          ? data.page.url_path
+          : '';
+      await this.db
+        .prepare(
+          'INSERT INTO dashboard_rollups (project_id, source_id, event_date, event_type, page_path, event_count) VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT(project_id, source_id, event_date, event_type, page_path) DO UPDATE SET event_count = event_count + 1'
+        )
+        .bind(stored.projectId, stored.sourceId, day, eventType, pagePath)
+        .run();
+    }
   }
   async listDecisions(): Promise<IngestionDecision[]> {
     return [];

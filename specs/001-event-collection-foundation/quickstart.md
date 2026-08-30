@@ -81,3 +81,5 @@ This guide defines validation scenarios for v0.1.0. It is not an implementation 
 5. Verify no visitor, session, token, or raw URL value appears in the object key or metadata.
 
 **Expected outcome**: The raw batch is durably retained in R2 with privacy-safe metadata and can be expired by lifecycle policy.
+
+3. Query the `dashboard_rollups` D1 table for the project and received date. Confirm its count increased by the accepted event count and that it contains no visitor, session, token, origin, or raw payload fields.

@@ -33,5 +33,10 @@ describe('R2 event batches', () => {
     expect(key).toMatch(/^events\/project-a\/source-a\/2026-08-29\//);
     expect(key).not.toContain('private-session');
     expect(JSON.stringify(options)).not.toContain('never-a-key');
+    expect(options?.customMetadata).toMatchObject({
+      trust: 'signed-session',
+      consent: 'unknown',
+      schema_version: '1.0'
+    });
   });
 });

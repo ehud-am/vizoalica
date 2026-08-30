@@ -33,3 +33,21 @@ CREATE TABLE IF NOT EXISTS ingestion_decisions (
   reason_codes_json TEXT NOT NULL,
   received_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS dashboard_rollups (
+  project_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  event_date TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  page_path TEXT NOT NULL DEFAULT '',
+  event_count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (project_id, source_id, event_date, event_type, page_path)
+);
+CREATE TABLE IF NOT EXISTS quota_windows (
+  project_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  window_kind TEXT NOT NULL CHECK (window_kind IN ('second', 'day')),
+  window_start TEXT NOT NULL,
+  accepted_events INTEGER NOT NULL DEFAULT 0,
+  accepted_bytes INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (project_id, source_id, window_kind, window_start)
+);
