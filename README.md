@@ -32,7 +32,7 @@ corepack pnpm validate
 corepack pnpm build
 ```
 
-Deploy the Worker, D1 schema, and R2 bucket using the [Cloudflare operations guide](docs/operations/cloudflare.md). Self-hosted and other cloud profiles are deferred beyond v0.1.
+Vizoalica releases never deploy into a Cloudflare account automatically. Deploy the Worker, D1 schema, and R2 bucket only from an operator-controlled checkout using the [Cloudflare operations guide](docs/operations/cloudflare.md). Self-hosted and other cloud profiles are deferred beyond v0.1.
 
 ## Quick website implementation
 
@@ -137,6 +137,18 @@ corepack pnpm build
 corepack pnpm lint
 corepack pnpm format:check
 ```
+
+For a self-hosted deployment, first create an operator-owned configuration, then run the explicit deployment commands:
+
+```bash
+cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
+# Edit wrangler.production.toml with your D1 database ID and resource names.
+pnpm run deploy:check
+pnpm run deploy:apply
+VIZOALICA_WORKER_URL=https://your-worker.example pnpm run deploy:verify
+```
+
+`wrangler.production.toml` is gitignored. Nothing is deployed by a build, test, merge, tag, or release.
 
 Current validation status includes unit, contract, integration, and load smoke coverage for the SDK, contracts, privacy utilities, and ingestion pipeline.
 

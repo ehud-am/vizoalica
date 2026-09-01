@@ -23,13 +23,17 @@ export default {
       saveAcceptedEvents: events.saveAcceptedEvents.bind(events),
       listAcceptedEvents: events.listAcceptedEvents.bind(events)
     };
-    return handleWorkerRequest(request, {
-      repositories,
-      tokenSecret: env.VIZOALICA_TOKEN_SECRET,
-      verifyAuthorization: createWorkerTokenVerifier(env.VIZOALICA_TOKEN_SECRET),
-      allowUnsignedDemo: config.allowUnsignedDemo,
-      metrics: new InMemoryMetricsSink(),
-      logger: workerLogger
-    }, config.maxRequestBytes);
+    return handleWorkerRequest(
+      request,
+      {
+        repositories,
+        tokenSecret: env.VIZOALICA_TOKEN_SECRET,
+        verifyAuthorization: createWorkerTokenVerifier(env.VIZOALICA_TOKEN_SECRET),
+        allowUnsignedDemo: config.allowUnsignedDemo,
+        metrics: new InMemoryMetricsSink(),
+        logger: workerLogger
+      },
+      config.maxRequestBytes
+    );
   }
 };

@@ -20,7 +20,11 @@ describe('Worker configuration', () => {
 
 describe('Worker HTTP adapter', () => {
   it('maps unsupported routes to a safe 404 response', async () => {
-    const response = await handleWorkerRequest(new Request('https://ingest.test/nope'), {} as never, 64);
+    const response = await handleWorkerRequest(
+      new Request('https://ingest.test/nope'),
+      {} as never,
+      64
+    );
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ error: 'not_found' });
   });

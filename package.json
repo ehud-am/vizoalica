@@ -15,8 +15,11 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "validate": "pnpm typecheck && pnpm test",
+    "deploy:check": "scripts/deploy-check.sh",
+    "deploy:apply": "scripts/deploy-apply.sh",
+    "deploy:verify": "scripts/deploy-verify.sh",
     "worker:dev": "wrangler dev --config deploy/cloudflare/wrangler.toml",
-    "worker:deploy": "wrangler deploy --config deploy/cloudflare/wrangler.toml"
+    "worker:deploy": "pnpm run deploy:apply"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

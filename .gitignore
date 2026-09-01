@@ -148,3 +148,6 @@ dist/
 build/
 coverage/
 .env.local
+
+# Operator-owned Cloudflare production configuration
+deploy/cloudflare/wrangler.production.toml

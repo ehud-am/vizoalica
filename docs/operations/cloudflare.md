@@ -1,7 +1,8 @@
 # Deploy Vizoalica on Cloudflare
 
-This is the production deployment manual for the v0.1.0 ingestion Worker. Work through it in
-order. Each step has a **you should see** check; stop and fix that check before continuing.
+This is the self-hosted production deployment manual for the v0.1.0 ingestion Worker. Work
+through it in order. Deployment is always an explicit operator action: Vizoalica releases, tags,
+pushes, and merges never deploy to Cloudflare automatically.
 
 ## Before you begin
 
@@ -11,10 +12,11 @@ Workers secrets; Node.js 20+; pnpm 9; and Wrangler authenticated for the target 
 ```sh
 pnpm install --frozen-lockfile
 pnpm run validate
-pnpm exec wrangler whoami
+cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
 ```
 
-**You should see:** all tests pass and `whoami` prints the intended Cloudflare account. Do not
+Set the actual D1 database ID and any resource names in `wrangler.production.toml`. This file is
+gitignored and belongs to the operator; do not commit account-specific configuration. Do not
 deploy from an unreviewed or dirty checkout.
 
 ## Deployment map
@@ -26,7 +28,7 @@ Browser SDK → Worker /v1/events:batch → D1 (configuration, quota windows, ro
 
 The browser source key is a routing identifier, not a secret. Production requests require a
 short-lived server-issued bearer token. Never place `VIZOALICA_TOKEN_SECRET` in a website,
-browser bundle, or `wrangler.toml`.
+browser bundle, or a Wrangler configuration file.
 
 ## 1. Create the storage containers
 
@@ -38,7 +40,7 @@ pnpm exec wrangler r2 bucket create vizoalica-events
 ```
 
 Copy the `database_id` returned by the first command into
-`deploy/cloudflare/wrangler.toml`. If you use different names, update both `database_name` and
+`deploy/cloudflare/wrangler.production.toml`. If you use different names, update both `database_name` and
 `bucket_name` too.
 
 **You should see:** the configuration has no `REPLACE_WITH_D1_DATABASE_ID` value.
@@ -59,23 +61,23 @@ guard; project policies impose additional event and rate limits.
 
 ## 3. Apply the database schema
 
-First inspect the migration, then apply it to the selected account:
+`pnpm run deploy:apply` applies migrations before deploying. First inspect the migration:
 
 ```sh
 sed -n '1,240p' deploy/cloudflare/migrations/0001_initial.sql
-pnpm exec wrangler d1 migrations apply vizoalica-config --remote --config deploy/cloudflare/wrangler.toml
 ```
 
-**You should see:** Wrangler reports that `0001_initial.sql` was applied. The schema creates
-projects, sources, quota policies, quota windows, ingestion decisions, and dashboard rollups.
-It intentionally does not create a raw-events table: raw batches belong only in R2.
+**You should see:** when applying, Wrangler reports that `0001_initial.sql` was applied. The
+schema creates projects, sources, quota policies, quota windows, ingestion decisions, and
+dashboard rollups. It intentionally does not create a raw-events table: raw batches belong only
+in R2.
 
 ## 4. Store the signing secret
 
 Generate a high-entropy secret in your approved secret manager and enter it only at the prompt:
 
 ```sh
-pnpm exec wrangler secret put VIZOALICA_TOKEN_SECRET --config deploy/cloudflare/wrangler.toml
+pnpm exec wrangler secret put VIZOALICA_TOKEN_SECRET --config deploy/cloudflare/wrangler.production.toml
 ```
 
 **You should see:** Wrangler confirms the secret was uploaded. Do not echo the value, commit it,
@@ -118,17 +120,21 @@ dashboard rollups contain only bounded counts and page paths.
 
 ## 7. Deploy
 
-Perform a dry run first, then deploy:
+Run the preflight, then explicitly apply the deployment:
 
 ```sh
-pnpm exec wrangler deploy --dry-run --config deploy/cloudflare/wrangler.toml
-pnpm worker:deploy
+pnpm run deploy:check
+pnpm run deploy:apply
 ```
 
 Record the Worker URL printed by Wrangler. If you later attach a custom domain, add that exact
 origin to the source configuration before directing browser traffic to it.
 
-**You should see:** a versioned Worker deployment and its public URL. A failed dry run means do
+`deploy:check` verifies the production config, the intended authenticated account, the D1 and R2
+resources, the required Worker secret, and a Wrangler dry-run. `deploy:apply` reruns this
+preflight, applies D1 migrations, then deploys the Worker.
+
+**You should see:** a versioned Worker deployment and its public URL. A failed preflight means do
 not proceed to deployment.
 
 ## 8. Connect the website
@@ -142,10 +148,10 @@ the host page must remain usable and show no analytics error.
 
 ## 9. Verify production behavior
 
-Run the repository validation and the feature scenarios:
+Verify the health endpoint, then run the feature scenarios:
 
 ```sh
-scripts/validate-cloudflare-quickstart.sh
+VIZOALICA_WORKER_URL=https://your-worker.example pnpm run deploy:verify
 ```
 
 Then verify all of the following in a non-production project first:
@@ -158,7 +164,7 @@ Then verify all of the following in a non-production project first:
 5. R2 keys and metadata contain no visitor ID, session ID, token, raw URL query, or payload.
 
 **You should see:** all five checks pass before opening production traffic. Record the date,
-Worker version, test project, and result in the release record.
+Worker version, test project, and result in the operator's deployment record.
 
 ## Operating and rollback cards
 
@@ -186,6 +192,7 @@ Worker version, test project, and result in the release record.
 ## Release checklist
 
 - [ ] `pnpm run validate` is green.
+- [ ] `pnpm run deploy:check` is green for the intended account.
 - [ ] Wrangler is authenticated to the intended account.
 - [ ] D1 ID and R2 bucket are correct.
 - [ ] Migration applied and project/source/quota policy seeded.
