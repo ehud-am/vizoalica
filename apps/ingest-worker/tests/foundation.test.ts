@@ -12,6 +12,7 @@ describe('Worker configuration', () => {
         VIZOALICA_DB: {},
         VIZOALICA_EVENTS: {},
         VIZOALICA_TOKEN_SECRET: 'x',
+        VIZOALICA_ADMIN_SECRET: 'x',
         VIZOALICA_MAX_REQUEST_BYTES: '0'
       } as never)
     ).toThrow('invalid_max_request_bytes');
@@ -27,6 +28,20 @@ describe('Worker HTTP adapter', () => {
     );
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ error: 'not_found' });
+  });
+
+  it('accepts browser preflight requests for the ingestion endpoint', async () => {
+    const response = await handleWorkerRequest(
+      new Request('https://ingest.test/v1/events:batch', {
+        method: 'OPTIONS',
+        headers: { origin: 'https://test.gitlocal.dev' }
+      }),
+      {} as never,
+      64
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://test.gitlocal.dev');
+    expect(response.headers.get('access-control-allow-headers')).toContain('x-vizoalica-source');
   });
 
   it('rejects an unadvertised oversized streamed request before ingestion', async () => {

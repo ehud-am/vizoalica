@@ -93,7 +93,9 @@ export async function ingestBatch(
   const privacy = applyPrivacyGuard(validation.events);
   if (!privacy.ok) return reject(400, privacy.reason, project, source);
 
-  const policy = await dependencies.repositories.findQuotaPolicy(project.quotaPolicyId);
+  const policy = await dependencies.repositories.findQuotaPolicy(
+    source.quotaPolicyId ?? project.quotaPolicyId
+  );
   if (!policy) return reject(403, 'quota_policy_not_found', project, source);
   const quotaInput: Parameters<typeof evaluateQuota>[0] = {
     policy,

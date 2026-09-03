@@ -14,6 +14,20 @@ export interface Source {
   allowedOrigins: string[];
   publicSourceKey: string;
   status: 'active' | 'disabled' | 'rotating';
+  quotaPolicyId?: string;
+}
+
+export interface AdminAuditEntry {
+  operation: string;
+  outcome: 'allowed' | 'denied';
+  reasonCode: string;
+  projectId?: string;
+  sourceId?: string;
+}
+
+export interface PageViewCounts {
+  total: number;
+  byDateAndPath: Array<{ date: string; path: string; count: number }>;
 }
 
 export interface SigningKey {

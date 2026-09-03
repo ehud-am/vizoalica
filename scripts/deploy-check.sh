@@ -29,9 +29,11 @@ pnpm exec wrangler whoami
 pnpm exec wrangler d1 info "$database_name" --config "$config_path" >/dev/null
 pnpm exec wrangler r2 bucket info "$bucket_name" --config "$config_path" >/dev/null
 
-if ! pnpm exec wrangler secret list --config "$config_path" --format json | grep -q '"VIZOALICA_TOKEN_SECRET"'; then
-  fail "Worker secret VIZOALICA_TOKEN_SECRET is not configured"
-fi
+for secret_name in VIZOALICA_TOKEN_SECRET VIZOALICA_ADMIN_SECRET; do
+  if ! pnpm exec wrangler secret list --config "$config_path" --format json | grep -q "\"$secret_name\""; then
+    fail "Worker secret $secret_name is not configured"
+  fi
+done
 
 pnpm exec wrangler deploy --dry-run --config "$config_path"
 echo "deploy preflight passed for $config_path"

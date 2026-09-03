@@ -62,6 +62,6 @@ export class TokenVerifier {
       return { ok: false, reason: 'malformed_token' };
     }
     if (!this.validateClaims(claims)) return { ok: false, reason: 'invalid_claims' };
-    return { ok: true, verified: { claims: claims as TokenClaims, token } };
+    return { ok: true, verified: { claims: claims as unknown as TokenClaims, token } };
   }
 }

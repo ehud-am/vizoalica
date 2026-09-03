@@ -1,13 +1,10 @@
-import { createRequire } from 'node:module';
+import * as Ajv2020Module from 'ajv/dist/2020.js';
+import * as addFormatsModule from 'ajv-formats';
 import type { ValidateFunction } from 'ajv';
 import cloudEventBatchSchema from '../schemas/cloudevent-batch.schema.json' with { type: 'json' };
 import customEventSchema from '../schemas/event-data-custom-event.schema.json' with { type: 'json' };
 import pageViewSchema from '../schemas/event-data-page-view.schema.json' with { type: 'json' };
 import tokenClaimsSchema from '../schemas/token-claims.schema.json' with { type: 'json' };
-
-const require = createRequire(import.meta.url);
-const Ajv = require('ajv/dist/2020').default;
-const addFormats = require('ajv-formats');
 
 export const eventTypes = ['com.vizoalica.page_view.v1', 'com.vizoalica.custom_event.v1'] as const;
 export type VizoalicaEventType = (typeof eventTypes)[number];
@@ -74,6 +71,9 @@ export const schemas = {
   customEvent: customEventSchema,
   tokenClaims: tokenClaimsSchema
 } as const;
+
+const Ajv = Ajv2020Module.default.default;
+const addFormats = addFormatsModule.default.default;
 
 export function createValidator() {
   const ajv = new Ajv({ allErrors: true, strict: false });

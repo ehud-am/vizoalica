@@ -61,6 +61,9 @@ function database(queries: string[]): D1Database {
             return (values[0] === 'quota-a' ? quota : null) as never;
           return null;
         },
+        async all() {
+          return { results: [] };
+        },
         async run() {
           return {};
         }
@@ -86,7 +89,8 @@ describe('Cloudflare Worker durable ingestion', () => {
     const env: Env = {
       VIZOALICA_DB: database(queries),
       VIZOALICA_EVENTS: bucket,
-      VIZOALICA_TOKEN_SECRET: 'test-secret'
+      VIZOALICA_TOKEN_SECRET: 'test-secret',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret'
     };
     const event = {
       specversion: '1.0',

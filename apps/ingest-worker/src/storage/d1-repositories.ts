@@ -1,11 +1,14 @@
 import type {
+  AdminAuditEntry,
   IngestionDecision,
+  PageViewCounts,
   Project,
   QuotaPolicy,
   Source
 } from '../../../ingest-api/src/domain/types.js';
 import type {
   IngestionDecisionRepository,
+  AdminRepository,
   ProjectRepository
 } from '../../../ingest-api/src/storage/repositories.js';
 import type { D1Database } from '../env.js';
@@ -25,6 +28,7 @@ type SourceRow = {
   public_source_key: string;
   allowed_origins_json: string;
   status: Source['status'];
+  quota_policy_id?: string | null;
 };
 type QuotaRow = {
   id: string;
@@ -38,7 +42,9 @@ type QuotaRow = {
   retention_days: number;
 };
 
-export class D1Repositories implements ProjectRepository, IngestionDecisionRepository {
+export class D1Repositories
+  implements ProjectRepository, IngestionDecisionRepository, AdminRepository
+{
   constructor(private readonly db: D1Database) {}
   async findProject(id: string): Promise<Project | undefined> {
     const row = await this.db
@@ -67,7 +73,8 @@ export class D1Repositories implements ProjectRepository, IngestionDecisionRepos
         projectId: row.project_id,
         publicSourceKey: row.public_source_key,
         allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
-        status: row.status
+        status: row.status,
+        ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {})
       };
     } catch {
       return undefined;
@@ -157,5 +164,121 @@ export class D1Repositories implements ProjectRepository, IngestionDecisionRepos
   }
   async listDecisions(): Promise<IngestionDecision[]> {
     return [];
+  }
+  async createProject(project: Project): Promise<void> {
+    await this.db
+      .prepare(
+        'INSERT INTO projects (id, name, mode, default_retention_days, quota_policy_id) VALUES (?, ?, ?, ?, ?)'
+      )
+      .bind(
+        project.id,
+        project.name,
+        project.mode,
+        project.defaultRetentionDays,
+        project.quotaPolicyId
+      )
+      .run();
+  }
+  async createQuotaPolicy(policy: QuotaPolicy): Promise<void> {
+    await this.db
+      .prepare(
+        'INSERT INTO quota_policies (id, max_request_bytes, max_events_per_batch, max_events_per_token, max_events_per_second, max_events_per_day, max_property_count, max_property_value_length, retention_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        policy.id,
+        policy.maxRequestBytes,
+        policy.maxEventsPerBatch,
+        policy.maxEventsPerToken,
+        policy.maxEventsPerSecond,
+        policy.maxEventsPerDay,
+        policy.maxPropertyCount,
+        policy.maxPropertyValueLength,
+        policy.retentionDays
+      )
+      .run();
+  }
+  async listProjects(): Promise<Project[]> {
+    const { results } = await this.db
+      .prepare('SELECT * FROM projects ORDER BY name')
+      .all<ProjectRow>();
+    return results.map((row) => ({
+      id: row.id,
+      name: row.name,
+      mode: row.mode,
+      defaultRetentionDays: row.default_retention_days,
+      quotaPolicyId: row.quota_policy_id
+    }));
+  }
+  async createSource(source: Source): Promise<void> {
+    await this.db
+      .prepare(
+        'INSERT INTO sources (id, project_id, public_source_key, allowed_origins_json, status, quota_policy_id) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        source.id,
+        source.projectId,
+        source.publicSourceKey,
+        JSON.stringify(source.allowedOrigins),
+        source.status,
+        source.quotaPolicyId ?? null
+      )
+      .run();
+  }
+  async listSources(projectId: string): Promise<Source[]> {
+    const { results } = await this.db
+      .prepare('SELECT * FROM sources WHERE project_id = ? ORDER BY id')
+      .bind(projectId)
+      .all<SourceRow>();
+    return results.map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      publicSourceKey: row.public_source_key,
+      allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
+      status: row.status,
+      ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {})
+    }));
+  }
+  async disableSource(projectId: string, sourceId: string): Promise<boolean> {
+    const result = await this.db
+      .prepare(
+        "UPDATE sources SET status = 'disabled' WHERE id = ? AND project_id = ? AND status = 'active'"
+      )
+      .bind(sourceId, projectId)
+      .run();
+    return (result.meta?.changes ?? 0) === 1;
+  }
+  async getPageViewCounts(
+    projectId: string,
+    sourceId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<PageViewCounts | undefined> {
+    const source = await this.db
+      .prepare('SELECT * FROM sources WHERE id = ? AND project_id = ?')
+      .bind(sourceId, projectId)
+      .first<SourceRow>();
+    if (!source) return undefined;
+    const { results } = await this.db
+      .prepare(
+        "SELECT event_date AS date, page_path AS path, event_count AS count FROM dashboard_rollups WHERE project_id = ? AND source_id = ? AND event_type = 'com.vizoalica.page_view.v1' AND event_date BETWEEN ? AND ? ORDER BY event_date, page_path"
+      )
+      .bind(projectId, sourceId, startDate, endDate)
+      .all<{ date: string; path: string; count: number }>();
+    return { total: results.reduce((total, row) => total + row.count, 0), byDateAndPath: results };
+  }
+  async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
+    await this.db
+      .prepare(
+        'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        new Date().toISOString(),
+        entry.operation,
+        entry.outcome,
+        entry.projectId ?? null,
+        entry.sourceId ?? null,
+        entry.reasonCode
+      )
+      .run();
   }
 }

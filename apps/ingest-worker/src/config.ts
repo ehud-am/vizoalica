@@ -4,7 +4,12 @@ export function loadWorkerConfig(env: Env): {
   allowUnsignedDemo: boolean;
   maxRequestBytes: number;
 } {
-  if (!env.VIZOALICA_DB || !env.VIZOALICA_EVENTS || !env.VIZOALICA_TOKEN_SECRET)
+  if (
+    !env.VIZOALICA_DB ||
+    !env.VIZOALICA_EVENTS ||
+    !env.VIZOALICA_TOKEN_SECRET ||
+    !env.VIZOALICA_ADMIN_SECRET
+  )
     throw new Error('missing_required_cloudflare_binding');
   const maxRequestBytes = Number(env.VIZOALICA_MAX_REQUEST_BYTES ?? 131072);
   if (!Number.isSafeInteger(maxRequestBytes) || maxRequestBytes < 1)

@@ -37,7 +37,7 @@ export function createWorkerTokenVerifier(secret: string) {
       if (!valid) return { ok: false, reason: 'invalid_signature' };
       const claims = JSON.parse(decoder.decode(decodeBase64Url(payloadPart))) as unknown;
       if (!claimValidator(claims)) return { ok: false, reason: 'invalid_claims' };
-      return { ok: true, verified: { claims: claims as TokenClaims, token } };
+      return { ok: true, verified: { claims: claims as unknown as TokenClaims, token } };
     } catch {
       return { ok: false, reason: 'malformed_token' };
     }

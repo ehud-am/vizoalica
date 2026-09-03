@@ -8,6 +8,14 @@ pushes, and merges never deploy to Cloudflare automatically.
 
 You need a Cloudflare account with permission to create Workers, D1 databases, R2 buckets, and
 Workers secrets; Node.js 20+; pnpm 9; and Wrangler authenticated for the target account.
+Enable R2 for the account in the Cloudflare dashboard before running the bucket creation command;
+the API rejects bucket creation until R2 has been activated for the account.
+Authenticate explicitly before creating resources:
+
+```sh
+pnpm exec wrangler login
+pnpm exec wrangler whoami
+```
 
 ```sh
 pnpm install --frozen-lockfile
@@ -18,6 +26,15 @@ cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production
 Set the actual D1 database ID and any resource names in `wrangler.production.toml`. This file is
 gitignored and belongs to the operator; do not commit account-specific configuration. Do not
 deploy from an unreviewed or dirty checkout.
+
+### Keeping a test deployment free
+
+Workers Free, D1 Free, and R2's included monthly usage are sufficient for a small test site, but
+R2 is not a hard zero-cost product: it charges if its included storage or operation limits are
+exceeded. Do not opt into a paid Workers plan for this test deployment. Before exposing the
+source, configure a low daily quota and short R2 retention, monitor Cloudflare usage, and disable
+the source immediately if the test receives unexpected traffic. The Worker rejects traffic beyond
+the source quota before it writes to R2.
 
 ## Deployment map
 
@@ -88,7 +105,16 @@ key rotation.
 
 Use D1’s dashboard or a controlled SQL session to create configuration before sending traffic.
 Replace every example identifier and origin below; the allowed origin must be an exact browser
-`Origin` value (scheme, host, and port).
+`Origin` value (scheme, host, and port). The following command runs the SQL in the authenticated
+account; replace `vizoalica-config` if you selected another database name:
+
+```sh
+pnpm exec wrangler d1 execute vizoalica-config --remote --config deploy/cloudflare/wrangler.production.toml --command "YOUR_REVIEWED_SQL"
+```
+
+For a low-volume test site, use a unique identifier, an exact origin, and conservative limits such
+as `100` events per day and `7` retention days. These settings bound accepted R2 writes; they do
+not replace Cloudflare usage monitoring.
 
 ```sql
 INSERT INTO quota_policies
@@ -96,13 +122,13 @@ INSERT INTO quota_policies
    max_events_per_second, max_events_per_day, max_property_count,
    max_property_value_length, retention_days)
 VALUES
-  ('quota-prod', 131072, 25, 25, 100, 100000, 20, 256, 90);
+  ('quota-test', 131072, 25, 25, 10, 100, 20, 256, 7);
 
 INSERT INTO projects (id, name, mode, default_retention_days, quota_policy_id)
-VALUES ('project-prod', 'Production site', 'production', 90, 'quota-prod');
+VALUES ('project-test-id', 'Test site', 'production', 7, 'quota-test');
 
 INSERT INTO sources (id, project_id, public_source_key, allowed_origins_json, status)
-VALUES ('source-web', 'project-prod', 'public-source-key', '["https://www.example.com"]', 'active');
+VALUES ('source-test-id', 'project-test-id', 'public-source-key', '["https://test.gitlocal.dev"]', 'active');
 ```
 
 **You should see:** exactly one active source pointing to the intended project. Never use `*` as
@@ -111,8 +137,9 @@ an allowed origin. Disable a source (`status = 'disabled'`) before rotating or r
 ## 6. Configure R2 retention and alerts
 
 In the Cloudflare dashboard, add an R2 lifecycle rule for the `events/` prefix that expires
-objects at the approved retention period. Then create alerts for Workers errors/CPU, R2 storage,
-and D1 storage. Set an owner and response procedure for each alert.
+objects at the approved retention period. For the low-volume test configuration above, set it to
+7 days. Then create alerts for Workers errors/CPU, R2 storage, and D1 storage. Set an owner and
+response procedure for each alert.
 
 **You should see:** R2 has an expiration rule and alert recipients are configured before launch.
 R2 object keys contain only server-approved project/source/time partitions and an opaque ID;
@@ -127,8 +154,25 @@ pnpm run deploy:check
 pnpm run deploy:apply
 ```
 
-Record the Worker URL printed by Wrangler. If you later attach a custom domain, add that exact
-origin to the source configuration before directing browser traffic to it.
+Record the Worker URL printed by Wrangler. The source configuration must allow the website's exact
+browser origin, not the Worker URL. If the website later moves to another origin, add that new
+website origin before directing browser traffic to it.
+
+### Attach a custom Worker domain
+
+The domain must be an active Cloudflare zone. Add a custom-domain route to the operator-owned
+`wrangler.production.toml`, then rerun `pnpm run deploy:apply`:
+
+```toml
+routes = [
+  { pattern = "analytics.test.gitlocal.dev", custom_domain = true }
+]
+```
+
+Use a dedicated analytics subdomain rather than replacing the website at
+`https://test.gitlocal.dev`. The website remains the allowed source origin; the Worker custom
+domain is the SDK ingestion endpoint. Confirm the zone is managed by the same Cloudflare account
+shown by `wrangler whoami` before deploying the route.
 
 `deploy:check` verifies the production config, the intended authenticated account, the D1 and R2
 resources, the required Worker secret, and a Wrangler dry-run. `deploy:apply` reruns this
@@ -142,6 +186,18 @@ not proceed to deployment.
 Configure the SDK with the deployed URL, the public source key, and a same-origin endpoint that
 fetches a short-lived ingest token from your server. See
 [`browser-sdk.md`](./browser-sdk.md) for the HTML and JavaScript examples.
+
+The Worker handles CORS preflight for `POST /v1/events:batch` and accepts the SDK's
+`authorization`, `content-type`, and `x-vizoalica-source` headers. CORS is not authorization:
+every actual event request still has its browser origin checked against the configured source and
+its bearer token checked against that source and project.
+
+The ingestion Worker does not mint ingest tokens. A static website by itself cannot safely issue
+them because it cannot keep `VIZOALICA_TOKEN_SECRET` private. Before connecting a static site,
+deploy or configure a same-origin backend endpoint such as
+`https://test.gitlocal.dev/vizoalica/ingest-token`. That endpoint must keep the signing secret in
+its server-side secret store and create a short-lived token whose `project_id`, `source_id`, and
+`origin` exactly match the D1 source configuration. Do not use unsigned demo mode in production.
 
 **You should see:** page views are sent asynchronously. Stop the Worker or block its URL once:
 the host page must remain usable and show no analytics error.
@@ -165,6 +221,31 @@ Then verify all of the following in a non-production project first:
 
 **You should see:** all five checks pass before opening production traffic. Record the date,
 Worker version, test project, and result in the operator's deployment record.
+
+## Minimal operator and MCP access
+
+The Worker has a separate administrator credential for non-browser configuration and read-only MCP
+queries. Generate and store it in your approved secret manager, then upload it without placing its
+value in a file or website:
+
+```sh
+pnpm exec wrangler secret put VIZOALICA_ADMIN_SECRET --config deploy/cloudflare/wrangler.production.toml
+```
+
+Rotate this credential by replacing the secret and deploying the Worker. The old credential stops
+working immediately. Never use it in a browser, website bundle, token issuer, or URL.
+
+Authenticated HTTPS administration is available at `/v1/admin/projects` and its project-scoped
+source routes. It creates system-generated project/source identifiers and public source keys,
+requires exact `http` or `https` origins, and gives each new source a conservative limit of 10
+events/second, 100 events/day, and seven-day raw retention. Sources can be disabled but are not
+deleted by this minimal release.
+
+The authenticated HTTPS `/mcp` endpoint is a stateless, read-only MCP surface. It exposes only
+`list_projects_and_sources` and `get_page_view_counts`. The latter requires a project ID, a source
+ID belonging to that project, and an inclusive date range of 31 days or less. Results contain only
+aggregate page-view counts by date and path. The endpoint has no browser CORS, raw-event access,
+write tools, or arbitrary query capability.
 
 ## Operating and rollback cards
 

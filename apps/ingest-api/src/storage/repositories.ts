@@ -5,6 +5,7 @@ import type {
   Source,
   StoredEvent
 } from '../domain/types.js';
+import type { AdminAuditEntry, PageViewCounts } from '../domain/types.js';
 
 export interface ProjectRepository {
   findProject(id: string): Promise<Project | undefined>;
@@ -38,4 +39,20 @@ export interface Repositories
   extends ProjectRepository, EventRepository, IngestionDecisionRepository {
   /** Atomically reserves bounded ingestion capacity before raw-event persistence. */
   reserveQuota?(reservation: QuotaReservation): Promise<boolean>;
+}
+
+export interface AdminRepository {
+  createProject(project: Project): Promise<void>;
+  createQuotaPolicy(policy: QuotaPolicy): Promise<void>;
+  listProjects(): Promise<Project[]>;
+  createSource(source: Source): Promise<void>;
+  listSources(projectId: string): Promise<Source[]>;
+  disableSource(projectId: string, sourceId: string): Promise<boolean>;
+  getPageViewCounts(
+    projectId: string,
+    sourceId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<PageViewCounts | undefined>;
+  saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
 }
