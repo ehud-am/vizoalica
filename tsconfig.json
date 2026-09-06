@@ -17,6 +17,10 @@
       "path": "apps/ingest-worker"
     },
     {
+      "path": "apps/local-ops-api"
+    },
+    { "path": "apps/admin-web" },
+    {
       "path": "apps/token-demo"
     }
   ]

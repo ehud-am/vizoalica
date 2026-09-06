@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configFromScript, initFromScript } from '../src/embed.js';
+import { autoInit, configFromScript, initFromScript } from '../src/embed.js';
 
 beforeEach(() => {
   vi.stubGlobal('location', {
@@ -58,5 +58,64 @@ describe('embed script', () => {
         dataset: { endpoint: 'https://analytics.example.com' }
       } as HTMLScriptElement)
     ).toThrow(/data-source/);
+  });
+
+  it('supports minimal configuration and explicit automatic page-view disabling', () => {
+    expect(
+      configFromScript({
+        dataset: { endpoint: 'https://a.test', source: 'public', autoPageView: 'false' }
+      } as HTMLScriptElement)
+    ).toEqual({
+      endpoint: 'https://a.test',
+      sourceKey: 'public',
+      consentState: 'unknown',
+      autoPageView: false
+    });
+    expect(
+      configFromScript({
+        dataset: { endpoint: 'https://a.test', source: 'public', autoPageView: 'yes' }
+      } as HTMLScriptElement).autoPageView
+    ).toBe(true);
+    expect(
+      initFromScript({
+        dataset: { endpoint: 'https://a.test', source: 'public' }
+      } as HTMLScriptElement)
+    ).toBeTruthy();
+  });
+
+  it('returns no automatic client without a current script and installs one when present', () => {
+    expect(autoInit()).toBeUndefined();
+    vi.stubGlobal('document', {
+      title: 'Page',
+      referrer: '',
+      currentScript: {
+        dataset: {
+          endpoint: 'https://a.test',
+          source: 'public',
+          project: 'p1',
+          consent: 'analytics-denied'
+        }
+      }
+    });
+    expect(autoInit()).toBeTruthy();
+    expect((globalThis as { vizoalica?: unknown }).vizoalica).toBeTruthy();
+  });
+
+  it('treats token endpoint failures as absent tokens', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('no', { status: 503 }))
+    );
+    const client = initFromScript({
+      dataset: {
+        endpoint: 'https://a.test',
+        source: 'public',
+        tokenUrl: '/token',
+        autoPageView: 'false'
+      }
+    } as HTMLScriptElement);
+    client.track('custom', {});
+    await client.flush();
+    expect(fetch).toHaveBeenCalled();
   });
 });

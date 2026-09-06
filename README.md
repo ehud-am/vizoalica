@@ -3,7 +3,7 @@
 Vizoalica is an open-source, Cloudflare-native product analytics foundation for the web.
 It aims to provide Pendo-like visibility into website and product activity while staying inexpensive to deploy, privacy-aware by default, and built on open standards.
 
-The current v0.1.0 work focuses on:
+The current work focuses on:
 
 - a safe embeddable browser SDK;
 - a signed, high-volume event ingestion backend;
@@ -13,8 +13,11 @@ The current v0.1.0 work focuses on:
 - privacy filtering before storage;
 - quota and abuse controls before expensive processing;
 - Cloudflare R2 raw-event storage and bounded D1 dashboard rollups.
+- an on-demand local analytics and website-management console whose browser never owns remote
+  credentials.
 
-> Status: early MVP implementation. The SDK, shared contracts, privacy utilities, ingestion pipeline, R2 event storage, and D1 dashboard rollups are under active development.
+> Status: early MVP implementation. The SDK, ingestion data plane, hourly privacy-safe analytics,
+> and local operations console are implemented and under active validation.
 
 ## Cloudflare deployment
 
@@ -68,9 +71,13 @@ Production websites should mint short-lived ingest tokens from their own backend
 
 If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fail silently so the host website keeps operating.
 
-## MVP dashboard data
+## Local analytics operations
 
-The Worker retains immutable raw batches in R2 and writes bounded daily D1 rollups by project, source, event type, and page path. These rollups support basic dashboard totals without making D1 the raw-event store.
+The Worker retains immutable raw batches in R2 and writes bounded hourly D1 aggregates for page
+views and keyed visitor presence. An on-demand React console calls a loopback-only Node API, and
+that API alone owns the remote administrator credential. Start them with
+`pnpm local-ops-api:dev` and `pnpm admin-web:dev` after following the
+[local analytics operations guide](docs/operations/local-analytics.md).
 
 ## Privacy defaults
 
@@ -113,9 +120,13 @@ Cloudflare Worker
   ├─ safe metrics/logging
   └─ event repository abstraction
 
+Operator machine (on demand)
+  ├─ React console → loopback API only
+  └─ loopback API → protected Worker administration and aggregates
+
 Storage / dashboard data
   ├─ R2 immutable raw JSON event batches
-  └─ D1 bounded daily dashboard rollups
+  └─ D1 bounded daily and hourly dashboard aggregates
 ```
 
 ## Standards direction

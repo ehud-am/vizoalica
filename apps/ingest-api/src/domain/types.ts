@@ -11,10 +11,13 @@ export interface Project {
 export interface Source {
   id: string;
   projectId: string;
+  name: string;
   allowedOrigins: string[];
   publicSourceKey: string;
-  status: 'active' | 'disabled' | 'rotating';
+  status: 'active' | 'disabled' | 'deleted' | 'rotating';
   quotaPolicyId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AdminAuditEntry {
@@ -28,6 +31,17 @@ export interface AdminAuditEntry {
 export interface PageViewCounts {
   total: number;
   byDateAndPath: Array<{ date: string; path: string; count: number }>;
+}
+export interface AnalyticsSummary {
+  projectId: string;
+  sourceId: string;
+  window: '24h' | '7d' | '30d';
+  startUtc: string;
+  endUtc: string;
+  pageViews?: number;
+  uniqueUsers?: number;
+  availability: 'complete' | 'processing' | 'unavailable';
+  lastCompletedAggregateAt?: string;
 }
 
 export interface SigningKey {

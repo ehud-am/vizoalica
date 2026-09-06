@@ -4,7 +4,8 @@ import type {
   PageViewCounts,
   Project,
   QuotaPolicy,
-  Source
+  Source,
+  AnalyticsSummary
 } from '../../../ingest-api/src/domain/types.js';
 import type {
   IngestionDecisionRepository,
@@ -25,10 +26,13 @@ type ProjectRow = {
 type SourceRow = {
   id: string;
   project_id: string;
+  name: string;
   public_source_key: string;
   allowed_origins_json: string;
   status: Source['status'];
   quota_policy_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 type QuotaRow = {
   id: string;
@@ -42,10 +46,27 @@ type QuotaRow = {
   retention_days: number;
 };
 
+async function digestVisitor(visitorId: string, digestKey: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(digestKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(visitorId));
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join(
+    ''
+  );
+}
+
 export class D1Repositories
   implements ProjectRepository, IngestionDecisionRepository, AdminRepository
 {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly visitorDigestKey = 'test-only-visitor-digest-key'
+  ) {}
   async findProject(id: string): Promise<Project | undefined> {
     const row = await this.db
       .prepare('SELECT * FROM projects WHERE id = ?')
@@ -71,10 +92,13 @@ export class D1Repositories
       return {
         id: row.id,
         projectId: row.project_id,
+        name: row.name,
         publicSourceKey: row.public_source_key,
         allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
         status: row.status,
-        ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {})
+        ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
+        ...(row.created_at ? { createdAt: row.created_at } : {}),
+        ...(row.updated_at ? { updatedAt: row.updated_at } : {})
       };
     } catch {
       return undefined;
@@ -160,6 +184,30 @@ export class D1Repositories
         )
         .bind(stored.projectId, stored.sourceId, day, eventType, pagePath)
         .run();
+      if (eventType === 'com.vizoalica.page_view.v1') {
+        const hour = stored.receivedAt.toISOString().slice(0, 13) + ':00:00.000Z';
+        await this.db
+          .prepare(
+            'INSERT INTO dashboard_hourly_page_views (project_id, source_id, hour_utc, page_view_count) VALUES (?, ?, ?, 1) ON CONFLICT(project_id, source_id, hour_utc) DO UPDATE SET page_view_count = page_view_count + 1'
+          )
+          .bind(stored.projectId, stored.sourceId, hour)
+          .run();
+        const visitorId = (stored.event.data as { visitor?: { anonymous_id?: unknown } }).visitor
+          ?.anonymous_id;
+        if (typeof visitorId === 'string' && visitorId) {
+          await this.db
+            .prepare(
+              'INSERT OR IGNORE INTO dashboard_hourly_visitors (project_id, source_id, hour_utc, visitor_digest) VALUES (?, ?, ?, ?)'
+            )
+            .bind(
+              stored.projectId,
+              stored.sourceId,
+              hour,
+              await digestVisitor(visitorId, this.visitorDigestKey)
+            )
+            .run();
+        }
+      }
     }
   }
   async listDecisions(): Promise<IngestionDecision[]> {
@@ -212,15 +260,18 @@ export class D1Repositories
   async createSource(source: Source): Promise<void> {
     await this.db
       .prepare(
-        'INSERT INTO sources (id, project_id, public_source_key, allowed_origins_json, status, quota_policy_id) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .bind(
         source.id,
         source.projectId,
+        source.name,
         source.publicSourceKey,
         JSON.stringify(source.allowedOrigins),
         source.status,
-        source.quotaPolicyId ?? null
+        source.quotaPolicyId ?? null,
+        source.createdAt ?? new Date().toISOString(),
+        source.updatedAt ?? new Date().toISOString()
       )
       .run();
   }
@@ -232,20 +283,68 @@ export class D1Repositories
     return results.map((row) => ({
       id: row.id,
       projectId: row.project_id,
+      name: row.name,
       publicSourceKey: row.public_source_key,
       allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
       status: row.status,
-      ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {})
+      ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
+      ...(row.created_at ? { createdAt: row.created_at } : {}),
+      ...(row.updated_at ? { updatedAt: row.updated_at } : {})
     }));
   }
-  async disableSource(projectId: string, sourceId: string): Promise<boolean> {
+  async setSourceStatus(
+    projectId: string,
+    sourceId: string,
+    status: 'active' | 'disabled' | 'deleted'
+  ): Promise<Source | undefined> {
     const result = await this.db
       .prepare(
-        "UPDATE sources SET status = 'disabled' WHERE id = ? AND project_id = ? AND status = 'active'"
+        "UPDATE sources SET status = ?, updated_at = ? WHERE id = ? AND project_id = ? AND status != 'deleted'"
       )
-      .bind(sourceId, projectId)
+      .bind(status, new Date().toISOString(), sourceId, projectId)
       .run();
-    return (result.meta?.changes ?? 0) === 1;
+    return (result.meta?.changes ?? 0) === 1 ? this.getSource(projectId, sourceId) : undefined;
+  }
+  async getSource(projectId: string, sourceId: string): Promise<Source | undefined> {
+    const row = await this.db
+      .prepare('SELECT * FROM sources WHERE id = ? AND project_id = ?')
+      .bind(sourceId, projectId)
+      .first<SourceRow>();
+    return row
+      ? {
+          id: row.id,
+          projectId: row.project_id,
+          name: row.name,
+          publicSourceKey: row.public_source_key,
+          allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
+          status: row.status,
+          ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
+          ...(row.created_at ? { createdAt: row.created_at } : {}),
+          ...(row.updated_at ? { updatedAt: row.updated_at } : {})
+        }
+      : undefined;
+  }
+  async updateSource(
+    projectId: string,
+    sourceId: string,
+    changes: { name?: string; allowedOrigins?: string[]; status?: 'active' | 'disabled' }
+  ): Promise<Source | undefined> {
+    const existing = await this.getSource(projectId, sourceId);
+    if (!existing || existing.status === 'deleted') return undefined;
+    const result = await this.db
+      .prepare(
+        "UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ? WHERE id = ? AND project_id = ? AND status != 'deleted'"
+      )
+      .bind(
+        changes.name ?? existing.name,
+        JSON.stringify(changes.allowedOrigins ?? existing.allowedOrigins),
+        changes.status ?? existing.status,
+        new Date().toISOString(),
+        sourceId,
+        projectId
+      )
+      .run();
+    return (result.meta?.changes ?? 0) ? this.getSource(projectId, sourceId) : undefined;
   }
   async getPageViewCounts(
     projectId: string,
@@ -265,6 +364,43 @@ export class D1Repositories
       .bind(projectId, sourceId, startDate, endDate)
       .all<{ date: string; path: string; count: number }>();
     return { total: results.reduce((total, row) => total + row.count, 0), byDateAndPath: results };
+  }
+  async getAnalyticsSummary(
+    projectId: string,
+    sourceId: string,
+    window: '24h' | '7d' | '30d',
+    now = new Date()
+  ): Promise<AnalyticsSummary | undefined> {
+    const source = await this.db
+      .prepare('SELECT id FROM sources WHERE id = ? AND project_id = ?')
+      .bind(sourceId, projectId)
+      .first();
+    if (!source) return undefined;
+    const hours = window === '24h' ? 24 : window === '7d' ? 168 : 720;
+    const endUtc = now.toISOString();
+    const startUtc = new Date(now.getTime() - hours * 3600000).toISOString();
+    const row = await this.db
+      .prepare(
+        'SELECT COALESCE(SUM(page_view_count), 0) AS pageViews FROM dashboard_hourly_page_views WHERE project_id = ? AND source_id = ? AND hour_utc >= ? AND hour_utc < ?'
+      )
+      .bind(projectId, sourceId, startUtc, endUtc)
+      .first<{ pageViews: number }>();
+    const visitors = await this.db
+      .prepare(
+        'SELECT COUNT(DISTINCT visitor_digest) AS uniqueUsers FROM dashboard_hourly_visitors WHERE project_id = ? AND source_id = ? AND hour_utc >= ? AND hour_utc < ?'
+      )
+      .bind(projectId, sourceId, startUtc, endUtc)
+      .first<{ uniqueUsers: number }>();
+    return {
+      projectId,
+      sourceId,
+      window,
+      startUtc,
+      endUtc,
+      pageViews: row?.pageViews ?? 0,
+      uniqueUsers: visitors?.uniqueUsers ?? 0,
+      availability: 'complete'
+    };
   }
   async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
     await this.db

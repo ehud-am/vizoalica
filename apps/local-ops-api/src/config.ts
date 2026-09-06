@@ -1,0 +1,59 @@
+import { chmodSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+export type Config = {
+  remoteUrl: string;
+  adminSecret: string;
+  port: number;
+  consoleOrigin: string;
+  sessionTtlMs: number;
+};
+
+function safePort(value: string | undefined): number {
+  const port = Number(value ?? 4318);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('invalid_port');
+  return port;
+}
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const remoteUrl = env.VIZOALICA_REMOTE_URL;
+  const adminSecret = env.VIZOALICA_ADMIN_SECRET;
+  if (!remoteUrl || !adminSecret?.trim()) throw new Error('access_revoked');
+  const url = new URL(remoteUrl);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.hostname === 'localhost'))
+    throw new Error('remote_url_must_use_https');
+  const port = safePort(env.VIZOALICA_PORT);
+  const consoleOrigin = env.VIZOALICA_CONSOLE_ORIGIN ?? 'http://127.0.0.1:5173';
+  const origin = new URL(consoleOrigin);
+  if (
+    (origin.hostname !== '127.0.0.1' && origin.hostname !== 'localhost') ||
+    origin.origin !== consoleOrigin
+  )
+    throw new Error('console_origin_must_be_loopback');
+  return {
+    remoteUrl: url.toString().replace(/\/$/, ''),
+    adminSecret,
+    port,
+    consoleOrigin,
+    sessionTtlMs: Number(env.VIZOALICA_SESSION_TTL_MS ?? 30 * 60_000)
+  };
+}
+export function loadConfigFile(path: string): Config {
+  const mode = statSync(path).mode & 0o777;
+  if ((mode & 0o077) !== 0) throw new Error('config_permissions_must_be_0600');
+  const values = JSON.parse(readFileSync(path, 'utf8')) as Record<string, string>;
+  return loadConfig({ ...process.env, ...values });
+}
+
+export function writeConfigFile(path: string, values: Record<string, string>): void {
+  const temporaryPath = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
+  writeFileSync(temporaryPath, `${JSON.stringify(values, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+  chmodSync(temporaryPath, 0o600);
+  renameSync(temporaryPath, path);
+}
+
+/** A local revocation is performed by removing the credential from the operator-owned config. */
+export function ensureCredential(config: Config): Config {
+  if (!config.adminSecret.trim()) throw new Error('access_revoked');
+  return config;
+}

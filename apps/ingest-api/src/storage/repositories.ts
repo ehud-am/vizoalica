@@ -5,7 +5,7 @@ import type {
   Source,
   StoredEvent
 } from '../domain/types.js';
-import type { AdminAuditEntry, PageViewCounts } from '../domain/types.js';
+import type { AdminAuditEntry, PageViewCounts, AnalyticsSummary } from '../domain/types.js';
 
 export interface ProjectRepository {
   findProject(id: string): Promise<Project | undefined>;
@@ -47,12 +47,28 @@ export interface AdminRepository {
   listProjects(): Promise<Project[]>;
   createSource(source: Source): Promise<void>;
   listSources(projectId: string): Promise<Source[]>;
-  disableSource(projectId: string, sourceId: string): Promise<boolean>;
+  setSourceStatus(
+    projectId: string,
+    sourceId: string,
+    status: 'active' | 'disabled' | 'deleted'
+  ): Promise<Source | undefined>;
+  updateSource(
+    projectId: string,
+    sourceId: string,
+    changes: { name?: string; allowedOrigins?: string[]; status?: 'active' | 'disabled' }
+  ): Promise<Source | undefined>;
+  getSource(projectId: string, sourceId: string): Promise<Source | undefined>;
   getPageViewCounts(
     projectId: string,
     sourceId: string,
     startDate: string,
     endDate: string
   ): Promise<PageViewCounts | undefined>;
+  getAnalyticsSummary(
+    projectId: string,
+    sourceId: string,
+    window: '24h' | '7d' | '30d',
+    now?: Date
+  ): Promise<AnalyticsSummary | undefined>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
 }

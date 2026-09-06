@@ -1,6 +1,6 @@
 {
   "name": "vizoalica",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.4",
@@ -19,18 +19,28 @@
     "deploy:apply": "scripts/deploy-apply.sh",
     "deploy:verify": "scripts/deploy-verify.sh",
     "worker:dev": "wrangler dev --config deploy/cloudflare/wrangler.toml",
-    "worker:deploy": "pnpm run deploy:apply"
+    "worker:deploy": "pnpm run deploy:apply",
+    "local-ops-api:dev": "pnpm --filter @vizoalica/local-ops-api dev",
+    "local-ops-api:build": "pnpm --filter @vizoalica/local-ops-api build",
+    "admin-web:dev": "pnpm --filter @vizoalica/admin-web dev",
+    "admin-web:build": "pnpm --filter @vizoalica/admin-web build",
+    "coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "^9.17.0",
+    "fast-uri": "^3.1.6",
+    "jsdom": "^26.1.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
+    "vitest": "^4.1.11",
     "wrangler": "^4.127.1"
   },
   "dependencies": {

@@ -13,7 +13,18 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['packages/**/tests/**/*.test.ts', 'apps/**/tests/**/*.test.ts'],
-    environment: 'node'
+    include: [
+      'packages/**/tests/**/*.test.ts',
+      'apps/**/tests/**/*.test.ts',
+      'apps/**/tests/**/*.test.tsx'
+    ],
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      include: ['apps/**/src/**/*.{ts,tsx}', 'packages/**/src/**/*.ts'],
+      exclude: ['**/src/main.tsx', '**/src/cli.ts'],
+      thresholds: { lines: 90, branches: 90 }
+    }
   }
 });

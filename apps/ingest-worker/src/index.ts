@@ -10,7 +10,7 @@ import { handleWorkerRequest } from './http/worker-adapter.js';
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const config = loadWorkerConfig(env);
-    const configuration = new D1Repositories(env.VIZOALICA_DB);
+    const configuration = new D1Repositories(env.VIZOALICA_DB, env.VIZOALICA_TOKEN_SECRET);
     const events = new R2EventBatchRepository(env.VIZOALICA_EVENTS);
     const repositories = {
       findProject: configuration.findProject.bind(configuration),
@@ -21,8 +21,11 @@ export default {
       listProjects: configuration.listProjects.bind(configuration),
       createSource: configuration.createSource.bind(configuration),
       listSources: configuration.listSources.bind(configuration),
-      disableSource: configuration.disableSource.bind(configuration),
+      setSourceStatus: configuration.setSourceStatus.bind(configuration),
+      updateSource: configuration.updateSource.bind(configuration),
+      getSource: configuration.getSource.bind(configuration),
       getPageViewCounts: configuration.getPageViewCounts.bind(configuration),
+      getAnalyticsSummary: configuration.getAnalyticsSummary.bind(configuration),
       saveAdminAudit: configuration.saveAdminAudit.bind(configuration),
       saveDecision: configuration.saveDecision.bind(configuration),
       listDecisions: configuration.listDecisions.bind(configuration),

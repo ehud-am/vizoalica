@@ -2,6 +2,32 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.2.0] - 2026-09-06
+
+### Added
+
+- On-demand React analytics console with 24-hour, 7-day, and 30-day page-view and unique-user
+  summaries.
+- Loopback-only operations API for secure project and website management without exposing remote
+  administrator credentials to the browser.
+- Hourly D1 page-view and privacy-safe visitor-presence aggregates, website lifecycle operations,
+  integration snippets, operational status, and audit evidence.
+- Local operations, backup, recovery, export, migration, cost, accessibility, and teardown
+  documentation.
+
+### Changed
+
+- Expanded automated coverage to 111 tests and enforced repository-wide minimums of 90% for line
+  and branch coverage.
+- Updated the test toolchain to patched releases and added browser interaction coverage.
+
+### Security
+
+- Restricted the local operations service to exact loopback host and origin checks with expiring,
+  HttpOnly, SameSite sessions.
+- Kept visitor identifiers out of analytics responses by storing only keyed presence digests and
+  returning bounded aggregate fields.
+
 ## [0.1.2] - 2026-09-03
 
 ### Added
