@@ -17,6 +17,9 @@
       "path": "apps/ingest-worker"
     },
     {
+      "path": "apps/deploy-cli"
+    },
+    {
       "path": "apps/local-ops-api"
     },
     { "path": "apps/admin-web" },

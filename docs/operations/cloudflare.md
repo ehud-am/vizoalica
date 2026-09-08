@@ -7,10 +7,11 @@ pushes, and merges never deploy to Cloudflare automatically.
 ## Before you begin
 
 You need a Cloudflare account with permission to create Workers, D1 databases, R2 buckets, and
-Workers secrets; Node.js 20+; pnpm 9; and Wrangler authenticated for the target account.
+Workers secrets; Node.js 22+; pnpm 9; and Wrangler 4.x. Choose one authentication provider per
+deployment profile: OneCLI 2.11+ (recommended for credential isolation) or Cloudflare-native.
 Enable R2 for the account in the Cloudflare dashboard before running the bucket creation command;
 the API rejects bucket creation until R2 has been activated for the account.
-Authenticate explicitly before creating resources:
+For the native flow, authenticate explicitly before creating resources:
 
 ```sh
 pnpm exec wrangler login
@@ -26,6 +27,33 @@ cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production
 Set the actual D1 database ID and any resource names in `wrangler.production.toml`. This file is
 gitignored and belongs to the operator; do not commit account-specific configuration. Do not
 deploy from an unreviewed or dirty checkout.
+
+## OneCLI credential isolation
+
+Create the Cloudflare connection in a OneCLI-controlled human interface. Never pass its token to a
+Vizoalica command, repository file, AI prompt, or shared transcript. Attach the connection to one
+dedicated local deployment agent, and use a separate identity and grant for CI. Then create the
+non-secret profile and follow the
+[OneCLI validation quickstart](../../specs/005-onecli-cloudflare-credentials/quickstart.md).
+
+The minimum Cloudflare API-token permissions are:
+
+| Planned operation                 | Minimum access                            | OneCLI tool policy                     |
+| --------------------------------- | ----------------------------------------- | -------------------------------------- |
+| Identity and account confirmation | Account membership read                   | Allow                                  |
+| D1 lookup and migrations          | D1 read and edit on the target account    | Read: allow; migration: approval-gated |
+| R2 bucket lookup                  | R2 read on the named bucket               | Allow                                  |
+| Worker secret-name listing        | Workers Scripts read on the target Worker | Allow                                  |
+| Worker dry-run and deploy         | Workers Scripts edit on the target Worker | Dry-run: allow; deploy: approval-gated |
+
+Resource creation, deletion, secret-value access, unrelated accounts, and arbitrary Wrangler
+arguments are outside this integration's operation catalog. Use a distinct reviewed procedure if
+new infrastructure must be created or destroyed. Worker application secrets remain in Cloudflare;
+the deployment integration checks required names but never reads their values.
+
+OneCLI mode removes ambient Cloudflare tokens, keys, emails, auth paths, and account selection from
+every inspected and wrapped process. If OneCLI is unavailable, detached, revoked, ambiguous, or
+denied, deployment stops. It never falls back to Wrangler's cached or environment authentication.
 
 ### Keeping a test deployment free
 
@@ -187,6 +215,10 @@ Configure the SDK with the deployed URL, the public source key, and a same-origi
 fetches a short-lived ingest token from your server. See
 [`browser-sdk.md`](./browser-sdk.md) for the HTML and JavaScript examples.
 
+This website integration is unchanged by OneCLI. OneCLI is not installed in the website, browser,
+or SDK, and the snippet never receives a Cloudflare deployment token or Worker administrator
+secret.
+
 The Worker handles CORS preflight for `POST /v1/events:batch` and accepts the SDK's
 `authorization`, `content-type`, and `x-vizoalica-source` headers. CORS is not authorization:
 every actual event request still has its browser origin checked against the configured source and
@@ -247,6 +279,11 @@ ID belonging to that project, and an inclusive date range of 31 days or less. Re
 aggregate page-view counts by date and path. The endpoint has no browser CORS, raw-event access,
 write tools, or arbitrary query capability.
 
+The machine that runs the local analytics and administration console is configured separately.
+Follow [Local analytics operations](./local-analytics.md) and choose either its OneCLI gateway path
+or its direct private-file path. That client-side choice does not change this Worker deployment or
+the website snippet.
+
 ## Operating and rollback cards
 
 ### A source is abused
@@ -269,6 +306,29 @@ write tools, or arbitrary query capability.
 2. Upload it with `wrangler secret put`, deploy, and update the token issuer atomically.
 3. Invalidate outstanding short-lived tokens where possible.
 4. Audit access to the secret manager and deployment account.
+
+### Rotate, revoke, recover, or change providers
+
+Rotate a token inside the same OneCLI Cloudflare connection, then generate a new plan and preflight
+receipt. The Vizoalica profile does not change when the connection and account stay the same. To
+revoke access, detach the connection from the deployment agent or revoke it in OneCLI; subsequent
+checks and applies fail at the provider boundary.
+
+For a compromised machine, revoke that machine's OneCLI identity, remove its private profile,
+plans, receipts, results, and audit file, review OneCLI and Cloudflare audit evidence, and create a
+new identity on a trusted machine. Do not transfer credential material between machines.
+
+To migrate from native authentication, create a new OneCLI profile and run plan/check before any
+apply. To roll back, create an explicit `cloudflare-native` profile and authenticate Wrangler
+through Cloudflare's normal flow. Neither direction copies a token through Vizoalica. A failed or
+interrupted apply lists completed and pending operations; inspect local status, generate a fresh
+plan and receipt, and rely on Wrangler's idempotent migration tracking before retrying.
+
+Deployment audit records are operator-only NDJSON beside the private profile and are pruned after
+90 days by default. Back up Cloudflare data and configuration through your normal account controls;
+the audit log is evidence, not a backup. Teardown remains a separate destructive procedure: revoke
+deployment access first, export required data, and obtain distinct approval before removing Worker,
+D1, or R2 resources.
 
 ## Release checklist
 

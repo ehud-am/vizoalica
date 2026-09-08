@@ -1,6 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 
+if [ "${1:-}" = "--" ]; then
+  shift
+fi
+
+if [ -n "${VIZOALICA_DEPLOY_PROFILE:-}" ]; then
+  exec node --import tsx apps/deploy-cli/src/index.ts verify --profile "$VIZOALICA_DEPLOY_PROFILE" "$@"
+fi
+if [ "${1:-}" = "--profile" ]; then
+  exec node --import tsx apps/deploy-cli/src/index.ts verify "$@"
+fi
+
 worker_url="${VIZOALICA_WORKER_URL:-}"
 
 [ -n "$worker_url" ] || {

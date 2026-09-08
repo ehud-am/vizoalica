@@ -2,6 +2,44 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.3.0] - 2026-09-07
+
+### Added
+
+- Native OneCLI credential-provider integration for Cloudflare deployments, with explicit
+  OneCLI project, agent, connection, account, and environment selection.
+- A typed deployment CLI covering configuration, offline planning, non-mutating preflight,
+  explicitly approved apply, bounded health verification, and local status reporting.
+- Short-lived preflight receipts, canonical plan and configuration digests, private deployment
+  artifacts, and allowlisted 90-day deployment audit evidence.
+- A versioned Vizoalica Cloudflare deployment skill that preserves the human approval boundary.
+- Separate client-machine setup paths for local analytics and administration with OneCLI gateway
+  injection or a direct operator-owned credential file.
+
+### Changed
+
+- Existing `deploy:check`, `deploy:apply`, and `deploy:verify` entry points now route explicit
+  deployment profiles through the typed CLI while retaining the no-profile Cloudflare-native path.
+- Expanded automated coverage to 165 tests with 96.48% line and 90.24% branch coverage.
+- Clarified that Cloudflare infrastructure deployment, website JavaScript integration, and local
+  analytics/admin client authentication are independent operational concerns.
+
+### Security
+
+- OneCLI deployments strip ambient Cloudflare authentication, never fall back to another provider,
+  validate connection grants and account identity before mutation, and redact bounded upstream
+  output.
+- Apply requires the exact reviewed plan ID and a current receipt bound to the actor, provider,
+  connection, account, profile, and Wrangler configuration.
+- OneCLI-backed client machines can retain only a `onecli-managed` placeholder locally while the
+  gateway injects the Worker administrator credential at request time.
+
+### Migration
+
+- No D1 schema or browser snippet migration is required. Existing Cloudflare-native deployments
+  remain supported. OneCLI adoption is opt-in through a new non-secret deployment profile or the
+  documented local-client setup path.
+
 ## [0.2.0] - 2026-09-06
 
 ### Added

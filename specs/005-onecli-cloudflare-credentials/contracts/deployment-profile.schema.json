@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/deployment-profile.v1.json",
+  "title": "Vizoalica Cloudflare Deployment Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "provider", "environment", "wranglerConfigPath", "cloudflare"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "provider": { "enum": ["onecli", "cloudflare-native"] },
+    "environment": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+    "wranglerConfigPath": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "cloudflare": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accountId"],
+      "properties": {
+        "accountId": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
+      }
+    },
+    "onecli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "agentId", "agentIdentifier", "connectionId"],
+      "properties": {
+        "project": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+        "agentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "agentIdentifier": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+        "connectionId": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "auditRetentionDays": { "type": "integer", "minimum": 90, "maximum": 3650, "default": 90 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "provider": { "const": "onecli" } }, "required": ["provider"] },
+      "then": { "properties": { "onecli": {} }, "required": ["onecli"] },
+      "else": { "not": { "properties": { "onecli": {} }, "required": ["onecli"] } }
+    }
+  ]
+}

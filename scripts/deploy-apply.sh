@@ -1,6 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 
+if [ "${1:-}" = "--" ]; then
+  shift
+fi
+
+if [ -n "${VIZOALICA_DEPLOY_PROFILE:-}" ]; then
+  exec node --import tsx apps/deploy-cli/src/index.ts apply --profile "$VIZOALICA_DEPLOY_PROFILE" "$@"
+fi
+if [ "${1:-}" = "--profile" ]; then
+  exec node --import tsx apps/deploy-cli/src/index.ts apply "$@"
+fi
+
 config_path="${VIZOALICA_DEPLOY_CONFIG:-deploy/cloudflare/wrangler.production.toml}"
 database_name="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$config_path" | head -n 1)"
 

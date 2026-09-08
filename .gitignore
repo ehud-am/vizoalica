@@ -151,3 +151,10 @@ coverage/
 
 # Operator-owned Cloudflare production configuration
 deploy/cloudflare/wrangler.production.toml
+
+# Operator-owned deployment profiles and generated authorization artifacts
+deploy/cloudflare/deployment-profile.json
+**/vizoalica-*-plan.json
+**/vizoalica-*-receipt.json
+**/vizoalica-*-result.json
+**/deployment-audit.ndjson

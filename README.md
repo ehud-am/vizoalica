@@ -35,7 +35,12 @@ corepack pnpm validate
 corepack pnpm build
 ```
 
-Vizoalica releases never deploy into a Cloudflare account automatically. Deploy the Worker, D1 schema, and R2 bucket only from an operator-controlled checkout using the [Cloudflare operations guide](docs/operations/cloudflare.md). Self-hosted and other cloud profiles are deferred beyond v0.1.
+Vizoalica releases never deploy into a Cloudflare account automatically. Deploy the Worker, D1
+schema, and R2 bucket only from an operator-controlled checkout using the
+[Cloudflare operations guide](docs/operations/cloudflare.md). Operators can explicitly use either
+Cloudflare-native authentication or a OneCLI-managed Cloudflare connection. OneCLI profiles store
+only non-secret project, agent, connection, account, and environment identifiers; OneCLI retains
+and injects the credential.
 
 ## Quick website implementation
 
@@ -75,9 +80,11 @@ If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fa
 
 The Worker retains immutable raw batches in R2 and writes bounded hourly D1 aggregates for page
 views and keyed visitor presence. An on-demand React console calls a loopback-only Node API, and
-that API alone owns the remote administrator credential. Start them with
-`pnpm local-ops-api:dev` and `pnpm admin-web:dev` after following the
-[local analytics operations guide](docs/operations/local-analytics.md).
+that API alone makes authenticated calls to the Worker. The client machine has two documented
+credential paths: OneCLI gateway injection with a local placeholder, or a direct operator-owned
+`0600` configuration file. Start the loopback API and console only after following the
+[local analytics operations guide](docs/operations/local-analytics.md). This client choice does not
+change the Cloudflare deployment or the website's JavaScript snippet.
 
 ## Privacy defaults
 
@@ -160,6 +167,13 @@ VIZOALICA_WORKER_URL=https://your-worker.example pnpm run deploy:verify
 ```
 
 `wrangler.production.toml` is gitignored. Nothing is deployed by a build, test, merge, tag, or release.
+
+For credential isolation, copy the non-secret shape in
+`deploy/cloudflare/deployment-profile.example.json` to a private directory outside the checkout by
+running `pnpm deploy:configure`. Then use `deploy:plan`, `deploy:check`, and `deploy:apply` with that
+profile. Apply always requires the exact reviewed plan ID and a current 15-minute preflight receipt.
+The same commands support an explicitly selected `cloudflare-native` profile for portability and
+rollback; provider selection is never inferred from the machine.
 
 Current validation status includes unit, contract, integration, and load smoke coverage for the SDK, contracts, privacy utilities, and ingestion pipeline.
 
