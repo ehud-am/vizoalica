@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vizoalica test website</title>
+    <style>
+      body {
+        font:
+          1.1rem/1.6 system-ui,
+          sans-serif;
+        max-width: 42rem;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        color: #172b20;
+        background: #fff;
+      }
+      button {
+        font: inherit;
+        padding: 0.6rem 1rem;
+        margin: 0.5rem 0.5rem 0.5rem 0;
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 3px solid #215c42;
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Your analytics test page</h1>
+      <p>
+        This page can send a page view to your Vizoalica installation. Analytics starts only if you
+        choose Allow. Your choice applies to this page visit.
+      </p>
+      <button id="allow" type="button">Allow analytics</button>
+      <button id="decline" type="button">Decline analytics</button>
+      <p id="status" role="status">Analytics has not started.</p>
+    </main>
+    <script>
+      const status = document.getElementById('status');
+      document.getElementById('allow').addEventListener('click', () => {
+        if (document.getElementById('vizoalica-sdk')) return;
+        const script = document.createElement('script');
+        script.id = 'vizoalica-sdk';
+        script.async = true;
+        script.src = '/vizoalica.js';
+        script.dataset.endpoint = 'https://REPLACE_WORKER_HOST/v1/events:batch';
+        script.dataset.source = 'REPLACE_PUBLIC_SOURCE_KEY';
+        script.dataset.project = 'REPLACE_PROJECT_ID';
+        script.dataset.tokenUrl = '/vizoalica/ingest-token';
+        script.dataset.consent = 'analytics-granted';
+        document.head.append(script);
+        status.textContent =
+          'Analytics allowed. Check the Network panel and your local console to confirm delivery.';
+        document.getElementById('allow').disabled = true;
+        document.getElementById('decline').disabled = true;
+      });
+      document.getElementById('decline').addEventListener('click', () => {
+        document.getElementById('allow').disabled = true;
+        document.getElementById('decline').disabled = true;
+        status.textContent =
+          'Analytics declined. No analytics will be collected during this visit.';
+      });
+    </script>
+  </body>
+</html>

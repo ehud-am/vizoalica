@@ -58,8 +58,12 @@ describe('website operations contract', () => {
   });
 
   it('proxies collection, details, patch, and null deletion responses', async () => {
-    const api = await startApi((_url, init) =>
-      init?.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json([])
+    const api = await startApi((url, init) =>
+      init?.method === 'DELETE'
+        ? new Response(null, { status: 204 })
+        : url.pathname.endsWith('/snippet')
+          ? Response.json({ publicSourceKey: 'public', allowedOrigins: ['https://site.test'] })
+          : Response.json([])
     );
     closers.push(api.close);
     const cookie = await api.session();

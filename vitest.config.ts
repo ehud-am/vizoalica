@@ -22,7 +22,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
-      include: ['apps/**/src/**/*.{ts,tsx}', 'packages/**/src/**/*.ts'],
+      include: [
+        'apps/**/src/**/*.{ts,tsx}',
+        'packages/**/src/**/*.ts',
+        'examples/cloudflare-pages/functions/**/*.ts',
+        'scripts/verify-website.ts'
+      ],
       exclude: ['**/src/main.tsx', '**/src/cli.ts'],
       thresholds: { lines: 90, branches: 90 }
     }

@@ -1,20 +1,25 @@
 # Browser SDK
 
-The v0.1.0 browser SDK is designed to be safe to embed in ordinary web pages.
+Build the standalone bundle with `pnpm browser-sdk:build`, then host
+`packages/browser-sdk/dist/vizoalica.js` on your **website**. The ingestion Worker does not serve
+this file. For a complete working installation, use the [Pages recipe](pages.md).
 
 ## Recommended embed
 
-Use one async script tag:
+Use one async script tag with your actual Worker URL and public identifiers. Load it only after
+analytics consent is granted, setting `data-consent="analytics-granted"` then. `unknown` below is
+a placeholder, not an automatic collection gate; the SDK records the supplied state and does
+not implement a consent banner or suppression policy.
 
 ```html
 <script
   async
-  src="https://analytics.example.com/vizoalica.js"
+  src="/vizoalica.js"
   data-endpoint="https://analytics.example.com/v1/events:batch"
   data-source="public_source_key"
   data-project="project_id"
   data-token-url="/vizoalica/ingest-token"
-  data-consent="analytics-granted"
+  data-consent="unknown"
 ></script>
 ```
 

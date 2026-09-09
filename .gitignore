@@ -158,3 +158,10 @@ deploy/cloudflare/deployment-profile.json
 **/vizoalica-*-receipt.json
 **/vizoalica-*-result.json
 **/deployment-audit.ndjson
+
+# Local Pages secrets and generated example assets
+.dev.vars
+.dev.vars.*
+.wrangler/
+examples/cloudflare-pages/wrangler.toml
+examples/cloudflare-pages/public/vizoalica.js

@@ -19,72 +19,49 @@ The current work focuses on:
 > Status: early MVP implementation. The SDK, ingestion data plane, hourly privacy-safe analytics,
 > and local operations console are implemented and under active validation.
 
-## Cloudflare deployment
+## Start here
 
-Prerequisites:
+Follow the **[step-by-step installation guide](docs/operations/cloudflare.md)**. It takes you from
+Cloudflare login to a verified page view, with a check after each step.
 
-- Node.js 22+
-- Corepack-enabled pnpm
+1. Deploy the ingestion Worker, D1 database and R2 bucket.
+2. Connect your website using the **[complete Pages example](docs/operations/pages.md)**: build
+   and host the SDK, add the supplied token Function, then verify both.
+3. Open the **[local console](docs/operations/local-analytics.md)** when you need it. Keep its
+   administrator secret in a local OneCLI vault, or use the documented private-file alternative.
 
-```bash
-git clone https://github.com/ehud-am/vizoalica.git
-cd vizoalica
-corepack enable
-corepack pnpm install
-corepack pnpm validate
-corepack pnpm build
-```
+The simplest deployment uses Cloudflare login and the included `workers.dev`/`pages.dev` addresses.
+You can use OneCLI for the local console independently of deployment. No custom domain, paid
+Workers subscription, or hosted dashboard is required for a small test. R2 has included usage
+but can charge for excess usage; the guide explains quotas and retention.
 
-Vizoalica releases never deploy into a Cloudflare account automatically. Deploy the Worker, D1
-schema, and R2 bucket only from an operator-controlled checkout using the
-[Cloudflare operations guide](docs/operations/cloudflare.md). Operators can explicitly use either
-Cloudflare-native authentication or a OneCLI-managed Cloudflare connection. OneCLI profiles store
-only non-secret project, agent, connection, account, and environment identifiers; OneCLI retains
-and injects the credential.
+**Already tried an installation?** Start with [troubleshooting](docs/operations/troubleshooting.md).
+It covers all 18 findings from the first Cloudflare + OneCLI deployment.
 
-## Quick website implementation
+## Website integration
 
-Add one script tag to your website, similar to Google Analytics-style installs:
+The browser SDK and token endpoint live on **your website**; the Worker accepts events.
+After hosting both pieces using the Pages recipe, the local console generates a complete snippet:
 
 ```html
 <script
   async
-  src="https://analytics.example.com/vizoalica.js"
-  data-endpoint="https://analytics.example.com/v1/events:batch"
-  data-source="public_source_key"
-  data-project="project_id"
+  src="/vizoalica.js"
+  data-endpoint="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/v1/events:batch"
+  data-source="YOUR_PUBLIC_SOURCE_KEY"
+  data-project="YOUR_PROJECT_ID"
   data-token-url="/vizoalica/ingest-token"
   data-consent="analytics-granted"
 ></script>
 ```
 
-That is enough for the default page-view tracking path. The script loads asynchronously, reads its own `data-*` attributes, obtains a short-lived ingest token from `data-token-url`, and sends non-blocking CloudEvents batches to the backend.
+Load this only after the visitor grants analytics consent. The consent attribute records the
+choice; it does not itself prevent collection. The included example waits for an Allow button.
+Never embed signing secrets or administrator credentials in the website. A static site needs a
+server-side token endpoint; adding the script tag alone does not complete installation.
 
-Track a custom event later from page code if needed:
-
-```html
-<script>
-  window.vizoalica?.track('signup_click', {
-    properties: {
-      plan: 'pro'
-    }
-  });
-</script>
-```
-
-Production websites should mint short-lived ingest tokens from their own backend at the configured `data-token-url`. Never place long-lived signing secrets in browser code.
-
-If Vizoalica is down, slow, blocked, or misconfigured, the SDK is designed to fail silently so the host website keeps operating.
-
-## Local analytics operations
-
-The Worker retains immutable raw batches in R2 and writes bounded hourly D1 aggregates for page
-views and keyed visitor presence. An on-demand React console calls a loopback-only Node API, and
-that API alone makes authenticated calls to the Worker. The client machine has two documented
-credential paths: OneCLI gateway injection with a local placeholder, or a direct operator-owned
-`0600` configuration file. Start the loopback API and console only after following the
-[local analytics operations guide](docs/operations/local-analytics.md). This client choice does not
-change the Cloudflare deployment or the website's JavaScript snippet.
+The SDK queues and sends events asynchronously. Delivery failures should leave the host website
+usable. See the [SDK reference](docs/operations/browser-sdk.md) for custom events and module usage.
 
 ## Privacy defaults
 
@@ -156,25 +133,12 @@ corepack pnpm lint
 corepack pnpm format:check
 ```
 
-For a self-hosted deployment, first create an operator-owned configuration, then run the explicit deployment commands:
+Build a script-tag bundle separately with `pnpm browser-sdk:build`.
 
-```bash
-cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
-# Edit wrangler.production.toml with your D1 database ID and resource names.
-pnpm run deploy:check
-pnpm run deploy:apply
-VIZOALICA_WORKER_URL=https://your-worker.example pnpm run deploy:verify
-```
+Releases, pushes, tags and builds never deploy your Vizoalica Worker automatically. Deploy an
+operator-selected checkout using the [installation guide](docs/operations/cloudflare.md). Existing
+Git-connected **website** projects may have their own automatic Pages deployments; the
+[Pages recipe](docs/operations/pages.md) explains the distinction.
 
-`wrangler.production.toml` is gitignored. Nothing is deployed by a build, test, merge, tag, or release.
-
-For credential isolation, copy the non-secret shape in
-`deploy/cloudflare/deployment-profile.example.json` to a private directory outside the checkout by
-running `pnpm deploy:configure`. Then use `deploy:plan`, `deploy:check`, and `deploy:apply` with that
-profile. Apply always requires the exact reviewed plan ID and a current 15-minute preflight receipt.
-The same commands support an explicitly selected `cloudflare-native` profile for portability and
-rollback; provider selection is never inferred from the machine.
-
-Current validation status includes unit, contract, integration, and load smoke coverage for the SDK, contracts, privacy utilities, and ingestion pipeline.
-
-The v0.1.0 deployment uses a Worker for ingestion, D1 for configuration, quota state, and dashboard rollups, and R2 for immutable accepted batches. See [Cloudflare operations](docs/operations/cloudflare.md).
+See [release operations](docs/operations/releases.md) for maintainer checks and
+[the 0.3.1 specification](specs/006-simple-cloudflare-install/spec.md) for this installation patch.

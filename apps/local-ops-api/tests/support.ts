@@ -21,7 +21,8 @@ export async function startApi(
     options: {
       method?: string;
       cookie?: string;
-      origin?: string;
+      origin?: string | null;
+      referer?: string;
       host?: string;
       body?: unknown;
       rawBody?: string;
@@ -37,7 +38,8 @@ export async function startApi(
         method: options.method ?? 'GET',
         headers: {
           host: options.host ?? '127.0.0.1:4318',
-          origin: options.origin ?? 'http://127.0.0.1:5173',
+          ...(options.origin === null ? {} : { origin: options.origin ?? 'http://127.0.0.1:5173' }),
+          ...(options.referer ? { referer: options.referer } : {}),
           ...(options.cookie ? { cookie: options.cookie } : {})
         },
         async *[Symbol.asyncIterator]() {

@@ -494,6 +494,12 @@ textarea {
 .health-dot.unavailable {
   background: #ae4740;
 }
+.detail-card dd {
+  margin-inline-start: 0;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
 pre {
   overflow: auto;
   margin: 18px 0 10px;

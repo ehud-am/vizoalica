@@ -122,12 +122,35 @@ describe('interactive console', () => {
         snippet={{
           publicSourceKey: 'public',
           allowedOrigins: ['https://docs.test'],
-          tokenIssuer: 'website-owned'
+          tokenIssuer: 'website-owned',
+          projectId: 'p1',
+          sourceId: 's1',
+          html: '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-project="p1" data-source="public" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>'
         }}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Copy snippet' }));
     expect(await screen.findByText('Copied to clipboard.')).toBeTruthy();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining('data-endpoint="https://worker.test/v1/events:batch"')
+    );
+    expect(screen.getByText('s1')).toBeTruthy();
+  });
+
+  it('keeps an unavailable snippet uncopyable', () => {
+    render(
+      <IntegrationSnippet
+        snippet={{
+          publicSourceKey: 'public',
+          allowedOrigins: ['https://site.test'],
+          tokenIssuer: 'website-owned'
+        }}
+      />
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Copy snippet' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(screen.getByText(/Snippet unavailable/)).toBeTruthy();
   });
 
   it('clears a successful create form and restores its button after failure', async () => {
