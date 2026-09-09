@@ -2,6 +2,38 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.3.1] - 2026-09-09
+
+### Fixed
+
+- Reworked first-run Cloudflare installation into ordered steps with success checks, exact token
+  permission labels, both Worker secrets before preflight, live resource comparison, all four
+  migrations, and current-schema SQL.
+- Added a complete Pages website recipe and copyable token Function, standalone browser SDK build,
+  consent-before-load demo, and content-aware website verification.
+- Local console snippets now include the configured Worker endpoint, hosted SDK origin, project,
+  public source key, token URL and consent state, with source ID visible for token issuer setup.
+- Local API accepts normal same-origin browser GETs via Referer when Origin is absent while
+  rejecting foreign, missing and malformed provenance.
+- OneCLI-wrapped Wrangler receives a non-secret initialization placeholder after ambient credential
+  removal; provider operations now allow 60-second reads, 120-second dry runs and 300-second
+  migrations/deployments.
+- Documented exact generic vault fields, supported local gateway override, Pages deployment modes,
+  the external upload-JWT collision, inexpensive operation and all 18 first-run findings.
+
+### Security
+
+- Patched vulnerable development dependency resolutions for sharp and js-yaml while retaining the
+  tested Wrangler version.
+
+### Upgrade
+
+- No new database migration. Apply every existing migration through `0004_local_operations.sql`.
+- Restart the local API and console, rebuild/copy the SDK for your website, and redeploy its Function
+  if adopting the example. Preserve operator-owned configuration and secrets.
+- OneCLI Pages JWT rewriting remains an external limitation; use the explicitly documented native
+  Pages route or obtain a verified gateway fix. No automatic credential fallback is introduced.
+
 ## [0.3.0] - 2026-09-07
 
 ### Added

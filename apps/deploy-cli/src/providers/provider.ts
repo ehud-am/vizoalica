@@ -24,6 +24,12 @@ export interface CredentialProvider {
   ): Promise<ProcessResult>;
 }
 
+export function operationTimeoutMs(operation: OperationId): number {
+  if (operation === 'd1.migrations.apply' || operation === 'worker.deploy') return 300_000;
+  if (operation === 'worker.bundle.dry_run') return 120_000;
+  return 60_000;
+}
+
 export function wranglerArguments(
   operation: OperationId,
   profile: DeploymentProfile,

@@ -2,7 +2,7 @@ import { sanitizedCloudflareEnvironment } from '../process.js';
 import type { CredentialHealth, DeploymentProfile, OperationId, ProcessResult } from '../types.js';
 import { DeploymentFailure } from '../types.js';
 import type { CredentialProvider, ProviderContext } from './provider.js';
-import { wranglerArguments } from './provider.js';
+import { operationTimeoutMs, wranglerArguments } from './provider.js';
 
 function parseJson(text: string): unknown {
   try {
@@ -192,8 +192,12 @@ export class OneCliProvider implements CredentialProvider {
         ...wranglerArguments(operation, profile, context.target)
       ],
       cwd: context.cwd,
-      env: sanitizedCloudflareEnvironment(process.env, profile.cloudflare.accountId),
-      timeoutMs: 30_000,
+      env: {
+        ...sanitizedCloudflareEnvironment(process.env, profile.cloudflare.accountId),
+        // Wrangler requires a token before sending requests; OneCLI supplies the real header.
+        CLOUDFLARE_API_TOKEN: 'onecli-managed'
+      },
+      timeoutMs: operationTimeoutMs(operation),
       ...(context.signal ? { signal: context.signal } : {})
     });
   }

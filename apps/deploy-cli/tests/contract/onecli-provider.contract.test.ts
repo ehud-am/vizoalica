@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import { OneCliProvider, cloudflareConnectionIds, objects } from '../../src/providers/onecli.js';
 import { failureForProcess, wranglerArguments } from '../../src/providers/provider.js';
 import { onecliExecutor, onecliProfile, ok, target } from '../support.js';
@@ -6,6 +6,31 @@ import { onecliExecutor, onecliProfile, ok, target } from '../support.js';
 const context = (executor = onecliExecutor()) => ({ cwd: process.cwd(), target, executor });
 
 describe('OneCLI provider contract', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it('replaces ambient tokens only for wrapped Wrangler and uses operation budgets', async () => {
+    vi.stubEnv('CLOUDFLARE_API_TOKEN', 'real-sentinel');
+    vi.stubEnv('CF_API_TOKEN', 'alias-sentinel');
+    const executor = onecliExecutor();
+    const provider = new OneCliProvider();
+    await provider.inspect(onecliProfile, context(executor));
+    for (const [request] of executor.mock.calls) {
+      expect(request.env?.CLOUDFLARE_API_TOKEN).toBeUndefined();
+      expect(request.env?.CF_API_TOKEN).toBeUndefined();
+    }
+    for (const [operation, timeoutMs] of [
+      ['cloudflare.identity.read', 60_000],
+      ['worker.bundle.dry_run', 120_000],
+      ['d1.migrations.apply', 300_000],
+      ['worker.deploy', 300_000]
+    ] as const) {
+      await provider.run(onecliProfile, operation, context(executor));
+      const request = executor.mock.calls.at(-1)![0];
+      expect(request.env?.CLOUDFLARE_API_TOKEN).toBe('onecli-managed');
+      expect(request.env?.CF_API_TOKEN).toBeUndefined();
+      expect(request.timeoutMs).toBe(timeoutMs);
+      expect(JSON.stringify(request)).not.toContain('real-sentinel');
+    }
+  });
   it('validates version, connection, agent, grant, and effective credential', async () => {
     await expect(new OneCliProvider().inspect(onecliProfile, context())).resolves.toMatchObject({
       status: 'ready',

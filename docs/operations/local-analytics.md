@@ -52,13 +52,28 @@ Do not expose the loopback API or development web server to the network. Both mu
 Use this path when OneCLI should retain the Worker administrator secret and inject it only into
 HTTPS requests from the local API to the deployed Worker.
 
-1. Install OneCLI 2.11 or newer and authenticate the client machine to the intended OneCLI project.
-2. In the OneCLI dashboard, create a generic secret or connection for the deployed Worker's exact
-   hostname. Configure it to replace the `Authorization` bearer value for that host, and enter the
-   same `VIZOALICA_ADMIN_SECRET` value that was uploaded to the Worker, only in the OneCLI-controlled
-   interface. This follows OneCLI's
-   [gateway injection model](https://onecli.sh/docs/how-it-works), which matches outbound HTTPS
-   requests by host and path and injects credentials at request time.
+1. Use your existing local vault, or first follow OneCLI's
+   [Community self-hosting setup](https://onecli.sh/docs/self-hosting/community) and
+   [client connection guide](https://onecli.sh/docs/self-hosting/connect-agents). A locally hosted
+   vault requires its Docker services to be running. Install OneCLI 2.11 or newer and authenticate
+   the client machine to the intended OneCLI project. Keep the API address and gateway address
+   distinct; the gateway port is used for proxied Worker requests.
+2. In the OneCLI dashboard, create a **Generic** secret with these exact fields:
+
+   | Field               | Value                                                                                                |
+   | ------------------- | ---------------------------------------------------------------------------------------------------- |
+   | Name                | `Vizoalica administrator` (a label you choose)                                                       |
+   | Host / host pattern | Exact Worker hostname, e.g. `vizoalica-ingest.example.workers.dev` — no `https://`, path or wildcard |
+   | Header              | `Authorization`                                                                                      |
+   | Value format        | `Bearer {value}`                                                                                     |
+   | Secret value        | The raw `VIZOALICA_ADMIN_SECRET` stored on the Worker, **without** a `Bearer ` prefix                |
+
+   Use the dashboard fields for OneCLI 2.11: its CLI help lists generic-secret creation but does
+   not describe the header/value-format fields needed here. Do not guess flags or put the real
+   value in a command. Save the secret before attaching it. See OneCLI's
+   [gateway model](https://onecli.sh/docs/how-it-works) and
+   [CLI reference](https://onecli.sh/docs/cli/onecli-cli).
+
 3. Attach that secret to a dedicated client agent. Restrict the agent to the Worker's administrator
    and analytics routes; do not grant it the Cloudflare deployment connection unless this machine
    also performs deployments.
@@ -84,6 +99,29 @@ placeholder bearer value, and the gateway replaces it at request time for the co
 host. The real administrator secret is not written to the Vizoalica configuration or returned to
 the browser. If OneCLI, its agent grant, or the matching secret is unavailable, Worker requests
 must fail closed; do not restart the API directly as a fallback.
+
+### Self-hosted gateway on macOS or Linux
+
+If the local API cannot reach `gateway:10255`, that hostname belongs to Docker's network, not
+necessarily your host. Ensure the gateway port is published on **loopback** (for example,
+`127.0.0.1:10255:10255` in the gateway service's Compose ports), then use OneCLI's supported
+host override:
+
+```bash
+onecli run --project <project-slug> --agent <client-agent-identifier> \
+  --gateway 127.0.0.1:10255 -- \
+  pnpm local-ops-api:dev serve "$HOME/.config/vizoalica/local-operations.json"
+```
+
+`--gateway` is present in OneCLI 2.11.0 `onecli help`. Use the actual published port if different.
+For a remote gateway, use its reachable address according to your OneCLI installation. Keep
+OneCLI's proxy authentication and CA settings intact; do not print the wrapped environment,
+copy proxy credentials, disable TLS verification, or use `--no-ca` to hide a certificate problem.
+See [OneCLI self-hosted client setup](https://onecli.sh/docs/self-hosting/connect-agents).
+
+**Check:** start the console below and confirm the project list loads. If it fails, check the
+exact Worker hostname, secret value format, attached grant and gateway address in that order.
+An empty project list on a new installation is success; create the first project and website.
 
 ## Path B: client machine without OneCLI
 
@@ -120,9 +158,15 @@ pnpm admin-web:dev
 ```
 
 Open the loopback URL printed by the development server. The console proxies `/api` to the local
-API; it never calls the Worker directly. The API accepts only its exact configured loopback origin
-and a short-lived HttpOnly, SameSite session cookie. You do not run `pnpm worker:dev` on this client:
+API; it never calls the Worker directly. The API prefers the exact `Origin` header, or the origin parsed from `Referer` when browsers
+omit `Origin` on same-origin GETs. Foreign or missing provenance is rejected. It also requires a short-lived HttpOnly, SameSite session cookie. You do not run `pnpm worker:dev` on this client:
 the local API connects to the already deployed Worker URL.
+
+Keep the printed `http://127.0.0.1:5173` origin consistent with the configured console origin;
+`localhost` and `127.0.0.1` are different origins. If port 5173 is busy, stop the old console before
+restarting instead of silently using another port. A `Workspace unavailable` message can mean a
+wrong origin, an older local API, missing migrations, or a failed remote credential; see
+[troubleshooting](troubleshooting.md).
 
 Verify that the console can list projects and websites and load a fixed analytics window. Then stop
 or revoke the client credential once the operator session is complete.

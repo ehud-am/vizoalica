@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
 import { WorkerClient } from './remote-client/worker-client.js';
+import { integrationSnippet } from './routes/snippet.js';
 import { analytics } from './routes/analytics.js';
 import {
   assertSafeIds,
@@ -52,6 +53,16 @@ function recoveryFor(code: number) {
   return code === 503 ? 'retry_safely' : code === 401 ? 'reauthorize' : undefined;
 }
 
+function requestOrigin(request: IncomingMessage): string | undefined {
+  if (request.headers.origin) return request.headers.origin;
+  if (!request.headers.referer) return undefined;
+  try {
+    return new URL(request.headers.referer).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export function createLocalServer(config: Config) {
   const client = new WorkerClient(config.remoteUrl, config.adminSecret);
   const sessions = new Map<string, number>();
@@ -61,7 +72,7 @@ export function createLocalServer(config: Config) {
       return send(response, 403, { error: 'forbidden' });
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
     if (!url.pathname.startsWith('/api/')) return send(response, 404, { error: 'not_found' });
-    if (request.headers.origin !== config.consoleOrigin)
+    if (requestOrigin(request) !== config.consoleOrigin)
       return send(response, 403, { error: 'origin_not_allowed' });
 
     if (request.method === 'POST' && url.pathname === '/api/session') {
@@ -122,8 +133,16 @@ export function createLocalServer(config: Config) {
       if (item) {
         assertSafeIds(item[1]!, item[2]!);
         const remotePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}${item[3] ? `/${item[3]}` : ''}`;
-        if (request.method === 'GET' && item[3])
-          return send(response, 200, await workerJson(client, remotePath));
+        if (request.method === 'GET' && item[3]) {
+          const metadata = await workerJson(client, remotePath);
+          return send(
+            response,
+            200,
+            item[3] === 'snippet'
+              ? integrationSnippet(metadata, config.remoteUrl, item[1]!, item[2]!)
+              : metadata
+          );
+        }
         if (request.method === 'PATCH' && !item[3]) {
           const body = validateWebsiteBody(await requestJson(request), true);
           return send(response, 200, await workerJson(client, remotePath, jsonInit('PATCH', body)));

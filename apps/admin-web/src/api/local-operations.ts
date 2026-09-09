@@ -20,6 +20,8 @@ export type Summary = {
   lastCompletedAggregateAt?: string;
 };
 export type Integration = {
+  projectId?: string;
+  sourceId?: string;
   publicSourceKey: string;
   allowedOrigins: string[];
   tokenIssuer: 'website-owned';

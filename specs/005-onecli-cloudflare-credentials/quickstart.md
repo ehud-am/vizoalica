@@ -1,6 +1,7 @@
 # Quickstart: Validate OneCLI Cloudflare Credentials
 
-This guide describes the expected workflow after implementation. Use a non-production Cloudflare
+This guide describes the advanced Worker deployment profile workflow. For first installation,
+start with [the ordered installation guide](../../docs/operations/cloudflare.md). Use a non-production Cloudflare
 account or isolated test environment. Never paste a real token into a command, repository file,
 terminal transcript shared with an AI agent, or test fixture.
 
@@ -169,3 +170,12 @@ Validated on 2026-09-07 with Node.js 22, pnpm 9, OneCLI 2.11.0, and Wrangler 4.1
 Live mutation remains an operator-owned boundary: run check/apply against an isolated
 non-production OneCLI connection only after reviewing and explicitly approving the generated plan
 ID.
+
+## 0.3.1 operational corrections
+
+Wrapped Wrangler now receives `CLOUDFLARE_API_TOKEN=onecli-managed` after ambient secrets are removed;
+inspection still receives no token. Wrangler reads allow 60 seconds, dry runs 120 seconds and
+migration/deployment operations 300 seconds. Pages is outside this profile's operation catalog.
+See [troubleshooting](../../docs/operations/troubleshooting.md) for local gateway reachability and
+the OneCLI 2.11 Pages upload-JWT collision. Profile configuration has no gateway override field;
+ensure the OneCLI instance advertises a reachable address before using this workflow.

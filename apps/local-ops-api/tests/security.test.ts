@@ -28,6 +28,49 @@ describe('local API security boundary', () => {
     expect(JSON.stringify(response)).not.toContain('top-secret');
   });
 
+  it('accepts same-origin browser GETs that provide a referrer instead of Origin', async () => {
+    const api = await startApi(() => Response.json([]));
+    closers.push(api.close);
+    const cookie = await api.session();
+    expect(
+      (
+        await api.call('/api/projects', {
+          cookie,
+          origin: null,
+          referer: 'http://127.0.0.1:5173/'
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await api.call('/api/projects', {
+          cookie,
+          origin: null,
+          referer: 'https://evil.test/'
+        })
+      ).status
+    ).toBe(403);
+    expect((await api.call('/api/projects', { cookie, origin: null })).status).toBe(403);
+  });
+
+  it('prefers Origin over Referer and rejects malformed provenance', async () => {
+    const api = await startApi(() => Response.json([]));
+    closers.push(api.close);
+    const cookie = await api.session();
+    expect(
+      (
+        await api.call('/api/projects', {
+          cookie,
+          origin: 'https://evil.test',
+          referer: 'http://127.0.0.1:5173/'
+        })
+      ).status
+    ).toBe(403);
+    expect(
+      (await api.call('/api/projects', { cookie, origin: null, referer: 'not a URL' })).status
+    ).toBe(403);
+  });
+
   it('rejects unsafe hosts, non-API paths, malformed and oversized request bodies', async () => {
     const api = await startApi(() => Response.json({ id: 'p1' }));
     closers.push(api.close);
