@@ -88,6 +88,22 @@ describe('dashboard overview', () => {
     expect(screen.getAllByText('No data in this range.').length).toBeGreaterThan(0);
   });
 
+  it('labels a disabled website as history-only rather than hiding it', async () => {
+    api.listWebsites.mockResolvedValue([
+      ...websites,
+      {
+        id: 's2',
+        projectId: 'p1',
+        name: 'Legacy',
+        publicSourceKey: 'public-2',
+        allowedOrigins: ['https://legacy.test'],
+        status: 'disabled'
+      }
+    ]);
+    render(<AnalyticsPage projects={projects} projectId="p1" onProjectChange={() => {}} />);
+    expect(await screen.findByText('Legacy (history only, disabled)')).toBeTruthy();
+  });
+
   it('switches scope to a single website and re-requests that source', async () => {
     const user = userEvent.setup();
     render(<AnalyticsPage projects={projects} projectId="p1" onProjectChange={() => {}} />);

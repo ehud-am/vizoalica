@@ -44,7 +44,7 @@ export function WebsiteSelector({
             .filter((site) => site.status !== 'deleted')
             .map((site) => (
               <option key={site.id} value={site.id}>
-                {site.name}
+                {site.status === 'disabled' ? `${site.name} (history only, disabled)` : site.name}
               </option>
             ))}
         </select>

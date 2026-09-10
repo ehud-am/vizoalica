@@ -9,7 +9,7 @@ export function MetricCard({
 }) {
   return (
     <article className="metric dashboard-card">
-      <span>{label}</span>
+      <h2>{label}</h2>
       <strong>{value.toLocaleString()}</strong>
       <small>{description}</small>
     </article>
