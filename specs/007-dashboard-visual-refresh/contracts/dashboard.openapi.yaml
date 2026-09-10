@@ -1,0 +1,408 @@
+openapi: 3.1.0
+info:
+  title: Vizoalica Dashboard and Local Preferences API
+  version: 0.4.0-draft
+  description: >-
+    Contract for one coherent project-or-website analytics response and the
+    loopback-only theme preference. Analytics timestamps are minute-aligned UTC
+    boundaries and use [start,end) semantics.
+servers:
+  - url: https://analytics.example.com
+    description: Ingestion Worker admin API
+  - url: http://127.0.0.1:4318
+    description: Local operations API
+paths:
+  /v1/admin/projects/{projectId}/analytics:
+    get:
+      operationId: getWorkerAnalyticsOverview
+      summary: Get one complete analytics overview from the Worker
+      security:
+        - adminBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Start'
+        - $ref: '#/components/parameters/End'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnalyticsOverview'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/projects/{projectId}/analytics:
+    get:
+      operationId: getLocalAnalyticsOverview
+      summary: Get one complete analytics overview through the loopback proxy
+      security:
+        - localSession: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Start'
+        - $ref: '#/components/parameters/End'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AnalyticsOverview'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/preferences/theme:
+    get:
+      operationId: getThemePreference
+      summary: Read the operator's explicit local theme preference
+      security:
+        - localSession: []
+      responses:
+        '200':
+          description: Preference result; null means follow the operating system
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemePreferenceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    put:
+      operationId: putThemePreference
+      summary: Persist an explicit local light or dark preference
+      security:
+        - localSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [theme]
+              properties:
+                theme:
+                  $ref: '#/components/schemas/Theme'
+      responses:
+        '200':
+          description: Saved preference
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedThemePreference'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+      description: Worker administrator secret supplied by the local server only
+    localSession:
+      type: apiKey
+      in: cookie
+      name: vizoalica_session
+      description: HttpOnly, SameSite=Strict loopback session cookie
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SafeId'
+    SourceId:
+      name: source_id
+      in: query
+      required: false
+      description: Omit for all non-deleted websites in the project
+      schema:
+        $ref: '#/components/schemas/SafeId'
+    Start:
+      name: start
+      in: query
+      required: true
+      description: Inclusive ISO-8601 UTC minute boundary
+      schema:
+        type: string
+        format: date-time
+      example: '2026-09-02T12:00:00.000Z'
+    End:
+      name: end
+      in: query
+      required: true
+      description: >-
+        Exclusive ISO-8601 UTC minute boundary. Must be after start, no later
+        than the current complete minute, and no more than 30 days after start.
+      schema:
+        type: string
+        format: date-time
+      example: '2026-09-09T12:00:00.000Z'
+  responses:
+    AnalyticsOverview:
+      description: Coherent dashboard data for exactly one scope and range
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+          example: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AnalyticsOverview'
+    InvalidRequest:
+      description: Invalid identifier or time range
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidRange:
+              value:
+                error: invalid_range
+                field: end
+                message: End must be after start and no later than the current complete minute.
+    Unauthorized:
+      description: Missing or expired administrative access
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Project or source is absent, deleted, or outside the project
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: The remote service, aggregate store, or local preference store is unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    SafeId:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{1,128}$'
+    AnalyticsOverview:
+      type: object
+      additionalProperties: false
+      required: [scope, range, totals, trend, rankings, distributions, availability]
+      properties:
+        scope:
+          $ref: '#/components/schemas/AnalyticsScope'
+        range:
+          $ref: '#/components/schemas/AnalyticsRange'
+        totals:
+          $ref: '#/components/schemas/AnalyticsTotals'
+        trend:
+          type: array
+          maxItems: 720
+          items:
+            $ref: '#/components/schemas/MetricPoint'
+        rankings:
+          type: object
+          additionalProperties: false
+          required: [pagePaths, countries, userAgents, referrers]
+          properties:
+            pagePaths:
+              $ref: '#/components/schemas/RankedResult'
+            countries:
+              $ref: '#/components/schemas/RankedResult'
+            userAgents:
+              $ref: '#/components/schemas/RankedResult'
+            referrers:
+              $ref: '#/components/schemas/RankedResult'
+        distributions:
+          type: object
+          additionalProperties: false
+          required: [operatingSystems, browsers, devices, traffic]
+          properties:
+            operatingSystems:
+              $ref: '#/components/schemas/DistributionResult'
+            browsers:
+              $ref: '#/components/schemas/DistributionResult'
+            devices:
+              $ref: '#/components/schemas/DistributionResult'
+            traffic:
+              $ref: '#/components/schemas/DistributionResult'
+        availability:
+          $ref: '#/components/schemas/AnalyticsAvailability'
+    AnalyticsScope:
+      type: object
+      additionalProperties: false
+      required: [projectId, sourceId, label, identityMode]
+      properties:
+        projectId:
+          $ref: '#/components/schemas/SafeId'
+        sourceId:
+          oneOf:
+            - $ref: '#/components/schemas/SafeId'
+            - type: 'null'
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        identityMode:
+          type: string
+          enum: [source-local, project-supplied, mixed]
+    AnalyticsRange:
+      type: object
+      additionalProperties: false
+      required: [startUtc, endUtc, interval, timezone]
+      properties:
+        startUtc:
+          type: string
+          format: date-time
+        endUtc:
+          type: string
+          format: date-time
+        interval:
+          type: string
+          enum: [hour, day]
+        timezone:
+          type: string
+          const: UTC
+    AnalyticsTotals:
+      type: object
+      additionalProperties: false
+      required: [pageViews, uniqueUsers]
+      properties:
+        pageViews:
+          type: integer
+          minimum: 0
+        uniqueUsers:
+          type: integer
+          minimum: 0
+    MetricPoint:
+      type: object
+      additionalProperties: false
+      required: [startUtc, pageViews, uniqueUsers]
+      properties:
+        startUtc:
+          type: string
+          format: date-time
+        pageViews:
+          type: integer
+          minimum: 0
+        uniqueUsers:
+          type: integer
+          minimum: 0
+    CountItem:
+      type: object
+      additionalProperties: false
+      required: [label, count]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        count:
+          type: integer
+          minimum: 0
+    RankedResult:
+      type: object
+      additionalProperties: false
+      required: [items, otherCount, total]
+      properties:
+        items:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/CountItem'
+        otherCount:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+    DistributionResult:
+      type: object
+      additionalProperties: false
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/CountItem'
+        total:
+          type: integer
+          minimum: 0
+    AnalyticsAvailability:
+      type: object
+      additionalProperties: false
+      required: [state, taxonomyVersions]
+      properties:
+        state:
+          type: string
+          enum: [complete, incomplete, processing, unavailable]
+        lastCompletedAt:
+          type: string
+          format: date-time
+        availableFromUtc:
+          type: string
+          format: date-time
+        taxonomyVersions:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+    Theme:
+      type: string
+      enum: [light, dark]
+    ThemePreferenceResponse:
+      type: object
+      additionalProperties: false
+      required: [theme]
+      properties:
+        theme:
+          oneOf:
+            - $ref: '#/components/schemas/Theme'
+            - type: 'null'
+        updatedAt:
+          type: string
+          format: date-time
+    SavedThemePreference:
+      type: object
+      additionalProperties: false
+      required: [theme, updatedAt]
+      properties:
+        theme:
+          $ref: '#/components/schemas/Theme'
+        updatedAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+        field:
+          type: string
+        message:
+          type: string
+        recovery:
+          type: string

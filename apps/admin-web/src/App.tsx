@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, bootstrapSession, listProjects, type Project } from './api/local-operations.js';
 import { AccessState } from './components/AccessState.js';
+import { AppFooter } from './components/AppFooter.js';
+import { ThemeToggle } from './components/ThemeToggle.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { WebsitesPage } from './pages/WebsitesPage.js';
+import { useTheme } from './theme.js';
 
 export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
   const [view, setView] = useState<'overview' | 'websites'>('overview');
   const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
+  const theme = useTheme();
   const connect = useCallback(async () => {
     setAccess('loading');
     try {
@@ -26,19 +30,34 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <a className="brand" href="#main" aria-label="Vizoalica home">
-          <span className="brand-mark" aria-hidden="true">
-            V
-          </span>
+          <img
+            className="brand-mark"
+            src="/brand/vizoalica-mark.svg"
+            alt=""
+            width="32"
+            height="32"
+          />
           <span>Vizoalica</span>
         </a>
-        <div className="local-pill">
-          <span aria-hidden="true" /> Local workspace
+        <div className="topbar-actions">
+          <ThemeToggle
+            theme={theme.theme}
+            saving={theme.saving}
+            saveError={theme.saveError}
+            onChange={theme.setTheme}
+          />
+          <div className="local-pill" aria-label="Local workspace">
+            <span aria-hidden="true" />
+            <span className="local-pill-label" aria-hidden="true">
+              Local workspace
+            </span>
+          </div>
         </div>
       </header>
       <div className="workspace">
-        <aside className="sidebar" aria-label="Primary navigation">
+        <aside className="sidebar">
           <p className="eyebrow">Workspace</p>
-          <nav>
+          <nav aria-label="Primary navigation">
             <button
               className={view === 'overview' ? 'nav-item active' : 'nav-item'}
               onClick={() => setView('overview')}
@@ -76,6 +95,7 @@ export function App() {
               onProjectsChange={setProjects}
             />
           )}
+          {access === 'ready' && <AppFooter />}
         </main>
       </div>
     </div>

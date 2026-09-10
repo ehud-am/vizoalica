@@ -1,6 +1,11 @@
 import { resolve } from 'node:path';
 import { actorId, option, result } from '../cli.js';
-import { assertOperatorPath, validateProfile, writePrivateJson } from '../config.js';
+import {
+  assertOperatorPath,
+  ensureAnalyticsDigest,
+  validateProfile,
+  writePrivateJson
+} from '../config.js';
 import type { DeploymentProfile, DeploymentResult } from '../types.js';
 import { DeploymentFailure } from '../types.js';
 import type { CommandContext } from './shared.js';
@@ -22,6 +27,8 @@ export async function configure(
       2,
       'review'
     );
+  const analyticsDigestPath = `${profilePath}.analytics-digest`;
+  await ensureAnalyticsDigest(analyticsDigestPath);
   const profile = validateProfile({
     schemaVersion: 1,
     provider,
@@ -38,7 +45,8 @@ export async function configure(
           }
         }
       : {}),
-    auditRetentionDays: Number(option(options, 'audit-retention-days', false) ?? 90)
+    auditRetentionDays: Number(option(options, 'audit-retention-days', false) ?? 90),
+    analyticsDigestPath
   }) as DeploymentProfile;
   await writePrivateJson(profilePath, profile, options.replace === true);
   const value = result('configure', {

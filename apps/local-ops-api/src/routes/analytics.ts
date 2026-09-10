@@ -1,6 +1,10 @@
-import type { AnalyticsSummary } from '../contracts.js';
+import type { AnalyticsOverview, AnalyticsSummary } from '../contracts.js';
 import { isAnalyticsWindow, isSafeId } from '../contracts.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
+import {
+  AnalyticsRangeError,
+  parseAnalyticsRange
+} from '../../../ingest-api/src/analytics/range.js';
 export async function analytics(
   client: WorkerClient,
   projectId: string,
@@ -30,4 +34,33 @@ export async function analytics(
       ? { lastCompletedAggregateAt: result.lastCompletedAggregateAt }
       : {})
   };
+}
+
+export async function analyticsOverview(
+  client: WorkerClient,
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string
+): Promise<AnalyticsOverview> {
+  if (!isSafeId(projectId) || (sourceId !== undefined && !isSafeId(sourceId)))
+    throw new Error('invalid_request');
+  const range = parseAnalyticsRange(startUtc, endUtc);
+  const query = new URLSearchParams({ start: range.startUtc, end: range.endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  const response = await client.request(
+    `/v1/admin/projects/${encodeURIComponent(projectId)}/analytics?${query.toString()}`
+  );
+  if (response.status === 401 || response.status === 403) throw new Error('unauthorized');
+  if (response.status === 404) throw new Error('not_found');
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => undefined)) as
+      { field?: unknown; message?: unknown } | undefined;
+    throw new AnalyticsRangeError(
+      body?.field === 'start' ? 'start' : 'end',
+      typeof body?.message === 'string' ? body.message : 'Invalid time range.'
+    );
+  }
+  if (!response.ok) throw new Error('unavailable');
+  return (await response.json()) as AnalyticsOverview;
 }

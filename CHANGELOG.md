@@ -2,6 +2,66 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.4.0] - 2026-09-09
+
+### Added
+
+- A full analytics dashboard on the Overview page: one coherent, privacy-safe result per scope
+  (all of a project's websites, deduplicated, or one website) and time range, with page-view/
+  unique-user totals, an hourly/daily trend chart with an exact-value table alongside it, top-ten
+  rankings with an explicit "Other" remainder for pages/countries/user agents/referrers, and
+  operating-system/browser/device/human-or-bot distributions.
+- A time-range selector: five rolling presets (last 6/12/24 hours, last 7/30 days) plus a custom,
+  minute-aligned range up to 30 days, applied through one accessible popover with inline
+  validation and no request issued for an invalid or unapplied draft.
+- Light/dark theme, following the operating system by default; an explicit choice from the new
+  theme toggle persists to a local, permission-locked preferences file and takes priority on every
+  later launch.
+- An original Vizoalica brand identity (a magnifying-glass mark, in icon/lockup/monochrome/favicon
+  variants) replacing the placeholder letter mark, and a footer showing the current year, product
+  name, and release version on every console page.
+
+### Changed
+
+- Classification of country, browser, operating system, device, and bot/human traffic now happens
+  once at ingest, from trusted Worker-provided signals only, and is stored as bounded taxonomy
+  values - never the raw User-Agent, IP, or other request metadata that produced them.
+- The browser SDK's default anonymous ID now persists in consent-eligible first-party storage,
+  namespaced per website, instead of being regenerated every session; an explicitly configured ID
+  still always takes precedence, and storage failures fall back to a safe ephemeral ID.
+
+### Database
+
+- Migration `0005_dashboard_visual_refresh.sql`: adds minute-granularity totals, eight independent
+  classification dimensions, visitor-presence tracking, an event-digest idempotency ledger, and a
+  per-source completeness watermark, plus their supporting indexes. Purely additive - no existing
+  table is modified or dropped. See
+  [the deployment guide](docs/operations/cloudflare.md#4-apply-all-migrations-and-deploy) for the
+  secret it introduces, the daily cleanup it enables, and rollback limits.
+
+### Security
+
+- Every classification value is drawn from a fixed, non-reversible taxonomy before it ever reaches
+  storage; end-to-end tests prove a spoofed `CF-IPCountry`, a raw or oversized User-Agent, and
+  forwarded-IP-style headers never reach D1, R2, logs, or the response body.
+- Visitor presence uses a keyed HMAC digest with separate project-wide and per-source-domains, so a
+  reviewed project-wide pseudonym and a source-local pseudonym for the same visitor are
+  unrelatable. The new local theme-preference store enforces the same allowlisted-schema,
+  `0600`-permission, symlink-refusing pattern as the existing credential file, and structurally
+  cannot carry a credential.
+
+### Upgrade
+
+- Apply every migration through `0005_dashboard_visual_refresh.sql`; it is additive only. The
+  existing per-source `24h`/`7d`/`30d` analytics endpoint is retained unchanged as a one-release
+  compatibility adapter.
+- A time range that starts before your deployment's migration-`0005` watermark is reported as
+  explicitly incomplete rather than silently partial; this is expected immediately after upgrading
+  and resolves on its own as new data accumulates.
+- No operator action is needed for the new analytics digest secret or the daily cleanup Cron
+  Trigger - both are provisioned automatically by the existing `deploy:configure`/`deploy:apply`
+  flow.
+
 ## [0.3.1] - 2026-09-09
 
 ### Fixed

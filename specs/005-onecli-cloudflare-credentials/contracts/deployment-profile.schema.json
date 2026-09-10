@@ -29,7 +29,8 @@
         "connectionId": { "type": "string", "minLength": 1, "maxLength": 128 }
       }
     },
-    "auditRetentionDays": { "type": "integer", "minimum": 90, "maximum": 3650, "default": 90 }
+    "auditRetentionDays": { "type": "integer", "minimum": 90, "maximum": 3650, "default": 90 },
+    "analyticsDigestPath": { "type": "string", "minLength": 1, "maxLength": 1024 }
   },
   "allOf": [
     {

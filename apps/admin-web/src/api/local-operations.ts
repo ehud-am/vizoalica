@@ -33,6 +33,38 @@ export type Status = {
   configuration?: 'healthy' | 'attention';
   dataAccess: 'available' | 'unavailable';
 };
+export type CountItem = { label: string; count: number };
+export type RankedResult = { items: CountItem[]; otherCount: number; total: number };
+export type DistributionResult = { items: CountItem[]; total: number };
+export type AnalyticsOverview = {
+  scope: {
+    projectId: string;
+    sourceId: string | null;
+    label: string;
+    identityMode: 'source-local' | 'project-supplied' | 'mixed';
+  };
+  range: { startUtc: string; endUtc: string; interval: 'hour' | 'day'; timezone: 'UTC' };
+  totals: { pageViews: number; uniqueUsers: number };
+  trend: Array<{ startUtc: string; pageViews: number; uniqueUsers: number }>;
+  rankings: {
+    pagePaths: RankedResult;
+    countries: RankedResult;
+    userAgents: RankedResult;
+    referrers: RankedResult;
+  };
+  distributions: {
+    operatingSystems: DistributionResult;
+    browsers: DistributionResult;
+    devices: DistributionResult;
+    traffic: DistributionResult;
+  };
+  availability: {
+    state: 'complete' | 'incomplete' | 'processing' | 'unavailable';
+    lastCompletedAt?: string;
+    availableFromUtc?: string;
+    taxonomyVersions: number[];
+  };
+};
 
 export class ApiError extends Error {
   constructor(
@@ -107,3 +139,23 @@ export const getAnalytics = (projectId: string, websiteId: string, window: Windo
   request<Summary>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/analytics?window=${window}`
   );
+export const getAnalyticsOverview = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  return request<AnalyticsOverview>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export type Theme = 'light' | 'dark';
+export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };
+export const getThemePreference = () => request<ThemePreferenceResult>('/api/preferences/theme');
+export const putThemePreference = (theme: Theme) =>
+  request<{ theme: Theme; updatedAt: string }>('/api/preferences/theme', json('PUT', { theme }));

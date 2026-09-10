@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="vizoalica-mark-title">
+  <title id="vizoalica-mark-title">Vizoalica</title>
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="#215c42" />
+  <circle cx="26" cy="26" r="14" fill="none" stroke="#ffffff" stroke-width="5.5" />
+  <circle cx="26" cy="26" r="3" fill="#d08a31" />
+  <line x1="36.5" y1="36.5" x2="49" y2="49" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" />
+</svg>

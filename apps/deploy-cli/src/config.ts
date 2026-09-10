@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
 import { access, chmod, lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
@@ -41,7 +41,8 @@ export function validateProfile(value: unknown): DeploymentProfile {
     'wranglerConfigPath',
     'cloudflare',
     'onecli',
-    'auditRetentionDays'
+    'auditRetentionDays',
+    'analyticsDigestPath'
   ]);
   if (Object.keys(root).some((key) => !allowed.has(key)))
     throw invalidProfile('Unknown deployment profile field.');
@@ -72,17 +73,22 @@ export function validateProfile(value: unknown): DeploymentProfile {
     cloudflare: { accountId },
     auditRetentionDays: Number(retention)
   };
+  const analyticsDigestPath =
+    root.analyticsDigestPath === undefined
+      ? undefined
+      : requiredString(root.analyticsDigestPath, 'analytics digest path', /^[^\0\r\n]{1,1024}$/);
+  const withDigestPath = { ...base, ...(analyticsDigestPath ? { analyticsDigestPath } : {}) };
   if (root.provider === 'cloudflare-native') {
     if (root.onecli !== undefined)
       throw invalidProfile('Native profiles cannot contain OneCLI fields.');
-    return base;
+    return withDigestPath;
   }
   const onecli = record(root.onecli);
   const onecliAllowed = new Set(['project', 'agentId', 'agentIdentifier', 'connectionId']);
   if (Object.keys(onecli).some((key) => !onecliAllowed.has(key)))
     throw invalidProfile('Unknown OneCLI field.');
   return {
-    ...base,
+    ...withDigestPath,
     onecli: {
       project: requiredString(onecli.project, 'OneCLI project'),
       agentId: requiredString(onecli.agentId, 'OneCLI agent ID'),
@@ -90,6 +96,30 @@ export function validateProfile(value: unknown): DeploymentProfile {
       connectionId: requiredString(onecli.connectionId, 'OneCLI connection ID')
     }
   };
+}
+
+export async function ensureAnalyticsDigest(path: string): Promise<string> {
+  const existing = await lstat(path).catch(() => undefined);
+  if (existing) {
+    if (!existing.isFile() || existing.isSymbolicLink() || (existing.mode & 0o077) !== 0)
+      throw invalidProfile('The analytics digest file is unsafe.');
+    const value = (await readFile(path, 'utf8')).trim();
+    if (!/^[A-Za-z0-9_-]{43}$/.test(value))
+      throw invalidProfile('The analytics digest file is invalid.');
+    return value;
+  }
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await chmod(dirname(path), 0o700);
+  const value = randomBytes(32).toString('base64url');
+  const handle = await open(path, 'wx', 0o600);
+  try {
+    await handle.writeFile(`${value}\n`, 'utf8');
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await chmod(path, 0o600);
+  return value;
 }
 
 export async function readJsonFile<T>(path: string): Promise<T> {

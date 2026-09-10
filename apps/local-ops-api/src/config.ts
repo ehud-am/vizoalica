@@ -1,5 +1,6 @@
 import { chmodSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 
 export type Config = {
   remoteUrl: string;
@@ -7,6 +8,8 @@ export type Config = {
   port: number;
   consoleOrigin: string;
   sessionTtlMs: number;
+  /** Absolute path of the local-operations config file this Config was loaded from, if any. */
+  configFilePath?: string;
 };
 
 function safePort(value: string | undefined): number {
@@ -42,7 +45,14 @@ export function loadConfigFile(path: string): Config {
   const mode = statSync(path).mode & 0o777;
   if ((mode & 0o077) !== 0) throw new Error('config_permissions_must_be_0600');
   const values = JSON.parse(readFileSync(path, 'utf8')) as Record<string, string>;
-  return loadConfig({ ...process.env, ...values });
+  return { ...loadConfig({ ...process.env, ...values }), configFilePath: resolve(path) };
+}
+
+/** Resolves the preferences file path beside the configured local-operations file. */
+export function resolvePreferencesPath(config: Config): string {
+  const base =
+    config.configFilePath ?? join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+  return join(dirname(base), 'preferences.json');
 }
 
 export function writeConfigFile(path: string, values: Record<string, string>): void {

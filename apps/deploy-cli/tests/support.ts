@@ -25,7 +25,8 @@ export const onecliProfile: DeploymentProfile = {
     agentIdentifier: 'deploy-agent',
     connectionId: 'connection-1'
   },
-  auditRetentionDays: 90
+  auditRetentionDays: 90,
+  analyticsDigestPath: '/tmp/vizoalica.analytics-digest'
 };
 
 export const nativeProfile: DeploymentProfile = {
@@ -84,8 +85,10 @@ export async function temporaryDeployment(provider: 'onecli' | 'cloudflare-nativ
   await writeFile(configPath, wranglerToml);
   const profile = {
     ...(provider === 'onecli' ? onecliProfile : nativeProfile),
-    wranglerConfigPath: configPath
+    wranglerConfigPath: configPath,
+    analyticsDigestPath: join(directory, 'analytics-digest')
   };
+  await writeFile(profile.analyticsDigestPath, `${'a'.repeat(43)}\n`, { mode: 0o600 });
   await writeFile(profilePath, JSON.stringify(profile));
   const context: CommandContext = {
     cwd: process.cwd(),

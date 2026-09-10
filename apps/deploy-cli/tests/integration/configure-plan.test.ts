@@ -27,11 +27,24 @@ describe('configure and plan', () => {
     );
     expect(configured.ok).toBe(true);
     expect((await stat(profilePath)).mode & 0o777).toBe(0o600);
-    expect(await readFile(profilePath, 'utf8')).not.toMatch(/api.?token/i);
+    const profileText = await readFile(profilePath, 'utf8');
+    expect(profileText).not.toMatch(/api.?token/i);
+    const savedProfile = JSON.parse(profileText) as { analyticsDigestPath: string };
+    expect((await stat(savedProfile.analyticsDigestPath)).mode & 0o777).toBe(0o600);
+    expect(await readFile(savedProfile.analyticsDigestPath, 'utf8')).toMatch(
+      /^[A-Za-z0-9_-]{43}\n$/
+    );
+    expect(profileText).not.toContain(
+      (await readFile(savedProfile.analyticsDigestPath, 'utf8')).trim()
+    );
     const out = join(fixture.directory, 'plan.json');
     const planned = await planDeployment({ profile: profilePath, out }, fixture.context);
-    expect(planned.details?.mutations).toEqual(['d1.migrations.apply', 'worker.deploy']);
-    expect((await loadPlan(out)).operations).toHaveLength(8);
+    expect(planned.details?.mutations).toEqual([
+      'worker.analytics_digest_secret.put',
+      'd1.migrations.apply',
+      'worker.deploy'
+    ]);
+    expect((await loadPlan(out)).operations).toHaveLength(9);
   });
 
   it('requires replacement and rejects secret or passthrough options', async () => {

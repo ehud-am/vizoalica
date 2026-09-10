@@ -1,3 +1,6 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { vi } from 'vitest';
 import { createLocalServer } from '../src/server.js';
 
@@ -9,12 +12,20 @@ export async function startApi(
     'fetch',
     vi.fn((input: URL | RequestInfo, init?: RequestInit) => remote(new URL(String(input)), init))
   );
+  // A configFilePath keeps preferences.json (and any other per-config file)
+  // inside a throwaway temp dir instead of falling back to the real
+  // operator's ~/.config/vizoalica directory during tests.
+  const configFilePath = join(
+    mkdtempSync(join(tmpdir(), 'vizoalica-api-')),
+    'local-operations.json'
+  );
   const server = createLocalServer({
     remoteUrl: 'https://worker.test',
     adminSecret: 'top-secret',
     port: 4318,
     consoleOrigin: 'http://127.0.0.1:5173',
-    sessionTtlMs
+    sessionTtlMs,
+    configFilePath
   });
   const call = (
     path: string,
@@ -28,7 +39,12 @@ export async function startApi(
       rawBody?: string;
     } = {}
   ) =>
-    new Promise<{ status: number; body: Record<string, unknown>; cookie?: string }>((resolve) => {
+    new Promise<{
+      status: number;
+      body: Record<string, unknown>;
+      cookie?: string;
+      headers: Record<string, string>;
+    }>((resolve) => {
       const body =
         options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body));
       const responseHeaders = new Map<string, string>();
@@ -62,6 +78,7 @@ export async function startApi(
           resolve({
             status,
             body: text ? (JSON.parse(text) as Record<string, unknown>) : {},
+            headers: Object.fromEntries(responseHeaders),
             ...(setCookie ? { cookie: setCookie } : {})
           });
         }

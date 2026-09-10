@@ -1,3 +1,5 @@
+import type { AnalyticsOverview as WorkerAnalyticsOverview } from '../../ingest-api/src/domain/types.js';
+
 export type AnalyticsWindow = '24h' | '7d' | '30d';
 export type Availability = 'complete' | 'processing' | 'unavailable';
 export type Project = { id: string; name: string; websiteCount?: number };
@@ -66,3 +68,9 @@ export function validOrigins(value: unknown): value is string[] {
   });
   return normalized.every(Boolean) && new Set(normalized).size === normalized.length;
 }
+
+export type AnalyticsOverview = WorkerAnalyticsOverview;
+
+export type Theme = 'light' | 'dark';
+export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };
+export type SavedThemePreference = { theme: Theme; updatedAt: string };

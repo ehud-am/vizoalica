@@ -1,9 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
+import { resolvePreferencesPath } from './config.js';
+import { readPreferences, writePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
-import { analytics } from './routes/analytics.js';
+import { analytics, analyticsOverview } from './routes/analytics.js';
+import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import {
   assertSafeIds,
   jsonInit,
@@ -66,6 +69,7 @@ function requestOrigin(request: IncomingMessage): string | undefined {
 export function createLocalServer(config: Config) {
   const client = new WorkerClient(config.remoteUrl, config.adminSecret);
   const sessions = new Map<string, number>();
+  const preferencesPath = resolvePreferencesPath(config);
   return createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
@@ -112,6 +116,20 @@ export function createLocalServer(config: Config) {
           return send(response, 201, await workerJson(client, remotePath, jsonInit('POST', body)));
         }
       }
+      const overviewMatch = /^\/api\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
+      if (request.method === 'GET' && overviewMatch) {
+        return send(
+          response,
+          200,
+          await analyticsOverview(
+            client,
+            overviewMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? ''
+          )
+        );
+      }
       const analyticsMatch = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/analytics$/.exec(
         url.pathname
       );
@@ -126,6 +144,42 @@ export function createLocalServer(config: Config) {
             url.searchParams.get('window')
           )
         );
+      }
+      if (url.pathname === '/api/preferences/theme') {
+        if (request.method === 'GET') {
+          let record;
+          try {
+            record = readPreferences(preferencesPath);
+          } catch {
+            // A corrupt or invalid preferences file must not block the console;
+            // treat it the same as no explicit preference (follow the system).
+            record = undefined;
+          }
+          return send(response, 200, {
+            theme: record?.theme ?? null,
+            ...(record?.updatedAt !== undefined ? { updatedAt: record.updatedAt } : {})
+          });
+        }
+        if (request.method === 'PUT') {
+          const body = (await requestJson(request)) as { theme?: unknown } | undefined;
+          if (body?.theme !== 'light' && body?.theme !== 'dark')
+            return send(response, 400, {
+              error: 'invalid_request',
+              field: 'theme',
+              message: 'theme must be "light" or "dark".'
+            });
+          const theme: 'light' | 'dark' = body.theme;
+          const saved = { theme, updatedAt: new Date().toISOString() };
+          try {
+            writePreferences(preferencesPath, saved);
+          } catch {
+            return send(response, 503, {
+              error: 'preferences_unavailable',
+              recovery: recoveryFor(503)
+            });
+          }
+          return send(response, 200, saved);
+        }
       }
       const item = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status))?$/.exec(
         url.pathname
@@ -154,6 +208,14 @@ export function createLocalServer(config: Config) {
       }
       return send(response, 404, { error: 'not_found' });
     } catch (error) {
+      if (error instanceof AnalyticsRangeError) {
+        return send(response, 400, {
+          error: error.code,
+          field: error.field,
+          message: error.message,
+          recovery: recoveryFor(400)
+        });
+      }
       const message = error instanceof Error ? error.message : 'remote_unavailable';
       const code =
         message === 'access_revoked' || message === 'unauthorized'

@@ -1,15 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ApiError,
-  getAnalytics,
+  getAnalyticsOverview,
   listWebsites,
+  type AnalyticsOverview,
   type Project,
-  type Summary,
-  type Website,
-  type Window
+  type Website
 } from '../api/local-operations.js';
-import { AnalyticsSummary } from '../components/AnalyticsSummary.js';
-import { WebsiteSelector } from '../components/WebsiteSelector.js';
+import { DashboardFilters } from '../components/DashboardFilters.js';
+import { DistributionChart } from '../components/DistributionChart.js';
+import { MetricCard } from '../components/MetricCard.js';
+import { RankedTable } from '../components/RankedTable.js';
+import { TrafficTrend } from '../components/TrafficTrend.js';
+import {
+  DEFAULT_RANGE_PRESET,
+  presetToRange,
+  rangeSummary,
+  type AppliedRange
+} from '../time-range.js';
+
 export function AnalyticsPage({
   projects,
   projectId,
@@ -21,74 +30,142 @@ export function AnalyticsPage({
 }) {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [websiteId, setWebsiteId] = useState('');
-  const [window, setWindow] = useState<Window>('24h');
-  const [summary, setSummary] = useState<Summary>();
+  const [overview, setOverview] = useState<AnalyticsOverview>();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [websitesError, setWebsitesError] = useState('');
+  const [analyticsError, setAnalyticsError] = useState('');
+  const [range, setRange] = useState<AppliedRange>(() => presetToRange(DEFAULT_RANGE_PRESET));
+  const generation = useRef(0);
+  const error = websitesError || analyticsError;
+
   useEffect(() => {
     setWebsiteId('');
-    setSummary(undefined);
+    setOverview(undefined);
+    setWebsites([]);
+    setWebsitesError('');
     if (!projectId) return;
     listWebsites(projectId)
-      .then((items) => {
-        setWebsites(items);
-        setWebsiteId(items.find((item) => item.status !== 'deleted')?.id ?? '');
-      })
-      .catch(() => setError('Websites could not be loaded.'));
+      .then(setWebsites)
+      .catch(() => setWebsitesError('Websites could not be loaded.'));
   }, [projectId]);
+
   useEffect(() => {
-    if (!projectId || !websiteId) return;
+    if (!projectId) return;
+    const controller = new AbortController();
+    const requestGeneration = ++generation.current;
     setLoading(true);
-    setError('');
-    getAnalytics(projectId, websiteId, window)
-      .then(setSummary)
+    setAnalyticsError('');
+    setOverview(undefined);
+    getAnalyticsOverview(
+      projectId,
+      websiteId || undefined,
+      range.startUtc,
+      range.endUtc,
+      controller.signal
+    )
+      .then((value) => {
+        if (generation.current === requestGeneration) setOverview(value);
+      })
       .catch((reason) => {
-        setSummary(undefined);
-        setError(
+        if (controller.signal.aborted || generation.current !== requestGeneration) return;
+        setAnalyticsError(
           reason instanceof ApiError && reason.status === 401
             ? 'Access expired. Reauthorize the local workspace.'
-            : 'Analytics are unavailable. No stale totals are shown.'
+            : 'Analytics are unavailable. No stale results are shown.'
         );
       })
-      .finally(() => setLoading(false));
-  }, [projectId, websiteId, window]);
+      .finally(() => {
+        if (generation.current === requestGeneration) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [projectId, websiteId, range]);
+
   return (
-    <div className="page">
+    <div className="page dashboard-page">
       <div className="page-heading">
         <div>
           <p className="eyebrow">Analytics overview</p>
           <h1>Understand what’s happening.</h1>
           <p>Simple, privacy-minded signals from your websites.</p>
         </div>
-        <span className="freshness">Updated on request</span>
+        <span className="freshness" aria-live="polite">
+          {rangeSummary(range)}
+        </span>
       </div>
-      <section className="panel">
-        <WebsiteSelector
+
+      <section className="panel dashboard-controls" aria-label="Dashboard filters">
+        <DashboardFilters
           projects={projects}
           websites={websites}
           projectId={projectId}
           websiteId={websiteId}
           onProjectChange={onProjectChange}
           onWebsiteChange={setWebsiteId}
+          range={range}
+          onRangeApply={setRange}
         />
-        <AnalyticsSummary
-          summary={summary}
-          window={window}
-          loading={loading}
-          onWindowChange={setWindow}
-        />
+      </section>
+
+      <div className="dashboard-status" aria-live="polite" aria-busy={loading}>
+        {loading && <p className="metric-empty">Loading current dashboard…</p>}
         {error && (
           <p className="notice error" role="alert">
             {error}
           </p>
         )}
-      </section>
+        {overview?.availability.state === 'incomplete' && (
+          <p className="notice" role="status">
+            This range starts before expanded analytics were available
+            {overview.availability.availableFromUtc
+              ? ` on ${new Date(overview.availability.availableFromUtc).toLocaleString()}`
+              : ''}
+            . Available results are shown.
+          </p>
+        )}
+      </div>
+
+      {overview && !loading && !error && (
+        <div className="dashboard-grid">
+          <MetricCard
+            label="Page views"
+            value={overview.totals.pageViews}
+            description="Accepted page-view events"
+          />
+          <MetricCard
+            label="Unique users"
+            value={overview.totals.uniqueUsers}
+            description={
+              overview.scope.identityMode === 'source-local'
+                ? 'First-party identities; websites stay separate'
+                : 'Privacy-safe project and first-party identities'
+            }
+          />
+          <TrafficTrend points={overview.trend} />
+          <RankedTable title="Top pages" result={overview.rankings.pagePaths} />
+          <RankedTable title="Top countries" result={overview.rankings.countries} />
+          <RankedTable title="Top user agents" result={overview.rankings.userAgents} />
+          <RankedTable title="Top referrers" result={overview.rankings.referrers} />
+          <DistributionChart
+            title="Operating systems"
+            result={overview.distributions.operatingSystems}
+          />
+          <DistributionChart title="Browsers" result={overview.distributions.browsers} />
+          <DistributionChart title="Devices" result={overview.distributions.devices} />
+          <DistributionChart
+            title="Human, bot, or unknown"
+            result={overview.distributions.traffic}
+          />
+        </div>
+      )}
+
+      {!projectId && <p className="metric-empty">Choose a project to view analytics.</p>}
+
       <section className="principles">
         <article>
           <span aria-hidden="true">◌</span>
           <div>
             <strong>Bounded aggregates</strong>
-            <p>Every view uses fixed hourly summaries—never a raw-event scan.</p>
+            <p>Every view uses indexed summaries—never a raw-event scan.</p>
           </div>
         </article>
         <article>

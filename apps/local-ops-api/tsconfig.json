@@ -1,5 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src", "types": ["node"] },
-  "include": ["src/**/*.ts"]
+  "compilerOptions": { "composite": true, "outDir": "dist", "types": ["node"] },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../ingest-api" },
+    { "path": "../../packages/event-contracts" },
+    { "path": "../../packages/privacy" }
+  ]
 }

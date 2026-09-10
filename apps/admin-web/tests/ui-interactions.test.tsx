@@ -17,7 +17,8 @@ const api = vi.hoisted(() => ({
   deleteWebsite: vi.fn(),
   getSnippet: vi.fn(),
   getStatus: vi.fn(),
-  getAnalytics: vi.fn()
+  getAnalytics: vi.fn(),
+  getAnalyticsOverview: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -60,6 +61,35 @@ beforeEach(() => {
     uniqueUsers: 5,
     availability: 'complete'
   });
+  api.getAnalyticsOverview.mockResolvedValue({
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-02T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { pageViews: 12, uniqueUsers: 5 },
+    trend: [],
+    rankings: {
+      pagePaths: { items: [], otherCount: 0, total: 0 },
+      countries: { items: [], otherCount: 0, total: 0 },
+      userAgents: { items: [], otherCount: 0, total: 0 },
+      referrers: { items: [], otherCount: 0, total: 0 }
+    },
+    distributions: {
+      operatingSystems: { items: [], total: 0 },
+      browsers: { items: [], total: 0 },
+      devices: { items: [], total: 0 },
+      traffic: { items: [], total: 0 }
+    },
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  });
 });
 afterEach(() => {
   cleanup();
@@ -68,15 +98,20 @@ afterEach(() => {
 });
 
 describe('interactive console', () => {
-  it('bootstraps a session, loads analytics, and changes fixed windows', async () => {
-    const user = userEvent.setup();
+  it('bootstraps a session and loads the analytics overview', async () => {
     render(<App />);
     expect(screen.getByText('Opening your workspace')).toBeTruthy();
     await screen.findByText('Understand what’s happening.');
-    await waitFor(() => expect(api.getAnalytics).toHaveBeenCalledWith('p1', 's1', '24h'));
-    expect(screen.getByText('12')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: '7 days' }));
-    await waitFor(() => expect(api.getAnalytics).toHaveBeenCalledWith('p1', 's1', '7d'));
+    await waitFor(() =>
+      expect(api.getAnalyticsOverview).toHaveBeenCalledWith(
+        'p1',
+        undefined,
+        expect.any(String),
+        expect.any(String),
+        expect.any(AbortSignal)
+      )
+    );
+    expect(await screen.findByText('12')).toBeTruthy();
   });
 
   it('creates, edits, disables, and soft-deletes websites with recovery messaging', async () => {
@@ -181,7 +216,7 @@ describe('interactive console', () => {
     api.bootstrapSession.mockResolvedValue(undefined);
     api.listProjects.mockResolvedValueOnce([]);
     render(<App />);
-    expect(await screen.findByText('Choose a website to view its analytics.')).toBeTruthy();
+    expect(await screen.findByText('Choose a project to view analytics.')).toBeTruthy();
     expect(rerender).toBeTypeOf('function');
   });
 
@@ -191,16 +226,16 @@ describe('interactive console', () => {
     expect(await screen.findByText('Websites could not be loaded.')).toBeTruthy();
     cleanup();
     api.listWebsites.mockResolvedValue([website]);
-    api.getAnalytics.mockRejectedValueOnce(new ApiError('access_revoked', 401));
+    api.getAnalyticsOverview.mockRejectedValueOnce(new ApiError('access_revoked', 401));
     render(<App />);
     expect(
       await screen.findByText('Access expired. Reauthorize the local workspace.')
     ).toBeTruthy();
     cleanup();
-    api.getAnalytics.mockRejectedValueOnce(new Error('offline'));
+    api.getAnalyticsOverview.mockRejectedValueOnce(new Error('offline'));
     render(<App />);
     expect(
-      await screen.findByText('Analytics are unavailable. No stale totals are shown.')
+      await screen.findByText('Analytics are unavailable. No stale results are shown.')
     ).toBeTruthy();
   });
 

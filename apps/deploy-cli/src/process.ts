@@ -46,10 +46,11 @@ export const executeProcess: ProcessExecutor = async (
       cwd: request.cwd,
       env: request.env,
       shell: false,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: [request.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe']
     });
-    child.stdout.on('data', (chunk: Buffer) => (stdout = appendBounded(stdout, chunk)));
-    child.stderr.on('data', (chunk: Buffer) => (stderr = appendBounded(stderr, chunk)));
+    if (request.stdin !== undefined) child.stdin!.end(request.stdin);
+    child.stdout!.on('data', (chunk: Buffer) => (stdout = appendBounded(stdout, chunk)));
+    child.stderr!.on('data', (chunk: Buffer) => (stderr = appendBounded(stderr, chunk)));
     const finish = (exitCode: number): void => {
       if (settled) return;
       settled = true;

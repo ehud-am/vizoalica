@@ -4,6 +4,7 @@ import type { PipelineDependencies } from '../../../ingest-api/src/ingestion/pip
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import { handleAdminRequest } from './admin-adapter.js';
 import { handleMcpRequest } from './mcp-adapter.js';
+import { classifyRequest } from '../analytics/classifier.js';
 
 async function readBoundedBody(request: Request, maxBytes: number): Promise<string | undefined> {
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
@@ -72,5 +73,8 @@ export async function handleWorkerRequest(
   const body = await readBoundedBody(request, maxRequestBytes);
   if (body === undefined)
     return withCors(request, Response.json({ error: 'request_too_large' }, { status: 413 }));
-  return withCors(request, await eventsBatchResponseForBody(request, body, dependencies));
+  return withCors(
+    request,
+    await eventsBatchResponseForBody(request, body, dependencies, classifyRequest(request))
+  );
 }
