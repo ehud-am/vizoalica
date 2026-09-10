@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { Config } from './config.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
-import { analytics } from './routes/analytics.js';
+import { analytics, analyticsOverview } from './routes/analytics.js';
 import {
   assertSafeIds,
   jsonInit,
@@ -112,6 +112,20 @@ export function createLocalServer(config: Config) {
           return send(response, 201, await workerJson(client, remotePath, jsonInit('POST', body)));
         }
       }
+      const overviewMatch = /^\/api\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
+      if (request.method === 'GET' && overviewMatch) {
+        return send(
+          response,
+          200,
+          await analyticsOverview(
+            client,
+            overviewMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? ''
+          )
+        );
+      }
       const analyticsMatch = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/analytics$/.exec(
         url.pathname
       );
@@ -158,7 +172,9 @@ export function createLocalServer(config: Config) {
       const code =
         message === 'access_revoked' || message === 'unauthorized'
           ? 401
-          : message === 'invalid_request' || message === 'invalid_window'
+          : message === 'invalid_request' ||
+              message === 'invalid_window' ||
+              message === 'invalid_range'
             ? 400
             : message === 'request_too_large'
               ? 413
