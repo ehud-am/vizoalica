@@ -52,7 +52,7 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Add failing taxonomy tests for country special values, browser/OS/device precedence, bounded major versions, clear bots, ordinary browsers, conflicting evidence, malformed input, and Unknown fallbacks in `apps/ingest-worker/tests/dashboard-classifier.test.ts`
+- [x] T008 [P] [US1] Add failing taxonomy tests for country special values, browser/OS/device precedence, bounded major versions, clear bots, ordinary browsers, conflicting evidence, malformed input, and Unknown fallbacks in `apps/ingest-worker/tests/dashboard-classifier.test.ts`
 - [ ] T009 [P] [US1] Add failing privacy tests proving spoofed `CF-IPCountry`, raw/oversized User-Agent, IP, bot scores, fingerprints, and headers never enter CloudEvents, R2 payload additions, D1 dimension bindings, logs, errors, or responses in `apps/ingest-worker/tests/dashboard-metadata-privacy.test.ts`
 - [ ] T010 [P] [US1] Add failing SDK tests for consent-eligible source-namespaced first-party anonymous-ID persistence, explicit-ID precedence, and ephemeral fallback when storage is denied or unavailable in `packages/browser-sdk/tests/anonymous-identity.test.ts`
 - [ ] T011 [P] [US1] Add failing D1 write tests for accepted page views only, minute totals, eight independent dimensions, HMAC identity domains, request coalescing, duplicate-event idempotency, watermark creation, and transactional rollback in `apps/ingest-worker/tests/dashboard-rollups.integration.test.ts`
@@ -61,7 +61,7 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 - [x] T014 [P] [US1] Add failing local proxy contract tests for all-sites and one-site analytics, response pass-through, identifier validation, session expiry, remote failures, and stale-data rejection in `apps/local-ops-api/tests/dashboard.contract.test.ts` — landed as added cases in `apps/local-ops-api/tests/analytics.contract.test.ts` instead of a separate file; covers all-sites/one-site pass-through and invalid-range rejection, not yet session-expiry/stale-data
 - [x] T015 [P] [US1] Add failing dashboard behavior tests for default All websites scope, website switching, complete/empty/incomplete/processing/unavailable states, top-ten/remainder rendering, and request-generation guards in `apps/admin-web/tests/dashboard.test.tsx` — covers default scope, switching, zero/empty state, top-ten+Other, incomplete-history notice, and the stale-response generation guard; processing/unavailable states not yet covered
 - [ ] T016 [P] [US1] Add failing dashboard accessibility tests for semantic headings, metric names, table equivalents, chart captions, non-color labels, focus states, and live loading/error announcements in `apps/admin-web/tests/dashboard.accessibility.test.tsx`
-- [ ] T017 [P] [US1] Add failing scheduled-retention tests for 32-day boundaries, bounded deletion batches, watermark preservation, and error reporting in `apps/ingest-worker/tests/dashboard-retention.test.ts`
+- [x] T017 [P] [US1] Add failing scheduled-retention tests for 32-day boundaries, bounded deletion batches, watermark preservation, and error reporting in `apps/ingest-worker/tests/dashboard-retention.test.ts`
 
 ### Implementation for User Story 1
 
@@ -81,7 +81,7 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 - [x] T031 [US1] Replace the summary panel with the full dashboard grid, one-response state model, abort/generation stale-result protection, and explicit availability states in `apps/admin-web/src/pages/AnalyticsPage.tsx` and `apps/admin-web/src/components/AnalyticsSummary.tsx` — fixed a bug where the overview fetch's own error state could silently overwrite a genuine "websites could not be loaded" error from the sibling effect
 - [x] T032 [US1] Implement the daily UTC 32-day cleanup handler and add its Cron Trigger to the existing Worker configuration in `apps/ingest-worker/src/index.ts`, `apps/ingest-worker/src/storage/d1-repositories.ts`, and `deploy/cloudflare/wrangler.toml`
 
-**Checkpoint**: User Story 1's implementation is in place and passes the full monorepo test suite (`vitest run`) and a clean full-repo type build (`tsc -b`). Still open before the story can be called fully done per this task list: T008-T009, T011-T013, T016-T017 (dedicated classifier/privacy/D1-rollup/D1-query/Worker-contract/accessibility/retention test files) and disabled-history labeling in the website selector.
+**Checkpoint**: User Story 1's implementation is in place and passes the full monorepo test suite (`vitest run`) and a clean full-repo type build (`tsc -b`). Still open before the story can be called fully done per this task list: T009, T011-T013, T016 (privacy/D1-rollup/D1-query/Worker-contract/accessibility test files) and disabled-history labeling in the website selector.
 
 ---
 
