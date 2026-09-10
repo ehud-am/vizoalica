@@ -153,3 +153,13 @@ export const getAnalyticsOverview = (
     signal ? { signal } : undefined
   );
 };
+
+export type Theme = 'light' | 'dark';
+export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };
+export const getThemePreference = () =>
+  request<ThemePreferenceResult>('/api/preferences/theme');
+export const putThemePreference = (theme: Theme) =>
+  request<{ theme: Theme; updatedAt: string }>(
+    '/api/preferences/theme',
+    json('PUT', { theme })
+  );
