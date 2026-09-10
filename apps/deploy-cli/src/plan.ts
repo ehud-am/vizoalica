@@ -16,6 +16,12 @@ export function operationsFor(target: WranglerTarget): PlannedOperation[] {
     { id: 'd1.database.read', resource: target.databaseName, mutation: false, approval: 'none' },
     { id: 'r2.bucket.read', resource: target.bucketName, mutation: false, approval: 'none' },
     { id: 'worker.secrets.read', resource: target.workerName, mutation: false, approval: 'none' },
+    {
+      id: 'worker.analytics_digest_secret.put',
+      resource: target.workerName,
+      mutation: true,
+      approval: 'deployment'
+    },
     { id: 'worker.bundle.dry_run', resource: target.workerName, mutation: false, approval: 'none' },
     {
       id: 'd1.migrations.apply',

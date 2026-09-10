@@ -15,3 +15,6 @@ bucket_name = "vizoalica-events"
 [vars]
 VIZOALICA_DEMO_MODE = "false"
 VIZOALICA_MAX_REQUEST_BYTES = "131072"
+
+[triggers]
+crons = ["17 3 * * *"]

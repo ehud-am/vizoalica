@@ -2,7 +2,13 @@ import type { TokenClaims } from '@vizoalica/event-contracts';
 import { validateTokenConstraints } from '../auth/token-constraints.js';
 import { authorizeSource } from '../auth/source-authorizer.js';
 import { TokenVerifier, type TokenVerificationResult } from '../auth/token-verifier.js';
-import type { IngestionDecision, Project, Source, StoredEvent } from '../domain/types.js';
+import type {
+  IngestionDecision,
+  Project,
+  RequestAnalyticsContext,
+  Source,
+  StoredEvent
+} from '../domain/types.js';
 import type { MetricsSink, SafeLogger } from '../observability/index.js';
 import { InMemoryMetricsSink, consoleLogger } from '../observability/index.js';
 import { recordIngestionDecision } from '../observability/metrics.js';
@@ -17,6 +23,7 @@ export interface PipelineRequest {
   origin?: string | null;
   authorization?: string | null;
   now?: Date;
+  analyticsContext?: RequestAnalyticsContext;
 }
 
 export interface PipelineDependencies {
@@ -135,7 +142,13 @@ export async function ingestBatch(
     receivedAt: request.now ?? new Date()
   }));
   await dependencies.repositories.saveAcceptedEvents(storedEvents);
-  await dependencies.repositories.recordDashboardRollups?.(storedEvents);
+  const analyticsContext = request.analyticsContext
+    ? {
+        ...request.analyticsContext,
+        ...(claims?.visitor_id ? { projectVisitorId: claims.visitor_id } : {})
+      }
+    : undefined;
+  await dependencies.repositories.recordDashboardRollups?.(storedEvents, analyticsContext);
 
   const decision: IngestionDecision = {
     decision: 'accepted',

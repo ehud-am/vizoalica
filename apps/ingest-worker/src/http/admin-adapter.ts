@@ -1,6 +1,7 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
+import { parseAnalyticsRange } from '../../../ingest-api/src/analytics/range.js';
 
 type Dependencies = { repositories: AdminRepository; adminSecret: string };
 
@@ -78,6 +79,25 @@ export async function handleAdminRequest(
       projectId: project.id
     });
     return Response.json(project, { status: 201 });
+  }
+  const overviewMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
+  if (overviewMatch && request.method === 'GET') {
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch {
+      return invalid();
+    }
+    const sourceId = url.searchParams.get('source_id') ?? undefined;
+    const overview = await dependencies.repositories.getAnalyticsOverview?.(
+      overviewMatch[1]!,
+      sourceId,
+      range.startUtc,
+      range.endUtc
+    );
+    return overview
+      ? Response.json(overview, { headers: { 'cache-control': 'no-store' } })
+      : Response.json({ error: 'not_found' }, { status: 404 });
   }
   const sourceMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(url.pathname);
   if (sourceMatch && request.method === 'GET')

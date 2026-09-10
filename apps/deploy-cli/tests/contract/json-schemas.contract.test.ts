@@ -37,7 +37,9 @@ describe('versioned deployment JSON schemas', () => {
     const validate = ajv.compile(await schema('deployment-result.schema.json'));
     const success = result('plan', {
       planId: 'a'.repeat(64),
-      details: { mutations: ['d1.migrations.apply', 'worker.deploy'] }
+      details: {
+        mutations: ['d1.migrations.apply', 'worker.analytics_digest_secret.put', 'worker.deploy']
+      }
     });
     expect(validate(success), JSON.stringify(validate.errors)).toBe(true);
     const failure = failureResult(

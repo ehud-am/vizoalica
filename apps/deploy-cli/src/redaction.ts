@@ -1,6 +1,6 @@
 const SECRET_PATTERNS: RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
-  /\b(?:CF_API_TOKEN|CLOUDFLARE_API_TOKEN|CF_API_KEY|CLOUDFLARE_API_KEY|ONECLI_API_KEY|ONECLI_TOKEN)\s*[=:]\s*[^\s,;]+/gi,
+  /\b(?:CF_API_TOKEN|CLOUDFLARE_API_TOKEN|CF_API_KEY|CLOUDFLARE_API_KEY|ONECLI_API_KEY|ONECLI_TOKEN|VIZOALICA_ANALYTICS_DIGEST_SECRET)\s*[=:]\s*[^\s,;]+/gi,
   /\b(?:Authorization)\s*:\s*[^\r\n]+/gi,
   /\b(?:v1\.0-[A-Za-z0-9_-]{20,}|[A-Za-z0-9_-]{40,})\b/g
 ];

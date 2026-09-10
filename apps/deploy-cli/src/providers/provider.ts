@@ -13,6 +13,7 @@ export interface ProviderContext {
   target: WranglerTarget;
   executor: ProcessExecutor;
   signal?: AbortSignal;
+  stdin?: string;
 }
 
 export interface CredentialProvider {
@@ -45,6 +46,8 @@ export function wranglerArguments(
       return ['r2', 'bucket', 'info', target.bucketName, ...config];
     case 'worker.secrets.read':
       return ['secret', 'list', ...config, '--format', 'json'];
+    case 'worker.analytics_digest_secret.put':
+      return ['secret', 'put', 'VIZOALICA_ANALYTICS_DIGEST_SECRET', ...config];
     case 'worker.bundle.dry_run':
       return ['deploy', '--dry-run', ...config];
     case 'd1.migrations.apply':

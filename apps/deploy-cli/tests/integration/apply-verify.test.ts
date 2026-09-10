@@ -30,7 +30,11 @@ describe('approved apply and verify', () => {
       },
       fixture.context
     );
-    expect(value.completedOperations).toEqual(['d1.migrations.apply', 'worker.deploy']);
+    expect(value.completedOperations).toEqual([
+      'd1.migrations.apply',
+      'worker.analytics_digest_secret.put',
+      'worker.deploy'
+    ]);
     const calls = (fixture.context.executor as ReturnType<typeof vi.fn>).mock.calls.map(
       ([request]) => request.args.join(' ')
     );
@@ -64,7 +68,10 @@ describe('approved apply and verify', () => {
       },
       fixture.context
     );
-    expect(failed).toMatchObject({ ok: false, completedOperations: ['d1.migrations.apply'] });
+    expect(failed).toMatchObject({
+      ok: false,
+      completedOperations: ['d1.migrations.apply', 'worker.analytics_digest_secret.put']
+    });
     expect(failed.pendingOperations).toContain('worker.deploy');
     fixture.context.executor = onecliExecutor({
       'migrations apply': {

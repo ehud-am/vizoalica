@@ -10,7 +10,19 @@ function randomId(prefix: string): string {
 }
 
 export function resolveAnonymousId(config: VizoalicaConfig): string {
-  return config.anonymousId ?? randomId('anon');
+  if (config.anonymousId) return config.anonymousId;
+  const generated = randomId('anon');
+  if (config.consentState !== 'analytics-granted') return generated;
+  try {
+    const storage = globalThis.localStorage;
+    const key = `vizoalica:anonymous:${config.sourceKey}`;
+    const saved = storage?.getItem(key);
+    if (saved && /^anon_[A-Za-z0-9-]{1,96}$/.test(saved)) return saved;
+    storage?.setItem(key, generated);
+  } catch {
+    // Storage can be unavailable in private modes; analytics must remain non-blocking.
+  }
+  return generated;
 }
 
 export function resolveSessionId(config: VizoalicaConfig): string {

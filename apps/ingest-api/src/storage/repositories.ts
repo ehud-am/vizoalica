@@ -5,7 +5,13 @@ import type {
   Source,
   StoredEvent
 } from '../domain/types.js';
-import type { AdminAuditEntry, PageViewCounts, AnalyticsSummary } from '../domain/types.js';
+import type {
+  AdminAuditEntry,
+  AnalyticsOverview,
+  PageViewCounts,
+  AnalyticsSummary,
+  RequestAnalyticsContext
+} from '../domain/types.js';
 
 export interface ProjectRepository {
   findProject(id: string): Promise<Project | undefined>;
@@ -27,7 +33,7 @@ export interface EventRepository {
   saveAcceptedEvents(events: StoredEvent[]): Promise<void>;
   listAcceptedEvents(projectId?: string): Promise<StoredEvent[]>;
   /** Updates bounded dashboard aggregates; raw events always remain in R2. */
-  recordDashboardRollups?(events: StoredEvent[]): Promise<void>;
+  recordDashboardRollups?(events: StoredEvent[], context?: RequestAnalyticsContext): Promise<void>;
 }
 
 export interface IngestionDecisionRepository {
@@ -70,5 +76,12 @@ export interface AdminRepository {
     window: '24h' | '7d' | '30d',
     now?: Date
   ): Promise<AnalyticsSummary | undefined>;
+  getAnalyticsOverview?(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string
+  ): Promise<AnalyticsOverview | undefined>;
+  deleteExpiredDashboardData?(beforeUtc: string): Promise<void>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
 }

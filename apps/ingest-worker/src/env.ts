@@ -7,6 +7,7 @@ export interface D1Statement {
 
 export interface D1Database {
   prepare(query: string): D1Statement;
+  batch?(statements: D1Statement[]): Promise<Array<{ meta?: { changes?: number } }>>;
 }
 
 export interface R2Bucket {
@@ -22,6 +23,7 @@ export interface Env {
   VIZOALICA_EVENTS: R2Bucket;
   VIZOALICA_TOKEN_SECRET: string;
   VIZOALICA_ADMIN_SECRET: string;
+  VIZOALICA_ANALYTICS_DIGEST_SECRET: string;
   VIZOALICA_DEMO_MODE?: string;
   VIZOALICA_MAX_REQUEST_BYTES?: string;
 }

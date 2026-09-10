@@ -90,7 +90,8 @@ describe('Cloudflare Worker durable ingestion', () => {
       VIZOALICA_DB: database(queries),
       VIZOALICA_EVENTS: bucket,
       VIZOALICA_TOKEN_SECRET: 'test-secret',
-      VIZOALICA_ADMIN_SECRET: 'admin-secret'
+      VIZOALICA_ADMIN_SECRET: 'admin-secret',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
     };
     const event = {
       specversion: '1.0',

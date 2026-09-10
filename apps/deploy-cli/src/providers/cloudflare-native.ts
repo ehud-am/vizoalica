@@ -18,6 +18,7 @@ export class CloudflareNativeProvider implements CredentialProvider {
       cwd: context.cwd,
       env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: profile.cloudflare.accountId },
       timeoutMs: operationTimeoutMs(operation),
+      ...(context.stdin ? { stdin: context.stdin } : {}),
       ...(context.signal ? { signal: context.signal } : {})
     });
   }

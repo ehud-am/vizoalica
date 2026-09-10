@@ -198,6 +198,7 @@ export class OneCliProvider implements CredentialProvider {
         CLOUDFLARE_API_TOKEN: 'onecli-managed'
       },
       timeoutMs: operationTimeoutMs(operation),
+      ...(context.stdin ? { stdin: context.stdin } : {}),
       ...(context.signal ? { signal: context.signal } : {})
     });
   }

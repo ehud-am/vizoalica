@@ -13,9 +13,20 @@ describe('Worker configuration', () => {
         VIZOALICA_EVENTS: {},
         VIZOALICA_TOKEN_SECRET: 'x',
         VIZOALICA_ADMIN_SECRET: 'x',
+        VIZOALICA_ANALYTICS_DIGEST_SECRET: 'x',
         VIZOALICA_MAX_REQUEST_BYTES: '0'
       } as never)
     ).toThrow('invalid_max_request_bytes');
+  });
+  it('requires a dedicated analytics digest secret', () => {
+    expect(() =>
+      loadWorkerConfig({
+        VIZOALICA_DB: {},
+        VIZOALICA_EVENTS: {},
+        VIZOALICA_TOKEN_SECRET: 'x',
+        VIZOALICA_ADMIN_SECRET: 'x'
+      } as never)
+    ).toThrow('missing_required_cloudflare_binding');
   });
 });
 

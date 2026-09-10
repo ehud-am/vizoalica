@@ -1,3 +1,4 @@
+import type { RequestAnalyticsContext } from '../domain/types.js';
 import type { PipelineDependencies } from '../ingestion/pipeline.js';
 import { ingestBatch } from '../ingestion/pipeline.js';
 
@@ -11,7 +12,8 @@ export async function eventsBatchResponse(
 export async function eventsBatchResponseForBody(
   request: Request,
   body: string,
-  dependencies: PipelineDependencies
+  dependencies: PipelineDependencies,
+  analyticsContext?: RequestAnalyticsContext
 ): Promise<Response> {
   const publicSourceKey = request.headers.get('x-vizoalica-source');
   if (!publicSourceKey) return Response.json({ error: 'missing_source' }, { status: 400 });
@@ -20,7 +22,8 @@ export async function eventsBatchResponseForBody(
       body,
       publicSourceKey,
       origin: request.headers.get('origin'),
-      authorization: request.headers.get('authorization')
+      authorization: request.headers.get('authorization'),
+      ...(analyticsContext ? { analyticsContext } : {})
     },
     dependencies
   );

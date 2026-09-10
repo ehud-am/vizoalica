@@ -15,4 +15,8 @@ bucket_name = "vizoalica-events"
 [vars]
 VIZOALICA_DEMO_MODE = "false"
 VIZOALICA_MAX_REQUEST_BYTES = "131072"
-# Configure VIZOALICA_TOKEN_SECRET and VIZOALICA_ADMIN_SECRET with `wrangler secret put`.
+
+[triggers]
+crons = ["17 3 * * *"]
+# Configure VIZOALICA_TOKEN_SECRET, VIZOALICA_ADMIN_SECRET, and
+# VIZOALICA_ANALYTICS_DIGEST_SECRET with `wrangler secret put`.

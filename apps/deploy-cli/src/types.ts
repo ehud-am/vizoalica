@@ -15,6 +15,7 @@ export interface DeploymentProfile {
   cloudflare: { accountId: string };
   onecli?: OneCliReference;
   auditRetentionDays: number;
+  analyticsDigestPath?: string;
 }
 
 export type OperationId =
@@ -22,6 +23,7 @@ export type OperationId =
   | 'd1.database.read'
   | 'r2.bucket.read'
   | 'worker.secrets.read'
+  | 'worker.analytics_digest_secret.put'
   | 'worker.bundle.dry_run'
   | 'd1.migrations.apply'
   | 'worker.deploy'
@@ -144,6 +146,7 @@ export interface ProcessRequest {
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   signal?: AbortSignal;
+  stdin?: string;
 }
 
 export interface ProcessResult {

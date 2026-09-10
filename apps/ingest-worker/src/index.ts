@@ -10,7 +10,10 @@ import { handleWorkerRequest } from './http/worker-adapter.js';
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const config = loadWorkerConfig(env);
-    const configuration = new D1Repositories(env.VIZOALICA_DB, env.VIZOALICA_TOKEN_SECRET);
+    const configuration = new D1Repositories(
+      env.VIZOALICA_DB,
+      env.VIZOALICA_ANALYTICS_DIGEST_SECRET
+    );
     const events = new R2EventBatchRepository(env.VIZOALICA_EVENTS);
     const repositories = {
       findProject: configuration.findProject.bind(configuration),
@@ -26,6 +29,8 @@ export default {
       getSource: configuration.getSource.bind(configuration),
       getPageViewCounts: configuration.getPageViewCounts.bind(configuration),
       getAnalyticsSummary: configuration.getAnalyticsSummary.bind(configuration),
+      getAnalyticsOverview: configuration.getAnalyticsOverview.bind(configuration),
+      deleteExpiredDashboardData: configuration.deleteExpiredDashboardData.bind(configuration),
       saveAdminAudit: configuration.saveAdminAudit.bind(configuration),
       saveDecision: configuration.saveDecision.bind(configuration),
       listDecisions: configuration.listDecisions.bind(configuration),
@@ -48,5 +53,16 @@ export default {
       },
       config.maxRequestBytes
     );
+  },
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    const config = loadWorkerConfig(env);
+    const repositories = new D1Repositories(
+      env.VIZOALICA_DB,
+      env.VIZOALICA_ANALYTICS_DIGEST_SECRET
+    );
+    const before = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
+    before.setUTCSeconds(0, 0);
+    await repositories.deleteExpiredDashboardData(before.toISOString());
+    void config;
   }
 };
