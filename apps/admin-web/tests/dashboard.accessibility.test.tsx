@@ -6,6 +6,7 @@ import { RankedTable } from '../src/components/RankedTable.js';
 import { TrafficTrend } from '../src/components/TrafficTrend.js';
 import { DistributionChart } from '../src/components/DistributionChart.js';
 import { DashboardFilters } from '../src/components/DashboardFilters.js';
+import { presetToRange } from '../src/time-range.js';
 
 describe('dashboard accessibility', () => {
   it('gives every metric card a semantic heading naming the metric', () => {
@@ -82,6 +83,8 @@ describe('dashboard accessibility', () => {
         websiteId=""
         onProjectChange={() => undefined}
         onWebsiteChange={() => undefined}
+        range={presetToRange('24h')}
+        onRangeApply={() => undefined}
       />
     );
     expect(markup).toContain('aria-label="Project"');

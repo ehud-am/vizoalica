@@ -12,15 +12,12 @@ import { DistributionChart } from '../components/DistributionChart.js';
 import { MetricCard } from '../components/MetricCard.js';
 import { RankedTable } from '../components/RankedTable.js';
 import { TrafficTrend } from '../components/TrafficTrend.js';
-
-function defaultRange() {
-  const end = new Date();
-  end.setUTCSeconds(0, 0);
-  return {
-    startUtc: new Date(end.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-    endUtc: end.toISOString()
-  };
-}
+import {
+  DEFAULT_RANGE_PRESET,
+  presetToRange,
+  rangeSummary,
+  type AppliedRange
+} from '../time-range.js';
 
 export function AnalyticsPage({
   projects,
@@ -37,7 +34,7 @@ export function AnalyticsPage({
   const [loading, setLoading] = useState(false);
   const [websitesError, setWebsitesError] = useState('');
   const [analyticsError, setAnalyticsError] = useState('');
-  const range = useRef(defaultRange());
+  const [range, setRange] = useState<AppliedRange>(() => presetToRange(DEFAULT_RANGE_PRESET));
   const generation = useRef(0);
   const error = websitesError || analyticsError;
 
@@ -62,8 +59,8 @@ export function AnalyticsPage({
     getAnalyticsOverview(
       projectId,
       websiteId || undefined,
-      range.current.startUtc,
-      range.current.endUtc,
+      range.startUtc,
+      range.endUtc,
       controller.signal
     )
       .then((value) => {
@@ -81,7 +78,7 @@ export function AnalyticsPage({
         if (generation.current === requestGeneration) setLoading(false);
       });
     return () => controller.abort();
-  }, [projectId, websiteId]);
+  }, [projectId, websiteId, range]);
 
   return (
     <div className="page dashboard-page">
@@ -91,7 +88,9 @@ export function AnalyticsPage({
           <h1>Understand what’s happening.</h1>
           <p>Simple, privacy-minded signals from your websites.</p>
         </div>
-        <span className="freshness">Last 24 hours</span>
+        <span className="freshness" aria-live="polite">
+          {rangeSummary(range)}
+        </span>
       </div>
 
       <section className="panel dashboard-controls" aria-label="Dashboard filters">
@@ -102,6 +101,8 @@ export function AnalyticsPage({
           websiteId={websiteId}
           onProjectChange={onProjectChange}
           onWebsiteChange={setWebsiteId}
+          range={range}
+          onRangeApply={setRange}
         />
       </section>
 

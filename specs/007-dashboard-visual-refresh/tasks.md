@@ -93,20 +93,20 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 
 ### Tests for User Story 2
 
-- [ ] T033 [P] [US2] Add failing range-unit tests for all five complete-minute presets, minute alignment, half-open boundaries, DST-crossing local conversions, future/equal/reversed/over-30-day rejection, and hour/day interval selection in `apps/ingest-api/tests/unit/analytics-range.test.ts`
-- [ ] T034 [P] [US2] Add failing Worker and loopback contract tests for missing, malformed, unaligned, future, reversed, and overlong query ranges plus exact accepted-boundary echoing in `apps/ingest-worker/tests/dashboard-range.contract.test.ts` and `apps/local-ops-api/tests/analytics-range.contract.test.ts`
-- [ ] T035 [P] [US2] Add failing selector interaction/accessibility tests for preset radios, Custom controls, visible timezone, draft preservation, Apply-only queries, inline errors, Escape/light dismiss, focus return, and narrow reflow classes in `apps/admin-web/tests/time-range-selector.test.tsx`
+- [x] T033 [P] [US2] Add failing range-unit tests for all five complete-minute presets, minute alignment, half-open boundaries, DST-crossing local conversions, future/equal/reversed/over-30-day rejection, and hour/day interval selection in `apps/ingest-api/tests/unit/analytics-range.test.ts`
+- [x] T034 [P] [US2] Add failing Worker and loopback contract tests for missing, malformed, unaligned, future, reversed, and overlong query ranges plus exact accepted-boundary echoing in `apps/ingest-worker/tests/dashboard-range.contract.test.ts` and `apps/local-ops-api/tests/analytics-range.contract.test.ts`
+- [x] T035 [P] [US2] Add failing selector interaction/accessibility tests for preset radios, Custom controls, visible timezone, draft preservation, Apply-only queries, inline errors, Escape/light dismiss, focus return, and narrow reflow classes in `apps/admin-web/tests/time-range-selector.test.tsx`
 
 ### Implementation for User Story 2
 
-- [ ] T036 [P] [US2] Implement browser range presets, local `datetime-local` parsing/formatting, timezone labels, complete-minute UTC conversion, summaries, and client validation in `apps/admin-web/src/time-range.ts`
-- [ ] T037 [US2] Apply the shared range validator and stable field-level errors at the Worker and local proxy boundaries in `apps/ingest-worker/src/http/admin-adapter.ts`, `apps/local-ops-api/src/routes/analytics.ts`, and `apps/local-ops-api/src/server.ts`
-- [ ] T038 [US2] Build the native responsive range popover with preset fieldset, custom From/To controls, timezone, validation status, and one Apply action in `apps/admin-web/src/components/TimeRangeSelector.tsx`
-- [ ] T039 [US2] Add the compact active-range trigger to the dashboard filters and preserve unapplied draft state across dismiss/reopen in `apps/admin-web/src/components/DashboardFilters.tsx`
-- [ ] T040 [US2] Connect applied ranges to one cancellable dashboard request, keep prior results out of the current state, and announce active range changes in `apps/admin-web/src/pages/AnalyticsPage.tsx`
-- [ ] T041 [US2] Add an end-to-end selector-to-local-API test covering every preset, one valid custom range, invalid no-request behavior, and returned UTC boundaries in `apps/admin-web/tests/time-range.e2e.test.tsx`
+- [x] T036 [P] [US2] Implement browser range presets, local `datetime-local` parsing/formatting, timezone labels, complete-minute UTC conversion, summaries, and client validation in `apps/admin-web/src/time-range.ts`
+- [x] T037 [US2] Apply the shared range validator and stable field-level errors at the Worker and local proxy boundaries in `apps/ingest-worker/src/http/admin-adapter.ts`, `apps/local-ops-api/src/routes/analytics.ts`, and `apps/local-ops-api/src/server.ts`
+- [x] T038 [US2] Build the native responsive range popover with preset fieldset, custom From/To controls, timezone, validation status, and one Apply action in `apps/admin-web/src/components/TimeRangeSelector.tsx`
+- [x] T039 [US2] Add the compact active-range trigger to the dashboard filters and preserve unapplied draft state across dismiss/reopen in `apps/admin-web/src/components/DashboardFilters.tsx`
+- [x] T040 [US2] Connect applied ranges to one cancellable dashboard request, keep prior results out of the current state, and announce active range changes in `apps/admin-web/src/pages/AnalyticsPage.tsx`
+- [x] T041 [US2] Add an end-to-end selector-to-local-API test covering every preset, one valid custom range, invalid no-request behavior, and returned UTC boundaries in `apps/admin-web/tests/time-range.e2e.test.tsx`
 
-**Checkpoint**: User Story 2 can be tested with a stubbed overview response and with the implemented US1 endpoint; every widget uses the exact applied period.
+**Checkpoint**: User Story 2 is complete. All five presets and a custom range apply through one accessible popover; the full monorepo test suite (316 tests) passes, `tsc -b` is clean, and `vite build` succeeds. A live-browser visual pass was not performed this session (relied on jsdom interaction tests driving real clicks/typing/keyboard focus instead) — worth a manual look before shipping US2.
 
 ---
 
