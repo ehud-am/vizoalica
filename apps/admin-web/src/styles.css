@@ -232,14 +232,10 @@ pre:focus-visible {
   text-decoration: none;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: block;
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  color: var(--color-text-inverse);
-  background: var(--color-brand);
-  font-family: Georgia, serif;
 }
 .topbar-actions {
   display: flex;
@@ -365,6 +361,13 @@ h2 {
 .panel {
   border-radius: 20px;
   padding: 28px;
+}
+.app-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-default);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
 }
 .selector-row {
   display: grid;

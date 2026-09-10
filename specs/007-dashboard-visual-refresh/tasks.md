@@ -146,19 +146,19 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 
 ### Tests for User Story 4
 
-- [ ] T054 [P] [US4] Add failing asset tests for required SVG variants, unique IDs, view boxes, accessible-title policy, dark/light/monochrome colors, and documented minimum-size references in `apps/admin-web/tests/brand-assets.test.ts`
-- [ ] T055 [P] [US4] Add failing footer/build tests that compare rendered output with root `package.json`, require `vunknown` fallback, and cover Overview and Websites in `apps/admin-web/tests/footer-version.test.tsx`
+- [x] T054 [P] [US4] Add failing asset tests for required SVG variants, unique IDs, view boxes, accessible-title policy, dark/light/monochrome colors, and documented minimum-size references in `apps/admin-web/tests/brand-assets.test.ts`
+- [x] T055 [P] [US4] Add failing footer/build tests that compare rendered output with root `package.json`, require `vunknown` fallback, and cover Overview and Websites in `apps/admin-web/tests/footer-version.test.tsx`
 
 ### Implementation for User Story 4
 
-- [ ] T056 [P] [US4] Design the original magnifying-glass vector master and create square, dark-background horizontal, light-background horizontal, monochrome, and favicon SVG assets in `apps/admin-web/public/brand/vizoalica-mark.svg`, `apps/admin-web/public/brand/vizoalica-lockup-dark.svg`, `apps/admin-web/public/brand/vizoalica-lockup-light.svg`, `apps/admin-web/public/brand/vizoalica-monochrome.svg`, and `apps/admin-web/public/brand/favicon.svg`
-- [ ] T057 [P] [US4] Document the logo concept, palette, clear space, minimum sizes, approved backgrounds, monochrome use, and meaningful/decorative accessible-name rules in `docs/brand.md`
-- [ ] T058 [US4] Replace the placeholder letter mark with the correct theme-aware lockup and accessible naming in `apps/admin-web/src/App.tsx`
-- [ ] T059 [P] [US4] Install the Vizoalica favicon and application metadata in `apps/admin-web/index.html`
-- [ ] T060 [US4] Inject the authoritative root package version through Vite, declare the compile-time constant, and implement the shared footer with `vunknown` fallback in `apps/admin-web/vite.config.ts`, `apps/admin-web/src/vite-env.d.ts`, and `apps/admin-web/src/components/AppFooter.tsx`
-- [ ] T061 [US4] Render `2026 | Vizoalica | v0.x.y` consistently after the main content on every console view in `apps/admin-web/src/App.tsx`
+- [x] T056 [P] [US4] Design the original magnifying-glass vector master and create square, dark-background horizontal, light-background horizontal, monochrome, and favicon SVG assets in `apps/admin-web/public/brand/vizoalica-mark.svg`, `apps/admin-web/public/brand/vizoalica-lockup-dark.svg`, `apps/admin-web/public/brand/vizoalica-lockup-light.svg`, `apps/admin-web/public/brand/vizoalica-monochrome.svg`, and `apps/admin-web/public/brand/favicon.svg`
+- [x] T057 [P] [US4] Document the logo concept, palette, clear space, minimum sizes, approved backgrounds, monochrome use, and meaningful/decorative accessible-name rules in `docs/brand.md`
+- [x] T058 [US4] Replace the placeholder letter mark with the correct theme-aware lockup and accessible naming in `apps/admin-web/src/App.tsx`
+- [x] T059 [P] [US4] Install the Vizoalica favicon and application metadata in `apps/admin-web/index.html`
+- [x] T060 [US4] Inject the authoritative root package version through Vite, declare the compile-time constant, and implement the shared footer with `vunknown` fallback in `apps/admin-web/vite.config.ts`, `apps/admin-web/src/vite-env.d.ts`, and `apps/admin-web/src/components/AppFooter.tsx`
+- [x] T061 [US4] Render `2026 | Vizoalica | v0.x.y` consistently after the main content on every console view in `apps/admin-web/src/App.tsx`
 
-**Checkpoint**: User Story 4 branding is original, scalable, accessible, theme-safe, and tied to the authoritative release version.
+**Checkpoint**: User Story 4 is complete. An original magnifying-glass mark (lens + handle + a fixed accent dot) ships as five SVG variants (icon, dark-bg lockup, light-bg lockup, monochrome, favicon), each with a unique accessible title where meaningful and none where purely decorative (the favicon), documented in docs/brand.md with palette/clear-space/minimum-size/approved-background/accessible-naming guidance. The topbar's placeholder "V" letter is replaced with the real mark (decorative `alt=""`, since the adjacent "Vizoalica" text plus the link's own aria-label already name it once). The footer renders `YYYY | Vizoalica | vX.Y.Z` from the root package.json version injected at build time via Vite's `define`, falls back to `vunknown` when that constant is unavailable, and appears on both Overview and Websites. 369 tests pass, `tsc -b` is clean, `vite build` succeeds and was confirmed to literally embed the version string in the built bundle, and a live-browser check confirmed the mark renders correctly in the topbar.
 
 ---
 

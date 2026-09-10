@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, bootstrapSession, listProjects, type Project } from './api/local-operations.js';
 import { AccessState } from './components/AccessState.js';
+import { AppFooter } from './components/AppFooter.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { WebsitesPage } from './pages/WebsitesPage.js';
@@ -29,9 +30,7 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <a className="brand" href="#main" aria-label="Vizoalica home">
-          <span className="brand-mark" aria-hidden="true">
-            V
-          </span>
+          <img className="brand-mark" src="/brand/vizoalica-mark.svg" alt="" width="32" height="32" />
           <span>Vizoalica</span>
         </a>
         <div className="topbar-actions">
@@ -87,6 +86,7 @@ export function App() {
               onProjectsChange={setProjects}
             />
           )}
+          {access === 'ready' && <AppFooter />}
         </main>
       </div>
     </div>
