@@ -4,6 +4,7 @@ import type { Config } from './config.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { analytics, analyticsOverview } from './routes/analytics.js';
+import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import {
   assertSafeIds,
   jsonInit,
@@ -168,13 +169,19 @@ export function createLocalServer(config: Config) {
       }
       return send(response, 404, { error: 'not_found' });
     } catch (error) {
+      if (error instanceof AnalyticsRangeError) {
+        return send(response, 400, {
+          error: error.code,
+          field: error.field,
+          message: error.message,
+          recovery: recoveryFor(400)
+        });
+      }
       const message = error instanceof Error ? error.message : 'remote_unavailable';
       const code =
         message === 'access_revoked' || message === 'unauthorized'
           ? 401
-          : message === 'invalid_request' ||
-              message === 'invalid_window' ||
-              message === 'invalid_range'
+          : message === 'invalid_request' || message === 'invalid_window'
             ? 400
             : message === 'request_too_large'
               ? 413

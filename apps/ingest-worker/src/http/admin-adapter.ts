@@ -1,7 +1,7 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
-import { parseAnalyticsRange } from '../../../ingest-api/src/analytics/range.js';
+import { AnalyticsRangeError, parseAnalyticsRange } from '../../../ingest-api/src/analytics/range.js';
 
 type Dependencies = { repositories: AdminRepository; adminSecret: string };
 
@@ -85,7 +85,12 @@ export async function handleAdminRequest(
     let range;
     try {
       range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
-    } catch {
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
       return invalid();
     }
     const sourceId = url.searchParams.get('source_id') ?? undefined;
