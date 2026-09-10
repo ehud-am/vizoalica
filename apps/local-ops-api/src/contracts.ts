@@ -70,3 +70,7 @@ export function validOrigins(value: unknown): value is string[] {
 }
 
 export type AnalyticsOverview = WorkerAnalyticsOverview;
+
+export type Theme = 'light' | 'dark';
+export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };
+export type SavedThemePreference = { theme: Theme; updatedAt: string };
