@@ -166,15 +166,23 @@ description: "Dependency-ordered implementation tasks for the dashboard visual r
 
 **Purpose**: Finish operator guidance, cost/security evidence, release metadata, and repository-wide gates.
 
-- [ ] T062 [P] Update the README dashboard tour, screenshot guidance, browser support, theme location, identity semantics, Unknown/Other meanings, and privacy guarantees in `README.md`
-- [ ] T063 [P] Document migration `0005`, the generated digest secret, daily cleanup, direct/manual deployment steps, completeness behavior, rollback limits, and verification in `docs/deployment/cloudflare.md` and `docs/deployment/onecli.md`
-- [ ] T064 [P] Record the measured D1 rows read/written per page view and maximum-range query, free-tier implications, quota assumptions, retention cost, and index evidence in `docs/operations/cost-model.md`
-- [ ] T065 Prepare the `0.4.0` feature release metadata and describe the dashboard, theme, branding, migration, privacy behavior, and compatibility adapter in `package.json`, `pnpm-lock.yaml`, and `CHANGELOG.md`
-- [ ] T066 Run formatting, linting, type checking, all tests, coverage above 90% lines/branches, production builds, and deployment preflight; record commands and results in `specs/007-dashboard-visual-refresh/validation-report.md`
-- [ ] T067 Audit the completed implementation for raw metadata leakage, project/source isolation, preference/credential separation, dependency licenses/advisories, CSP, and negative-test coverage in `specs/007-dashboard-visual-refresh/security-privacy-review.md`
-- [ ] T068 Run the 30-day representative fixture, capture p95 response time, output bounds, D1 `EXPLAIN QUERY PLAN`, rows read/written, duplicate handling, and cleanup behavior in `specs/007-dashboard-visual-refresh/performance-report.md`
-- [ ] T069 Complete manual keyboard, screen-reader, both-theme contrast, 200% zoom, 320 CSS-pixel reflow, reduced-motion, selector focus-return, and logo minimum-size review in `specs/007-dashboard-visual-refresh/accessibility-report.md`
-- [ ] T070 Perform the constitution-required contrarian QA review and cross-artifact alignment audit, list any resolved findings, and assemble the human release-owner go/no-go evidence in `specs/007-dashboard-visual-refresh/qa-report.md` and `specs/007-dashboard-visual-refresh/release-readiness.md`
+- [x] T062 [P] Update the README dashboard tour, screenshot guidance, browser support, theme location, identity semantics, Unknown/Other meanings, and privacy guarantees in `README.md`
+- [x] T063 [P] Document migration `0005`, the generated digest secret, daily cleanup, direct/manual deployment steps, completeness behavior, rollback limits, and verification in `docs/deployment/cloudflare.md` and `docs/deployment/onecli.md` — those two paths don't exist in this repo; applied to the actual deployment doc at `docs/operations/cloudflare.md` instead (OneCLI content already lives in `docs/operations/local-analytics.md`, not a separate file) — see the qa-report.md note recommending this task's paths be corrected
+- [x] T064 [P] Record the measured D1 rows read/written per page view and maximum-range query, free-tier implications, quota assumptions, retention cost, and index evidence in `docs/operations/cost-model.md`
+- [x] T065 Prepare the `0.4.0` feature release metadata and describe the dashboard, theme, branding, migration, privacy behavior, and compatibility adapter in `package.json`, `pnpm-lock.yaml`, and `CHANGELOG.md`
+- [x] T066 Run formatting, linting, type checking, all tests, coverage above 90% lines/branches, production builds, and deployment preflight; record commands and results in `specs/007-dashboard-visual-refresh/validation-report.md`
+- [x] T067 Audit the completed implementation for raw metadata leakage, project/source isolation, preference/credential separation, dependency licenses/advisories, CSP, and negative-test coverage in `specs/007-dashboard-visual-refresh/security-privacy-review.md`
+- [x] T068 Run the 30-day representative fixture, capture p95 response time, output bounds, D1 `EXPLAIN QUERY PLAN`, rows read/written, duplicate handling, and cleanup behavior in `specs/007-dashboard-visual-refresh/performance-report.md`
+- [x] T069 Complete manual keyboard, screen-reader, both-theme contrast, 200% zoom, 320 CSS-pixel reflow, reduced-motion, selector focus-return, and logo minimum-size review in `specs/007-dashboard-visual-refresh/accessibility-report.md`
+- [x] T070 Perform the constitution-required contrarian QA review and cross-artifact alignment audit, list any resolved findings, and assemble the human release-owner go/no-go evidence in `specs/007-dashboard-visual-refresh/qa-report.md` and `specs/007-dashboard-visual-refresh/release-readiness.md`
+
+**Checkpoint**: Phase 7 is complete — every task in this file (T001-T070) is done. All gates pass
+(392 tests, `tsc -b` clean, lint/format clean, coverage 94.69%/90.21%/94.8%/96.66%
+stmts/branches/funcs/lines, all 9 buildable packages build, `deploy:check` dry-run passes).
+`release-readiness.md` assembles the evidence and recommends proceeding, with five named open
+items for the human release owner's judgment — see that file and `qa-report.md` for what they are
+and why none were treated as a blocker. The release decision itself belongs to that human owner,
+not to this task list.
 
 ---
 

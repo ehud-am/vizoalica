@@ -9,12 +9,8 @@ afterEach(() => cleanup());
 describe('ThemeToggle', () => {
   it('marks Light pressed when the resolved theme is light', () => {
     render(<ThemeToggle theme="light" saving={false} saveError={false} onChange={() => {}} />);
-    expect(screen.getByRole('button', { name: 'Light' }).getAttribute('aria-pressed')).toBe(
-      'true'
-    );
-    expect(screen.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed')).toBe(
-      'false'
-    );
+    expect(screen.getByRole('button', { name: 'Light' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed')).toBe('false');
   });
 
   it('marks Dark pressed when the resolved theme is dark', () => {

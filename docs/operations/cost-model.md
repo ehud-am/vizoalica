@@ -11,6 +11,8 @@ sanity check, not a production SLA.
 
 ## Method
 
+Reproduce this report's numbers directly: `node scripts/dashboard-performance-fixture.mjs`
+(requires Node >= 22; `node:sqlite` is experimental and prints a harmless warning to stderr).
 `deploy/cloudflare/migrations/0005_dashboard_visual_refresh.sql` was applied verbatim to a
 `node:sqlite` in-memory database (Node 22's built-in driver). The fixture models 2 active sources
 in 1 project, 30 days of continuous traffic at minute granularity, with 1-5 page views/minute,
@@ -99,9 +101,10 @@ Using Cloudflare's documented D1 free-tier daily budgets at the time of writing 
 - **Storage**: at roughly 1.25M total rows across the three growing tables for 30 days of 2
   active sources in this fixture, and D1's free-tier storage budget measured in gigabytes rather
   than row count, storage is very unlikely to bind before the write-rate budget does for a site at
-  this traffic level. A much higher-traffic site should re-run this fixture's generator
-  (`node:sqlite`-based, not currently checked into the repository - recreate it from the SQL and
-  row-count method above) at its own expected scale before relying on the free tier.
+  this traffic level. A much higher-traffic site should re-run
+  [`scripts/dashboard-performance-fixture.mjs`](../../scripts/dashboard-performance-fixture.mjs)
+  (`node scripts/dashboard-performance-fixture.mjs`, requires Node >= 22) at its own expected scale
+  before relying on the free tier - edit its `DAYS`/traffic-shape constants rather than guessing.
 
 ## Retention cost
 

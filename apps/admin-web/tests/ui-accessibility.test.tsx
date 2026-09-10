@@ -113,6 +113,29 @@ describe('focus visibility', () => {
   });
 });
 
+describe('document-level security headers', () => {
+  const indexHtml = readFileSync(join(process.cwd(), 'apps/admin-web/index.html'), 'utf8');
+
+  it('declares a restrictive Content-Security-Policy via meta tag', () => {
+    // A meta tag, not a server header or a Pages _headers file, because this console is always
+    // served by `vite dev`/`vite preview` per docs/operations/local-analytics.md - there is no
+    // Cloudflare Pages (or other) hosting layer that would read a _headers file for it.
+    expect(indexHtml).toMatch(/http-equiv="Content-Security-Policy"/);
+    expect(indexHtml).toContain("default-src 'self'");
+    expect(indexHtml).toContain("script-src 'self'");
+    expect(indexHtml).toContain("base-uri 'none'");
+  });
+
+  it('does not declare frame-ancestors or sandbox in the meta CSP (both are ignored there per spec)', () => {
+    const cspContentMatch = /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(
+      indexHtml
+    );
+    expect(cspContentMatch).toBeTruthy();
+    expect(cspContentMatch![1]).not.toContain('frame-ancestors');
+    expect(cspContentMatch![1]).not.toContain('sandbox');
+  });
+});
+
 describe('zoom-safe and narrow-viewport structure', () => {
   it('reflows the shell to a single column under 800 CSS pixels', () => {
     expect(css).toContain('@media (max-width: 800px)');

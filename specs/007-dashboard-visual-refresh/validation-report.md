@@ -36,7 +36,7 @@ across all 10 workspace projects plus both example files.
 pnpm exec vitest run
 ```
 
-Result: **pass. 390 tests across 82 files, 0 failures.**
+Result: **pass. 392 tests across 82 files, 0 failures.**
 
 ## Coverage
 
@@ -93,7 +93,7 @@ committed file.)
 `deploy:verify` (a live HTTP check against the deployed Worker) were **not** run for this report -
 both are real, side-effecting actions against production infrastructure and require the release
 owner's explicit decision to deploy, not something to do silently while assembling validation
-evidence. `deploy-cli`'s own test suite (part of the 390 tests above) covers the `apply`/`plan`/
+evidence. `deploy-cli`'s own test suite (part of the 392 tests above) covers the `apply`/`plan`/
 `configure` logic in isolation, including the analytics digest secret's generation, redaction, and
 provisioning behavior added by this feature.
 

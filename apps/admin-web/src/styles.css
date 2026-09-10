@@ -90,7 +90,7 @@
     --color-text-tertiary: #8b988f;
     --color-text-brand: #7fd0a2;
     --color-text-brand-strong: #8fd4ac;
-    --color-text-inverse: #0e140f;
+    --color-text-inverse: #000000;
 
     --color-border-default: #2c3630;
     --color-border-input: #3a463d;
@@ -142,7 +142,7 @@
   --color-text-tertiary: #8b988f;
   --color-text-brand: #7fd0a2;
   --color-text-brand-strong: #8fd4ac;
-  --color-text-inverse: #0e140f;
+  --color-text-inverse: #000000;
 
   --color-border-default: #2c3630;
   --color-border-input: #3a463d;
@@ -218,6 +218,7 @@ pre:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 0 32px;
   background: var(--color-surface-raised);
   border-bottom: 1px solid var(--color-border-default);
@@ -884,6 +885,18 @@ pre {
   color: var(--color-text-tertiary);
 }
 @media (max-width: 800px) {
+  .topbar {
+    padding: 0 16px;
+  }
+  .brand span:last-child {
+    display: none;
+  }
+  .local-pill .local-pill-label {
+    display: none;
+  }
+  .local-pill {
+    padding: 7px;
+  }
   .workspace {
     grid-template-columns: 1fr;
   }

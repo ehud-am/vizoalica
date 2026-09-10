@@ -46,8 +46,11 @@ export function App() {
             saveError={theme.saveError}
             onChange={theme.setTheme}
           />
-          <div className="local-pill">
-            <span aria-hidden="true" /> Local workspace
+          <div className="local-pill" aria-label="Local workspace">
+            <span aria-hidden="true" />
+            <span className="local-pill-label" aria-hidden="true">
+              Local workspace
+            </span>
           </div>
         </div>
       </header>

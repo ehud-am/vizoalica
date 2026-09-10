@@ -2,8 +2,10 @@
 
 ## Method and its limits
 
-Migration `0005`'s exact DDL was applied to an in-memory SQLite database via Node 22's built-in
-`node:sqlite` driver, then populated with a synthetic 30-day fixture (method and fixture size in
+Reproduce every number in this report directly:
+`node scripts/dashboard-performance-fixture.mjs` (requires Node >= 22). Migration `0005`'s exact
+DDL was applied to an in-memory SQLite database via Node 22's built-in `node:sqlite` driver, then
+populated with a synthetic 30-day fixture (method and fixture size in
 [cost-model.md](../../docs/operations/cost-model.md#method)). Every `getAnalyticsOverview` query
 was extracted verbatim from `apps/ingest-worker/src/storage/d1-repositories.ts` and run against
 this fixture with `EXPLAIN QUERY PLAN` and 30-iteration timing.
@@ -106,7 +108,10 @@ event); **15 D1 statement executions per dashboard request**, each resolving thr
 Verified empirically by replaying the exact three-statement write sequence
 `recordDashboardRollups` uses (`INSERT OR IGNORE` into `dashboard_seen_events` with the batch's
 nonce, a `page_view_count` upsert gated on `COUNT(*) ... HAVING COUNT(*) > 0` against rows actually
-stamped with that nonce, then clearing the nonce) against the same in-memory database:
+stamped with that nonce, then clearing the nonce) against the same in-memory database - this is the
+`duplicate delivery check` section of
+[`scripts/dashboard-performance-fixture.mjs`](../../scripts/dashboard-performance-fixture.mjs),
+reproducible with the same command as the rest of this report:
 
 ```
 After first delivery, page_view_count = 2
@@ -122,12 +127,15 @@ clause suppresses the insert entirely, and `page_view_count` does not move. A ba
 duplicates with genuinely new events counts only the new ones, as shown above.
 
 This confirms the design is idempotent under at-least-once redelivery. It is evidence from
-replaying the real SQL against a real SQLite engine, not from the project's own test suite: no
-`vitest` test currently exercises this scenario against a real database (the existing
-`dashboard-rollups.integration.test.ts` suite uses a hand-rolled fake `D1Database` that always
-reports success and does not implement `INSERT OR IGNORE`/`ON CONFLICT`/`HAVING` semantics, so it
-cannot itself prove this outcome). This is a known, tracked gap - see the T011 note in
-[tasks.md](./tasks.md).
+replaying the real SQL against a real SQLite engine, reproducibly (the script above is checked
+into the repository, not a one-off scratch calculation) - but it is still not from the project's
+own `pnpm test` gate: no `vitest` test exercises this scenario against a real database (the
+existing `dashboard-rollups.integration.test.ts` suite uses a hand-rolled fake `D1Database` that
+always reports success and does not implement `INSERT OR IGNORE`/`ON CONFLICT`/`HAVING` semantics,
+so it cannot itself prove this outcome). Closing that gap for real would mean either wiring
+`node:sqlite` as a `D1Database` adapter for a proper vitest integration test, or waiting for a
+first-party D1 local-testing story from Cloudflare. This is a known, tracked gap - see the T011
+note in [tasks.md](./tasks.md).
 
 ## Cleanup behavior
 

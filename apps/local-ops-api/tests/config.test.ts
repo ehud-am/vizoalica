@@ -9,9 +9,9 @@ const validEnv = {
 
 describe('loadConfig', () => {
   it('rejects a non-HTTPS remote URL that is not localhost', () => {
-    expect(() =>
-      loadConfig({ ...validEnv, VIZOALICA_REMOTE_URL: 'http://worker.test' })
-    ).toThrow('remote_url_must_use_https');
+    expect(() => loadConfig({ ...validEnv, VIZOALICA_REMOTE_URL: 'http://worker.test' })).toThrow(
+      'remote_url_must_use_https'
+    );
   });
 
   it('accepts an http localhost remote URL', () => {
@@ -41,12 +41,19 @@ describe('ensureCredential', () => {
 
 describe('resolvePreferencesPath', () => {
   it('places preferences.json beside the configured local-operations file', () => {
-    const config = { ...loadConfig(validEnv), configFilePath: '/home/op/.config/vizoalica/local-operations.json' };
-    expect(resolvePreferencesPath(config)).toBe(join('/home/op/.config/vizoalica', 'preferences.json'));
+    const config = {
+      ...loadConfig(validEnv),
+      configFilePath: '/home/op/.config/vizoalica/local-operations.json'
+    };
+    expect(resolvePreferencesPath(config)).toBe(
+      join('/home/op/.config/vizoalica', 'preferences.json')
+    );
   });
 
   it('falls back to the default ~/.config/vizoalica directory when no config file path is set', () => {
     const config = loadConfig(validEnv);
-    expect(resolvePreferencesPath(config)).toContain(join('.config', 'vizoalica', 'preferences.json'));
+    expect(resolvePreferencesPath(config)).toContain(
+      join('.config', 'vizoalica', 'preferences.json')
+    );
   });
 });
