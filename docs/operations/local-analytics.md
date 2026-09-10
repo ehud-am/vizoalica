@@ -177,10 +177,94 @@ or revoke the client credential once the operator session is complete.
 - The generated source key is public. A customer website remains responsible for issuing
   short-lived ingest tokens from its own backend.
 - Disable is reversible. Delete is a terminal soft deletion that stops collection while retaining
-  historic aggregates and administrative audit evidence.
-- Analytics supports only rolling `24h`, `7d`, and `30d` windows. Queries read indexed hourly D1
-  aggregates; they never fall back to scanning raw R2 batches.
-- Unique-user presence uses a keyed, non-reversible digest. Only aggregate counts leave D1.
+  historic aggregates and administrative audit evidence. A disabled website still appears in the
+  website selector, labeled "(history only, disabled)" - you can review its historic analytics,
+  but it is no longer collecting new events.
+
+## Dashboard tour
+
+Opening the console lands on **Overview**, the analytics dashboard. It always shows one coherent
+result for one scope and one time range - there is never a mix of results from two different
+requests on screen at once, and switching scope or range while a request is in flight cancels the
+stale one rather than letting it overwrite a newer result.
+
+- **Scope**: the Project selector picks which project's data you're looking at; the Website
+  selector defaults to **All websites** (deduplicated project-wide totals) or narrows to one
+  website's source-local totals. All websites is always the first option.
+- **Time range**: the compact trigger in the top-right of the filters panel shows the active range
+  in plain language (for example "Last 24 hours" or an exact local date/time span for a custom
+  range). Opening it reveals five presets - Last 6 hours, Last 12 hours, Last 24 hours, Last 7
+  days, Last 30 days - and a Custom option with From/To fields in your browser's local timezone
+  (shown explicitly beside the fields). Nothing changes until you press Apply; dismissing the
+  popover without applying (Escape or clicking away) keeps your draft edit for next time without
+  issuing a request.
+- **Totals**: page views and unique users for the selected scope and range, shown as explicit
+  numbers - including an explicit `0`, never a blank tile - so an empty range reads as "nothing
+  happened" rather than "the dashboard is broken."
+- **Trend**: a page-view/unique-user line chart bucketed by hour (ranges of a day or less) or by
+  day (longer ranges), paired with an exact-value table beneath it so the same numbers the chart
+  draws are always available as text.
+- **Rankings**: top-ten tables for pages, countries, user agents, and referrers, each with an
+  explicit remainder row ("Other") summing everything past the top ten rather than silently
+  dropping it.
+- **Distributions**: operating system, browser, device, and human/bot/unknown breakdowns as a
+  chart paired with an exact count/percentage list - the chart itself is decorative (screen
+  readers skip it); the list carries the real information.
+- **Availability**: if the selected range starts before this project's expanded analytics were
+  available (for example, right after upgrading past migration `0005`), the dashboard says so
+  explicitly and still shows whatever data is available, rather than presenting a silently
+  incomplete result as if it were complete.
+
+### Screenshots
+
+This repository does not ship dashboard screenshots, since the dashboard has no meaningful data
+until you have a deployed Worker receiving real traffic. After following the steps above with a
+live deployment, capture your own from the browser once Overview shows real totals - that keeps
+documentation screenshots accurate to your actual deployed version rather than a stale image
+from this repository's history.
+
+### Browser support
+
+The console is a modern evergreen-browser single-page app (current Chrome, Firefox, Safari, or
+Edge). It uses `<input type="datetime-local">` for the custom time range and CSS custom
+properties for theming; both require a browser from the last few years. There is no
+Internet Explorer or extended-support-browser target.
+
+### Theme
+
+Light/dark theme follows your operating system's preference by default. The Light/Dark control in
+the top bar sets an explicit preference instead, which is saved to a local preferences file
+(`preferences.json`, beside your `local-operations.json` configuration) and takes priority over
+the system preference on every later console launch, on this machine, until changed again. If
+that file can't be written (for example, a read-only home directory), the chosen theme still
+applies for the current session - you'll see a small notice that it couldn't be saved.
+
+### Identity and "Unknown" / "Other"
+
+- **Identity mode**: the All-websites scope uses a project-wide reviewed pseudonym where your
+  ingest tokens supply one (shared, non-reversible identity across that project's websites);
+  otherwise it falls back to a source-local pseudonym, private to one website. A single-website
+  scope always uses that website's source-local identity. The dashboard's totals description
+  states which mode is in effect for the current scope.
+- **Unknown**: any classified dimension (country, browser, operating system, device, traffic
+  type) that could not be determined from the trusted request signals available at ingest time -
+  for example, no `CF-IPCountry` header, or a missing/unparseable User-Agent - is labeled
+  `Unknown` rather than guessed at or left blank.
+- **Other**: the remainder past the top ten (rankings) or top eleven (distributions) explicit
+  values for a dimension, always shown as one summed row/slice rather than silently dropped.
+
+## Privacy guarantees
+
+- Analytics is limited to rolling presets (`6h`/`12h`/`24h`/`7d`/`30d`) or a bounded custom range
+  (minute-aligned, no more than 30 days, never later than the current complete minute). Every
+  query reads indexed D1 aggregates; none fall back to scanning raw R2 batches.
+- Unique-user presence uses a keyed, non-reversible HMAC digest computed server-side. Only
+  aggregate counts and digests ever reach D1; raw IP addresses, full User-Agent strings, and any
+  other raw request metadata never leave the Worker's classification step, and never reach
+  CloudEvents, R2, logs, or the browser.
+- Country, browser, operating system, device, and traffic classification is normalized to a fixed
+  taxonomy (see Unknown/Other above) before storage - the raw signals that produced it are
+  discarded immediately after classification.
 - Processing, unavailable, denied, and interrupted outcomes are explicit. An unavailable response
   never presents cached totals as current; an interrupted maintenance operation advises a safe
   status check or retry.

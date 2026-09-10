@@ -12,8 +12,7 @@ const ANDROID_CHROME =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 const IPAD_SAFARI =
   'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1';
-const GOOGLEBOT =
-  'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
 function request(ua: string | undefined, cf?: Record<string, unknown>): Request {
   const headers = new Headers();
@@ -79,9 +78,9 @@ describe('dashboard classifier', () => {
   });
 
   it('resolves conflicting bot-management evidence toward bot when a low score or a verified/signed bot flag is present', () => {
-    expect(
-      classifyRequest(request(CHROME_WINDOWS, { botManagement: { score: 5 } })).traffic
-    ).toBe('bot');
+    expect(classifyRequest(request(CHROME_WINDOWS, { botManagement: { score: 5 } })).traffic).toBe(
+      'bot'
+    );
     expect(
       classifyRequest(request(CHROME_WINDOWS, { botManagement: { verifiedBot: true, score: 90 } }))
         .traffic

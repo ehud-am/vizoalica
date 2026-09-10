@@ -57,7 +57,8 @@ function database(calls: Call[]): D1Database {
           return statement;
         },
         async first() {
-          if (query.includes('projects')) return (values[0] === 'project-a' ? project : null) as never;
+          if (query.includes('projects'))
+            return (values[0] === 'project-a' ? project : null) as never;
           if (query.includes('sources')) return (values[0] === 'public-a' ? source : null) as never;
           if (query.includes('quota_policies'))
             return (values[0] === 'quota-a' ? quota : null) as never;
@@ -93,7 +94,12 @@ async function postEvent(env: Env, headers: Record<string, string>) {
     time: now.toISOString(),
     datacontenttype: 'application/json',
     data: {
-      page: { url_origin: 'https://example.test', url_path: '/', url_query_redacted: true, title: null },
+      page: {
+        url_origin: 'https://example.test',
+        url_path: '/',
+        url_query_redacted: true,
+        title: null
+      },
       visitor: { anonymous_id: 'anon-a' },
       session: { id: 'session-a' }
     }
@@ -120,7 +126,11 @@ describe('dashboard metadata privacy', () => {
     const writes: Array<{ key: string; value: string }> = [];
     const env: Env = {
       VIZOALICA_DB: database(calls),
-      VIZOALICA_EVENTS: { async put(key, value) { writes.push({ key, value: String(value) }); } } as R2Bucket,
+      VIZOALICA_EVENTS: {
+        async put(key, value) {
+          writes.push({ key, value: String(value) });
+        }
+      } as R2Bucket,
       VIZOALICA_TOKEN_SECRET: 'test-secret',
       VIZOALICA_ADMIN_SECRET: 'admin-secret',
       VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
@@ -134,7 +144,9 @@ describe('dashboard metadata privacy', () => {
     const body = await response.text();
     expect(response.status, body).toBe(202);
 
-    const dimensionCalls = calls.filter((call) => call.query.includes('dashboard_minute_dimensions'));
+    const dimensionCalls = calls.filter((call) =>
+      call.query.includes('dashboard_minute_dimensions')
+    );
     expect(dimensionCalls.length).toBeGreaterThan(0);
     for (const call of dimensionCalls) {
       const serialized = JSON.stringify(call.values);
@@ -167,7 +179,9 @@ describe('dashboard metadata privacy', () => {
     };
     const response = await postEvent(env, { 'user-agent': 'Mozilla/5.0 Chrome/120.0.0.0' });
     expect(response.status).toBe(202);
-    const dimensionCalls = calls.filter((call) => call.query.includes('dashboard_minute_dimensions'));
+    const dimensionCalls = calls.filter((call) =>
+      call.query.includes('dashboard_minute_dimensions')
+    );
     const trafficDimension = dimensionCalls.find((call) => call.values.includes('traffic'));
     expect(trafficDimension?.values).toEqual(
       expect.arrayContaining([expect.stringMatching(/^(bot|human|unknown)$/)])

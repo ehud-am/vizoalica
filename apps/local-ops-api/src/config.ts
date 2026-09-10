@@ -50,7 +50,8 @@ export function loadConfigFile(path: string): Config {
 
 /** Resolves the preferences file path beside the configured local-operations file. */
 export function resolvePreferencesPath(config: Config): string {
-  const base = config.configFilePath ?? join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+  const base =
+    config.configFilePath ?? join(homedir(), '.config', 'vizoalica', 'local-operations.json');
   return join(dirname(base), 'preferences.json');
 }
 

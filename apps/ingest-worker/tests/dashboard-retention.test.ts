@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import worker from '../src/index.js';
 import { D1Repositories } from '../src/storage/d1-repositories.js';
-import type { D1Database, D1Statement } from '../src/env.js';
+import type { D1Database, D1Statement, Env } from '../src/env.js';
 
 function fakeDb(options: { batchFails?: boolean } = {}) {
   const prepared: Array<{ query: string; values: unknown[] }> = [];
@@ -84,5 +85,29 @@ describe('dashboard retention cleanup', () => {
     await expect(
       repositories.deleteExpiredDashboardData('2025-12-08T00:00:00.000Z')
     ).rejects.toThrow('d1_unavailable');
+  });
+
+  it('the Worker scheduled handler deletes rows older than 32 days, aligned to a whole minute', async () => {
+    const fake = fakeDb();
+    const env: Env = {
+      VIZOALICA_DB: fake.db,
+      VIZOALICA_EVENTS: { async put() {} },
+      VIZOALICA_TOKEN_SECRET: 'test-secret',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+    };
+    const before = Date.now();
+    await worker.scheduled!({} as never, env);
+    const after = Date.now();
+
+    expect(fake.batchCount()).toBe(1);
+    const boundary = new Date(fake.prepared[0]!.values[0] as string);
+    expect(boundary.getUTCSeconds()).toBe(0);
+    expect(boundary.getUTCMilliseconds()).toBe(0);
+    const ageMs = before - boundary.getTime();
+    const expectedAgeMs = 32 * 24 * 60 * 60 * 1000;
+    // Rounding down to the start of the minute can add up to 60s of age; allow that plus margin.
+    expect(ageMs).toBeGreaterThan(expectedAgeMs - 1000);
+    expect(ageMs).toBeLessThan(expectedAgeMs + 60_000 + (after - before) + 1000);
   });
 });

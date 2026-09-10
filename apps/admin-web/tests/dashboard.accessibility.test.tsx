@@ -56,7 +56,10 @@ describe('dashboard accessibility', () => {
     // Recharts needs a measured DOM size to render its SVG, so this checks the
     // source directly rather than through renderToStaticMarkup (which yields a
     // zero-size, childless chart in a non-browser environment).
-    const source = readFileSync(new URL('../src/components/TrafficTrend.tsx', import.meta.url), 'utf8');
+    const source = readFileSync(
+      new URL('../src/components/TrafficTrend.tsx', import.meta.url),
+      'utf8'
+    );
     expect(source).toContain('strokeDasharray');
   });
 

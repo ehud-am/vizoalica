@@ -110,12 +110,17 @@ pnpm exec wrangler secret list --config deploy/cloudflare/wrangler.production.to
 ## 4. Apply all migrations and deploy
 
 Read the SQL files in [`deploy/cloudflare/migrations`](../../deploy/cloudflare/migrations).
-This release needs **all four**, in order:
+This release needs **all five**, in order:
 
 1. `0001_initial.sql` — projects, sources, quotas and rollups.
 2. `0002_admin_mcp.sql` — administration support.
 3. `0003_dashboard.sql` — dashboard support.
 4. `0004_local_operations.sql` — local console and hourly analytics.
+5. `0005_dashboard_visual_refresh.sql` — minute-granularity totals, eight independent
+   classification dimensions, visitor-presence tracking, an event-digest ledger for duplicate-safe
+   writes, and a per-project/per-source watermark table. Purely additive: it creates new tables and
+   indexes only, and initializes each existing source's watermark so history before this migration
+   is reported as incomplete rather than fabricated (see "Analytics completeness" below).
 
 ```sh
 pnpm deploy:check
@@ -126,7 +131,48 @@ pnpm exec wrangler d1 migrations list vizoalica-config --remote --config deploy/
 Replace `vizoalica-config` in commands if you chose a different database name. `deploy:apply`
 checks the configuration, applies pending migrations, then deploys the Worker. Never manually
 rerun an already-applied migration; let Wrangler track it. On future releases, apply every
-migration through that release's latest file, not just the four listed here.
+migration through that release's latest file, not just the five listed here.
+
+### The analytics digest secret
+
+Migration `0005` and the dashboard's visitor-privacy design need a server-side HMAC key,
+`VIZOALICA_ANALYTICS_DIGEST_SECRET`, to compute non-reversible visitor and event digests. You do
+not create or handle this secret manually: `deploy:configure` generates it once, alongside the
+existing signing/administrator secrets, and stores it the same way (never printed, never included
+in a plan or preflight receipt); `deploy:apply` provisions it as a Worker secret automatically if
+it is not already present remotely, the same way it provisions the others. Rotating it follows the
+same path as [a leaked secret](#a-secret-may-have-leaked) below - rotating it invalidates
+previously computed visitor digests for future comparison, so historic unique-user counts remain
+correct (they were already aggregated) but a rotated deployment cannot recognize a returning
+visitor against pre-rotation digests.
+
+### Daily aggregate cleanup
+
+The Worker's Cron Trigger (`deploy/cloudflare/wrangler.toml`, `[triggers]`) runs once a day and
+deletes dashboard rollup rows older than the 32-day retention boundary, in bounded batches per
+table. This requires no operator action beyond deploying the Worker with its `crons` entry, which
+`deploy:apply` does as part of the normal deploy.
+
+### Analytics completeness
+
+A time range that starts before a source's migration-`0005` watermark (set to "now" for every
+existing source when the migration runs, or to a new source's creation time afterward) is reported
+by the dashboard as **incomplete** rather than silently showing partial data as if it were the full
+picture. This is expected immediately after deploying this release, for any range that reaches
+back before the deploy. It resolves on its own as new data accumulates past the watermark; no
+backfill or manual step closes the gap, because there is no pre-migration raw data left to backfill
+from beyond what R2 already retains.
+
+### Rollback limits
+
+Migration `0005` is additive only - it does not modify or drop anything migrations `0001`-`0004`
+created. Rolling the Worker back to a pre-`0005` version (see
+["a deployment is unhealthy"](#a-deployment-is-unhealthy) below) is safe: the older Worker code
+simply does not read or write the new tables, and the existing fixed-window `24h`/`7d`/`30d`
+analytics endpoint keeps working unchanged, since it was kept as a one-release compatibility
+adapter. Do not drop migration `0005`'s tables to "undo" it - there is no down-migration, and
+doing so would discard aggregated data with no way to recompute it from R2 without a full raw-event
+replay.
 
 **Check:** no migrations remain pending. Copy the deployed Worker origin, without a trailing slash:
 

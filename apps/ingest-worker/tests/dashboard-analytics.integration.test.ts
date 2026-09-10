@@ -11,20 +11,22 @@ function manyDimensionRows(count: number) {
   }));
 }
 
-function fakeDb(options: {
-  pageViews?: number;
-  uniqueUsers?: number;
-  pageTrend?: Row[];
-  visitorTrend?: Row[];
-  dimensionRows?: Row[];
-  availableFromUtc?: string;
-  lastCompletedAt?: string;
-  identityKinds?: string[];
-  taxonomyVersions?: number[];
-  missingProject?: boolean;
-  missingSource?: boolean;
-  deletedSource?: boolean;
-} = {}) {
+function fakeDb(
+  options: {
+    pageViews?: number;
+    uniqueUsers?: number;
+    pageTrend?: Row[];
+    visitorTrend?: Row[];
+    dimensionRows?: Row[];
+    availableFromUtc?: string;
+    lastCompletedAt?: string;
+    identityKinds?: string[];
+    taxonomyVersions?: number[];
+    missingProject?: boolean;
+    missingSource?: boolean;
+    deletedSource?: boolean;
+  } = {}
+) {
   const calls: Array<{ query: string; values: unknown[] }> = [];
   const project = {
     id: 'p1',
@@ -66,7 +68,9 @@ function fakeDb(options: {
               results: (options.taxonomyVersions ?? [1]).map((version) => ({ version })) as T[]
             };
           if (query.includes('DISTINCT identity_kind'))
-            return { results: (options.identityKinds ?? ['source-local']).map((kind) => ({ kind })) as T[] };
+            return {
+              results: (options.identityKinds ?? ['source-local']).map((kind) => ({ kind })) as T[]
+            };
           return { results: [] };
         },
         async first<T>() {
@@ -81,8 +85,10 @@ function fakeDb(options: {
                   lastCompletedAt: options.lastCompletedAt
                 } as T | null)
               : (null as T | null);
-          if (query.includes('FROM projects')) return (options.missingProject ? null : project) as T | null;
-          if (query.includes('FROM sources')) return (options.missingSource ? null : source) as T | null;
+          if (query.includes('FROM projects'))
+            return (options.missingProject ? null : project) as T | null;
+          if (query.includes('FROM sources'))
+            return (options.missingSource ? null : source) as T | null;
           return null;
         }
       };
@@ -120,7 +126,12 @@ describe('dashboard analytics overview query', () => {
     expect(overview?.scope).toMatchObject({ sourceId: 's1', label: 'Docs' });
     const scopedCall = fake.calls.find((call) => call.query.includes('SUM(page_view_count)'));
     expect(scopedCall?.query).toMatch(/AND source_id = \?/);
-    expect(scopedCall?.values).toEqual(['p1', '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 's1']);
+    expect(scopedCall?.values).toEqual([
+      'p1',
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z',
+      's1'
+    ]);
   });
 
   it('excludes a deleted source rather than returning its analytics', async () => {
@@ -189,7 +200,9 @@ describe('dashboard analytics overview query', () => {
     );
     expect(overview?.rankings.pagePaths.items).toHaveLength(10);
     expect(overview?.rankings.pagePaths.otherCount).toBe(
-      manyDimensionRows(13).slice(10).reduce((sum, row) => sum + row.count, 0)
+      manyDimensionRows(13)
+        .slice(10)
+        .reduce((sum, row) => sum + row.count, 0)
     );
     expect(overview?.rankings.pagePaths.total).toBe(
       manyDimensionRows(13).reduce((sum, row) => sum + row.count, 0)
@@ -217,9 +230,9 @@ describe('dashboard analytics overview query', () => {
       '2026-01-02T00:00:00.000Z'
     );
     expect(overview?.distributions.operatingSystems.items).toHaveLength(5);
-    expect(overview?.distributions.operatingSystems.items.some((item) => item.label === 'Other')).toBe(
-      false
-    );
+    expect(
+      overview?.distributions.operatingSystems.items.some((item) => item.label === 'Other')
+    ).toBe(false);
   });
 
   it('reports complete availability for empty data and lists taxonomy version 1', async () => {

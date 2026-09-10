@@ -87,9 +87,11 @@ export function validateCustomRange(
   if (!endUtc) return { field: 'end', message: 'End is required.' };
   const start = new Date(startUtc);
   const end = new Date(endUtc);
-  if (!Number.isFinite(start.getTime())) return { field: 'start', message: 'Start is not a valid date.' };
+  if (!Number.isFinite(start.getTime()))
+    return { field: 'start', message: 'Start is not a valid date.' };
   if (!Number.isFinite(end.getTime())) return { field: 'end', message: 'End is not a valid date.' };
-  if (start.getTime() >= end.getTime()) return { field: 'end', message: 'End must be after start.' };
+  if (start.getTime() >= end.getTime())
+    return { field: 'end', message: 'End must be after start.' };
   const completeNow = roundToUtcMinute(now);
   if (end.getTime() > completeNow.getTime())
     return { field: 'end', message: 'End must not be later than the current complete minute.' };

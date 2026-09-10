@@ -7,7 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 const rootPackageJson = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
 ) as { version?: unknown };
-const appVersion = typeof rootPackageJson.version === 'string' ? rootPackageJson.version : 'unknown';
+const appVersion =
+  typeof rootPackageJson.version === 'string' ? rootPackageJson.version : 'unknown';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

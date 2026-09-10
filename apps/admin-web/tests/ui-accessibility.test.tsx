@@ -25,8 +25,18 @@ beforeEach(() => {
   api.listProjects.mockResolvedValue([{ id: 'p1', name: 'Acme' }]);
   api.listWebsites.mockResolvedValue([]);
   api.getAnalyticsOverview.mockResolvedValue({
-    scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'project-supplied' },
-    range: { startUtc: '2026-01-01T00:00:00.000Z', endUtc: '2026-01-02T00:00:00.000Z', interval: 'hour', timezone: 'UTC' },
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-02T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
     totals: { pageViews: 0, uniqueUsers: 0 },
     trend: [],
     rankings: {
@@ -44,7 +54,10 @@ beforeEach(() => {
     availability: { state: 'complete', taxonomyVersions: [1] }
   });
   api.getThemePreference.mockResolvedValue({ theme: null });
-  api.putThemePreference.mockResolvedValue({ theme: 'dark', updatedAt: '2026-01-01T00:00:00.000Z' });
+  api.putThemePreference.mockResolvedValue({
+    theme: 'dark',
+    updatedAt: '2026-01-01T00:00:00.000Z'
+  });
 });
 afterEach(() => {
   cleanup();
@@ -131,7 +144,10 @@ describe('both-theme semantic tokens', () => {
   });
 
   it('redefines every semantic token for both the system dark preference and an explicit dark choice', () => {
-    const rootBlock = css.slice(css.indexOf(':root {'), css.indexOf('@media (prefers-color-scheme: dark)'));
+    const rootBlock = css.slice(
+      css.indexOf(':root {'),
+      css.indexOf('@media (prefers-color-scheme: dark)')
+    );
     // The code-block tokens are a deliberate exception: pre/code stays a dark
     // panel in both themes for contrast, so it is intentionally not redefined.
     const themeInvariant = new Set(['--color-code-bg', '--color-code-text']);
@@ -141,7 +157,7 @@ describe('both-theme semantic tokens', () => {
     expect(lightTokens.length).toBeGreaterThan(15);
 
     const systemDarkBlock = css.slice(
-      css.indexOf("@media (prefers-color-scheme: dark)"),
+      css.indexOf('@media (prefers-color-scheme: dark)'),
       css.indexOf(":root[data-theme='dark']")
     );
     const explicitDarkBlock = css.slice(css.indexOf(":root[data-theme='dark']"));

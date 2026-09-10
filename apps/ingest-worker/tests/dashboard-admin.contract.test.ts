@@ -4,7 +4,12 @@ import type { AnalyticsOverview } from '../../ingest-api/src/domain/types.js';
 
 function overview(overrides: Partial<AnalyticsOverview> = {}): AnalyticsOverview {
   return {
-    scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'project-supplied' },
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
     range: {
       startUtc: '2026-01-01T00:00:00.000Z',
       endUtc: '2026-01-02T00:00:00.000Z',
@@ -30,7 +35,9 @@ function overview(overrides: Partial<AnalyticsOverview> = {}): AnalyticsOverview
   };
 }
 
-function repository(getAnalyticsOverview = vi.fn(async (): Promise<AnalyticsOverview | undefined> => overview())) {
+function repository(
+  getAnalyticsOverview = vi.fn(async (): Promise<AnalyticsOverview | undefined> => overview())
+) {
   return {
     listProjects: vi.fn(async () => [{ id: 'p1' }]),
     listSources: vi.fn(async () => []),
@@ -56,7 +63,9 @@ describe('dashboard analytics admin contract', () => {
   it('rejects the overview endpoint without a valid admin credential and never touches the repository', async () => {
     const repositories = repository();
     const response = await handleAdminRequest(
-      req('/v1/admin/projects/p1/analytics?start=2026-01-01T00:00:00.000Z&end=2026-01-02T00:00:00.000Z'),
+      req(
+        '/v1/admin/projects/p1/analytics?start=2026-01-01T00:00:00.000Z&end=2026-01-02T00:00:00.000Z'
+      ),
       { repositories: repositories as never, adminSecret: 'secret' }
     );
     expect(response?.status).toBe(401);
@@ -105,11 +114,18 @@ describe('dashboard analytics admin contract', () => {
 
   it('rejects a missing, malformed, or unaligned range with 400 before reaching the repository', async () => {
     const repositories = repository();
-    for (const query of ['', '?start=not-a-date&end=also-not', '?start=2026-01-01T00:00:00.500Z&end=2026-01-02T00:00:00.000Z']) {
-      const response = await handleAdminRequest(req(`/v1/admin/projects/p1/analytics${query}`, 'Bearer secret'), {
-        repositories: repositories as never,
-        adminSecret: 'secret'
-      });
+    for (const query of [
+      '',
+      '?start=not-a-date&end=also-not',
+      '?start=2026-01-01T00:00:00.500Z&end=2026-01-02T00:00:00.000Z'
+    ]) {
+      const response = await handleAdminRequest(
+        req(`/v1/admin/projects/p1/analytics${query}`, 'Bearer secret'),
+        {
+          repositories: repositories as never,
+          adminSecret: 'secret'
+        }
+      );
       expect(response?.status).toBe(400);
     }
     expect(repositories.getAnalyticsOverview).not.toHaveBeenCalled();

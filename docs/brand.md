@@ -10,12 +10,12 @@ third-party icon or font glyph.
 
 ## Palette
 
-| Role                | Hex       | Used for                                   |
-| -------------------- | --------- | ------------------------------------------- |
-| Brand green          | `#215c42` | Lens stroke and handle on light backgrounds, mark background square |
-| Brand green (white)  | `#ffffff` | Lens stroke and handle on dark backgrounds |
-| Accent amber         | `#d08a31` | The center dot, on every variant, on every background |
-| Ink (light bg text)  | `#18211d` | Wordmark text on light backgrounds |
+| Role                | Hex       | Used for                                                            |
+| ------------------- | --------- | ------------------------------------------------------------------- |
+| Brand green         | `#215c42` | Lens stroke and handle on light backgrounds, mark background square |
+| Brand green (white) | `#ffffff` | Lens stroke and handle on dark backgrounds                          |
+| Accent amber        | `#d08a31` | The center dot, on every variant, on every background               |
+| Ink (light bg text) | `#18211d` | Wordmark text on light backgrounds                                  |
 
 The accent dot color never changes with theme or background - it is the
 one fixed, recognizable color across every placement.

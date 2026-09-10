@@ -45,8 +45,12 @@ describe('browser SDK anonymous identity', () => {
   it('namespaces persisted ids by source key so two sources on the same origin never collide', () => {
     const storage = fakeStorage();
     vi.stubGlobal('localStorage', storage);
-    const first = resolveAnonymousId(config({ sourceKey: 'source-a', consentState: 'analytics-granted' }));
-    const second = resolveAnonymousId(config({ sourceKey: 'source-b', consentState: 'analytics-granted' }));
+    const first = resolveAnonymousId(
+      config({ sourceKey: 'source-a', consentState: 'analytics-granted' })
+    );
+    const second = resolveAnonymousId(
+      config({ sourceKey: 'source-b', consentState: 'analytics-granted' })
+    );
     expect(storage.getItem('vizoalica:anonymous:source-a')).toBe(first);
     expect(storage.getItem('vizoalica:anonymous:source-b')).toBe(second);
     expect(first).not.toBe(second);

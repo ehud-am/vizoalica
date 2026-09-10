@@ -16,8 +16,10 @@ The current work focuses on:
 - an on-demand local analytics and website-management console whose browser never owns remote
   credentials.
 
-> Status: early MVP implementation. The SDK, ingestion data plane, hourly privacy-safe analytics,
-> and local operations console are implemented and under active validation.
+> Status: early MVP implementation. The SDK, ingestion data plane, a full privacy-safe analytics
+> dashboard (all-sites/one-site scope, five time-range presets plus a custom range, trends,
+> rankings, distributions), and a themeable local operations console are implemented and under
+> active validation.
 
 ## Start here
 
@@ -29,6 +31,9 @@ Cloudflare login to a verified page view, with a check after each step.
    and host the SDK, add the supplied token Function, then verify both.
 3. Open the **[local console](docs/operations/local-analytics.md)** when you need it. Keep its
    administrator secret in a local OneCLI vault, or use the documented private-file alternative.
+   The console's [dashboard tour](docs/operations/local-analytics.md#dashboard-tour) covers scope
+   and time-range selection, what "Unknown" and "Other" mean, identity modes, theme, and browser
+   support.
 
 The simplest deployment uses Cloudflare login and the included `workers.dev`/`pages.dev` addresses.
 You can use OneCLI for the local console independently of deployment. No custom domain, paid

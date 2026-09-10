@@ -51,7 +51,12 @@ describe('analytics contract', () => {
   it('proxies the project overview for all-sites and one-site scopes', async () => {
     const api = await startApi(() =>
       Response.json({
-        scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'project-supplied' },
+        scope: {
+          projectId: 'p1',
+          sourceId: null,
+          label: 'All websites',
+          identityMode: 'project-supplied'
+        },
         range: {
           startUtc: '2026-01-01T00:00:00.000Z',
           endUtc: '2026-01-02T00:00:00.000Z',

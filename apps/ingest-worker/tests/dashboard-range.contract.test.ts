@@ -4,7 +4,12 @@ import type { AnalyticsOverview } from '../../ingest-api/src/domain/types.js';
 
 function overview(): AnalyticsOverview {
   return {
-    scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'project-supplied' },
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
     range: {
       startUtc: '2026-01-01T00:00:00.000Z',
       endUtc: '2026-01-02T00:00:00.000Z',
@@ -55,11 +60,17 @@ describe('dashboard range Worker contract', () => {
   it('rejects a request missing start or end, naming the missing field', async () => {
     const repositories = repository();
     const dependencies = { repositories: repositories as never, adminSecret: 'secret' };
-    const missingStart = await handleAdminRequest(req('?end=2026-01-02T00:00:00.000Z'), dependencies);
+    const missingStart = await handleAdminRequest(
+      req('?end=2026-01-02T00:00:00.000Z'),
+      dependencies
+    );
     expect(missingStart?.status).toBe(400);
     expect(await missingStart?.json()).toMatchObject({ error: 'invalid_range', field: 'start' });
 
-    const missingEnd = await handleAdminRequest(req('?start=2026-01-01T00:00:00.000Z'), dependencies);
+    const missingEnd = await handleAdminRequest(
+      req('?start=2026-01-01T00:00:00.000Z'),
+      dependencies
+    );
     expect(missingEnd?.status).toBe(400);
     expect(await missingEnd?.json()).toMatchObject({ error: 'invalid_range', field: 'end' });
   });

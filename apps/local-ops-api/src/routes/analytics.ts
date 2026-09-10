@@ -1,7 +1,10 @@
 import type { AnalyticsOverview, AnalyticsSummary } from '../contracts.js';
 import { isAnalyticsWindow, isSafeId } from '../contracts.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
-import { AnalyticsRangeError, parseAnalyticsRange } from '../../../ingest-api/src/analytics/range.js';
+import {
+  AnalyticsRangeError,
+  parseAnalyticsRange
+} from '../../../ingest-api/src/analytics/range.js';
 export async function analytics(
   client: WorkerClient,
   projectId: string,
@@ -52,8 +55,7 @@ export async function analyticsOverview(
   if (response.status === 404) throw new Error('not_found');
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
-      | { field?: unknown; message?: unknown }
-      | undefined;
+      { field?: unknown; message?: unknown } | undefined;
     throw new AnalyticsRangeError(
       body?.field === 'start' ? 'start' : 'end',
       typeof body?.message === 'string' ? body.message : 'Invalid time range.'

@@ -35,7 +35,10 @@ beforeEach(() => {
   media = new FakeMediaQueryList(false);
   vi.stubGlobal('matchMedia', () => media);
   api.getThemePreference.mockResolvedValue({ theme: null });
-  api.putThemePreference.mockResolvedValue({ theme: 'dark', updatedAt: '2026-01-01T00:00:00.000Z' });
+  api.putThemePreference.mockResolvedValue({
+    theme: 'dark',
+    updatedAt: '2026-01-01T00:00:00.000Z'
+  });
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -59,7 +62,10 @@ describe('useTheme', () => {
   });
 
   it('loads a persisted explicit preference and it takes priority over the system theme', async () => {
-    api.getThemePreference.mockResolvedValue({ theme: 'dark', updatedAt: '2026-01-01T00:00:00.000Z' });
+    api.getThemePreference.mockResolvedValue({
+      theme: 'dark',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    });
     const { result } = renderHook(() => useTheme());
     await waitFor(() => expect(result.current.explicit).toBe('dark'));
     expect(result.current.theme).toBe('dark');

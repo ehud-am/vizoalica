@@ -16,8 +16,18 @@ const websites: Website[] = [];
 
 function overview(): AnalyticsOverview {
   return {
-    scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'project-supplied' },
-    range: { startUtc: '2026-01-01T00:00:00.000Z', endUtc: '2026-01-02T00:00:00.000Z', interval: 'hour', timezone: 'UTC' },
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-02T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
     totals: { pageViews: 0, uniqueUsers: 0 },
     trend: [],
     rankings: {

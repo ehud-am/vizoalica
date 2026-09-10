@@ -1,7 +1,10 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
-import { AnalyticsRangeError, parseAnalyticsRange } from '../../../ingest-api/src/analytics/range.js';
+import {
+  AnalyticsRangeError,
+  parseAnalyticsRange
+} from '../../../ingest-api/src/analytics/range.js';
 
 type Dependencies = { repositories: AdminRepository; adminSecret: string };
 

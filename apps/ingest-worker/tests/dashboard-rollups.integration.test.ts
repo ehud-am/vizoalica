@@ -86,7 +86,16 @@ describe('dashboard rollup writes', () => {
     );
     const kinds = new Set(dimensionCalls.map((call) => call.values[3]));
     expect(kinds).toEqual(
-      new Set(['page_path', 'country', 'user_agent', 'browser', 'os', 'device', 'traffic', 'referrer'])
+      new Set([
+        'page_path',
+        'country',
+        'user_agent',
+        'browser',
+        'os',
+        'device',
+        'traffic',
+        'referrer'
+      ])
     );
   });
 
@@ -106,18 +115,22 @@ describe('dashboard rollup writes', () => {
     const fake = fakeDb();
     const repositories = new D1Repositories(fake.db, 'digest-secret');
     await repositories.recordDashboardRollups([pageViewEvent()], context);
-    const visitorCall = fake.prepared.find((call) => call.query.includes('dashboard_minute_visitors'));
+    const visitorCall = fake.prepared.find((call) =>
+      call.query.includes('dashboard_minute_visitors')
+    );
     expect(visitorCall?.values).toContain('source-local');
   });
 
   it('digests visitor identity into the project domain when the token supplies a project visitor id', async () => {
     const fake = fakeDb();
     const repositories = new D1Repositories(fake.db, 'digest-secret');
-    await repositories.recordDashboardRollups(
-      [pageViewEvent()],
-      { ...context, projectVisitorId: 'project-visitor-1' }
+    await repositories.recordDashboardRollups([pageViewEvent()], {
+      ...context,
+      projectVisitorId: 'project-visitor-1'
+    });
+    const visitorCall = fake.prepared.find((call) =>
+      call.query.includes('dashboard_minute_visitors')
     );
-    const visitorCall = fake.prepared.find((call) => call.query.includes('dashboard_minute_visitors'));
     expect(visitorCall?.values).toContain('project-supplied');
   });
 
@@ -150,7 +163,11 @@ describe('dashboard rollup writes', () => {
       [
         pageViewEvent({ receivedAt: new Date('2026-01-01T12:34:00Z') }),
         pageViewEvent({
-          event: { id: 'evt-2', type: 'com.vizoalica.page_view.v1', data: { page: { url_path: '/x' }, visitor: {} } },
+          event: {
+            id: 'evt-2',
+            type: 'com.vizoalica.page_view.v1',
+            data: { page: { url_path: '/x' }, visitor: {} }
+          },
           receivedAt: new Date('2026-01-01T13:10:00Z')
         })
       ],

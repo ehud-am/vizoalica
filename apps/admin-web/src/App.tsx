@@ -30,7 +30,13 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <a className="brand" href="#main" aria-label="Vizoalica home">
-          <img className="brand-mark" src="/brand/vizoalica-mark.svg" alt="" width="32" height="32" />
+          <img
+            className="brand-mark"
+            src="/brand/vizoalica-mark.svg"
+            alt=""
+            width="32"
+            height="32"
+          />
           <span>Vizoalica</span>
         </a>
         <div className="topbar-actions">

@@ -15,7 +15,10 @@ export async function startApi(
   // A configFilePath keeps preferences.json (and any other per-config file)
   // inside a throwaway temp dir instead of falling back to the real
   // operator's ~/.config/vizoalica directory during tests.
-  const configFilePath = join(mkdtempSync(join(tmpdir(), 'vizoalica-api-')), 'local-operations.json');
+  const configFilePath = join(
+    mkdtempSync(join(tmpdir(), 'vizoalica-api-')),
+    'local-operations.json'
+  );
   const server = createLocalServer({
     remoteUrl: 'https://worker.test',
     adminSecret: 'top-secret',

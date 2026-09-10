@@ -157,9 +157,7 @@ describe('dashboard overview', () => {
       })
     );
     render(<AnalyticsPage projects={projects} projectId="p1" onProjectChange={() => {}} />);
-    expect(
-      await screen.findByText(/starts before expanded analytics were available/)
-    ).toBeTruthy();
+    expect(await screen.findByText(/starts before expanded analytics were available/)).toBeTruthy();
   });
 
   it('discards a stale in-flight response when the scope changes again before it resolves', async () => {

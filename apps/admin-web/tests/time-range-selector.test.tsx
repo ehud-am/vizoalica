@@ -22,7 +22,14 @@ describe('TimeRangeSelector', () => {
     expect(screen.getByRole('button', { name: 'Last 24 hours' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Last 24 hours' }));
     expect(screen.getByRole('dialog', { name: 'Choose a time range' })).toBeTruthy();
-    for (const label of ['Last 6 hours', 'Last 12 hours', 'Last 24 hours', 'Last 7 days', 'Last 30 days', 'Custom']) {
+    for (const label of [
+      'Last 6 hours',
+      'Last 12 hours',
+      'Last 24 hours',
+      'Last 7 days',
+      'Last 30 days',
+      'Custom'
+    ]) {
       expect(screen.getByRole('radio', { name: label })).toBeTruthy();
     }
   });

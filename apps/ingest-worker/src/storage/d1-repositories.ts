@@ -251,12 +251,12 @@ export class D1Repositories
           const visitorDigest = identity
             ? await hmacDigest(
                 this.analyticsDigestSecret,
-                ...([
+                ...[
                   identityKind === 'project-supplied' ? 'project-v1' : 'source-v1',
                   stored.projectId,
                   identityKind === 'source-local' ? stored.sourceId : undefined,
                   identity
-                ].filter((part): part is string => part !== undefined))
+                ].filter((part): part is string => part !== undefined)
               )
             : undefined;
           expanded.push({
