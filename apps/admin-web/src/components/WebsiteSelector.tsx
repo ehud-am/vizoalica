@@ -39,7 +39,7 @@ export function WebsiteSelector({
           onChange={(event) => onWebsiteChange(event.target.value)}
           disabled={!projectId}
         >
-          <option value="">Select a website</option>
+          <option value="">All websites</option>
           {websites
             .filter((site) => site.status !== 'deleted')
             .map((site) => (
