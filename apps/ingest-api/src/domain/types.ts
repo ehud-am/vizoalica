@@ -44,6 +44,74 @@ export interface AnalyticsSummary {
   lastCompletedAggregateAt?: string;
 }
 
+export type AnalyticsIdentityKind = 'source-local' | 'project-supplied';
+export type AnalyticsDimensionKind =
+  'page_path' | 'country' | 'user_agent' | 'browser' | 'os' | 'device' | 'traffic' | 'referrer';
+
+export interface RequestAnalyticsContext {
+  country: string;
+  browser: string;
+  os: string;
+  device: 'desktop' | 'mobile' | 'tablet' | 'other' | 'unknown';
+  traffic: 'bot' | 'human' | 'unknown';
+  userAgentFamily: string;
+  taxonomyVersion: 1;
+  projectVisitorId?: string;
+}
+
+export interface AnalyticsRange {
+  startUtc: string;
+  endUtc: string;
+  interval: 'hour' | 'day';
+  timezone: 'UTC';
+}
+
+export interface CountItem {
+  label: string;
+  count: number;
+}
+
+export interface RankedResult {
+  items: CountItem[];
+  otherCount: number;
+  total: number;
+}
+
+export interface DistributionResult {
+  items: CountItem[];
+  total: number;
+}
+
+export interface AnalyticsOverview {
+  scope: {
+    projectId: string;
+    sourceId: string | null;
+    label: string;
+    identityMode: AnalyticsIdentityKind | 'mixed';
+  };
+  range: AnalyticsRange;
+  totals: { pageViews: number; uniqueUsers: number };
+  trend: Array<{ startUtc: string; pageViews: number; uniqueUsers: number }>;
+  rankings: {
+    pagePaths: RankedResult;
+    countries: RankedResult;
+    userAgents: RankedResult;
+    referrers: RankedResult;
+  };
+  distributions: {
+    operatingSystems: DistributionResult;
+    browsers: DistributionResult;
+    devices: DistributionResult;
+    traffic: DistributionResult;
+  };
+  availability: {
+    state: 'complete' | 'incomplete' | 'processing' | 'unavailable';
+    lastCompletedAt?: string;
+    availableFromUtc?: string;
+    taxonomyVersions: number[];
+  };
+}
+
 export interface SigningKey {
   id: string;
   projectId: string;
