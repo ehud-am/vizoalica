@@ -31,7 +31,7 @@ export function TrafficTrend({ points }: { points: AnalyticsOverview['trend'] })
         <>
           <div className="chart-canvas" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} accessibilityLayer>
+              <LineChart data={data} accessibilityLayer={false}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" />
                 <YAxis allowDecimals={false} />
@@ -41,7 +41,7 @@ export function TrafficTrend({ points }: { points: AnalyticsOverview['trend'] })
                   type="monotone"
                   dataKey="pageViews"
                   name="Page views"
-                  stroke="#215c42"
+                  stroke="var(--color-chart-1)"
                   strokeWidth={3}
                   dot={false}
                 />
@@ -49,7 +49,7 @@ export function TrafficTrend({ points }: { points: AnalyticsOverview['trend'] })
                   type="monotone"
                   dataKey="uniqueUsers"
                   name="Unique users"
-                  stroke="#b56a22"
+                  stroke="var(--color-chart-3)"
                   strokeWidth={2}
                   strokeDasharray="6 4"
                   dot={false}
@@ -57,25 +57,27 @@ export function TrafficTrend({ points }: { points: AnalyticsOverview['trend'] })
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <table className="chart-data">
-            <caption>Exact traffic values</caption>
-            <thead>
-              <tr>
-                <th scope="col">Interval</th>
-                <th scope="col">Page views</th>
-                <th scope="col">Unique users</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((point) => (
-                <tr key={point.startUtc}>
-                  <th scope="row">{point.label}</th>
-                  <td>{point.pageViews}</td>
-                  <td>{point.uniqueUsers}</td>
+          <div className="data-scroll" tabIndex={0} role="region" aria-label="Exact traffic values">
+            <table className="chart-data">
+              <caption>Exact traffic values</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Interval</th>
+                  <th scope="col">Page views</th>
+                  <th scope="col">Unique users</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.map((point) => (
+                  <tr key={point.startUtc}>
+                    <th scope="row">{point.label}</th>
+                    <td>{point.pageViews}</td>
+                    <td>{point.uniqueUsers}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </figure>

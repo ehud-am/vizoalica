@@ -16,6 +16,7 @@ export function applyDocumentTheme(resolved: Theme, explicit: Theme | null): voi
   const root = document.documentElement;
   if (explicit) root.setAttribute('data-theme', explicit);
   else root.removeAttribute('data-theme');
+  root.setAttribute('data-resolved-theme', resolved);
   root.style.colorScheme = resolved;
 }
 

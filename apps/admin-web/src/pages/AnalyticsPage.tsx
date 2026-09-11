@@ -12,6 +12,7 @@ import { DistributionChart } from '../components/DistributionChart.js';
 import { MetricCard } from '../components/MetricCard.js';
 import { RankedTable } from '../components/RankedTable.js';
 import { TrafficTrend } from '../components/TrafficTrend.js';
+import { AnalyticsIcon, LockIcon } from '../components/Icons.js';
 import {
   DEFAULT_RANGE_PRESET,
   presetToRange,
@@ -81,7 +82,7 @@ export function AnalyticsPage({
   }, [projectId, websiteId, range]);
 
   return (
-    <div className="page dashboard-page">
+    <div className="page dashboard-page" data-page="overview">
       <div className="page-heading">
         <div>
           <p className="eyebrow">Analytics overview</p>
@@ -162,14 +163,18 @@ export function AnalyticsPage({
 
       <section className="principles">
         <article>
-          <span aria-hidden="true">◌</span>
+          <span>
+            <AnalyticsIcon size={24} />
+          </span>
           <div>
             <strong>Bounded aggregates</strong>
             <p>Every view uses indexed summaries—never a raw-event scan.</p>
           </div>
         </article>
         <article>
-          <span aria-hidden="true">◇</span>
+          <span>
+            <LockIcon size={24} />
+          </span>
           <div>
             <strong>Private unique counts</strong>
             <p>Visitor digests stay inside the data plane and never reach this browser.</p>

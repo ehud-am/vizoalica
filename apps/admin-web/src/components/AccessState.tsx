@@ -16,8 +16,8 @@ export function AccessState({
   const denied = state === 'denied';
   return (
     <section className="state-card" role="alert">
-      <span className="state-icon" aria-hidden="true">
-        {denied ? '🔐' : '↻'}
+      <span className="state-icon">
+        {denied ? <LockIcon size={24} /> : <AlertTriangleIcon size={24} />}
       </span>
       <h1>{denied ? 'Authorization required' : 'Workspace unavailable'}</h1>
       <p>
@@ -26,8 +26,10 @@ export function AccessState({
           : 'The local API or remote data plane could not be reached. Your website collection is unaffected.'}
       </p>
       <button className="primary" onClick={onRetry}>
+        <RefreshIcon size={16} />
         Try again
       </button>
     </section>
   );
 }
+import { AlertTriangleIcon, LockIcon, RefreshIcon } from './Icons.js';

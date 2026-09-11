@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Integration } from '../api/local-operations.js';
+import { CopyIcon } from './Icons.js';
 export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
   const [copied, setCopied] = useState(false);
   const code =
@@ -17,6 +18,7 @@ export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
           <h2>Integration snippet</h2>
         </div>
         <button className="secondary" disabled={!snippet.html} onClick={() => void copy()}>
+          <CopyIcon size={16} />
           Copy snippet
         </button>
       </div>
@@ -28,7 +30,7 @@ export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
         <dt>Public source key (for the browser)</dt>
         <dd>{snippet.publicSourceKey}</dd>
       </dl>
-      <pre tabIndex={0}>
+      <pre tabIndex={0} role="region" aria-label="Integration code">
         <code>{code}</code>
       </pre>
       <p className="copy-status" role="status">

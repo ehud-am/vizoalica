@@ -3,6 +3,7 @@
 Start with the failing step, fix it, then repeat its check. The default supported path is
 [Cloudflare-native deployment](cloudflare.md) plus an independently chosen
 [OneCLI local console](local-analytics.md). Never share secret values or proxy environment dumps.
+Run `pnpm ops doctor` first when using the [guided operations CLI](ops-cli.md).
 
 ## Find the symptom
 
@@ -13,10 +14,10 @@ Start with the failing step, fix it, then repeat its check. The default supporte
 | Pages operation denied                                     | Missing Pages access                                       | Add `Account → Cloudflare Pages → Edit` to the intended account's deployment token.                                                      |
 | D1/R2 not found                                            | Account, live names and database ID                        | List resources and compare both name and ID with the private production config; do not create duplicates blindly.                        |
 | Preflight says secret missing                              | Both Worker secrets are required                           | Complete installation step 3 before deploy/check.                                                                                        |
-| Console unavailable or missing table                       | Incomplete schema or older API process                     | Apply every pending migration through 0004 for 0.3.1, restart the API, check the console origin.                                         |
+| Console unavailable or missing table                       | Incomplete schema or older API process                     | Apply every pending migration through the latest migration (currently 0005), restart the API, check the console origin.                  |
 | Console GET returns 403                                    | Missing or foreign Origin/Referer                          | Use the printed loopback origin and current API; keep same-origin referrers. Do not disable provenance checks.                           |
 | Console Worker call returns 401                            | Generic secret did not match or value differs              | Check exact Worker hostname, `Authorization`, `Bearer {value}`, raw secret and agent grant.                                              |
-| `gateway` hostname cannot resolve                          | Docker address used from host                              | Use `onecli run --gateway 127.0.0.1:10255` with the actual published loopback port.                                                      |
+| `gateway` hostname cannot resolve                          | Docker address used from host                              | Run `pnpm ops setup` with the actual host-reachable address (normally `127.0.0.1:10255`), then `pnpm ops doctor`.                        |
 | Wrangler demands `CLOUDFLARE_API_TOKEN` under OneCLI       | Older provider removed even the initialization placeholder | Upgrade to 0.3.1; it supplies only `onecli-managed` inside the wrapped Wrangler process. Never substitute a real token into the profile. |
 | `Authorization failed [code: 8000013]` during Pages upload | Proxy may have replaced Wrangler's upload JWT              | Follow the explicit Pages/native path below; do not keep adding account permissions.                                                     |
 | Deployment times out                                       | Remote operation can take longer than 30s                  | Use 0.3.1 operation budgets; inspect migrations/deployment history before retrying a mutation.                                           |
@@ -39,7 +40,8 @@ A host-wide authorization rewrite can replace that JWT with the account API toke
 permission cannot correct the header replacement.
 
 For the simple supported route, explicitly use native Cloudflare login in a fresh terminal outside
-OneCLI for Pages deployment, as described in the [Pages recipe](pages.md). This is a deliberate
+OneCLI for Pages deployment, preferably through `pnpm ops deploy-pages` as described in the
+[guided workflow](ops-cli.md), or manually with the [Pages recipe](pages.md). This is a deliberate
 credential choice, not an automatic fallback. Keep using OneCLI for your local administrator client
 if desired. If your policy requires all Cloudflare traffic through OneCLI, pause Pages deployment
 until its gateway supports and verifies path-specific injection or preserves the upload JWT only

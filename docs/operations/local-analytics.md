@@ -27,10 +27,27 @@ Choose exactly one client credential path below:
 The client choice is independent of the Cloudflare deployment choice. For example, the Worker may
 be deployed with Cloudflare-native authentication while the client uses OneCLI, or the reverse.
 
+## Recommended: guided OneCLI setup
+
+For the normal OneCLI path, use the [guided operations CLI](ops-cli.md):
+
+```bash
+pnpm ops show
+pnpm ops setup
+pnpm ops doctor
+pnpm ops run
+```
+
+It creates the placeholder configuration, validates the host-reachable gateway, and starts the API
+and web console together. It always passes an explicit `--gateway`, so the Docker-only
+`gateway:10255` default cannot leak into the host process and no OneCLI `.env` edit is required.
+The detailed paths below remain as manual and non-OneCLI references.
+
 ## Shared client prerequisites
 
 Install Node.js 22 and pnpm 9 on the client machine, clone the same reviewed Vizoalica release, and
-install its dependencies. Apply all D1 migrations through `0004_local_operations.sql` during the
+install its dependencies. Apply every D1 migration through the latest migration (currently
+`0005_dashboard_visual_refresh.sql`) during the
 unchanged Cloudflare deployment procedure before using the console.
 
 ```bash

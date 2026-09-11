@@ -31,7 +31,8 @@ describe('analytics accessibility', () => {
     const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
     expect(css).toContain(':focus-visible');
     expect(css).toContain('prefers-reduced-motion');
-    expect(css).toContain('@media (max-width: 800px)');
-    expect(css).toContain('#215c42');
+    expect(css).toContain('@media (max-width: 959px)');
+    expect(css).toContain('--color-brand: #0a78e3');
+    expect(css).toContain('@media (forced-colors: active)');
   });
 });

@@ -11,6 +11,7 @@ describe('ThemeToggle', () => {
     render(<ThemeToggle theme="light" saving={false} saveError={false} onChange={() => {}} />);
     expect(screen.getByRole('button', { name: 'Light' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed')).toBe('false');
+    expect(document.querySelectorAll('.theme-toggle svg')).toHaveLength(2);
   });
 
   it('marks Dark pressed when the resolved theme is dark', () => {

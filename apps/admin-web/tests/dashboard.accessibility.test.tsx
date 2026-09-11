@@ -26,6 +26,8 @@ describe('dashboard accessibility', () => {
     expect(markup).toContain('aria-labelledby="Top-pages-title"');
     expect(markup).toContain('id="Top-pages-title"');
     expect(markup).toMatch(/<h2 id="Top-pages-title">Top pages<\/h2>/);
+    expect(markup).toContain('role="region"');
+    expect(markup).toContain('tabindex="0"');
     expect(markup).toContain('<table>');
     expect(markup).toContain('scope="col"');
     expect(markup).toContain('scope="row"');
@@ -47,6 +49,7 @@ describe('dashboard accessibility', () => {
     );
     expect(markup).toContain('<figcaption>');
     expect(markup).toContain('<caption>Exact traffic values</caption>');
+    expect(markup).toContain('aria-label="Exact traffic values"');
     expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain('scope="col"');
     expect(markup).toContain('scope="row"');

@@ -9,6 +9,11 @@ Use a normal terminal with Cloudflare-native login for this recipe. OneCLI can s
 local console credential. Pages asset uploads use a temporary JWT that OneCLI 2.11's Cloudflare
 injection was reported to overwrite; see [the known limitation](troubleshooting.md#onecli-and-pages-uploads).
 
+For an existing Direct Upload project, the shortest path is the
+[guided operations CLI](ops-cli.md): run `pnpm ops setup`, then `pnpm ops deploy-pages` to review
+the target and repeat it with the printed project-name confirmation. The detailed recipe below is
+still required for first-time project creation, SDK installation, and signing-secret setup.
+
 ## 1. Prepare the Pages project
 
 From your Vizoalica checkout, choose an unused Pages project name and a private working copy for

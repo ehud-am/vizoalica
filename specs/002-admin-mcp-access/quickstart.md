@@ -9,7 +9,7 @@
 ## Validate Administration
 
 1. Create a project with the protected operator operation; confirm it returns an ID, not a secret.
-2. Create a source with only `https://test.gitlocal.dev`; confirm IDs, public source key, active
+2. Create a source with only `https://analytics.example`; confirm IDs, public source key, active
    status, at most 100 events/day, and seven-day retention.
 3. Create a second project/source and confirm identifiers are distinct and source listing is
    project-scoped.

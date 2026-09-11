@@ -138,12 +138,12 @@ describe('document-level security headers', () => {
 
 describe('zoom-safe and narrow-viewport structure', () => {
   it('reflows the shell to a single column under 800 CSS pixels', () => {
-    expect(css).toContain('@media (max-width: 800px)');
+    expect(css).toContain('@media (max-width: 959px)');
     expect(css).toMatch(/\.workspace\s*{\s*grid-template-columns: 1fr;\s*}/);
   });
 
   it('lets the main content column shrink instead of forcing a fixed width that would clip at 200% zoom', () => {
-    expect(css).toMatch(/\.page\s*{[\s\S]*?max-width: 1120px;[\s\S]*?margin: 0 auto;/);
+    expect(css).toMatch(/\.page\s*{[\s\S]*?max-width: 1200px;[\s\S]*?margin: 0 auto;/);
     expect(css).not.toContain('overflow-x: hidden');
     expect(css).toContain('min-width: 320px');
   });

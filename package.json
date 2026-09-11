@@ -1,7 +1,16 @@
 {
   "name": "vizoalica",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "Privacy-aware, self-hosted product analytics on Cloudflare.",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ehud-am/vizoalica.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "workspaces": [
@@ -12,6 +21,7 @@
     "build": "pnpm -r --if-present build",
     "typecheck": "tsc -b --pretty false && pnpm typecheck:examples",
     "test": "vitest run",
+    "test:e2e": "pnpm --filter @vizoalica/admin-web test:e2e",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "validate": "pnpm typecheck && pnpm test",
@@ -30,7 +40,8 @@
     "coverage": "vitest run --coverage",
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
-    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/verify-website.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
+    "ops": "node --import tsx scripts/vizoalica-ops.ts",
+    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/verify-website.ts scripts/vizoalica-ops.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

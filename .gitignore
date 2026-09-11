@@ -142,6 +142,19 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+# Browser test output
+playwright-report/
+test-results/
+blob-report/
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+
 # Vizoalica build/test outputs
 node_modules/
 dist/

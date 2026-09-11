@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, bootstrapSession, listProjects, type Project } from './api/local-operations.js';
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
+import { BrandLogo } from './components/BrandLogo.js';
+import { AnalyticsIcon, LockIcon, WebsitesIcon } from './components/Icons.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { WebsitesPage } from './pages/WebsitesPage.js';
@@ -29,15 +31,13 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#main" aria-label="Vizoalica home">
-          <img
-            className="brand-mark"
-            src="/brand/vizoalica-mark.svg"
-            alt=""
-            width="32"
-            height="32"
-          />
-          <span>Vizoalica</span>
+        <a
+          className="brand"
+          href="#main"
+          aria-label="Vizoalica overview"
+          onClick={() => setView('overview')}
+        >
+          <BrandLogo theme={theme.theme} />
         </a>
         <div className="topbar-actions">
           <ThemeToggle
@@ -46,11 +46,9 @@ export function App() {
             saveError={theme.saveError}
             onChange={theme.setTheme}
           />
-          <div className="local-pill" aria-label="Local workspace">
+          <div className="local-pill">
             <span aria-hidden="true" />
-            <span className="local-pill-label" aria-hidden="true">
-              Local workspace
-            </span>
+            <span className="local-pill-label">Local workspace</span>
           </div>
         </div>
       </header>
@@ -63,6 +61,7 @@ export function App() {
               onClick={() => setView('overview')}
               aria-current={view === 'overview' ? 'page' : undefined}
             >
+              <AnalyticsIcon size={20} />
               Overview
             </button>
             <button
@@ -70,15 +69,17 @@ export function App() {
               onClick={() => setView('websites')}
               aria-current={view === 'websites' ? 'page' : undefined}
             >
+              <WebsitesIcon size={20} />
               Websites
             </button>
           </nav>
           <div className="privacy-note">
+            <LockIcon size={20} />
             <strong>Private by design</strong>
             <span>Credentials stay on this machine.</span>
           </div>
         </aside>
-        <main id="main" tabIndex={-1}>
+        <main id="main" tabIndex={-1} data-view={view}>
           {access !== 'ready' ? (
             <AccessState state={access} onRetry={() => void connect()} />
           ) : view === 'overview' ? (

@@ -1,12 +1,16 @@
 # Install Vizoalica on Cloudflare
 
-Start here for a first installation of **Vizoalica 0.3.1**. Follow the numbered steps in order.
+Start here for a first installation of **Vizoalica 0.5.0**. Follow the numbered steps in order.
 Commands run from the Vizoalica checkout unless a step says otherwise.
 
 The simplest setup uses Cloudflare login to deploy, a free `workers.dev` address for ingestion,
 and your existing website (or the included Pages example). You can then use **OneCLI's local
 vault for the console**. These are independent choices: using the vault locally does not require
 routing Pages deployments through it.
+
+After the Worker is installed, use the [guided operations CLI](ops-cli.md) for the common local
+console and Direct Upload Pages workflow. It keeps Worker infrastructure, Pages uploads, and the
+OneCLI-held console credential in three explicit lanes.
 
 **What you will have:** one ingestion Worker, one D1 database, one R2 bucket, a hosted SDK and
 server-side token endpoint, and a console that runs on your computer only when needed.
