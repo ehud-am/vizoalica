@@ -1,4 +1,5 @@
 import type { Theme } from '../theme.js';
+import { MoonIcon, SunIcon } from './Icons.js';
 
 export function ThemeToggle({
   theme,
@@ -15,9 +16,11 @@ export function ThemeToggle({
     <div>
       <div className="theme-toggle" role="group" aria-label="Theme">
         <button type="button" aria-pressed={theme === 'light'} onClick={() => onChange('light')}>
+          <SunIcon size={16} />
           Light
         </button>
         <button type="button" aria-pressed={theme === 'dark'} onClick={() => onChange('dark')}>
+          <MoonIcon size={16} />
           Dark
         </button>
       </div>

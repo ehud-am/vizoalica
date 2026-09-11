@@ -16,9 +16,17 @@ pnpm run lint
 pnpm run validate
 pnpm run build
 pnpm browser-sdk:build
+pnpm test:e2e
 pnpm coverage
 pnpm audit --audit-level high
 ```
+
+Before a private repository becomes public, also scan both reachable history and the exact
+publishable working tree with a current secret scanner, review image/document metadata, and confirm
+that operator-owned `.env`, Wrangler production, deployment-profile, audit, receipt, and local
+console files remain ignored and untracked. Enable GitHub secret scanning and push protection when
+visibility changes. Use the [public repository checklist](public-release.md) for the owner-controlled
+GitHub settings that remain outside the source release.
 
 Document the release version, commit SHA, compatibility changes, and required migrations. A
 self-hosting operator decides whether and when to use the release.
@@ -30,14 +38,13 @@ supported commands are described in [the Cloudflare operations guide](./cloudfla
 
 There is no automatic deployment on push, merge, tag creation, or GitHub Release publication.
 
-## Patch 0.3.1 installation changes
+## Release 0.5.0 changes
 
-No new migrations: existing installations must have every file through `0004_local_operations.sql`.
-Restart the local API and console together to obtain the complete snippet and source identifiers.
-If adopting the Pages example, build/copy its browser bundle, configure the Function and signing
-secret, then deploy the website separately. See the [Pages recipe](pages.md).
+No new migrations: existing installations must have every file through
+`0005_dashboard_visual_refresh.sql`. The release replaces the console brand and visual system and
+adds `pnpm ops` for guided local-console and Direct Upload Pages operations. It does not deploy an
+operator's Cloudflare resources or alter their credentials.
 
-[Local validation evidence](../../specs/006-simple-cloudflare-install/validation.md) and
-[the skeptical QA review](../../specs/006-simple-cloudflare-install/qa.md) distinguish automated
-checks from live operator validation. A version bump in the checkout is not a published Git tag
-or GitHub Release.
+[Local validation evidence](../../specs/008-modernize-console-design/qa-report.md) distinguishes
+automated checks from human visual and assistive-technology review. A version bump in the checkout
+is not a published Git tag or GitHub Release.

@@ -2,6 +2,48 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.5.0] - 2026-09-11
+
+### Added
+
+- A production-ready V-and-rising-analytics brand system with a compact mark, favicon,
+  monochrome asset, and dedicated light- and dark-mode lockups.
+- A responsive browser-validation suite covering 320, 768, 1024, and 1440-pixel layouts,
+  touch-sized controls, resize-state preservation, contained overflow, both themes, and automated
+  accessibility checks.
+- A guided `pnpm ops` workflow for non-secret setup, diagnostics, one-terminal local console
+  startup, and confirmation-gated Direct Upload Pages deployment.
+
+### Changed
+
+- Redesigned the local console as a compact developer tool with graphite neutral surfaces,
+  system sans and monospace typography, tabular data, restrained cyan/blue/violet accents,
+  consistent SVG iconography, flatter panels, and clearer analytics hierarchy.
+- Overview, Websites, filters, charts, tables, code snippets, forms, notices, and access states now
+  adapt across compact, medium, standard, and wide viewports without changing application state.
+- Consolidated setup and deployment documentation around three explicit credential lanes:
+  Worker/D1/R2 infrastructure, native Wrangler Pages uploads, and OneCLI-held local-console access.
+
+### Security
+
+- Guided setup rejects secret-bearing options, writes private non-secret configuration and a
+  literal OneCLI placeholder, rejects Docker-only gateway hostnames, and protects existing client
+  credential files from accidental replacement.
+- Pages uploads show the resolved site, Functions directory, project, branch, and native-Wrangler
+  authentication path before requiring the exact project name as confirmation.
+- The complete publishable tree and all reachable Git history were scanned with Gitleaks 8.30.1;
+  no credentials or private deployment configuration were found. Production dependencies report
+  no known vulnerabilities.
+
+### Upgrade
+
+- No new D1 migration or analytics API change. Existing installations remain on migrations through
+  `0005_dashboard_visual_refresh.sql`.
+- Run `pnpm install --frozen-lockfile`, then `pnpm ops setup`, `pnpm ops doctor`, and
+  `pnpm ops run` to adopt the guided OneCLI console workflow.
+- Rebuild and redeploy the admin console to receive the new visual system. Rebuild/copy
+  `vizoalica.js` only when updating the browser SDK asset distributed with the release.
+
 ## [0.4.0] - 2026-09-09
 
 ### Added

@@ -22,5 +22,6 @@ describe('website management accessibility', () => {
     );
     expect(html).toContain('role="status"');
     expect(html).toContain('tabindex="0"');
+    expect(html).toContain('aria-label="Integration code"');
   });
 });

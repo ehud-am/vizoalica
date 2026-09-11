@@ -1,14 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 56" role="img" aria-labelledby="vizoalica-lockup-light-title">
-  <title id="vizoalica-lockup-light-title">Vizoalica</title>
-  <circle cx="26" cy="26" r="14" fill="none" stroke="#215c42" stroke-width="5.5" />
-  <circle cx="26" cy="26" r="3" fill="#d08a31" />
-  <line x1="36.5" y1="36.5" x2="49" y2="49" stroke="#215c42" stroke-width="6.5" stroke-linecap="round" />
-  <text
-    x="68"
-    y="35"
-    font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
-    font-size="26"
-    font-weight="760"
-    fill="#18211d"
-  >Vizoalica</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 180" role="img" aria-labelledby="vizoalica-light-title">
+  <title id="vizoalica-light-title">Vizoalica</title>
+  <g data-mark="vizoalica-graph-v1"><path d="M18 20h40l50 98-18 36z" fill="#10141c"/><path d="M90 154h40l56-134h-42L106 111z" fill="#168bff"/><path d="M55 118 122 77 167 32" fill="none" stroke="#12c5e8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M55 103a15 15 0 1 0 0 30 15 15 0 1 0 0-30z" fill="#12c5e8" stroke="#10141c" stroke-width="5"/><path d="M122 62a15 15 0 1 0 0 30 15 15 0 1 0 0-30z" fill="#793dff"/><path d="M167 16a16 16 0 1 0 0 32 16 16 0 1 0 0-32z" fill="#12c5e8"/></g>
+  <g data-wordmark="vizoalica-custom-v1" fill="#10141c"><path d="M220 52h18l22 55 22-55h18l-31 76h-18z"/><path d="M310 52h16v16h-16zm0 24h16v52h-16z"/><path d="M338 52h58v14l-37 47h37v15h-60v-14l38-47h-36z"/><path d="M426 52h30q18 0 18 18v40q0 18-18 18h-30q-18 0-18-18V70q0-18 18-18zm2 15q-4 0-4 4v38q0 4 4 4h26q4 0 4-4V71q0-4-4-4z"/><path d="M504 52h30q18 0 18 18v58h-16v-12q-6 12-20 12h-12q-18 0-18-18V70q0-18 18-18zm2 15q-4 0-4 4v38q0 4 4 4h26q4 0 4-4V71q0-4-4-4z"/><path d="M566 52h16v61h34v15h-50z"/><path d="M628 52h16v16h-16zm0 24h16v52h-16z"/><path d="M674 52h42v15h-38q-6 0-6 6v34q0 6 6 6h38v15h-42q-18 0-18-18V70q0-18 18-18z"/><path d="M746 52h30q18 0 18 18v58h-16v-12q-6 12-20 12h-12q-18 0-18-18V70q0-18 18-18zm2 15q-4 0-4 4v38q0 4 4 4h26q4 0 4-4V71q0-4-4-4z"/></g>
 </svg>

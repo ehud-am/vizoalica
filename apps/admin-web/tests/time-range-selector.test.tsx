@@ -135,7 +135,7 @@ describe('TimeRangeSelector', () => {
 
   it('declares a narrow-reflow style rule for the popover', () => {
     const css = readFileSync(join(process.cwd(), 'apps/admin-web/src/styles.css'), 'utf8');
-    expect(css).toContain('@media (max-width: 800px)');
+    expect(css).toContain('@media (max-width: 959px)');
     expect(css).toMatch(/\.time-range-popover\s*{[^}]*}/);
   });
 });

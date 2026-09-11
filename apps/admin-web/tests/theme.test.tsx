@@ -31,6 +31,7 @@ let media: FakeMediaQueryList;
 
 beforeEach(() => {
   document.documentElement.removeAttribute('data-theme');
+  document.documentElement.removeAttribute('data-resolved-theme');
   document.documentElement.style.colorScheme = '';
   media = new FakeMediaQueryList(false);
   vi.stubGlobal('matchMedia', () => media);
@@ -108,6 +109,7 @@ describe('useTheme', () => {
     act(() => result.current.setTheme('dark'));
     await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
     expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement.getAttribute('data-resolved-theme')).toBe('dark');
   });
 
   it('removes data-theme (falling back to the system) when following the system default', async () => {

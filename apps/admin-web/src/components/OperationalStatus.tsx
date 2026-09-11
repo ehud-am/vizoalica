@@ -1,4 +1,5 @@
 import type { Status } from '../api/local-operations.js';
+import { CheckCircleIcon } from './Icons.js';
 export function OperationalStatus({ status }: { status: Status }) {
   const rows = [
     ['Collection', status.collection],
@@ -9,7 +10,10 @@ export function OperationalStatus({ status }: { status: Status }) {
   return (
     <section className="detail-card">
       <p className="eyebrow">Live checks</p>
-      <h2>Operational status</h2>
+      <h2 className="icon-heading">
+        <CheckCircleIcon size={20} />
+        Operational status
+      </h2>
       <dl className="health-grid">
         {rows.map(([label, value]) => (
           <div key={label}>

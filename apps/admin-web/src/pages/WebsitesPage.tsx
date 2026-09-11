@@ -17,6 +17,7 @@ import { IntegrationSnippet } from '../components/IntegrationSnippet.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
 import { WebsiteForm } from '../components/WebsiteForm.js';
 import { WebsiteList } from '../components/WebsiteList.js';
+import { PlusIcon } from '../components/Icons.js';
 export function WebsitesPage({
   projects,
   projectId,
@@ -105,7 +106,7 @@ export function WebsitesPage({
     await refresh();
   }
   return (
-    <div className="page">
+    <div className="page websites-page" data-page="websites">
       <div className="page-heading">
         <div>
           <p className="eyebrow">Configuration</p>
@@ -113,6 +114,7 @@ export function WebsitesPage({
           <p>Manage collection boundaries without exposing administrator credentials.</p>
         </div>
         <button className="secondary" onClick={() => void safely(addProject)}>
+          <PlusIcon size={16} />
           New project
         </button>
       </div>

@@ -45,13 +45,13 @@ describe('Worker HTTP adapter', () => {
     const response = await handleWorkerRequest(
       new Request('https://ingest.test/v1/events:batch', {
         method: 'OPTIONS',
-        headers: { origin: 'https://test.gitlocal.dev' }
+        headers: { origin: 'https://analytics.example' }
       }),
       {} as never,
       64
     );
     expect(response.status).toBe(204);
-    expect(response.headers.get('access-control-allow-origin')).toBe('https://test.gitlocal.dev');
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://analytics.example');
     expect(response.headers.get('access-control-allow-headers')).toContain('x-vizoalica-source');
   });
 

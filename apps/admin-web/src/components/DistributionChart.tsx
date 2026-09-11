@@ -2,14 +2,14 @@ import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import type { DistributionResult } from '../api/local-operations.js';
 
 const COLORS = [
-  '#215c42',
-  '#d08a31',
-  '#3479a8',
-  '#8566a8',
-  '#bd5d50',
-  '#66836f',
-  '#667085',
-  '#9a7b4f'
+  'var(--color-chart-1)',
+  'var(--color-chart-2)',
+  'var(--color-chart-3)',
+  'var(--color-chart-4)',
+  'var(--color-chart-5)',
+  'var(--color-chart-6)',
+  'var(--color-chart-7)',
+  'var(--color-chart-8)'
 ];
 
 export function DistributionChart({
@@ -30,7 +30,7 @@ export function DistributionChart({
         <div className="distribution-layout">
           <div className="pie-canvas" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart accessibilityLayer={false}>
                 <Pie
                   data={result.items}
                   dataKey="count"
@@ -38,6 +38,7 @@ export function DistributionChart({
                   innerRadius="48%"
                   outerRadius="78%"
                   isAnimationActive={false}
+                  rootTabIndex={-1}
                 >
                   {result.items.map((item, index) => (
                     <Cell key={item.label} fill={COLORS[index % COLORS.length]!} />

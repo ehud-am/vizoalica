@@ -26,6 +26,11 @@ The current work focuses on:
 Follow the **[step-by-step installation guide](docs/operations/cloudflare.md)**. It takes you from
 Cloudflare login to a verified page view, with a check after each step.
 
+For the shortest repeatable path after the ingestion Worker exists, use the
+**[guided operations CLI](docs/operations/ops-cli.md)**. `pnpm ops setup` explains where each
+non-secret value comes from, `pnpm ops doctor` checks the setup, `pnpm ops run` starts the private
+console, and `pnpm ops deploy-pages` safely handles Direct Upload websites.
+
 1. Deploy the ingestion Worker, D1 database and R2 bucket.
 2. Connect your website using the **[complete Pages example](docs/operations/pages.md)**: build
    and host the SDK, add the supplied token Function, then verify both.
@@ -145,5 +150,5 @@ operator-selected checkout using the [installation guide](docs/operations/cloudf
 Git-connected **website** projects may have their own automatic Pages deployments; the
 [Pages recipe](docs/operations/pages.md) explains the distinction.
 
-See [release operations](docs/operations/releases.md) for maintainer checks and
-[the 0.3.1 specification](specs/006-simple-cloudflare-install/spec.md) for this installation patch.
+See [release operations](docs/operations/releases.md), [security policy](SECURITY.md), and
+[contribution guide](CONTRIBUTING.md) for public project maintenance.
