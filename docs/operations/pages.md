@@ -1,20 +1,63 @@
-# Connect a website with Cloudflare Pages
+# Step 3 (US3) — Activate a website
 
-This recipe supplies the two pieces a static website is missing: **a browser bundle** and **a
-server-side token Function**. Use it after deploying the Worker in the
-[installation guide](cloudflare.md). The Function runs on Cloudflare, so your laptop can be off
+Run US3 **once per website**. It registers one website, installs the browser bundle and trusted
+server-side token Function, deploys them using the website's real hosting mode, and proves that a
+consented event reaches Vizoalica without making the host website depend on analytics availability.
+
+Repeat all of US3 with a separate registration and completion record for every additional website.
+Do not rerun US1 or workstation setup for each site.
+
+## Prerequisites
+
+- A verified [US1 customer backend](cloudflare.md) and its redacted handoff.
+- One authorized operator with a working [US2A](local-analytics.md) or [US2B](ops-cli.md) console.
+- Control of the production website, its build/deployment settings, and its consent integration.
+- Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by US1.
+- Cloudflare-native login for Direct Upload, or a working production Git integration.
+
+The Pages Function runs in the hosted website environment, so the operator machine can be off
 while the website collects events.
 
-Use a normal terminal with Cloudflare-native login for this recipe. OneCLI can still hold your
-local console credential. Pages asset uploads use a temporary JWT that OneCLI 2.11's Cloudflare
-injection was reported to overwrite; see [the known limitation](troubleshooting.md#onecli-and-pages-uploads).
+## Inputs
 
-For an existing Direct Upload project, the shortest path is the
-[guided operations CLI](ops-cli.md): run `pnpm ops setup`, then `pnpm ops deploy-pages` to review
-the target and repeat it with the printed project-name confirmation. The detailed recipe below is
-still required for first-time project creation, SDK installation, and signing-secret setup.
+| Input                           | Source                                                      |
+| ------------------------------- | ----------------------------------------------------------- |
+| Worker HTTPS origin             | US1 handoff                                                 |
+| `VIZOALICA_TOKEN_SECRET`        | Customer-approved secret manager; same value as the Worker  |
+| Analytics project ID            | Create or select in the local console                       |
+| Website/source ID               | Created by the local console; not the public source key     |
+| Public source key               | Website integration panel in the local console              |
+| Exact production origin(s)      | Website hosting settings, with scheme and no trailing slash |
+| Website folder and asset output | Website build configuration                                 |
+| Deployment mode                 | Existing Git integration or Direct Upload                   |
 
-## 1. Prepare the Pages project
+## Security boundary
+
+Project IDs, source IDs, public source keys, Worker origins, and website origins are non-secret.
+The token-signing secret belongs only on the Worker and the website's trusted server-side Function.
+The administrator secret and Cloudflare deployment credential never belong in website assets.
+
+A public token issuer is not visitor authentication: non-browser callers can forge origin headers.
+Keep ingestion quotas enabled and retain existing application authentication for private sites.
+Only load analytics after the site's consent system grants analytics consent. The consent attribute
+records the state; it is not itself a consent gate.
+
+Use a normal terminal with Cloudflare-native login for this recipe. OneCLI can still hold the local
+console credential. Some OneCLI proxy configurations overwrite Wrangler's temporary Pages upload
+authorization; see [the known limitation](troubleshooting.md#onecli-and-pages-uploads).
+
+## 1. Create the website ID in the console
+
+Open the local console from US2A or US2B. Select **Websites**, create or select an analytics
+project, then choose **Add website**. Enter a clear display name and the exact production origin,
+including `https://` and without a trailing slash. Save the website and open its integration panel.
+Copy the generated project ID, website/source ID, and public source key; these are three different
+non-secret values. Start with the default low quota and seven-day retention.
+
+**Check:** the new website belongs to the intended customer project, lists only its real allowed
+origin(s), and has its own source ID and public key.
+
+## 2. Prepare the website project
 
 From your Vizoalica checkout, choose an unused Pages project name and a private working copy for
 the example. Replace the two paths/names below. The name determines your `pages.dev` origin.
@@ -29,14 +72,13 @@ pnpm exec wrangler pages project create "$VIZOALICA_PAGES_PROJECT" --production-
 ```
 
 For an **existing** Pages project, skip creation and use its actual name and production branch.
-Do not overwrite an existing site's files; copy the Function and SDK into its own structure as
-explained below. Return to [installation step 5](cloudflare.md#5-create-one-project-and-website)
-if you still need a project and source.
+Do not overwrite an existing site's files; merge the Function and SDK into its own structure as
+explained below.
 
 **Check:** the Pages project exists in the intended Cloudflare account. Record the exact origin
 shown in the dashboard, normally `https://YOUR_UNIQUE_PAGES_PROJECT.pages.dev`.
 
-## 2. Fill in the public configuration
+## 3. Fill in the public configuration
 
 Edit the working copy's `wrangler.toml`:
 
@@ -54,7 +96,7 @@ ending in `/v1/events:batch`. The demo serves its SDK at `/vizoalica.js`.
 **Check:** no `REPLACE_…` values remain in `wrangler.toml` or `public/index.html`. Do not put a
 secret in either file. The source ID is **not** necessarily the public source key.
 
-## 3. Build and copy the browser SDK
+## 4. Build and copy the browser SDK
 
 Run from the Vizoalica checkout:
 
@@ -88,11 +130,10 @@ Web Crypto, sets a five-minute lifetime and a 25-event token limit, and returns 
 `Cache-Control: no-store`. Request parameters cannot select another project or origin. It rejects
 missing configuration, foreign provenance and requests on unconfigured preview domains.
 
-A public website token issuer is not visitor authentication: non-browser callers can forge origin
-headers. Keep ingestion quotas enabled and use your existing session authentication if the site
-is private. The shared signing secret stays on trusted servers.
+The shared signing secret stays on trusted servers. Use the site's existing session authentication
+as an additional requirement if the site is private.
 
-## 4. Save the same signing secret on Pages
+## 5. Save the same signing secret on Pages
 
 Paste **the same `VIZOALICA_TOKEN_SECRET` value used by the ingestion Worker** into the hidden prompt:
 
@@ -107,7 +148,7 @@ for Pages. The administrator secret and Cloudflare deployment token never go on 
 For an existing project with separate preview/production settings, confirm the secret and variables
 in the **Production** environment in the dashboard, then redeploy for changes to take effect.
 
-## 5. Deploy the website and Function together
+## 6. Deploy the website and Function together
 
 For this Direct Upload example, run from the Vizoalica checkout:
 
@@ -116,7 +157,7 @@ pnpm exec wrangler pages deploy public --cwd "$VIZOALICA_SITE_DIR" --project-nam
 ```
 
 **Check:** the deployment output says the Functions were compiled/uploaded, as well as the assets.
-Verify the stable production origin from step 1. The unique preview URL printed for a deployment
+Verify the stable production origin from step 2. The unique preview URL printed for a deployment
 is not automatically an allowed analytics origin.
 
 `--cwd` is essential: Wrangler must start in the website project to discover its `functions/`
@@ -148,7 +189,7 @@ See Cloudflare's [Git integration](https://developers.cloudflare.com/pages/get-s
 and [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) guides.
 Dashboard drag-and-drop does not compile a `functions/` directory; use Wrangler or a Git build.
 
-## 6. Verify content, then a real event
+## Verify US3
 
 From the Vizoalica checkout, substitute your stable origin, project ID and **source ID**:
 
@@ -170,8 +211,31 @@ for either missing path.
 Now open the website and select **Allow analytics**. In the browser Network panel, confirm the
 batch request to the Worker returns **202**, then refresh the local console's `24h` view. In a
 fresh test source, one visit produces one page view and one privacy-safe unique user. See
-[the installation checks](cloudflare.md#8-prove-a-page-view-arrived) for rejection and failure tests.
-The demo makes the choice per visit; refresh to choose again.
+[privacy operations](privacy.md) for the data boundary. The demo makes the choice per visit;
+refresh to choose again. Finally, block the Worker request in
+the browser and reload: the website's primary content and controls must remain usable.
+
+## US3 handoff
+
+Record one non-secret completion note for this website:
+
+```text
+Story: US3
+Customer/environment: <label>
+Website: <display name>
+Production origin: https://<website-origin>
+Release/commit: <release and commit>
+Analytics project ID: <public identifier>
+Internal source ID: <public identifier>
+Public source key: <public identifier>
+Deployment mode/commit: <Git or Direct Upload and deployment identity>
+Content/token checks: <timestamp and result>
+Accepted event observed: <timestamp>
+Analytics unavailable test: website remained usable
+```
+
+Do not include the token-signing secret, administrator credential, issued JWT, deployment token, or
+visitor data.
 
 ## Add the integration to your own pages
 
@@ -192,9 +256,17 @@ For CSP-restricted sites, allow the SDK's host in `script-src` and the Worker or
 If your site deliberately uses `Referrer-Policy: no-referrer`, adapt its authenticated backend
 rather than weakening this example's provenance check.
 
-## Upgrade or rotate
+## Rotate or remove
 
-Rebuild/copy the SDK, deploy the Function with the website, and rerun verification. For signing-key
-rotation, pause collection, replace the secret on **both** Worker and Pages, redeploy, verify a
-new token/event, then resume. This single-key example has no overlapping-key rotation; old tokens
-will fail once the Worker key changes. Keep preview sources and secrets separate from production.
+For same-release website changes, rebuild/copy the SDK, deploy the Function with the website, and
+rerun all US3 verification. This release does not provide an existing-backend schema upgrade path.
+
+For signing-key rotation, pause collection across every connected website, replace the secret on
+the Worker and every trusted token issuer, redeploy, verify a new token and accepted event, then
+resume. This single-key example has no overlapping-key rotation; old tokens fail after the Worker
+key changes. Keep preview sources and secrets separate from production.
+
+To stop one website, disable its source in the console and remove the SDK load from the site's
+shared layout. Confirm new events are rejected while the website remains usable. Delete is a
+terminal soft deletion that retains aggregate history and audit evidence. It does not remove US1,
+another website registration, or an operator workstation.

@@ -21,6 +21,7 @@ export interface DeploymentProfile {
 export type OperationId =
   | 'cloudflare.identity.read'
   | 'd1.database.read'
+  | 'd1.schema.inspect'
   | 'r2.bucket.read'
   | 'worker.secrets.read'
   | 'worker.analytics_digest_secret.put'

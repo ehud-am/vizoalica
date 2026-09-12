@@ -3,6 +3,7 @@ import { actorId, option, result } from '../cli.js';
 import { assertOperatorPath } from '../config.js';
 import { assertCurrentPlan, createReceipt, loadPlan, saveArtifact } from '../plan.js';
 import { failureForProcess } from '../providers/provider.js';
+import { assertFreshD1Inspection } from '../fresh-schema.js';
 import type { DeploymentResult, OperationId } from '../types.js';
 import { DeploymentFailure } from '../types.js';
 import type { CommandContext } from './shared.js';
@@ -11,6 +12,7 @@ import { profileFor, providerFor, recordResult } from './shared.js';
 const CHECKS: OperationId[] = [
   'cloudflare.identity.read',
   'd1.database.read',
+  'd1.schema.inspect',
   'r2.bucket.read',
   'worker.secrets.read',
   'worker.bundle.dry_run'
@@ -34,6 +36,7 @@ export async function preflight(
     });
     if (processResult.exitCode !== 0 || processResult.interrupted)
       throw failureForProcess(processResult, operation);
+    if (operation === 'd1.schema.inspect') assertFreshD1Inspection(processResult);
     if (
       operation === 'cloudflare.identity.read' &&
       !`${processResult.stdout}\n${processResult.stderr}`.includes(profile.cloudflare.accountId)

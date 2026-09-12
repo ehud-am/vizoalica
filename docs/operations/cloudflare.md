@@ -1,363 +1,272 @@
-# Install Vizoalica on Cloudflare
+# Step 1 (US1) — Deploy the Vizoalica backend on Cloudflare
 
-Start here for a first installation of **Vizoalica 0.5.0**. Follow the numbered steps in order.
-Commands run from the Vizoalica checkout unless a step says otherwise.
+Run US1 **once per customer environment**. It creates and verifies the shared Vizoalica ingestion
+backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
+and scheduled aggregate cleanup.
 
-The simplest setup uses Cloudflare login to deploy, a free `workers.dev` address for ingestion,
-and your existing website (or the included Pages example). You can then use **OneCLI's local
-vault for the console**. These are independent choices: using the vault locally does not require
-routing Pages deployments through it.
+This release supports **fresh deployments only**. US1 does not preserve, adopt, or modify an
+existing Vizoalica schema. The preflight stops if the selected D1 database contains a Vizoalica
+table or migration record. Select a new empty database; do not delete or alter the existing one.
 
-After the Worker is installed, use the [guided operations CLI](ops-cli.md) for the common local
-console and Direct Upload Pages workflow. It keeps Worker infrastructure, Pages uploads, and the
-OneCLI-held console credential in three explicit lanes.
+US1 does not configure an operator machine or connect a website. Its final handoff supplies the
+inputs for [US2A](local-analytics.md), [US2B](ops-cli.md), and [US3](pages.md).
 
-**What you will have:** one ingestion Worker, one D1 database, one R2 bucket, a hosted SDK and
-server-side token endpoint, and a console that runs on your computer only when needed.
-No custom domain, paid Workers plan, hosted dashboard, or always-on local process is required.
+## Prerequisites
 
-## Before starting
+- Node.js 22 or newer and pnpm 9.
+- A reviewed Vizoalica 0.5.0 checkout.
+- Access to the intended Cloudflare account with Workers, D1, and R2 available.
+- R2 activated for the account; Cloudflare may request billing information even when usage stays
+  within an included allowance.
+- A password manager that can generate and retain three unrelated random values of at least 32
+  characters.
+- Authority to approve resource creation and the deployment target.
 
-- Install Node.js 22+ and pnpm 9 (`corepack enable` enables pnpm with supported Node installations).
-- Have access to a Cloudflare account. Activate R2 in its dashboard; Cloudflare may require billing
-  setup even for included usage.
-- Have a password manager to generate and retain **two different random secrets**, each at least
-  32 characters: `VIZOALICA_TOKEN_SECRET` and `VIZOALICA_ADMIN_SECRET`.
-- Allow roughly one setup session. Stop at the first failed checkpoint; use
-  [troubleshooting](troubleshooting.md) instead of continuing with missing pieces.
+Allow one setup session. Stop at the first failed **Check** and use
+[backend troubleshooting](troubleshooting.md); do not continue with an unverified target.
 
-| Credential                    | Purpose                    | Store it here                                                |
-| ----------------------------- | -------------------------- | ------------------------------------------------------------ |
-| Cloudflare login or API token | Deploy infrastructure      | Wrangler login, or optional OneCLI deployment connection     |
-| `VIZOALICA_TOKEN_SECRET`      | Sign website ingest tokens | Worker **and** website Function, with exactly the same value |
-| `VIZOALICA_ADMIN_SECRET`      | Read/manage analytics      | Worker **and** local OneCLI vault (or private client file)   |
+## Inputs
 
-Never put any of these secrets in HTML, browser JavaScript, a URL, Git, or an AI conversation.
-Project IDs and source keys are public and safe to copy.
+Record these non-secret choices before starting:
 
-## 1. Get the software and sign in
+| Input                      | Example             | Rule                                                    |
+| -------------------------- | ------------------- | ------------------------------------------------------- |
+| Customer/environment label | `acme-production`   | Treat staging and production as separate environments   |
+| Cloudflare account         | Account name and ID | Must own every resource below                           |
+| Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
+| D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
+| R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
+| Release                    | `v0.5.0`            | Use one reviewed checkout for setup and later operators |
+
+Prepare these secret values in the password manager, but never write them in this table:
+
+| Secret name                         | Purpose                                  | Later recipient                          |
+| ----------------------------------- | ---------------------------------------- | ---------------------------------------- |
+| `VIZOALICA_TOKEN_SECRET`            | Signs short-lived website ingest tokens  | Trusted server component in each US3 run |
+| `VIZOALICA_ADMIN_SECRET`            | Authorizes administration and analytics  | Each operator through US2A or US2B       |
+| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | Creates non-reversible analytics digests | Worker only                              |
+
+## Security boundary
+
+The Cloudflare login or API token is for backend deployment only. It is not the Worker
+administrator secret and never belongs in an operator console or website. Worker secrets never
+belong in Git, HTML, browser JavaScript, URLs, command arguments, plans, receipts, logs, support
+messages, or AI conversations.
+
+For the simplest path, use Cloudflare-native authentication in a normal terminal outside
+`onecli run`. If policy requires a OneCLI-held Cloudflare connection, use the explicit
+[approval-gated profile path](#optional-approval-gated-deployment-profile). Never switch paths as an
+automatic fallback.
+
+## 1. Prepare the checkout
 
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git
 cd vizoalica
+git rev-parse HEAD
 pnpm install --frozen-lockfile
-pnpm exec wrangler login
-pnpm exec wrangler whoami
 cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
 ```
 
-Use your selected release checkout when upgrading. `wrangler.production.toml` is ignored by Git;
-keep account configuration there. Do not overwrite an existing configured file during an upgrade.
+Use a maintainer-approved tag or commit when one has been published; otherwise record the reviewed
+commit printed above. `wrangler.production.toml` is ignored by Git. Edit only that private copy.
 
-**Check:** `whoami` shows your intended account. If you have several accounts, set its non-secret ID:
+**Check:** `git status --short` does not list the production configuration or a secret file.
 
-```sh
-export CLOUDFLARE_ACCOUNT_ID="REPLACE_WITH_YOUR_ACCOUNT_ID"
-```
-
-This default path is Cloudflare-native. Run it in a normal terminal outside `onecli run`, with no
-inherited proxy or deployment-profile selection. For an explicitly isolated deployment, use the
-[optional OneCLI Worker flow](#optional-onecli-worker-deployment) instead.
-
-## 2. Create or find storage
-
-List first so you can reuse the correct existing resources:
+## 2. Authenticate and create fresh resources
 
 ```sh
+pnpm exec wrangler login
+pnpm exec wrangler whoami
 pnpm exec wrangler d1 list
 pnpm exec wrangler r2 bucket list
 ```
 
-For a **new** installation, create only what is missing:
+Confirm the intended account. Then choose unused names and create new resources:
 
 ```sh
 pnpm exec wrangler d1 create vizoalica-config
 pnpm exec wrangler r2 bucket create vizoalica-events
 ```
 
+Do not reuse a D1 database from an earlier test or partial setup. If either chosen name already
+exists, inspect ownership and select a different unused name rather than guessing that it is empty.
+
 Edit `deploy/cloudflare/wrangler.production.toml`:
 
-| Field           | Value                                               |
-| --------------- | --------------------------------------------------- |
-| `name`          | Your chosen Worker name, such as `vizoalica-ingest` |
-| `database_name` | Live D1 name, such as `vizoalica-config`            |
-| `database_id`   | UUID of **that same live database**                 |
-| `bucket_name`   | Live R2 name, such as `vizoalica-events`            |
+| Field           | Value                                      |
+| --------------- | ------------------------------------------ |
+| `name`          | The new Worker name                        |
+| `database_name` | The new D1 name                            |
+| `database_id`   | The ID returned for that exact D1 database |
+| `bucket_name`   | The new R2 bucket name                     |
 
-Keep the binding names, migration directory and safe defaults from the template. Keep
-`VIZOALICA_DEMO_MODE = "false"`. Resource names and IDs from another account or a previous demo
-will not work. Recheck the list output against **both** the name and ID before running migrations;
-the basic preflight does not substitute for this comparison.
+Keep the binding names, `migrations_dir`, cron trigger, request limit, and
+`VIZOALICA_DEMO_MODE = "false"` from the example.
 
-**Check:** the file contains no `REPLACE_WITH_D1_DATABASE_ID`, and all resources belong to the
-account selected in step 1.
+**Check:** the account, names, and D1 ID all match live resources, and no `REPLACE_…` value remains.
 
-## 3. Save both Worker secrets
+## 3. Store the Worker secrets
 
-Retrieve the two values from your password manager and paste each only into its hidden Wrangler prompt:
+Retrieve each value from the password manager and paste it only into Wrangler's hidden prompt:
 
 ```sh
 pnpm exec wrangler secret put VIZOALICA_TOKEN_SECRET --config deploy/cloudflare/wrangler.production.toml
 pnpm exec wrangler secret put VIZOALICA_ADMIN_SECRET --config deploy/cloudflare/wrangler.production.toml
+pnpm exec wrangler secret put VIZOALICA_ANALYTICS_DIGEST_SECRET --config deploy/cloudflare/wrangler.production.toml
 ```
 
-On the first run, Wrangler may offer to create the Worker name before storing the secret. Accept
-for the Worker you chose. The application is deployed in the next step. Retain the signing value:
-you will paste **that same value** into the Pages secret later, not generate another one.
-
-**Check:** both names appear here; values are never displayed:
+Wrangler may offer to create the Worker shell before storing the first secret. Accept only if the
+displayed account and Worker name match the reviewed US1 target.
 
 ```sh
 pnpm exec wrangler secret list --config deploy/cloudflare/wrangler.production.toml
 ```
 
-## 4. Apply all migrations and deploy
+**Check:** all three secret names appear. The values are never displayed. Retain the token-signing
+and administrator values in the password manager for their later, narrowly scoped handoffs.
 
-Read the SQL files in [`deploy/cloudflare/migrations`](../../deploy/cloudflare/migrations).
-This release needs **all five**, in order:
+## 4. Review the fresh baseline and preflight
 
-1. `0001_initial.sql` — projects, sources, quotas and rollups.
-2. `0002_admin_mcp.sql` — administration support.
-3. `0003_dashboard.sql` — dashboard support.
-4. `0004_local_operations.sql` — local console and hourly analytics.
-5. `0005_dashboard_visual_refresh.sql` — minute-granularity totals, eight independent
-   classification dimensions, visitor-presence tracking, an event-digest ledger for duplicate-safe
-   writes, and a per-project/per-source watermark table. Purely additive: it creates new tables and
-   indexes only, and initializes each existing source's watermark so history before this migration
-   is reported as incomplete rather than fabricated (see "Analytics completeness" below).
+This release has one complete schema baseline:
+`deploy/cloudflare/migrations/0001_initial.sql`. It creates the current schema directly on an empty
+database. It is not an in-place data migration.
 
 ```sh
 pnpm deploy:check
+```
+
+The check confirms the account, D1 and R2 targets, all Worker secret names, an empty D1 schema, and
+a valid Worker build. Its D1 inspection is read-only. Any existing or ambiguous Vizoalica schema
+state stops the check with no schema mutation.
+
+**Check:** the command reports both `fresh D1 database confirmed` and `deploy preflight passed`.
+If it reports existing schema, select a new empty D1 database and update both its name and ID in the
+private configuration.
+
+## 5. Apply and deploy
+
+```sh
 pnpm deploy:apply
+```
+
+Apply reruns the complete preflight and then repeats the fresh-D1 check immediately before applying
+the baseline. It deploys the Worker only after the baseline succeeds.
+
+```sh
 pnpm exec wrangler d1 migrations list vizoalica-config --remote --config deploy/cloudflare/wrangler.production.toml
 ```
 
-Replace `vizoalica-config` in commands if you chose a different database name. `deploy:apply`
-checks the configuration, applies pending migrations, then deploys the Worker. Never manually
-rerun an already-applied migration; let Wrangler track it. On future releases, apply every
-migration through that release's latest file, not just the five listed here.
+Replace `vizoalica-config` if you chose another name.
 
-### The analytics digest secret
+**Check:** only `0001_initial.sql` is recorded and no migration remains pending.
 
-Migration `0005` and the dashboard's visitor-privacy design need a server-side HMAC key,
-`VIZOALICA_ANALYTICS_DIGEST_SECRET`, to compute non-reversible visitor and event digests. You do
-not create or handle this secret manually: `deploy:configure` generates it once, alongside the
-existing signing/administrator secrets, and stores it the same way (never printed, never included
-in a plan or preflight receipt); `deploy:apply` provisions it as a Worker secret automatically if
-it is not already present remotely, the same way it provisions the others. Rotating it follows the
-same path as [a leaked secret](#a-secret-may-have-leaked) below - rotating it invalidates
-previously computed visitor digests for future comparison, so historic unique-user counts remain
-correct (they were already aggregated) but a rotated deployment cannot recognize a returning
-visitor against pre-rotation digests.
+## 6. Configure retention and cost controls
 
-### Daily aggregate cleanup
+In the R2 dashboard, add a lifecycle rule that expires the `events/` prefix after seven days for
+the initial installation. D1's source retention value does not delete R2 objects. Review current
+Workers, D1, R2, and Pages pricing before relying on included allowances, enable available account
+usage alerts, and keep new website quotas small until traffic is understood.
 
-The Worker's Cron Trigger (`deploy/cloudflare/wrangler.toml`, `[triggers]`) runs once a day and
-deletes dashboard rollup rows older than the 32-day retention boundary, in bounded batches per
-table. This requires no operator action beyond deploying the Worker with its `crons` entry, which
-`deploy:apply` does as part of the normal deploy.
+The deployed cron trigger deletes dashboard rollups older than the 32-day aggregate boundary in
+bounded batches. A source quota limits accepted events, not every incoming request or the total
+account bill.
 
-### Analytics completeness
+**Check:** the R2 lifecycle rule targets only this environment's event prefix and account alerts go
+to the intended customer owner.
 
-A time range that starts before a source's migration-`0005` watermark (set to "now" for every
-existing source when the migration runs, or to a new source's creation time afterward) is reported
-by the dashboard as **incomplete** rather than silently showing partial data as if it were the full
-picture. This is expected immediately after deploying this release, for any range that reaches
-back before the deploy. It resolves on its own as new data accumulates past the watermark; no
-backfill or manual step closes the gap, because there is no pre-migration raw data left to backfill
-from beyond what R2 already retains.
+## Verify US1
 
-### Rollback limits
-
-Migration `0005` is additive only - it does not modify or drop anything migrations `0001`-`0004`
-created. Rolling the Worker back to a pre-`0005` version (see
-["a deployment is unhealthy"](#a-deployment-is-unhealthy) below) is safe: the older Worker code
-simply does not read or write the new tables, and the existing fixed-window `24h`/`7d`/`30d`
-analytics endpoint keeps working unchanged, since it was kept as a one-release compatibility
-adapter. Do not drop migration `0005`'s tables to "undo" it - there is no down-migration, and
-doing so would discard aggregated data with no way to recompute it from R2 without a full raw-event
-replay.
-
-**Check:** no migrations remain pending. Copy the deployed Worker origin, without a trailing slash:
+Copy the Worker origin shown by Wrangler, without a trailing slash:
 
 ```sh
 export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
 pnpm deploy:verify
 ```
 
-**Check:** Worker health passes. This proves health only; it does not prove website installation.
+**Check:** `/healthz` reports healthy. This proves US1 only; it does not prove operator access or
+website collection.
 
-## 5. Create one project and website
+Also verify that an unsigned request, malformed batch, and oversized batch are rejected without
+creating an accepted raw batch. Privacy behavior is documented in
+[privacy operations](privacy.md). For capacity planning, see the
+[dashboard cost model](cost-model.md).
 
-Open the [local console setup](local-analytics.md), choose **Path A for a local OneCLI vault**,
-and start both local processes. Create a project, then a website with its exact public origin
-(for example, `https://YOUR_PAGES_PROJECT.pages.dev`). For the Pages example, create its project
-in [Pages step 1](pages.md#1-prepare-the-pages-project) first so you know that origin.
+## US1 handoff
 
-The console supplies a project ID, website/source ID and public source key. Keep them distinct:
+Record this redacted handoff for the customer. Do not include secret values:
 
-| Value             | Used for                                            |
-| ----------------- | --------------------------------------------------- |
-| Project ID        | `data-project` and `VIZOALICA_PROJECT_ID`           |
-| Website/source ID | `VIZOALICA_SOURCE_ID` in the server token issuer    |
-| Public source key | `data-source` in the browser snippet                |
-| Website origin    | Source's allowed origin and `VIZOALICA_SITE_ORIGIN` |
-| Worker origin     | `data-endpoint`, followed by `/v1/events:batch`     |
-
-The default new source allows 100 events/day, 10 events/second and seven-day retention. This is
-intentionally small for testing. An origin is a scheme plus host and optional port: no path,
-trailing slash or wildcard. The allowed origin is the **website**, not the ingestion Worker.
-If you prefer setup without a console, use the [manual SQL alternative](#manual-sql-alternative).
-
-## 6. Connect your website
-
-Follow the [complete Pages website recipe](pages.md). It includes the SDK build, a copyable
-Function at `/vizoalica/ingest-token`, signing-secret setup, deploy commands and content checks.
-For another website backend, use the [SDK reference](browser-sdk.md) and implement the same token
-contract there. A static host alone cannot keep a signing secret.
-
-**Check:** the SDK URL returns JavaScript and the token endpoint returns a scoped five-minute JWT.
-The ingestion Worker serves neither `/vizoalica.js` nor `/vizoalica/ingest-token`.
-
-## 7. Keep the test inexpensive
-
-In Cloudflare's R2 dashboard, add a lifecycle rule expiring the `events/` prefix after **7 days**.
-The D1 `retention_days` setting alone does not delete R2 objects. Keep the source quota low, check
-Workers/D1/R2 usage and configure available billing/usage alerts. Disable the source in the
-console if traffic is unexpected.
-
-Static Pages requests that do not invoke Functions are free; token requests share Workers usage.
-The included example limits Function invocation to the token route. R2 has included monthly usage,
-then charges for excess storage/operations. A source quota bounds accepted events, **not all
-incoming requests or your bill**. No free-tier setup is a guaranteed spending cap. See current
-[Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/),
-[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) and
-[R2 pricing](https://developers.cloudflare.com/r2/pricing/).
-
-## 8. Prove a page view arrived
-
-1. Run the content verification command in the Pages recipe.
-2. Open the actual website origin, allow analytics, and inspect the browser Network panel.
-3. Confirm the token request succeeds and the request to `/v1/events:batch` returns **202**.
-4. Refresh the local console's `24h` view. One fresh consented page visit should add a page view;
-   an isolated test should show one privacy-safe unique user. Prior visits affect totals.
-5. Block the analytics Worker in the browser and reload. The website must remain usable.
-
-Record the release, Worker URL/version, website origin, migration status, and observed counts.
-Before a public launch, also exercise the signed/invalid-token, wrong-origin, malformed, oversized
-and over-quota scenarios in [privacy operations](privacy.md). Rejected events must not create
-accepted raw batches; another project must continue working.
-
-## Manual SQL alternative
-
-Use this **instead of** console creation, on a fresh test installation. Copy the following into a
-private `seed.sql`, replace the origin with your real website origin, then run it once. Use distinct
-IDs for additional sites. Never paste this over an existing site's configuration.
-
-```sql
-INSERT INTO quota_policies
-  (id, max_request_bytes, max_events_per_batch, max_events_per_token,
-   max_events_per_second, max_events_per_day, max_property_count,
-   max_property_value_length, retention_days)
-VALUES ('quota-test', 131072, 25, 25, 10, 100, 20, 256, 7);
-
-INSERT INTO projects (id, name, mode, default_retention_days, quota_policy_id)
-VALUES ('project-test-id', 'Test site', 'production', 7, 'quota-test');
-
-INSERT INTO sources
-  (id, project_id, name, public_source_key, allowed_origins_json, status, created_at, updated_at)
-VALUES ('source-test-id', 'project-test-id', 'Test website', 'public-source-key',
-  '["https://YOUR_PAGES_PROJECT.pages.dev"]', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+```text
+Story: US1
+Customer/environment: <label>
+Release/commit: <release and commit>
+Cloudflare account: <redacted label and last identifying characters if needed>
+Worker origin: https://<worker>.<subdomain>.workers.dev
+D1 database name: <name>
+R2 bucket name: <name>
+Baseline: 0001_initial.sql applied
+Health verified at: <timestamp>
+R2 lifecycle/usage alerts: <verified or outstanding>
+Secret locations: token signing=<password-manager record>; administrator=<password-manager record>
 ```
+
+Give each operator the Worker origin, release identity, and an approved way to obtain the
+administrator credential:
+
+- [US2A — direct local credential](local-analytics.md), once for an operator who manages it in a
+  private local file; or
+- [US2B — OneCLI local credential](ops-cli.md), once for an operator whose organization injects it
+  through OneCLI.
+
+After one operator is verified, run [US3 — connect a website](pages.md) once for each website.
+
+## Optional approval-gated deployment profile
+
+Use this alternative only when policy requires explicit Cloudflare provider isolation. Initial D1
+and R2 resource creation still requires a separately approved owner action. Configure a private
+profile outside the repository, then follow this exact sequence:
 
 ```sh
-pnpm exec wrangler d1 execute vizoalica-config --remote --config deploy/cloudflare/wrangler.production.toml --file /absolute/path/to/seed.sql
+pnpm deploy:configure -- \
+  --profile /private/path/vizoalica-profile.json \
+  --provider onecli \
+  --environment production \
+  --wrangler-config /absolute/path/deploy/cloudflare/wrangler.production.toml \
+  --account-id YOUR_ACCOUNT_ID \
+  --onecli-project YOUR_PROJECT \
+  --onecli-agent-id YOUR_AGENT_ID \
+  --onecli-agent YOUR_AGENT \
+  --onecli-connection YOUR_CONNECTION_ID
+pnpm deploy:plan -- --profile /private/path/vizoalica-profile.json --out /private/path/plan.json
+pnpm deploy:check -- --profile /private/path/vizoalica-profile.json --plan /private/path/plan.json --receipt /private/path/receipt.json
 ```
 
-**Check:** one source belongs to `project-test-id`, uses `public-source-key`, and allows only your
-website origin. These columns match migration 0004, including its required name and timestamps.
+Review the exact account, provider, resources, mutations, and printed plan ID. The receipt is not
+approval. Only after the customer approves that exact plan ID:
 
-## Optional OneCLI Worker deployment
+```sh
+pnpm deploy:apply -- --profile /private/path/vizoalica-profile.json --plan /private/path/plan.json --receipt /private/path/receipt.json --approve EXACT_PLAN_ID
+pnpm deploy:verify -- --profile /private/path/vizoalica-profile.json --worker-url https://YOUR_WORKER.workers.dev --plan /private/path/plan.json
+pnpm deploy:status -- --profile /private/path/vizoalica-profile.json --plan-id EXACT_PLAN_ID
+```
 
-Use this when your deployment policy requires vault-held Cloudflare credentials. It is separate
-from the local console's generic administrator secret. Follow the
-[profile → plan → check → apply → verify workflow](../../specs/005-onecli-cloudflare-credentials/quickstart.md).
-It covers existing Worker/D1/R2 resources, not initial resource creation or Pages uploads.
+The profile runner removes ambient Cloudflare credentials and never falls back to native login.
+The OneCLI deployment connection is unrelated to the OneCLI administrator credential used in US2B.
 
-For a Cloudflare API token, select these exact UI labels, scoped to the intended account:
+## Recovery and removal
 
-| Operation                                                | Cloudflare permission                 |
-| -------------------------------------------------------- | ------------------------------------- |
-| Confirm account membership                               | `User → Memberships → Read`           |
-| D1 lookup and migrations                                 | `Account → D1 → Edit`                 |
-| R2 lookup                                                | `Account → Workers R2 Storage → Read` |
-| Worker secrets and deployment                            | `Account → Workers Scripts → Edit`    |
-| Pages project, secret and deployment (separate workflow) | `Account → Cloudflare Pages → Edit`   |
-| Initial R2 bucket creation (separate workflow)           | `Account → Workers R2 Storage → Edit` |
-
-Use the [Cloudflare permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)
-for current labels. Account-scoped grants are not automatically restricted to one Worker or bucket;
-use OneCLI policy to narrow permitted operations. Do not add DNS/zone permissions for `workers.dev`
-or `pages.dev`; custom domains are optional separate work.
-
-Vizoalica removes ambient Cloudflare credentials for OneCLI inspection and execution. Wrapped
-Wrangler gets only `CLOUDFLARE_API_TOKEN=onecli-managed` so it can start; the gateway injects the
-real credential. There is no automatic native fallback. Profile reads allow 60 seconds, bundle
-checks 120 seconds, and migrations/deploys 300 seconds; OneCLI inspection allows 15 seconds.
-Worker HTTP health verification has a separate 10-second request timeout.
-
-If the self-hosted gateway advertises `gateway:10255` to host processes, see
-[local gateway setup](local-analytics.md#self-hosted-gateway-on-macos-or-linux).
-The profile runner currently has no gateway override field; fix the advertised host-accessible
-address in OneCLI before using profiles, or explicitly choose the native deployment path.
-For the reported Pages `8000013` upload failure, see [troubleshooting](troubleshooting.md):
-this patch does not implement a proxy bypass or claim to fix OneCLI's upload-token replacement.
-
-## Operating and rollback cards
-
-### A source is abused
-
-1. Set its `status` to `disabled` in D1.
-2. Confirm new requests return a rejection and unrelated projects remain healthy.
-3. Review only safe ingestion decisions and quota-window counts; do not log raw payloads.
-4. Rotate the server token issuer credentials before re-enabling the source.
-
-### A deployment is unhealthy
-
-1. Select a prior known-good Worker version compatible with the current D1 schema using
-   Cloudflare’s deployment history. Do not roll back schema blindly.
-2. Do **not** delete D1 configuration, quota records, rollups, or R2 batches.
-3. Verify `/healthz`, a signed request, and a rejected malformed request.
-4. Record the incident, version, and rollback time.
-
-### A secret may have leaked
-
-1. Treat it as compromised; create a new secret in the approved secret manager.
-2. Pause collection, replace the signing secret on both Worker and website, redeploy, verify
-   a newly accepted event, then resume. For an administrator secret, update the Worker and local
-   vault/client instead.
-3. Invalidate outstanding short-lived tokens where possible.
-4. Audit access to the secret manager and deployment account.
-
-### Rotate, revoke, recover, or change providers
-
-Rotate a token inside the same OneCLI Cloudflare connection, then generate a new plan and preflight
-receipt. The Vizoalica profile does not change when the connection and account stay the same. To
-revoke access, detach the connection from the deployment agent or revoke it in OneCLI; subsequent
-checks and applies fail at the provider boundary.
-
-For a compromised machine, revoke that machine's OneCLI identity, remove its private profile,
-plans, receipts, results, and audit file, review OneCLI and Cloudflare audit evidence, and create a
-new identity on a trusted machine. Do not transfer credential material between machines.
-
-To migrate from native authentication, create a new OneCLI profile and run plan/check before any
-apply. To roll back, create an explicit `cloudflare-native` profile and authenticate Wrangler
-through Cloudflare's normal flow. Neither direction copies a token through Vizoalica. A failed or
-interrupted apply lists completed and pending operations; inspect local status, generate a fresh
-plan and receipt, and rely on Wrangler's idempotent migration tracking before retrying.
-
-Deployment audit records are operator-only NDJSON beside the private profile and are pruned after
-90 days by default. Back up Cloudflare data and configuration through your normal account controls;
-the audit log is evidence, not a backup. Teardown remains a separate destructive procedure: revoke
-deployment access first, export required data, and obtain distinct approval before removing Worker,
-D1, or R2 resources.
+- **Existing schema detected:** stop. Select a new empty D1 database. This release provides no
+  preservation path for that data.
+- **Wrong account or resource:** stop, correct the private configuration, and rerun preflight.
+- **Interrupted apply:** inspect D1 migration state and Worker deployment history. Do not assume a
+  local timeout means the remote action failed. For a profile deployment, create a new plan and
+  receipt before retrying.
+- **Unhealthy Worker:** use Cloudflare deployment history only when the selected Worker version is
+  compatible with the fresh baseline. Never change D1 schema as an improvised recovery step.
+- **Suspected signing-secret exposure:** pause collection, replace it on the Worker and every
+  connected website, verify a new accepted event, then resume.
+- **Suspected administrator-secret exposure:** replace it on the Worker and update every authorized
+  operator path. Revoke affected OneCLI agents or remove affected direct local files.
+- **Removal:** teardown is a separate destructive customer-owner decision. First revoke access and
+  export anything the owner is required to retain; then obtain distinct approval for the exact
+  Worker, D1 database, and R2 bucket. US1 automation never deletes them.

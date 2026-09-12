@@ -1,8 +1,9 @@
 # Vizoalica Pages example
 
-Follow the [complete website recipe](../../docs/operations/pages.md). Copy this folder to a separate
-website directory, fill in its public settings, build/copy the SDK and set the Pages signing secret.
-Do not deploy this unconfigured directory.
+Run the complete [US3 website journey](../../docs/operations/pages.md) once for each website. Copy
+this folder to a separate website directory, register that website, fill in its public settings,
+build/copy the SDK, and set the Pages signing secret. Do not deploy this unconfigured directory or
+reuse another website's source identifiers.
 
 - `functions/vizoalica/ingest-token.ts`: scoped five-minute token endpoint.
 - `public/index.html`: keyboard-accessible, consent-before-load test page.

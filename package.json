@@ -28,6 +28,7 @@
     "deploy:configure": "node --import tsx apps/deploy-cli/src/index.ts configure",
     "deploy:plan": "node --import tsx apps/deploy-cli/src/index.ts plan",
     "deploy:check": "scripts/deploy-check.sh",
+    "deploy:fresh-check": "node --import tsx scripts/check-fresh-d1.ts",
     "deploy:apply": "scripts/deploy-apply.sh",
     "deploy:verify": "scripts/deploy-verify.sh",
     "deploy:status": "node --import tsx apps/deploy-cli/src/index.ts status",
@@ -41,7 +42,7 @@
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
     "ops": "node --import tsx scripts/vizoalica-ops.ts",
-    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/verify-website.ts scripts/vizoalica-ops.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
+    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/verify-website.ts scripts/vizoalica-ops.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

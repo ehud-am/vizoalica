@@ -21,7 +21,7 @@ describe('deployment preflight', () => {
       { profile: fixture.profilePath, plan: fixture.plan, receipt: fixture.receipt },
       fixture.context
     );
-    expect(value.completedOperations).toHaveLength(5);
+    expect(value.completedOperations).toHaveLength(6);
     expect(value.details?.expiresAt).toBe('2026-09-07T12:15:00.000Z');
   });
 

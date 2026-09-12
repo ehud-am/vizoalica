@@ -108,6 +108,48 @@ describe('approved apply and verify', () => {
     ).resolves.toMatchObject({ status: 'interrupted' });
   });
 
+  it('rejects existing schema during preflight and rechecks before apply', async () => {
+    const fixture = await temporaryDeployment();
+    const plan = join(fixture.directory, 'plan.json');
+    const receipt = join(fixture.directory, 'receipt.json');
+    const planned = await planDeployment(
+      { profile: fixture.profilePath, out: plan },
+      fixture.context
+    );
+    fixture.context.executor = onecliExecutor({
+      'd1 execute': {
+        exitCode: 0,
+        stdout: JSON.stringify([{ results: [{ name: 'projects' }], success: true }]),
+        stderr: '',
+        interrupted: false
+      }
+    });
+    await expect(
+      preflight({ profile: fixture.profilePath, plan, receipt }, fixture.context)
+    ).rejects.toMatchObject({ code: 'existing_schema' });
+
+    fixture.context.executor = onecliExecutor();
+    await preflight({ profile: fixture.profilePath, plan, receipt }, fixture.context);
+    fixture.context.executor = onecliExecutor({
+      'd1 execute': {
+        exitCode: 0,
+        stdout: JSON.stringify([{ results: [{ name: 'd1_migrations' }], success: true }]),
+        stderr: '',
+        interrupted: false
+      }
+    });
+    await expect(
+      applyDeployment(
+        { profile: fixture.profilePath, plan, receipt, approve: planned.planId! },
+        fixture.context
+      )
+    ).rejects.toMatchObject({ code: 'existing_schema' });
+    const calls = (fixture.context.executor as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([request]) => request.args.join(' ')
+    );
+    expect(calls.some((call) => call.includes('migrations apply'))).toBe(false);
+  });
+
   it('verifies only bounded HTTPS health responses', async () => {
     const fixture = await approved();
     await expect(

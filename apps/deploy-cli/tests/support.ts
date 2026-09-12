@@ -70,6 +70,7 @@ export function onecliExecutor(
     if (key.includes('agents credentials'))
       return ok(JSON.stringify([{ connectionId: 'connection-1', provider: 'cloudflare' }]));
     if (key.includes('whoami')) return ok(`account ${accountId}`);
+    if (key.includes('d1 execute')) return ok(JSON.stringify([{ results: [], success: true }]));
     if (key.includes('secret list'))
       return ok(
         JSON.stringify([{ name: 'VIZOALICA_TOKEN_SECRET' }, { name: 'VIZOALICA_ADMIN_SECRET' }])
