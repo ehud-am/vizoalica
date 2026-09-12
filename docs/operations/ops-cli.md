@@ -1,139 +1,115 @@
-# Guided operations CLI
+# Step 2B (US2B) — Set up an operator machine with OneCLI
 
-`pnpm ops` is the shortest supported path for running the private analytics console and deploying
-a Direct Upload Pages website. It stores only non-secret coordinates, explains where every value
-comes from, checks the setup, and requires an exact project-name confirmation before a website
-upload.
+Run US2B **once per operator or data analyst** when OneCLI will inject the Vizoalica administrator
+credential. Use [US2A](local-analytics.md) instead for private local credential storage. Do not
+complete both paths on the same machine.
 
-## Keep the three lanes separate
+## Prerequisites
 
-| Job                                     | Command                                            | Credential path                                                                     |
-| --------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Deploy the ingestion Worker, D1, and R2 | `pnpm deploy:plan`, `deploy:check`, `deploy:apply` | Native Wrangler by default; an approval-gated OneCLI deployment profile is optional |
-| Deploy a Direct Upload Pages website    | `pnpm ops deploy-pages`                            | Native Wrangler only; never wrap this command in `onecli run`                       |
-| Run the private analytics console       | `pnpm ops run`                                     | OneCLI injects only the Worker administrator header                                 |
+- A completed [Cloudflare backend deployment](cloudflare.md) and its US1 handoff.
+- Node.js 22 or newer, pnpm 9, Git, and a current browser.
+- The exact Vizoalica release or commit recorded in the US1 handoff.
+- OneCLI 2.11 or newer, authenticated to the intended project.
+- A dedicated operator agent, a reachable gateway, and authority to attach the Vizoalica
+  administrator secret to that agent.
 
-This separation matters. A Cloudflare deployment credential, the ingest signing secret, and the
-Worker administrator secret have different powers and must not be combined.
+For a self-hosted gateway, use its host-reachable loopback address, normally
+`127.0.0.1:10255`; a Docker-only hostname is not reachable from the operator machine.
 
-## One-time setup
+## Inputs
 
-From the Vizoalica checkout:
+Obtain the Worker HTTPS origin and release/commit from US1. Obtain the OneCLI project slug,
+dedicated agent, and gateway address from OneCLI. Enter `VIZOALICA_ADMIN_SECRET` only in OneCLI's
+protected interface. A project or website ID is not required.
+
+## Security boundary
+
+OneCLI injects the real credential only into HTTPS requests from the local API to the exact Worker
+host. Vizoalica stores the literal placeholder `onecli-managed`, which is not a secret. The browser
+talks only to the loopback API. If the gateway or grant is unavailable, access must **fail closed**;
+never bypass OneCLI by copying the credential into local configuration.
+
+## 1. Prepare the reviewed checkout
 
 ```sh
+git clone https://github.com/ehud-am/vizoalica.git
+cd vizoalica
+git checkout YOUR_US1_COMMIT
+git rev-parse HEAD
 pnpm install --frozen-lockfile
 pnpm ops show
+```
+
+Confirm that the commit matches US1 and that OneCLI is authenticated to the intended project.
+
+## 2. Create the OneCLI credential card
+
+In OneCLI, create a **Generic** secret and attach it only to the dedicated operator agent:
+
+| Field  | Value                                                    |
+| ------ | -------------------------------------------------------- |
+| Name   | `Vizoalica administrator`                                |
+| Host   | Exact Worker hostname, without scheme, path, or wildcard |
+| Header | `Authorization`                                          |
+| Format | `Bearer {value}`                                         |
+| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without the word `Bearer`  |
+
+Restrict the agent to Vizoalica administrator and analytics routes where policy allows. Do not
+attach Cloudflare deployment authority unless the operator separately owns deployment.
+
+## 3. Configure and start
+
+Run the guided setup and omit its optional website values:
+
+```sh
 pnpm ops setup
-```
-
-In an interactive terminal, setup asks one question at a time. Press Enter to accept a displayed
-default or skip an optional verification value. It creates two private files:
-
-- `~/.config/vizoalica/ops.json` contains non-secret URLs, names, paths, and the gateway address.
-- `~/.config/vizoalica/local-operations.json` contains the literal placeholder `onecli-managed`.
-
-The command does not accept an option whose name looks like a secret, token, password,
-authorization value, or API key. Put the real administrator secret only in OneCLI.
-If a different client configuration already exists, setup preserves it and stops; review it before
-using `--replace` intentionally.
-
-### Where to find each answer
-
-| Prompt               | Find it here                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| Worker HTTPS origin  | Cloudflare dashboard → Workers & Pages → ingestion Worker → workers.dev URL                        |
-| OneCLI project slug  | OneCLI dashboard → project                                                                         |
-| OneCLI console agent | OneCLI dashboard → a dedicated agent with only the Vizoalica administrator secret                  |
-| Gateway              | The OneCLI gateway address reachable from the host; local self-hosted default is `127.0.0.1:10255` |
-| Website folder       | Local directory containing the deployed assets and a sibling `functions/` directory                |
-| Asset folder         | `public` for the included example; `.` when `index.html` is at the website root                    |
-| Pages project        | Cloudflare dashboard → Workers & Pages → the exact project name                                    |
-| Production branch    | Pages project settings, normally `main`                                                            |
-| Production origin    | The stable `https://…pages.dev` URL, not a unique preview URL                                      |
-| Analytics Project ID | Local console → website → Integration snippet                                                      |
-| Internal Source ID   | Local console → website → Integration snippet; this is not the public source key                   |
-
-For scripted setup, supply the same non-secret values as flags:
-
-```sh
-pnpm ops setup \
-  --worker-url https://YOUR_WORKER.workers.dev \
-  --project YOUR_ONECLI_PROJECT \
-  --agent YOUR_CONSOLE_AGENT \
-  --gateway 127.0.0.1:10255 \
-  --site-dir /absolute/path/to/your-site \
-  --pages-project YOUR_PAGES_PROJECT \
-  --branch main \
-  --assets-dir .
-```
-
-## Add the OneCLI card
-
-Setup prints the exact non-secret host and agent. In the OneCLI dashboard, create a **Generic**
-secret with:
-
-| Field  | Value                                                                  |
-| ------ | ---------------------------------------------------------------------- |
-| Host   | The printed Worker hostname, without `https://`, a path, or a wildcard |
-| Header | `Authorization`                                                        |
-| Format | `Bearer {value}`                                                       |
-| Value  | The raw `VIZOALICA_ADMIN_SECRET`, without the word `Bearer`            |
-
-Attach it only to the dedicated console agent. Do not paste the value into the CLI or a support
-message. OneCLI 2.11 command output may include agent access material, so do not share unredacted
-agent-list output; rotate an agent token if it has been exposed.
-
-## Check, then run
-
-```sh
 pnpm ops doctor
 pnpm ops run
 ```
 
-Doctor checks Node, OneCLI, the host-reachable gateway, the private client file, and the Worker's
-health endpoint without reading or printing a secret. Run starts both the OneCLI-wrapped loopback
-API and the web console in one terminal. Press Ctrl+C once to stop both.
+Setup creates private `~/.config/vizoalica/ops.json` coordinates and a
+`~/.config/vizoalica/local-operations.json` file containing only `onecli-managed`. It refuses to
+overwrite existing configuration without confirmation. Doctor checks the gateway and Worker
+without printing credentials. Run starts both local processes.
 
-The runner always passes the configured `--gateway` address. A Docker-only hostname such as
-`gateway:10255` is rejected during setup, so no edit to OneCLI's `.env` file is needed for this
-workflow.
+Open the printed `http://127.0.0.1:<port>` URL. Do not expose either process to the network.
 
-## Deploy a Direct Upload website
+## Verify US2B
 
-First ask for the plan. It prints the asset directory, sibling Functions directory, Pages project,
-branch, and authentication path, then stops without making changes:
+1. Open **Websites**. The project list must load; an empty list is success.
+2. If a project exists, open **Overview** and load the `24h` range.
+3. Confirm browser requests go only to the loopback API.
+4. Confirm credentials and authorization headers appear nowhere in files, browser data, or output.
+5. Temporarily stop the gateway or detach the grant; the request must fail closed.
 
-```sh
-pnpm ops deploy-pages
+If verification fails, check the gateway, Worker hostname, header format, secret card, agent
+attachment, OneCLI authentication, and release commit—in that order. Do not disable certificate
+validation or add a direct credential fallback.
+
+## US2B handoff
+
+Record only:
+
+```text
+Story: US2B
+Operator/machine: <redacted label>
+Customer/environment: <label>
+Release/commit: <release and commit>
+Worker origin: https://<worker>.workers.dev
+OneCLI project/agent: <non-secret coordinates>
+Gateway: <host-reachable address>
+Loopback origin: http://127.0.0.1:<port>
+Project listing and fail-closed behavior verified at: <timestamp>
 ```
 
-If the target is correct, repeat the command with the exact project name shown:
+The operator can now [activate a website](pages.md). Never include secret or agent access material.
 
-```sh
-pnpm ops deploy-pages --confirm YOUR_PAGES_PROJECT
-```
+## Revoke access
 
-The command uses the repository's pinned Wrangler version, checks `wrangler whoami`, and uploads
-the assets and sibling `functions/` directory with native Wrangler. When the production origin,
-analytics Project ID, and internal Source ID were provided during setup, it also runs the website
-verification. It never deploys Pages through OneCLI.
+Stop `pnpm ops run`, detach or revoke the operator agent, and move only this machine's two
+Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
+evidence. If exposure is possible, the customer owner must rotate the administrator secret and
+update every remaining operator.
 
-For a Git-connected Pages project, keep using its Git build instead; `deploy-pages` is for Direct
-Upload projects. See the [complete Pages recipe](pages.md) for initial project creation, the shared
-signing secret, SDK installation, and Git-versus-upload details.
-
-## Worker, D1, and R2 deployment
-
-The guided CLI intentionally does not hide infrastructure mutations. Continue to use the reviewed,
-approval-gated workflow:
-
-```sh
-pnpm deploy:plan
-pnpm deploy:check
-pnpm deploy:apply
-pnpm deploy:verify
-```
-
-The [Cloudflare installation guide](cloudflare.md) explains every resource and secret. Use its
-optional OneCLI deployment profile only for Worker/D1/R2 operations, never for Pages uploads or
-the local console agent.
+Revocation does not affect the backend, analytics data, websites, or other operators. A future
+session must be explicitly reauthorized; US2B never falls back to US2A.

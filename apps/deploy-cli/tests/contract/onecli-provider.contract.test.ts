@@ -19,6 +19,7 @@ describe('OneCLI provider contract', () => {
     }
     for (const [operation, timeoutMs] of [
       ['cloudflare.identity.read', 60_000],
+      ['d1.schema.inspect', 60_000],
       ['worker.bundle.dry_run', 120_000],
       ['d1.migrations.apply', 300_000],
       ['worker.deploy', 300_000]
@@ -103,6 +104,9 @@ describe('OneCLI provider contract', () => {
       })
     );
     expect(wranglerArguments('d1.migrations.apply', onecliProfile, target)).toContain('--remote');
+    expect(wranglerArguments('d1.schema.inspect', onecliProfile, target)).toEqual(
+      expect.arrayContaining(['d1', 'execute', target.databaseName, '--remote', '--json'])
+    );
     expect(() => wranglerArguments('worker.health.verify', onecliProfile, target)).toThrow();
   });
 

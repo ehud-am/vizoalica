@@ -1,7 +1,9 @@
 # Vizoalica
 
-Vizoalica is an open-source, Cloudflare-native product analytics foundation for the web.
-It aims to provide Pendo-like visibility into website and product activity while staying inexpensive to deploy, privacy-aware by default, and built on open standards.
+Vizoalica is an open-source, Cloudflare-native product analytics foundation for the web. It
+collects privacy-filtered website activity, stores bounded raw and aggregate data, and provides a
+local analytics and website-management console. It is designed for inexpensive self-hosting and
+uses open event, schema, and authentication standards.
 
 The current work focuses on:
 
@@ -12,7 +14,7 @@ The current work focuses on:
 - short-lived ingest tokens for production traffic;
 - privacy filtering before storage;
 - quota and abuse controls before expensive processing;
-- Cloudflare R2 raw-event storage and bounded D1 dashboard rollups.
+- Cloudflare R2 raw-event storage and bounded D1 dashboard rollups;
 - an on-demand local analytics and website-management console whose browser never owns remote
   credentials.
 
@@ -23,55 +25,45 @@ The current work focuses on:
 
 ## Start here
 
-Follow the **[step-by-step installation guide](docs/operations/cloudflare.md)**. It takes you from
-Cloudflare login to a verified page view, with a check after each step.
+Deploying Vizoalica has three main steps:
 
-For the shortest repeatable path after the ingestion Worker exists, use the
-**[guided operations CLI](docs/operations/ops-cli.md)**. `pnpm ops setup` explains where each
-non-secret value comes from, `pnpm ops doctor` checks the setup, `pnpm ops run` starts the private
-console, and `pnpm ops deploy-pages` safely handles Direct Upload websites.
+1. **Deploy the Cloudflare backend** — run this **once per customer environment**. Follow
+   [Deploy the Vizoalica backend](docs/operations/cloudflare.md) (US1).
+2. **Set up each operator or data analyst's machine** — run this **once per operator**. Choose
+   exactly one guide:
+   - [Without OneCLI](docs/operations/local-analytics.md) (US2A)
+   - [With OneCLI](docs/operations/ops-cli.md) (US2B)
+3. **Activate each website** — run this **once per website**. Follow
+   [Activate a website](docs/operations/pages.md) (US3) to create its website ID in the local
+   console, add the browser SDK and token endpoint, deploy, and verify collection.
 
-1. Deploy the ingestion Worker, D1 database and R2 bucket.
-2. Connect your website using the **[complete Pages example](docs/operations/pages.md)**: build
-   and host the SDK, add the supplied token Function, then verify both.
-3. Open the **[local console](docs/operations/local-analytics.md)** when you need it. Keep its
-   administrator secret in a local OneCLI vault, or use the documented private-file alternative.
-   The console's [dashboard tour](docs/operations/local-analytics.md#dashboard-tour) covers scope
-   and time-range selection, what "Unknown" and "Other" mean, identity modes, theme, and browser
-   support.
+Complete the steps in order. Repeat only step 2 when adding an operator and only step 3 when
+adding a website. Each linked guide is self-contained; do not combine commands from the two
+operator setup options.
 
-The simplest deployment uses Cloudflare login and the included `workers.dev`/`pages.dev` addresses.
-You can use OneCLI for the local console independently of deployment. No custom domain, paid
-Workers subscription, or hosted dashboard is required for a small test. R2 has included usage
-but can charge for excess usage; the guide explains quotas and retention.
+Version 0.5.0 supports **fresh deployments only**. US1 applies one complete schema baseline to a
+new empty D1 database. It does not upgrade, adopt, backfill, preserve, or roll back an existing
+Vizoalica database. Preflight detects existing or ambiguous schema state and stops without changing
+it; select a new empty database rather than deleting the old one.
 
-**Already tried an installation?** Start with [troubleshooting](docs/operations/troubleshooting.md).
-It covers all 18 findings from the first Cloudflare + OneCLI deployment.
+Keep credentials in their intended lanes: Cloudflare deployment authority is separate from the
+Worker administrator credential, and neither belongs in browser code. Website activation uses the
+website's existing Git deployment or an explicit Wrangler upload.
+
+No custom domain, paid Workers subscription, hosted dashboard, or always-on local process is
+required for a small test. Review current Cloudflare pricing and configure retention and usage
+alerts; included usage is not a guaranteed spending cap.
+
+If a checkpoint fails, use [troubleshooting](docs/operations/troubleshooting.md) and resume at that
+story's failed step rather than entering another setup journey.
 
 ## Website integration
 
-The browser SDK and token endpoint live on **your website**; the Worker accepts events.
-After hosting both pieces using the Pages recipe, the local console generates a complete snippet:
-
-```html
-<script
-  async
-  src="/vizoalica.js"
-  data-endpoint="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/v1/events:batch"
-  data-source="YOUR_PUBLIC_SOURCE_KEY"
-  data-project="YOUR_PROJECT_ID"
-  data-token-url="/vizoalica/ingest-token"
-  data-consent="analytics-granted"
-></script>
-```
-
-Load this only after the visitor grants analytics consent. The consent attribute records the
-choice; it does not itself prevent collection. The included example waits for an Allow button.
-Never embed signing secrets or administrator credentials in the website. A static site needs a
-server-side token endpoint; adding the script tag alone does not complete installation.
-
-The SDK queues and sends events asynchronously. Delivery failures should leave the host website
-usable. See the [SDK reference](docs/operations/browser-sdk.md) for custom events and module usage.
+The browser SDK and trusted token endpoint live on your website; the Worker accepts events.
+[Website activation](docs/operations/pages.md) covers registration, deployment, consent, and the
+accepted-event check. After activation, use the [SDK reference](docs/operations/browser-sdk.md)
+for custom events or module integration. Never put signing secrets or administrator credentials
+in browser code.
 
 ## Privacy defaults
 
@@ -80,7 +72,7 @@ Vizoalica avoids collecting sensitive information by default:
 - no raw form values;
 - no passwords, payment data, API keys, cookies, or auth headers;
 - no raw URL query values;
-- no page text, DOM snapshots, heatmaps, or session replay in v0.1.0;
+- no page text, DOM snapshots, heatmaps, or session replay;
 - custom properties are filtered by name, type, count, and value length.
 
 Client-side filtering is convenience, not a trust boundary. The ingestion backend also rejects sensitive-looking payloads before persistence.

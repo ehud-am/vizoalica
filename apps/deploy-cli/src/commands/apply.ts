@@ -3,6 +3,7 @@ import { actorId, option, result } from '../cli.js';
 import { assertCurrentPlan, loadPlan, loadReceipt, validateReceipt } from '../plan.js';
 import { ensureAnalyticsDigest } from '../config.js';
 import { failureForProcess } from '../providers/provider.js';
+import { assertFreshD1Inspection } from '../fresh-schema.js';
 import type { DeploymentResult, OperationId } from '../types.js';
 import { DeploymentFailure } from '../types.js';
 import type { CommandContext } from './shared.js';
@@ -42,6 +43,12 @@ export async function applyDeployment(
       5,
       'correct_account'
     );
+  const schemaInspection = await provider.run(profile, 'd1.schema.inspect', {
+    cwd: context.cwd,
+    target,
+    executor: context.executor
+  });
+  assertFreshD1Inspection(schemaInspection);
   const completed: OperationId[] = [];
   for (const operation of MUTATIONS) {
     let stdin: string | undefined;

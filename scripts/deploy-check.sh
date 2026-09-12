@@ -39,8 +39,9 @@ demo_mode="$(value_for VIZOALICA_DEMO_MODE)"
 pnpm exec wrangler whoami
 pnpm exec wrangler d1 info "$database_name" --config "$config_path" >/dev/null
 pnpm exec wrangler r2 bucket info "$bucket_name" --config "$config_path" >/dev/null
+pnpm run deploy:fresh-check -- "$database_name" "$config_path"
 
-for secret_name in VIZOALICA_TOKEN_SECRET VIZOALICA_ADMIN_SECRET; do
+for secret_name in VIZOALICA_TOKEN_SECRET VIZOALICA_ADMIN_SECRET VIZOALICA_ANALYTICS_DIGEST_SECRET; do
   if ! pnpm exec wrangler secret list --config "$config_path" --format json | grep -q "\"$secret_name\""; then
     fail "Worker secret $secret_name is not configured"
   fi

@@ -7,6 +7,7 @@ import type {
   WranglerTarget
 } from '../types.js';
 import { DeploymentFailure } from '../types.js';
+import { FRESH_SCHEMA_QUERY } from '../fresh-schema.js';
 
 export interface ProviderContext {
   cwd: string;
@@ -42,6 +43,17 @@ export function wranglerArguments(
       return ['whoami'];
     case 'd1.database.read':
       return ['d1', 'info', target.databaseName, ...config];
+    case 'd1.schema.inspect':
+      return [
+        'd1',
+        'execute',
+        target.databaseName,
+        '--remote',
+        ...config,
+        '--command',
+        FRESH_SCHEMA_QUERY,
+        '--json'
+      ];
     case 'r2.bucket.read':
       return ['r2', 'bucket', 'info', target.bucketName, ...config];
     case 'worker.secrets.read':

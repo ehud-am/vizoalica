@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Reproduces the evidence in specs/007-dashboard-visual-refresh/{cost-model,performance-report}.md.
 //
-// Applies migration 0005's exact DDL to an in-memory SQLite database (Node's built-in
-// experimental `node:sqlite`), populates a synthetic 30-day fixture, then runs the real queries
+// Reproduces the dashboard portion of the current fresh D1 baseline in an in-memory SQLite
+// database (Node's built-in experimental `node:sqlite`), populates a synthetic 30-day fixture,
+// then runs the real queries
 // from apps/ingest-worker/src/storage/d1-repositories.ts (getAnalyticsOverview) with
 // EXPLAIN QUERY PLAN and repeated timing, plus an empirical duplicate-event-delivery check
 // against the real recordDashboardRollups write sequence.

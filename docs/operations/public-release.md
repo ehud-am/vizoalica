@@ -16,8 +16,8 @@ operator installation remain separate actions.
 
 ## Project policy
 
-- [ ] Confirm `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, README, changelog, migration guidance,
-      and release notes match the release.
+- [ ] Confirm `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, README, changelog, fresh-deployment
+      boundary, baseline guidance, and release notes match the release.
 - [ ] Confirm the private vulnerability-reporting route works before inviting reports.
 - [ ] Review third-party asset and dependency licensing.
 

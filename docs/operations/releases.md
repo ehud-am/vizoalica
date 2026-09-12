@@ -6,7 +6,7 @@ an installation are separate operations.
 ## Maintainer release
 
 A maintainer release produces an immutable Git tag and GitHub Release with source, release notes,
-checksums for any published assets, and a migration note. It must not contain Cloudflare account
+checksums for any published assets, and a deployment-compatibility note. It must not contain Cloudflare account
 credentials or trigger deployment. Before publishing, run:
 
 ```sh
@@ -28,7 +28,8 @@ console files remain ignored and untracked. Enable GitHub secret scanning and pu
 visibility changes. Use the [public repository checklist](public-release.md) for the owner-controlled
 GitHub settings that remain outside the source release.
 
-Document the release version, commit SHA, compatibility changes, and required migrations. A
+Document the release version, commit SHA, compatibility changes, and whether the release supports
+fresh deployments, forward data migrations, or both. A
 self-hosting operator decides whether and when to use the release.
 
 ## Operator deployment
@@ -38,12 +39,16 @@ supported commands are described in [the Cloudflare operations guide](./cloudfla
 
 There is no automatic deployment on push, merge, tag creation, or GitHub Release publication.
 
-## Release 0.5.0 changes
+## Release 0.5.0 deployment boundary
 
-No new migrations: existing installations must have every file through
-`0005_dashboard_visual_refresh.sql`. The release replaces the console brand and visual system and
-adds `pnpm ops` for guided local-console and Direct Upload Pages operations. It does not deploy an
-operator's Cloudflare resources or alter their credentials.
+Version 0.5.0 supports **fresh deployments only**. A new installation applies the single complete
+`0001_initial.sql` baseline to a new empty D1 database. In-place upgrades, data preservation,
+backfills, and schema rollback are not supported in this release. The backend preflight rejects
+existing or ambiguous Vizoalica schema state without changing it.
+
+The release uses three deployment steps: US1 for the backend, either US2A or US2B for each
+operator, and US3 for each website. It does not deploy an operator's Cloudflare resources or alter
+credentials merely because a source release, tag, or GitHub Release is published.
 
 [Local validation evidence](../../specs/008-modernize-console-design/qa-report.md) distinguishes
 automated checks from human visual and assistive-technology review. A version bump in the checkout

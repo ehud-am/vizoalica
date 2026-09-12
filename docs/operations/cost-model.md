@@ -1,7 +1,7 @@
 # Dashboard cost model
 
-This documents the D1 read/write footprint of the dashboard visual refresh (migration `0005`),
-measured against an in-memory SQLite database built from the migration's exact DDL and a
+This documents the D1 read/write footprint of the dashboard tables in the current fresh schema
+baseline, measured against an in-memory SQLite database built from the same dashboard DDL and a
 synthetic 30-day fixture, plus a per-write-statement count read directly from
 `apps/ingest-worker/src/storage/d1-repositories.ts`. D1 is Cloudflare's managed SQLite, so the
 query planner's index choice (what `EXPLAIN QUERY PLAN` reports below) transfers directly; absolute
@@ -13,7 +13,7 @@ sanity check, not a production SLA.
 
 Reproduce this report's numbers directly: `node scripts/dashboard-performance-fixture.mjs`
 (requires Node >= 22; `node:sqlite` is experimental and prints a harmless warning to stderr).
-`deploy/cloudflare/migrations/0005_dashboard_visual_refresh.sql` was applied verbatim to a
+The dashboard portion of `deploy/cloudflare/migrations/0001_initial.sql` is reproduced in a
 `node:sqlite` in-memory database (Node 22's built-in driver). The fixture models 2 active sources
 in 1 project, 30 days of continuous traffic at minute granularity, with 1-5 page views/minute,
 1-2 distinct values per classification dimension/minute, and 1-2 distinct visitors/minute -
@@ -40,9 +40,9 @@ source-local legacy visitor table and the new minute-visitors table get a row):
 
 | Statement                                                      | Rows written                                                         |
 | -------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `dashboard_rollups` upsert (legacy, kept as compatibility)     | 1                                                                    |
-| `dashboard_hourly_page_views` upsert (legacy)                  | 1                                                                    |
-| `dashboard_hourly_visitors` insert-or-ignore (legacy)          | 1                                                                    |
+| `dashboard_rollups` daily upsert                               | 1                                                                    |
+| `dashboard_hourly_page_views` upsert                           | 1                                                                    |
+| `dashboard_hourly_visitors` insert-or-ignore                   | 1                                                                    |
 | `dashboard_seen_events` insert-or-ignore (idempotency ledger)  | 1                                                                    |
 | `dashboard_minute_totals` upsert                               | 1                                                                    |
 | `dashboard_minute_dimensions` upsert × 8 fixed dimension kinds | 8                                                                    |
@@ -74,37 +74,21 @@ them, measured against the fixture above:
 | Hourly trend, one-site, 24h                                               | 24            | 0 ms                             | indexed search                                                                                                   |
 
 No query plan reports a table `SCAN` against a dashboard table - every one resolves through an
-index seek on the composite primary key or one of the six explicit indexes migration `0005`
-creates. The only `SCAN` in any plan is against `sources` (2 rows in this fixture; still a full
+index seek on the composite primary key or one of the six explicit indexes in the fresh baseline.
+The only `SCAN` in any plan is against `sources` (2 rows in this fixture; still a full
 scan in the query planner's eyes, but bounded by a project's website count, which this product
 already caps operationally). The `COUNT(DISTINCT ...)` and `GROUP BY`/`ORDER BY` queries need a
 temporary B-tree because SQLite/D1 cannot serve deduplication or aggregation ordering directly from
 a B-tree index - that's expected, not a missing-index problem.
 
-## Free-tier implications (verify current limits before relying on this for capacity planning -
+## Capacity planning
 
-Cloudflare's published D1 pricing has changed before and may change again)
-
-Using Cloudflare's documented D1 free-tier daily budgets at the time of writing (see
-[developers.cloudflare.com/d1/platform/pricing](https://developers.cloudflare.com/d1/platform/pricing)):
-
-- **Writes**: at 16 rows/page-view event (single-event batches; fewer per-event at larger batch
-  sizes, see above), a 100,000-rows/day write budget supports roughly **6,250 accepted page-view
-  events/day** before the dashboard's rollup writes alone exhaust it - before counting the
-  ingestion pipeline's own event-storage writes, which are separate from the rollup writes counted
-  here.
-- **Reads**: at 15 statement executions/dashboard request, each touching at most a few dozen rows
-  for a typical single-day range (see the 24h row above) up to roughly 130k rows for a worst-case
-  whole-account 30-day distinct-visitor count, a 5,000,000-rows/day read budget supports several
-  thousand dashboard page loads/day even at the worst-case range, and effectively unlimited
-  practical usage at the default 24h range.
-- **Storage**: at roughly 1.25M total rows across the three growing tables for 30 days of 2
-  active sources in this fixture, and D1's free-tier storage budget measured in gigabytes rather
-  than row count, storage is very unlikely to bind before the write-rate budget does for a site at
-  this traffic level. A much higher-traffic site should re-run
-  [`scripts/dashboard-performance-fixture.mjs`](../../scripts/dashboard-performance-fixture.mjs)
-  (`node scripts/dashboard-performance-fixture.mjs`, requires Node >= 22) at its own expected scale
-  before relying on the free tier - edit its `DAYS`/traffic-shape constants rather than guessing.
+Cloudflare pricing and included usage can change. Compare this report's measured row counts with
+the current [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) instead of relying
+on a copied free-tier number. Include ingestion storage and request costs as well as dashboard
+rollups. For higher traffic, rerun
+[`scripts/dashboard-performance-fixture.mjs`](../../scripts/dashboard-performance-fixture.mjs) at
+the expected scale and configure Cloudflare usage alerts before increasing source quotas.
 
 ## Retention cost
 

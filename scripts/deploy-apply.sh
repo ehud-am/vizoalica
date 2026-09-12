@@ -21,6 +21,7 @@ database_name="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*"\
 }
 
 pnpm run deploy:check
+pnpm run deploy:fresh-check -- "$database_name" "$config_path"
 pnpm exec wrangler d1 migrations apply "$database_name" --remote --config "$config_path"
 pnpm exec wrangler deploy --config "$config_path"
 

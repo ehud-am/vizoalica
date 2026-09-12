@@ -1,6 +1,6 @@
 # Privacy Defaults
 
-Vizoalica v0.1.0 is designed to collect minimal product analytics data by default.
+Vizoalica is designed to collect minimal product analytics data by default.
 
 ## What the browser SDK collects by default
 
