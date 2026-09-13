@@ -28,23 +28,23 @@ The current work focuses on:
 Deploying Vizoalica has three main steps:
 
 1. **Deploy the Cloudflare backend** — run this **once per customer environment**. Follow
-   [Deploy the Vizoalica backend](docs/operations/cloudflare.md) (US1).
+   [Deploy the Vizoalica backend](docs/operations/cloudflare.md).
 2. **Set up each operator or data analyst's machine** — run this **once per operator**. Choose
    exactly one guide:
-   - [Without OneCLI](docs/operations/local-analytics.md) (US2A)
-   - [With OneCLI](docs/operations/ops-cli.md) (US2B)
+   - [Without OneCLI](docs/operations/local-analytics.md)
+   - [With OneCLI](docs/operations/ops-cli.md)
 3. **Activate each website** — run this **once per website**. Follow
-   [Activate a website](docs/operations/pages.md) (US3) to create its website ID in the local
+   [Activate a website](docs/operations/pages.md) to create its website ID in the local
    console, add the browser SDK and token endpoint, deploy, and verify collection.
 
 Complete the steps in order. Repeat only step 2 when adding an operator and only step 3 when
 adding a website. Each linked guide is self-contained; do not combine commands from the two
 operator setup options.
 
-Version 0.5.0 supports **fresh deployments only**. US1 applies one complete schema baseline to a
-new empty D1 database. It does not upgrade, adopt, backfill, preserve, or roll back an existing
-Vizoalica database. Preflight detects existing or ambiguous schema state and stops without changing
-it; select a new empty database rather than deleting the old one.
+Version 0.5.0 supports **fresh deployments only**. Backend deployment applies one complete schema
+baseline to a new empty D1 database. It does not upgrade, adopt, backfill, preserve, or roll back an
+existing Vizoalica database. Preflight detects existing or ambiguous schema state and stops without
+changing it; select a new empty database rather than deleting the old one.
 
 Keep credentials in their intended lanes: Cloudflare deployment authority is separate from the
 Worker administrator credential, and neither belongs in browser code. Website activation uses the

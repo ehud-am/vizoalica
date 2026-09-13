@@ -1,7 +1,8 @@
 # Browser SDK
 
 This is the advanced SDK reference. For a complete registration, trusted token issuer, deployment,
-consent, accepted-event check, and removal flow, run [US3](pages.md) once per website.
+consent, accepted-event check, and removal flow, follow [website activation](pages.md) once per
+website.
 
 Build the standalone bundle with `pnpm browser-sdk:build`, then host
 `packages/browser-sdk/dist/vizoalica.js` on your **website**. The ingestion Worker does not serve

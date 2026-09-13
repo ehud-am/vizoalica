@@ -5,13 +5,7 @@ async function text(path: string): Promise<string> {
   return readFile(path, 'utf8');
 }
 
-function expectJourney(
-  content: string,
-  story: string,
-  frequency: RegExp,
-  requiredSections: string[]
-): void {
-  expect(content).toContain(story);
+function expectJourney(content: string, frequency: RegExp, requiredSections: string[]): void {
   expect(content).toMatch(frequency);
   for (const section of requiredSections) expect(content).toContain(section);
 }
@@ -20,10 +14,6 @@ describe('deployment documentation contract', () => {
   it('makes README the authoritative three-step deployment selector', async () => {
     const readme = await text('README.md');
     expect(readme).toContain('Deploying Vizoalica has three main steps');
-    expect(readme).toContain('US1');
-    expect(readme).toContain('US2A');
-    expect(readme).toContain('US2B');
-    expect(readme).toContain('US3');
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/ops-cli.md)');
@@ -34,56 +24,69 @@ describe('deployment documentation contract', () => {
     expect(readme).toMatch(/fresh deployments only/i);
   });
 
-  it('defines US1 as a complete fresh customer-backend journey', async () => {
+  it('defines a complete fresh customer-backend journey', async () => {
     const guide = await text('docs/operations/cloudflare.md');
-    expectJourney(guide, 'US1', /once per customer/i, [
+    expectJourney(guide, /once per customer/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
-      '## Verify US1',
-      '## US1 handoff',
+      '## Verify deployment health',
+      '## Backend handoff',
       '## Recovery and removal'
     ]);
     expect(guide).toMatch(/fresh deployments only/i);
     expect(guide).toMatch(/existing schema/i);
+    expect(guide).toContain('git checkout YOUR_APPROVED_TAG_OR_COMMIT');
+    expect(guide).toContain('pnpm build');
+    expect(guide).toContain('SELECT name FROM d1_migrations ORDER BY id;');
+    expect(guide).toMatch(/second reports only unapplied migration files/i);
+    expect(guide).toMatch(/health route does not access D1/i);
   });
 
-  it('defines US2A as the complete direct-credential workstation journey', async () => {
+  it('explains how to recover an unusable Wrangler login', async () => {
+    const guide = await text('docs/operations/troubleshooting.md');
+    expect(guide).toMatch(/wrangler says login is required/i);
+    expect(guide).toContain('pnpm exec wrangler login');
+    expect(guide).toContain('pnpm exec wrangler whoami');
+    expect(guide).toMatch(/interactive terminal/i);
+  });
+
+  it('defines the complete direct-credential workstation journey', async () => {
     const guide = await text('docs/operations/local-analytics.md');
-    expectJourney(guide, 'US2A', /once per operator/i, [
+    expectJourney(guide, /once per operator/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
-      '## Verify US2A',
-      '## US2A handoff',
+      '## Verify the operator setup',
+      '## Operator handoff',
       '## Stop or remove access'
     ]);
     expect(guide).toMatch(/without OneCLI/i);
     expect(guide).not.toMatch(/onecli run/i);
   });
 
-  it('defines US2B as the complete OneCLI workstation journey', async () => {
+  it('defines the complete OneCLI workstation journey', async () => {
     const guide = await text('docs/operations/ops-cli.md');
-    expectJourney(guide, 'US2B', /once per operator/i, [
+    expectJourney(guide, /once per operator/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
-      '## Verify US2B',
-      '## US2B handoff',
+      '## Verify the operator setup',
+      '## Operator handoff',
       '## Revoke access'
     ]);
     expect(guide).toContain('onecli-managed');
     expect(guide).toMatch(/fail closed/i);
   });
 
-  it('defines US3 as a repeatable, complete website journey', async () => {
+  it('defines a repeatable, complete website journey', async () => {
     const guide = await text('docs/operations/pages.md');
-    expectJourney(guide, 'US3', /once per website/i, [
+    expectJourney(guide, /once per website/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
-      '## Verify US3',
-      '## US3 handoff',
+      '## Verify website activation',
+      '## Website handoff',
       '## Rotate or remove'
     ]);
     expect(guide).toMatch(/consent/i);
@@ -99,7 +102,9 @@ describe('deployment documentation contract', () => {
         'docs/operations/local-analytics.md',
         'docs/operations/ops-cli.md',
         'docs/operations/pages.md',
+        'docs/operations/browser-sdk.md',
         'docs/operations/cost-model.md',
+        'docs/operations/privacy.md',
         'docs/operations/releases.md',
         'docs/operations/public-release.md',
         'docs/operations/troubleshooting.md',
@@ -107,6 +112,7 @@ describe('deployment documentation contract', () => {
       ].map(text)
     );
     const combined = active.join('\n');
+    expect(combined).not.toMatch(/\bUS(?:1|2A|2B|3)\b/i);
     expect(combined).not.toMatch(
       /0002_admin_mcp|0003_dashboard|0004_local_operations|0005_dashboard_visual_refresh/
     );

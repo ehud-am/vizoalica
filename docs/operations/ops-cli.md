@@ -1,14 +1,14 @@
-# Step 2B (US2B) — Set up an operator machine with OneCLI
+# Set up an operator machine with OneCLI
 
-Run US2B **once per operator or data analyst** when OneCLI will inject the Vizoalica administrator
-credential. Use [US2A](local-analytics.md) instead for private local credential storage. Do not
-complete both paths on the same machine.
+Run this guide **once per operator or data analyst** when OneCLI will inject the Vizoalica
+administrator credential. Use [the direct setup](local-analytics.md) instead for private local
+credential storage. Do not complete both paths on the same machine.
 
 ## Prerequisites
 
-- A completed [Cloudflare backend deployment](cloudflare.md) and its US1 handoff.
+- A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
 - Node.js 22 or newer, pnpm 9, Git, and a current browser.
-- The exact Vizoalica release or commit recorded in the US1 handoff.
+- The exact Vizoalica release or commit recorded in the backend handoff.
 - OneCLI 2.11 or newer, authenticated to the intended project.
 - A dedicated operator agent, a reachable gateway, and authority to attach the Vizoalica
   administrator secret to that agent.
@@ -18,7 +18,7 @@ For a self-hosted gateway, use its host-reachable loopback address, normally
 
 ## Inputs
 
-Obtain the Worker HTTPS origin and release/commit from US1. Obtain the OneCLI project slug,
+Obtain the Worker HTTPS origin and release/commit from the backend handoff. Obtain the OneCLI project slug,
 dedicated agent, and gateway address from OneCLI. Enter `VIZOALICA_ADMIN_SECRET` only in OneCLI's
 protected interface. A project or website ID is not required.
 
@@ -40,7 +40,8 @@ pnpm install --frozen-lockfile
 pnpm ops show
 ```
 
-Confirm that the commit matches US1 and that OneCLI is authenticated to the intended project.
+Confirm that the commit matches the backend handoff and that OneCLI is authenticated to the
+intended project.
 
 ## 2. Create the OneCLI credential card
 
@@ -74,7 +75,7 @@ without printing credentials. Run starts both local processes.
 
 Open the printed `http://127.0.0.1:<port>` URL. Do not expose either process to the network.
 
-## Verify US2B
+## Verify the operator setup
 
 1. Open **Websites**. The project list must load; an empty list is success.
 2. If a project exists, open **Overview** and load the `24h` range.
@@ -86,12 +87,12 @@ If verification fails, check the gateway, Worker hostname, header format, secret
 attachment, OneCLI authentication, and release commit—in that order. Do not disable certificate
 validation or add a direct credential fallback.
 
-## US2B handoff
+## Operator handoff
 
 Record only:
 
 ```text
-Story: US2B
+Credential method: OneCLI
 Operator/machine: <redacted label>
 Customer/environment: <label>
 Release/commit: <release and commit>
@@ -112,4 +113,4 @@ evidence. If exposure is possible, the customer owner must rotate the administra
 update every remaining operator.
 
 Revocation does not affect the backend, analytics data, websites, or other operators. A future
-session must be explicitly reauthorized; US2B never falls back to US2A.
+session must be explicitly reauthorized; OneCLI setup never falls back to a local credential.

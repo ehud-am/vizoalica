@@ -1,19 +1,19 @@
-# Step 2A (US2A) — Set up an operator machine without OneCLI
+# Set up an operator machine without OneCLI
 
-Run US2A **once per operator or data analyst** who will store the Vizoalica administrator
-credential in a private local file. Use [US2B](ops-cli.md) instead when OneCLI manages the
-credential. Do not complete both paths on the same machine.
+Run this guide **once per operator or data analyst** who will store the Vizoalica administrator
+credential in a private local file. Use [the OneCLI setup](ops-cli.md) instead when OneCLI manages
+the credential. Do not complete both paths on the same machine.
 
 ## Prerequisites
 
-- A completed [Cloudflare backend deployment](cloudflare.md) and its US1 handoff.
+- A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
 - Node.js 22 or newer, pnpm 9, Git, and a current browser.
-- The exact Vizoalica release or commit recorded in the US1 handoff.
+- The exact Vizoalica release or commit recorded in the backend handoff.
 - Permission to obtain and store the administrator credential on this machine.
 
 ## Inputs
 
-From the US1 handoff, obtain the Worker HTTPS origin, release/commit, customer label, and
+From the backend handoff, obtain the Worker HTTPS origin, release/commit, customer label, and
 `VIZOALICA_ADMIN_SECRET`. Only the secret is sensitive. A project or website ID is not required;
 an empty project list is normal on a fresh backend.
 
@@ -36,7 +36,7 @@ mkdir -p "$HOME/.config/vizoalica"
 chmod 700 "$HOME/.config/vizoalica"
 ```
 
-Confirm that `git rev-parse HEAD` matches the US1 handoff.
+Confirm that `git rev-parse HEAD` matches the backend handoff.
 
 ## 2. Create the private configuration
 
@@ -71,7 +71,7 @@ pnpm admin-web:dev
 Open the printed `http://127.0.0.1:<port>` URL. Use that exact origin; `localhost` and
 `127.0.0.1` are different browser origins.
 
-## Verify US2A
+## Verify the operator setup
 
 1. Open **Websites**. The project list must load; an empty list is success.
 2. If a project exists, open **Overview** and load the `24h` range.
@@ -81,12 +81,12 @@ Open the printed `http://127.0.0.1:<port>` URL. Use that exact origin; `localhos
 If verification fails, check the Worker origin, file ownership and mode, credential freshness,
 browser origin, and release commit—in that order. Do not weaken origin checks or network binding.
 
-## US2A handoff
+## Operator handoff
 
 Record only:
 
 ```text
-Story: US2A
+Credential method: Private local file
 Operator/machine: <redacted label>
 Customer/environment: <label>
 Release/commit: <release and commit>

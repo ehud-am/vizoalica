@@ -1,15 +1,17 @@
-# Step 1 (US1) — Deploy the Vizoalica backend on Cloudflare
+# Deploy the Vizoalica backend on Cloudflare
 
-Run US1 **once per customer environment**. It creates and verifies the shared Vizoalica ingestion
+Run this guide **once per customer environment**. It creates and verifies the shared ingestion
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
 
-This release supports **fresh deployments only**. US1 does not preserve, adopt, or modify an
-existing Vizoalica schema. The preflight stops if the selected D1 database contains a Vizoalica
-table or migration record. Select a new empty database; do not delete or alter the existing one.
+This release supports **fresh deployments only**. Backend deployment does not preserve, adopt, or
+modify an existing Vizoalica schema. The preflight stops if the selected D1 database contains a
+Vizoalica table or migration record. Select a new empty database; do not delete or alter the
+existing one.
 
-US1 does not configure an operator machine or connect a website. Its final handoff supplies the
-inputs for [US2A](local-analytics.md), [US2B](ops-cli.md), and [US3](pages.md).
+This guide does not configure an operator machine or connect a website. Its final handoff supplies
+the inputs for [operator setup without OneCLI](local-analytics.md),
+[operator setup with OneCLI](ops-cli.md), and [website activation](pages.md).
 
 ## Prerequisites
 
@@ -18,8 +20,7 @@ inputs for [US2A](local-analytics.md), [US2B](ops-cli.md), and [US3](pages.md).
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
   within an included allowance.
-- A password manager that can generate and retain three unrelated random values of at least 32
-  characters.
+- A password manager with a cryptographically secure random-password generator.
 - Authority to approve resource creation and the deployment target.
 
 Allow one setup session. Stop at the first failed **Check** and use
@@ -38,13 +39,7 @@ Record these non-secret choices before starting:
 | R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
 | Release                    | `v0.5.0`            | Use one reviewed checkout for setup and later operators |
 
-Prepare these secret values in the password manager, but never write them in this table:
-
-| Secret name                         | Purpose                                  | Later recipient                          |
-| ----------------------------------- | ---------------------------------------- | ---------------------------------------- |
-| `VIZOALICA_TOKEN_SECRET`            | Signs short-lived website ingest tokens  | Trusted server component in each US3 run |
-| `VIZOALICA_ADMIN_SECRET`            | Authorizes administration and analytics  | Each operator through US2A or US2B       |
-| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | Creates non-reversible analytics digests | Worker only                              |
+Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
 ## Security boundary
 
@@ -58,22 +53,60 @@ For the simplest path, use Cloudflare-native authentication in a normal terminal
 [approval-gated profile path](#optional-approval-gated-deployment-profile). Never switch paths as an
 automatic fallback.
 
-## 1. Prepare the checkout
+## 1. Generate and save the three secrets
+
+Generate three separate, unrelated cryptographically random strings. Do not invent memorable
+values, derive one secret from another, or reuse a password or secret from another system.
+
+For each secret, use one of these formats:
+
+- **Recommended:** 256 random bits encoded as 43 unpadded base64url characters. The allowed
+  characters are `A–Z`, `a–z`, `0–9`, `_`, and `-`.
+- **Also recommended:** 256 random bits encoded as 64 hexadecimal characters (`0–9` and `a–f`).
+- **Minimum:** 32 randomly generated characters. This satisfies the deployment guide's minimum,
+  but 43 base64url characters or 64 hexadecimal characters provides a clear 256-bit target.
+
+Values must contain no spaces or line breaks. Wrangler treats them as opaque strings, so do not
+add quotes, a variable name, or a `Bearer` prefix to the stored value.
+
+In the password manager, configure the random-password generator for 43–64 characters using one
+of the character sets above. Generate and save each value under its exact name before opening a
+Wrangler prompt:
+
+| Secret name                         | Purpose                                  | Later destination                        |
+| ----------------------------------- | ---------------------------------------- | ---------------------------------------- |
+| `VIZOALICA_TOKEN_SECRET`            | Signs short-lived website ingest tokens  | Trusted token issuer for each website    |
+| `VIZOALICA_ADMIN_SECRET`            | Authorizes administration and analytics  | Approved operators through either setup  |
+| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | Creates non-reversible analytics digests | Worker only; never shared with operators |
+
+Retain all three password-manager records. Keep every value different.
+
+**Check:** all three records exist, their values satisfy one format above, and none appears in a
+repository file, terminal command, note, or support message.
+
+## 2. Prepare the checkout
+
+Replace `YOUR_APPROVED_TAG_OR_COMMIT` with the release tag or commit approved for this deployment.
+Do not deploy an arbitrary moving branch.
 
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git
 cd vizoalica
+git checkout YOUR_APPROVED_TAG_OR_COMMIT
 git rev-parse HEAD
 pnpm install --frozen-lockfile
+pnpm build
 cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
 ```
 
-Use a maintainer-approved tag or commit when one has been published; otherwise record the reviewed
-commit printed above. `wrangler.production.toml` is ignored by Git. Edit only that private copy.
+Record the exact commit printed by `git rev-parse HEAD`. The build is required because workspace
+packages are consumed through their compiled output during the Worker build.
+`wrangler.production.toml` is ignored by Git; edit only that private copy.
 
-**Check:** `git status --short` does not list the production configuration or a secret file.
+**Check:** `pnpm build` succeeds, the printed commit matches the approved release, and
+`git status --short` does not list the production configuration or a secret file.
 
-## 2. Authenticate and create fresh resources
+## 3. Authenticate and create fresh resources
 
 ```sh
 pnpm exec wrangler login
@@ -106,7 +139,11 @@ Keep the binding names, `migrations_dir`, cron trigger, request limit, and
 
 **Check:** the account, names, and D1 ID all match live resources, and no `REPLACE_…` value remains.
 
-## 3. Store the Worker secrets
+If `whoami` reports that authentication is missing or unusable, rerun
+`pnpm exec wrangler login` in an interactive terminal, complete the browser authorization, and
+repeat `pnpm exec wrangler whoami` before continuing.
+
+## 4. Store the Worker secrets
 
 Retrieve each value from the password manager and paste it only into Wrangler's hidden prompt:
 
@@ -117,7 +154,7 @@ pnpm exec wrangler secret put VIZOALICA_ANALYTICS_DIGEST_SECRET --config deploy/
 ```
 
 Wrangler may offer to create the Worker shell before storing the first secret. Accept only if the
-displayed account and Worker name match the reviewed US1 target.
+displayed account and Worker name match the reviewed backend target.
 
 ```sh
 pnpm exec wrangler secret list --config deploy/cloudflare/wrangler.production.toml
@@ -126,7 +163,7 @@ pnpm exec wrangler secret list --config deploy/cloudflare/wrangler.production.to
 **Check:** all three secret names appear. The values are never displayed. Retain the token-signing
 and administrator values in the password manager for their later, narrowly scoped handoffs.
 
-## 4. Review the fresh baseline and preflight
+## 5. Review the fresh baseline and preflight
 
 This release has one complete schema baseline:
 `deploy/cloudflare/migrations/0001_initial.sql`. It creates the current schema directly on an empty
@@ -136,15 +173,18 @@ database. It is not an in-place data migration.
 pnpm deploy:check
 ```
 
-The check confirms the account, D1 and R2 targets, all Worker secret names, an empty D1 schema, and
-a valid Worker build. Its D1 inspection is read-only. Any existing or ambiguous Vizoalica schema
-state stops the check with no schema mutation.
+The check prints the authenticated identity, confirms that the configured D1 name and R2 bucket
+exist, confirms all Worker secret names, inspects the D1 schema for freshness, and performs a
+Worker dry-run build. It cannot decide whether those resources are the customer's intended target;
+that is why the account, names, and D1 ID must be compared in step 3. Its D1 inspection is
+read-only. Any existing or ambiguous Vizoalica schema state stops the check with no schema
+mutation.
 
 **Check:** the command reports both `fresh D1 database confirmed` and `deploy preflight passed`.
 If it reports existing schema, select a new empty D1 database and update both its name and ID in the
 private configuration.
 
-## 5. Apply and deploy
+## 6. Apply and deploy
 
 ```sh
 pnpm deploy:apply
@@ -154,14 +194,22 @@ Apply reruns the complete preflight and then repeats the fresh-D1 check immediat
 the baseline. It deploys the Worker only after the baseline succeeds.
 
 ```sh
-pnpm exec wrangler d1 migrations list vizoalica-config --remote --config deploy/cloudflare/wrangler.production.toml
+pnpm exec wrangler d1 execute vizoalica-config \
+  --remote \
+  --config deploy/cloudflare/wrangler.production.toml \
+  --command "SELECT name FROM d1_migrations ORDER BY id;"
+pnpm exec wrangler d1 migrations list vizoalica-config \
+  --remote \
+  --config deploy/cloudflare/wrangler.production.toml
 ```
 
 Replace `vizoalica-config` if you chose another name.
 
-**Check:** only `0001_initial.sql` is recorded and no migration remains pending.
+**Check:** the SQL query returns exactly one recorded name, `0001_initial.sql`, and the migration
+list reports that there are no migrations to apply. The first command proves the baseline was
+recorded; the second reports only unapplied migration files.
 
-## 6. Configure retention and cost controls
+## 7. Configure retention and cost controls
 
 In the R2 dashboard, add a lifecycle rule that expires the `events/` prefix after seven days for
 the initial installation. D1's source retention value does not delete R2 objects. Review current
@@ -175,7 +223,7 @@ account bill.
 **Check:** the R2 lifecycle rule targets only this environment's event prefix and account alerts go
 to the intended customer owner.
 
-## Verify US1
+## Verify deployment health
 
 Copy the Worker origin shown by Wrangler, without a trailing slash:
 
@@ -184,20 +232,24 @@ export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
 pnpm deploy:verify
 ```
 
-**Check:** `/healthz` reports healthy. This proves US1 only; it does not prove operator access or
-website collection.
+**Check:** the command reports that `/healthz` returned HTTP success with `"ok":true`. This proves
+only that the deployed Worker starts and answers over HTTPS. The health route does not access D1
+or R2 and does not prove administrator access, token validation, event persistence, or website
+collection.
 
-Also verify that an unsigned request, malformed batch, and oversized batch are rejected without
-creating an accepted raw batch. Privacy behavior is documented in
-[privacy operations](privacy.md). For capacity planning, see the
+The recorded-baseline query above verifies D1 schema installation. Operator setup separately
+verifies authenticated administration. [Website activation](pages.md) is the first end-to-end
+ingestion test: it creates a source, obtains a signed token, requires a **202** response, confirms
+the aggregate in the console, and checks that the website remains usable if analytics fails.
+Privacy behavior is documented in [privacy operations](privacy.md). For capacity planning, see the
 [dashboard cost model](cost-model.md).
 
-## US1 handoff
+## Backend handoff
 
 Record this redacted handoff for the customer. Do not include secret values:
 
 ```text
-Story: US1
+Deployment: Cloudflare backend
 Customer/environment: <label>
 Release/commit: <release and commit>
 Cloudflare account: <redacted label and last identifying characters if needed>
@@ -207,18 +259,18 @@ R2 bucket name: <name>
 Baseline: 0001_initial.sql applied
 Health verified at: <timestamp>
 R2 lifecycle/usage alerts: <verified or outstanding>
-Secret locations: token signing=<password-manager record>; administrator=<password-manager record>
+Secret locations: token signing=<record>; administrator=<record>; analytics digest=<record>
 ```
 
 Give each operator the Worker origin, release identity, and an approved way to obtain the
 administrator credential:
 
-- [US2A — direct local credential](local-analytics.md), once for an operator who manages it in a
-  private local file; or
-- [US2B — OneCLI local credential](ops-cli.md), once for an operator whose organization injects it
+- [Direct local credential](local-analytics.md), once for an operator who manages it in a private
+  local file; or
+- [OneCLI-managed credential](ops-cli.md), once for an operator whose organization injects it
   through OneCLI.
 
-After one operator is verified, run [US3 — connect a website](pages.md) once for each website.
+After one operator is verified, [activate a website](pages.md) once for each website.
 
 ## Optional approval-gated deployment profile
 
@@ -251,7 +303,8 @@ pnpm deploy:status -- --profile /private/path/vizoalica-profile.json --plan-id E
 ```
 
 The profile runner removes ambient Cloudflare credentials and never falls back to native login.
-The OneCLI deployment connection is unrelated to the OneCLI administrator credential used in US2B.
+The OneCLI deployment connection is unrelated to the OneCLI administrator credential used for an
+operator machine.
 
 ## Recovery and removal
 
@@ -269,4 +322,4 @@ The OneCLI deployment connection is unrelated to the OneCLI administrator creden
   operator path. Revoke affected OneCLI agents or remove affected direct local files.
 - **Removal:** teardown is a separate destructive customer-owner decision. First revoke access and
   export anything the owner is required to retain; then obtain distinct approval for the exact
-  Worker, D1 database, and R2 bucket. US1 automation never deletes them.
+  Worker, D1 database, and R2 bucket. Backend automation never deletes them.
