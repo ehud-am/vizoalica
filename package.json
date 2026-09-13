@@ -25,6 +25,8 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "validate": "pnpm typecheck && pnpm test",
+    "generate:deploy-workflow": "node scripts/generate-deploy-workflow.mjs",
+    "generate:deploy-workflow:check": "node scripts/generate-deploy-workflow.mjs --check",
     "deploy:configure": "node --import tsx apps/deploy-cli/src/index.ts configure",
     "deploy:plan": "node --import tsx apps/deploy-cli/src/index.ts plan",
     "deploy:check": "scripts/deploy-check.sh",

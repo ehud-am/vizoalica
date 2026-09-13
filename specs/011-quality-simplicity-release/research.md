@@ -35,16 +35,22 @@ since the file is created and destroyed entirely inside the ephemeral CI job.
 ## Unknown 2: How do the versioned Pages Functions (`config.json.ts`, `ingest-token.ts`) and the
 loader script reach a customer repo without the customer hand-copying source?
 
-**Decision**: The reusable workflow adds a second `actions/checkout` step that checks out this
-project (`ehud-am/vizoalica`) at the same ref the customer pinned in their `uses:` line, then
-copies `examples/cloudflare-pages/functions/vizoalica/*.ts` and
-`examples/cloudflare-pages/public/vizoalica-loader.js` into the customer's build output alongside
-their own site files before `wrangler pages deploy` runs.
+**Decision (revised after live testing)**: The original design added a second `actions/checkout`
+step to check out `ehud-am/vizoalica` from inside the customer's job. Testing against a real
+customer repo (`ehud-am/vizoalica-sample`) proved this does not work: `actions/checkout`'s default
+`GITHUB_TOKEN` never carries cross-repo access to a private source repository from within a
+reusable workflow's job, even after granting `access_level: user` for the reusable-workflow call
+itself (that setting only governs which repos may *resolve* the `workflow_call`, it does not grant
+`actions/checkout` read access to the called repo's contents). The actual implementation instead
+embeds the three files' content, base64-encoded, directly inside `deploy-vizoalica-pages.yml`
+itself (which the caller's job already has, since `workflow_call` resolution succeeded), decoded
+by a `run:` step. `scripts/generate-deploy-workflow.mjs` regenerates that embedded block from the
+real source files under `examples/cloudflare-pages/`, and CI (`pnpm run
+generate:deploy-workflow:check`) fails the build if they drift apart.
 
-**Rationale**: This keeps a single source of truth for the Functions/loader (this repo), keeps
-them versioned by the same Git ref the customer already pins for the workflow itself (no separate
-package-version drift to track), and needs no new publishing pipeline (npm package, CDN release
-asset). It reuses `actions/checkout`, which every workflow already has available.
+**Rationale**: Works today without requiring `ehud-am/vizoalica` to be public and without handing
+customers a second credential just to read three small files. The generator + CI check keeps a
+single source of truth despite the duplication, at the cost of a slightly larger workflow file.
 
 **Alternatives considered**:
 - *Publish `functions/vizoalica/*` and the loader as an npm package customers `npm install`*:
@@ -52,10 +58,19 @@ asset). It reuses `actions/checkout`, which every workflow already has available
   to two small files, and customer repos may not use npm at all (a plain static site has no
   `package.json`). Rejected for this release; can be revisited later without changing the
   workflow's external contract.
-- *Fetch the files via pinned `raw.githubusercontent.com` URLs at deploy time*: avoids a second
-  checkout, but is slower to reason about (network fetch mid-job, no built-in ref-pinning
-  guarantee the way `actions/checkout`'s `ref:` input gives), and doesn't benefit from Git's own
-  integrity guarantees. Rejected in favor of the second-checkout approach.
+- *Fetch the files via pinned `raw.githubusercontent.com` URLs at deploy time*: works only if the
+  repo is public (raw.githubusercontent.com does not serve private-repo content without a token
+  either), so it doesn't solve the actual problem while adding a mid-job network dependency.
+  Rejected.
+- *Have the customer supply a fine-grained PAT scoped to read `ehud-am/vizoalica`, passed to
+  `actions/checkout`'s `token:` input*: would work, but forces every customer to mint and rotate
+  an extra credential just to read three small, non-secret files. Rejected as disproportionate;
+  revisit only if the embedded-file approach becomes unwieldy (e.g., if the vendored surface grows
+  much larger).
+- *Make `ehud-am/vizoalica` public*: would also solve this (and the reusable-workflow resolution
+  problem) with no workflow changes at all, and is the project's long-term direction per the
+  constitution's open-source principle — but the user does not want that dependency at this stage,
+  so the embedded-file approach stands independent of the repo's visibility.
 
 ## Unknown 3: What is the minimum Cloudflare API token scope the workflow needs?
 

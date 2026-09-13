@@ -37,6 +37,9 @@ jobs:
         with:
           fail_level: error
 
+      - name: Check the deploy workflow's embedded Functions are up to date
+        run: pnpm run generate:deploy-workflow:check
+
       - name: Check formatting
         run: pnpm format:check
 

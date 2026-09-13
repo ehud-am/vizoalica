@@ -38,12 +38,19 @@ jobs:
 
 ## Behavior contract
 
-1. On trigger, checks out the caller's repo and this project's repo at the pinned ref.
+1. On trigger, checks out the caller's own repository. It does **not** check out this (private)
+   project's repository — a reusable workflow's `GITHUB_TOKEN` never carries cross-repo access to
+   a private source repo, even one owned by the same account that granted this workflow's
+   `access_level: user` reusable-workflow permission (that setting only controls which repos may
+   *resolve* the `workflow_call`, not what `actions/checkout` can read).
 2. Validates every required variable/secret is present and non-empty; on any missing/malformed
    value, fails the job with a message naming exactly which one, before any deploy action runs
    (FR-004). No partial or insecure deploy is attempted.
-3. Copies `functions/vizoalica/{config.json.ts,ingest-token.ts}` and `vizoalica-loader.js` from
-   this project's pinned ref into the caller's build output under `site-directory`.
+3. Writes `functions/vizoalica/{config.json.ts,ingest-token.ts}` and `vizoalica-loader.js` into
+   the caller's build output under `site-directory`, decoded from a base64 copy embedded directly
+   in this workflow file (kept in sync with the real source under
+   `examples/cloudflare-pages/` by `pnpm run generate:deploy-workflow`, enforced in this
+   project's own CI).
 4. Generates an ephemeral `wrangler.toml` (not committed, exists only in the job's workspace)
    populating `[vars]` from the required variables above.
 5. Runs `wrangler pages secret put VIZOALICA_TOKEN_SECRET` against the target Pages project
@@ -51,6 +58,13 @@ jobs:
 6. Runs `wrangler pages deploy <site-directory> --project-name <CF_PAGES_PROJECT>`.
 7. On success, the job output includes the deployed URL. On failure at any step, the job fails
    with the underlying `wrangler`/Cloudflare error surfaced, not swallowed.
+
+## One-time setup on this project's side (owner of `ehud-am/vizoalica`)
+
+Because this repository is private, any customer repository that calls this reusable workflow
+must first be granted access: `gh api -X PUT repos/ehud-am/vizoalica/actions/permissions/access -f access_level=user`
+(repos owned by the same personal account) once per Cloudflare account owner, or the repo can be
+made public later with no change to the contract above.
 
 ## Backward compatibility
 
