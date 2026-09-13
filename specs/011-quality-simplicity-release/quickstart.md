@@ -6,8 +6,9 @@
   it exists — Pages project creation itself stays a one-time manual/console step, not automated
   by this workflow, consistent with the constitution's "MUST NOT silently create resources").
 - `CF_API_TOKEN` (Pages:Edit scope) and `CF_ACCOUNT_ID` available.
-- A test website repository (can be a throwaway repo, or — with the user's explicit go-ahead per
-  the plan — `ehud-am/gitlocal`'s `docs/` folder).
+- A dedicated vizoalica sample/test website repository, kept separate from any unrelated product's
+  repository (e.g. `ehud-am/vizoalica-sample`), so vizoalica's own testing never cross-references
+  another initiative's repo or Cloudflare resources.
 - Local `wrangler` (`pnpm exec wrangler --version`) and `gh` (`gh auth status`) already
   authenticated, as confirmed available in this environment.
 

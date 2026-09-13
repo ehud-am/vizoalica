@@ -49,9 +49,9 @@ asset). It reuses `actions/checkout`, which every workflow already has available
 **Alternatives considered**:
 - *Publish `functions/vizoalica/*` and the loader as an npm package customers `npm install`*:
   more idiomatic for a JS ecosystem, but adds packaging/publish/versioning overhead disproportionate
-  to two small files, and customer repos may not use npm at all (a static docs site, e.g.
-  `gitlocal/docs`, has no `package.json`). Rejected for this release; can be revisited later
-  without changing the workflow's external contract.
+  to two small files, and customer repos may not use npm at all (a plain static site has no
+  `package.json`). Rejected for this release; can be revisited later without changing the
+  workflow's external contract.
 - *Fetch the files via pinned `raw.githubusercontent.com` URLs at deploy time*: avoids a second
   checkout, but is slower to reason about (network fetch mid-job, no built-in ref-pinning
   guarantee the way `actions/checkout`'s `ref:` input gives), and doesn't benefit from Git's own

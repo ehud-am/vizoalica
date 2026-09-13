@@ -12,24 +12,25 @@ negative tests for security-relevant paths (credential/config handling).
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm `pnpm exec wrangler whoami` and `gh auth status` succeed in the working
+- [x] T001 Confirm `pnpm exec wrangler whoami` and `gh auth status` succeed in the working
       environment (already verified during planning; re-confirm before hands-on work).
-- [ ] T002 [P] Create a throwaway Cloudflare Pages project and a throwaway GitHub repo to use as
-      the Phase 1 validation target, so `ehud-am/gitlocal` is only touched once the design is
-      proven and the user has given explicit go-ahead.
+- [x] T002 [P] Use `ehud-am/vizoalica-sample` (a repo dedicated to vizoalica sample/testing, not
+      shared with any unrelated product) as the Phase 1 validation target — confirmed with the
+      user; it is only touched once the design is proven and the user has given explicit
+      go-ahead.
 
 ## Phase 2: Foundational
 
 **⚠️ BLOCKS all user stories below**
 
-- [ ] T003 Write `.github/workflows/deploy-vizoalica-pages.yml` as a `workflow_call` reusable
+- [x] T003 Write `.github/workflows/deploy-vizoalica-pages.yml` as a `workflow_call` reusable
       workflow implementing the contract in
       `specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md`: input
       validation (fail-fast on missing/malformed vars/secrets), second checkout of this repo at
       the pinned ref, copy of `functions/vizoalica/*.ts` + `vizoalica-loader.js` into the site
       directory, ephemeral `wrangler.toml` generation, `wrangler pages secret put`, `wrangler
       pages deploy`.
-- [ ] T004 [P] Add a lint/dry-run check for the new workflow YAML to
+- [x] T004 [P] Add a lint/dry-run check for the new workflow YAML to
       `.github/workflows/ci.yml` (e.g. `actionlint`) so malformed workflow syntax is caught the
       same way other code is linted.
 
@@ -41,24 +42,24 @@ negative tests for security-relevant paths (credential/config handling).
 Cloudflare Pages automatically, with zero real config values in their committed source.
 
 **Independent Test**: Follow `quickstart.md` steps 1-3 and the "Expected failure-path check"
-against the throwaway repo from T002.
+against `ehud-am/vizoalica-sample` (T002).
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Implement the variable/secret presence + format validation step in the workflow
+- [x] T005 [US1] Implement the variable/secret presence + format validation step in the workflow
       (fail with the exact missing/malformed name — FR-004), matching the existing validation
       logic already present in `examples/cloudflare-pages/functions/vizoalica/config.json.ts`
       (`validIdentity`, `validHttpUrl`) and `.../ingest-token.ts` so the workflow rejects the same
       malformed inputs the Functions would reject at runtime, just earlier.
-- [ ] T006 [US1] Implement the ephemeral `wrangler.toml` generation step (research.md, Unknown 1)
+- [x] T006 [US1] Implement the ephemeral `wrangler.toml` generation step (research.md, Unknown 1)
       — write to the job's temp workspace only, never to a path that gets committed.
-- [ ] T007 [US1] Implement the Functions/loader vendoring step (research.md, Unknown 2) copying
+- [x] T007 [US1] Implement the Functions/loader vendoring step (research.md, Unknown 2) copying
       from the pinned-ref checkout into the site's build output.
-- [ ] T008 [US1] Implement the `wrangler pages secret put VIZOALICA_TOKEN_SECRET` and `wrangler
+- [x] T008 [US1] Implement the `wrangler pages secret put VIZOALICA_TOKEN_SECRET` and `wrangler
       pages deploy` steps, surfacing `wrangler`'s own success/failure output as the job's
       status (no swallowed errors).
-- [ ] T009 [US1] Run `quickstart.md`'s validation steps 1-3 and the failure-path check against the
-      throwaway repo/project from T002; fix issues found.
+- [ ] T009 [US1] Run `quickstart.md`'s validation steps 1-3 and the failure-path check against
+      `ehud-am/vizoalica-sample`; fix issues found.
 - [ ] T010 [US1] Confirm the existing static integration path (a website not using the new
       workflow) is unaffected — run the existing `apps/deploy-cli` and `scripts/verify-website.ts`
       checks against a static-mode test website (FR-005 regression guard).
