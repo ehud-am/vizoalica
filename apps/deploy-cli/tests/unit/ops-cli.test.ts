@@ -5,6 +5,7 @@ import {
   pagesDeployArguments,
   parseGateway,
   parseOptions,
+  verifyArguments,
   validateConsoleConfig,
   type OpsConfig
 } from '../../../../scripts/vizoalica-ops.js';
@@ -65,6 +66,24 @@ describe('operations CLI safety', () => {
       'local-ops-api:dev',
       'serve',
       '/tmp/vizoalica/local-operations.json'
+    ]);
+  });
+
+  it('verifies administrator access through the selected OneCLI agent', () => {
+    expect(verifyArguments(config)).toEqual([
+      'run',
+      '--project',
+      'example-project',
+      '--agent',
+      'vizoalica-console',
+      '--gateway',
+      '127.0.0.1:10255',
+      '--',
+      'node',
+      '--import',
+      'tsx',
+      'scripts/verify-operator-access.ts',
+      'https://analytics.example.workers.dev'
     ]);
   });
 

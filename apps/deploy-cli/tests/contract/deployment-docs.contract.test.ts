@@ -77,6 +77,10 @@ describe('deployment documentation contract', () => {
     ]);
     expect(guide).toContain('onecli-managed');
     expect(guide).toMatch(/fail closed/i);
+    expect(guide).toContain('pnpm ops verify');
+    expect(guide).toMatch(/positive–negative–positive/i);
+    expect(guide).not.toContain('YOUR_US1_COMMIT');
+    expect(guide).not.toContain('https://<worker>.workers.dev');
   });
 
   it('defines a repeatable, complete website journey', async () => {
