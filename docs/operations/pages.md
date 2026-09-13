@@ -1,18 +1,19 @@
-# Step 3 (US3) — Activate a website
+# Activate a website
 
-Run US3 **once per website**. It registers one website, installs the browser bundle and trusted
+Run this guide **once per website**. It registers one website, installs the browser bundle and trusted
 server-side token Function, deploys them using the website's real hosting mode, and proves that a
 consented event reaches Vizoalica without making the host website depend on analytics availability.
 
-Repeat all of US3 with a separate registration and completion record for every additional website.
-Do not rerun US1 or workstation setup for each site.
+Repeat the complete activation with a separate registration and completion record for every
+additional website. Do not redeploy the backend or repeat workstation setup for each site.
 
 ## Prerequisites
 
-- A verified [US1 customer backend](cloudflare.md) and its redacted handoff.
-- One authorized operator with a working [US2A](local-analytics.md) or [US2B](ops-cli.md) console.
+- A verified [customer backend](cloudflare.md) and its redacted handoff.
+- One authorized operator with a working console, configured either
+  [without OneCLI](local-analytics.md) or [with OneCLI](ops-cli.md).
 - Control of the production website, its build/deployment settings, and its consent integration.
-- Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by US1.
+- Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by the backend.
 - Cloudflare-native login for Direct Upload, or a working production Git integration.
 
 The Pages Function runs in the hosted website environment, so the operator machine can be off
@@ -22,7 +23,7 @@ while the website collects events.
 
 | Input                           | Source                                                      |
 | ------------------------------- | ----------------------------------------------------------- |
-| Worker HTTPS origin             | US1 handoff                                                 |
+| Worker HTTPS origin             | Backend handoff                                             |
 | `VIZOALICA_TOKEN_SECRET`        | Customer-approved secret manager; same value as the Worker  |
 | Analytics project ID            | Create or select in the local console                       |
 | Website/source ID               | Created by the local console; not the public source key     |
@@ -48,7 +49,7 @@ authorization; see [the known limitation](troubleshooting.md#onecli-and-pages-up
 
 ## 1. Create the website ID in the console
 
-Open the local console from US2A or US2B. Select **Websites**, create or select an analytics
+Open the configured local console. Select **Websites**, create or select an analytics
 project, then choose **Add website**. Enter a clear display name and the exact production origin,
 including `https://` and without a trailing slash. Save the website and open its integration panel.
 Copy the generated project ID, website/source ID, and public source key; these are three different
@@ -189,7 +190,7 @@ See Cloudflare's [Git integration](https://developers.cloudflare.com/pages/get-s
 and [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) guides.
 Dashboard drag-and-drop does not compile a `functions/` directory; use Wrangler or a Git build.
 
-## Verify US3
+## Verify website activation
 
 From the Vizoalica checkout, substitute your stable origin, project ID and **source ID**:
 
@@ -215,12 +216,12 @@ fresh test source, one visit produces one page view and one privacy-safe unique 
 refresh to choose again. Finally, block the Worker request in
 the browser and reload: the website's primary content and controls must remain usable.
 
-## US3 handoff
+## Website handoff
 
 Record one non-secret completion note for this website:
 
 ```text
-Story: US3
+Activation: Website data collection
 Customer/environment: <label>
 Website: <display name>
 Production origin: https://<website-origin>
@@ -259,7 +260,8 @@ rather than weakening this example's provenance check.
 ## Rotate or remove
 
 For same-release website changes, rebuild/copy the SDK, deploy the Function with the website, and
-rerun all US3 verification. This release does not provide an existing-backend schema upgrade path.
+rerun all website verification. This release does not provide an existing-backend schema upgrade
+path.
 
 For signing-key rotation, pause collection across every connected website, replace the secret on
 the Worker and every trusted token issuer, redeploy, verify a new token and accepted event, then
@@ -268,5 +270,5 @@ key changes. Keep preview sources and secrets separate from production.
 
 To stop one website, disable its source in the console and remove the SDK load from the site's
 shared layout. Confirm new events are rejected while the website remains usable. Delete is a
-terminal soft deletion that retains aggregate history and audit evidence. It does not remove US1,
-another website registration, or an operator workstation.
+terminal soft deletion that retains aggregate history and audit evidence. It does not remove the
+backend, another website registration, or an operator workstation.

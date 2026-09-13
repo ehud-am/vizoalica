@@ -46,9 +46,10 @@ Version 0.5.0 supports **fresh deployments only**. A new installation applies th
 backfills, and schema rollback are not supported in this release. The backend preflight rejects
 existing or ambiguous Vizoalica schema state without changing it.
 
-The release uses three deployment steps: US1 for the backend, either US2A or US2B for each
-operator, and US3 for each website. It does not deploy an operator's Cloudflare resources or alter
-credentials merely because a source release, tag, or GitHub Release is published.
+The release uses three deployment steps: deploy the backend, configure each operator using one of
+the two credential methods, and activate each website. It does not deploy an operator's Cloudflare
+resources or alter credentials merely because a source release, tag, or GitHub Release is
+published.
 
 [Local validation evidence](../../specs/008-modernize-console-design/qa-report.md) distinguishes
 automated checks from human visual and assistive-technology review. A version bump in the checkout
