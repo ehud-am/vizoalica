@@ -140,18 +140,12 @@ describe('interactive console', () => {
     expect(await screen.findByText(/operation was interrupted/i)).toBeTruthy();
   });
 
-  it('creates projects and announces clipboard success', async () => {
+  it('announces clipboard success', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'prompt').mockReturnValue('New project');
-    render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Websites' }));
-    await user.click(screen.getByRole('button', { name: 'New project' }));
-    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith('New project'));
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) }
     });
-    cleanup();
     render(
       <IntegrationSnippet
         snippet={{
@@ -170,6 +164,24 @@ describe('interactive console', () => {
       expect.stringContaining('data-endpoint="https://worker.test/v1/events:batch"')
     );
     expect(screen.getByText('s1')).toBeTruthy();
+  });
+
+  it('reconciles unavailable projects before loading project-bound views', async () => {
+    const user = userEvent.setup();
+    const secondProject = { id: 'p2', name: 'Beta' };
+    api.listProjects
+      .mockResolvedValueOnce([project, secondProject])
+      .mockResolvedValueOnce([project]);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Projects' }));
+    await user.click(screen.getByRole('button', { name: 'Select Beta (p2)' }));
+    await user.click(screen.getByRole('button', { name: 'Refresh projects' }));
+
+    expect(await screen.findByText('Project list refreshed.')).toBeTruthy();
+    expect(screen.queryByText('Beta')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Open websites for Acme (p1)' }));
+    await waitFor(() => expect(api.listWebsites).toHaveBeenLastCalledWith('p1'));
+    expect(api.listWebsites).not.toHaveBeenCalledWith('p2');
   });
 
   it('keeps an unavailable snippet uncopyable', () => {

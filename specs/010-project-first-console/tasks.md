@@ -21,7 +21,7 @@ independently after the small shared foundation.
 
 **Purpose**: Establish shared test data and feature types without changing user-visible behavior.
 
-- [ ] T001 Add reusable two-project, duplicate-name, empty-project, and installation-guidance fixtures in apps/admin-web/tests/fixtures/console.ts and apps/local-ops-api/tests/fixtures/installation.ts
+- [X] T001 Add reusable two-project, duplicate-name, empty-project, and installation-guidance fixtures in apps/admin-web/tests/fixtures/console.ts and apps/local-ops-api/tests/fixtures/installation.ts
 - [ ] T002 [P] Add versioned dynamic-config fixtures for valid, malformed, mismatched, and secret-leak cases in packages/browser-sdk/tests/fixtures/dynamic-config.ts
 
 ---
@@ -50,16 +50,16 @@ console clears stale child data before reconciling context.
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Add failing component tests for Projects navigation, list/create/select, duplicate names, current context, and direct Overview/Websites actions in apps/admin-web/tests/projects.test.tsx
-- [ ] T007 [P] [US1] Add failing interaction tests for project refresh reconciliation and removal of stale website/analytics content in apps/admin-web/tests/ui-interactions.test.tsx
-- [ ] T008 [P] [US1] Extend keyboard, aria-current, responsive navigation, and axe scenarios to include Projects in apps/admin-web/e2e/responsive-accessibility.spec.ts
+- [X] T006 [P] [US1] Add failing component tests for Projects navigation, list/create/select, duplicate names, current context, and direct Overview/Websites actions in apps/admin-web/tests/projects.test.tsx
+- [X] T007 [P] [US1] Add failing interaction tests for project refresh reconciliation and removal of stale website/analytics content in apps/admin-web/tests/ui-interactions.test.tsx
+- [X] T008 [P] [US1] Extend keyboard, aria-current, responsive navigation, and axe scenarios to include Projects in apps/admin-web/e2e/responsive-accessibility.spec.ts
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Implement the project list, create form, explicit selection, and direct destination actions in apps/admin-web/src/pages/ProjectsPage.tsx
-- [ ] T010 [US1] Add the projects view and one authoritative reconciled current-project context in apps/admin-web/src/App.tsx
-- [ ] T011 [US1] Remove duplicate unsynchronized project selection behavior while preserving scoped loading in apps/admin-web/src/pages/AnalyticsPage.tsx and apps/admin-web/src/pages/WebsitesPage.tsx
-- [ ] T012 [US1] Add project navigation, list, selected-context, empty, loading, and compact responsive styles in apps/admin-web/src/styles.css
+- [X] T009 [P] [US1] Implement the project list, create form, explicit selection, and direct destination actions in apps/admin-web/src/pages/ProjectsPage.tsx
+- [X] T010 [US1] Add the projects view and one authoritative reconciled current-project context in apps/admin-web/src/App.tsx
+- [X] T011 [US1] Remove duplicate unsynchronized project selection behavior while preserving scoped loading in apps/admin-web/src/pages/AnalyticsPage.tsx and apps/admin-web/src/pages/WebsitesPage.tsx
+- [X] T012 [US1] Add project navigation, list, selected-context, empty, loading, and compact responsive styles in apps/admin-web/src/styles.css
 
 **Checkpoint**: Projects is independently usable for view/create/select and never displays mixed
 project-bound information. Rename/delete remain out of scope.
@@ -251,4 +251,3 @@ one can own the US3 Cloudflare example/docs, and one can own US4. Coordinate sha
 - Cloudflare commands are generated for review; the console never executes cloud mutations.
 - Browser-required values are public configuration. Only true credentials use secret storage.
 - Commit after each coherent task group and stop at story checkpoints for independent validation.
-

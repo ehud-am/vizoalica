@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  createProject,
   createWebsite,
   deleteWebsite,
   getSnippet,
   getStatus,
-  listProjects,
   listWebsites,
   updateWebsite,
   type Integration,
@@ -17,17 +15,14 @@ import { IntegrationSnippet } from '../components/IntegrationSnippet.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
 import { WebsiteForm } from '../components/WebsiteForm.js';
 import { WebsiteList } from '../components/WebsiteList.js';
-import { PlusIcon } from '../components/Icons.js';
 export function WebsitesPage({
   projects,
   projectId,
-  onProjectChange,
-  onProjectsChange
+  onProjectChange
 }: {
   projects: Project[];
   projectId: string;
   onProjectChange: (id: string) => void;
-  onProjectsChange: (projects: Project[]) => void;
 }) {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selected, setSelected] = useState<Website>();
@@ -64,14 +59,6 @@ export function WebsitesPage({
       })
       .catch(() => setMessage('Details are temporarily unavailable. Try again safely.'));
   }, [projectId, selected?.id]);
-  async function addProject() {
-    const name = window.prompt('Project name');
-    if (!name?.trim()) return;
-    const created = await createProject(name);
-    const next = await listProjects();
-    onProjectsChange(next);
-    onProjectChange(created.id);
-  }
   async function addWebsite(input: { name: string; allowedOrigins: string[] }) {
     await createWebsite(projectId, input);
     setMessage('Website created and audit recorded.');
@@ -113,10 +100,6 @@ export function WebsitesPage({
           <h1>Websites</h1>
           <p>Manage collection boundaries without exposing administrator credentials.</p>
         </div>
-        <button className="secondary" onClick={() => void safely(addProject)}>
-          <PlusIcon size={16} />
-          New project
-        </button>
       </div>
       <section className="panel">
         <div className="selector-row">

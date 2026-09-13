@@ -617,6 +617,72 @@ textarea {
   color: var(--color-danger-notice-text);
   background: var(--color-danger-notice-bg);
 }
+.notice.success {
+  border-color: var(--color-success-dot);
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+}
+.project-create-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(300px, 1.3fr);
+  align-items: end;
+  gap: 24px;
+}
+.project-create-panel p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+.project-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.project-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.project-card {
+  height: 100%;
+  padding: 22px;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+.project-card.selected {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px var(--color-surface-accent);
+}
+.project-card-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.project-card-heading h2 {
+  margin: 0 0 5px;
+}
+.project-card-heading code {
+  color: var(--color-text-tertiary);
+  overflow-wrap: anywhere;
+}
+.project-card > p {
+  margin: 20px 0;
+  color: var(--color-text-secondary);
+}
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-empty {
+  margin-top: 22px;
+}
 .principles {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1011,6 +1077,8 @@ pre {
     flex-direction: column;
   }
   .selector-row,
+  .project-create-panel,
+  .project-list,
   .metrics,
   .dashboard-grid,
   .principles,
@@ -1096,11 +1164,18 @@ pre {
     margin-bottom: 22px;
   }
   .page-heading .secondary,
+  .project-create-form .primary,
   .actions > button {
     width: 100%;
   }
   .actions {
     flex-direction: column;
+  }
+  .project-create-form {
+    grid-template-columns: 1fr;
+  }
+  .project-actions > button {
+    flex: 1 1 100%;
   }
   .time-range-popover {
     position: fixed;
@@ -1143,6 +1218,7 @@ pre {
 }
 @media (forced-colors: active) {
   .nav-item.active,
+  .project-card.selected,
   .website-row.selected,
   .theme-toggle button[aria-pressed='true'] {
     border: 2px solid Highlight;

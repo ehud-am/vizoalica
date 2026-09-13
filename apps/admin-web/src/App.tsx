@@ -3,31 +3,47 @@ import { ApiError, bootstrapSession, listProjects, type Project } from './api/lo
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
-import { AnalyticsIcon, LockIcon, WebsitesIcon } from './components/Icons.js';
+import { AnalyticsIcon, LockIcon, ProjectsIcon, WebsitesIcon } from './components/Icons.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
+import { ProjectsPage } from './pages/ProjectsPage.js';
 import { WebsitesPage } from './pages/WebsitesPage.js';
 import { useTheme } from './theme.js';
+
+type View = 'projects' | 'overview' | 'websites';
+
+function reconciledProjectId(current: string, projects: Project[], preferred?: string): string {
+  if (preferred && projects.some((project) => project.id === preferred)) return preferred;
+  if (current && projects.some((project) => project.id === current)) return current;
+  return projects[0]?.id ?? '';
+}
 
 export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
-  const [view, setView] = useState<'overview' | 'websites'>('overview');
+  const [view, setView] = useState<View>('overview');
   const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
   const theme = useTheme();
+  const updateProjects = useCallback((next: Project[], preferredProjectId?: string) => {
+    setProjects(next);
+    setProjectId((current) => reconciledProjectId(current, next, preferredProjectId));
+  }, []);
   const connect = useCallback(async () => {
     setAccess('loading');
     try {
       await bootstrapSession();
       const next = await listProjects();
-      setProjects(next);
-      setProjectId((current) => current || next[0]?.id || '');
+      updateProjects(next);
       setAccess('ready');
     } catch (error) {
       setAccess(error instanceof ApiError && error.status === 401 ? 'denied' : 'offline');
     }
-  }, []);
+  }, [updateProjects]);
   useEffect(() => void connect(), [connect]);
+  const openProjectView = useCallback((id: string, nextView: Exclude<View, 'projects'>) => {
+    setProjectId(id);
+    setView(nextView);
+  }, []);
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -57,6 +73,14 @@ export function App() {
           <p className="eyebrow">Workspace</p>
           <nav aria-label="Primary navigation">
             <button
+              className={view === 'projects' ? 'nav-item active' : 'nav-item'}
+              onClick={() => setView('projects')}
+              aria-current={view === 'projects' ? 'page' : undefined}
+            >
+              <ProjectsIcon size={20} />
+              Projects
+            </button>
+            <button
               className={view === 'overview' ? 'nav-item active' : 'nav-item'}
               onClick={() => setView('overview')}
               aria-current={view === 'overview' ? 'page' : undefined}
@@ -82,18 +106,28 @@ export function App() {
         <main id="main" tabIndex={-1} data-view={view}>
           {access !== 'ready' ? (
             <AccessState state={access} onRetry={() => void connect()} />
+          ) : view === 'projects' ? (
+            <ProjectsPage
+              projects={projects}
+              projectId={projectId}
+              onProjectSelect={setProjectId}
+              onProjectsChange={updateProjects}
+              onOpenOverview={(id) => openProjectView(id, 'overview')}
+              onOpenWebsites={(id) => openProjectView(id, 'websites')}
+            />
           ) : view === 'overview' ? (
             <AnalyticsPage
+              key={`analytics:${projectId}`}
               projects={projects}
               projectId={projectId}
               onProjectChange={setProjectId}
             />
           ) : (
             <WebsitesPage
+              key={`websites:${projectId}`}
               projects={projects}
               projectId={projectId}
               onProjectChange={setProjectId}
-              onProjectsChange={setProjects}
             />
           )}
           {access === 'ready' && <AppFooter />}
