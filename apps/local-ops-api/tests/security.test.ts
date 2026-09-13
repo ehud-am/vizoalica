@@ -88,4 +88,31 @@ describe('local API security boundary', () => {
     ).toBe(413);
     expect((await api.call('/api/projects', { method: 'PUT', cookie })).status).toBe(404);
   });
+
+  it('keeps installation guidance authenticated, project-scoped, and free of remote secrets', async () => {
+    let requestedPath = '';
+    const api = await startApi((url) => {
+      requestedPath = url.pathname;
+      return Response.json({
+        publicSourceKey: 'public-key',
+        allowedOrigins: ['https://site.test'],
+        VIZOALICA_TOKEN_SECRET: 'private-sentinel',
+        authorization: 'Bearer private-sentinel'
+      });
+    });
+    closers.push(api.close);
+    const path = '/api/projects/project-a/websites/source-b/snippet';
+    expect((await api.call(path)).status).toBe(401);
+    const response = await api.call(path, { cookie: await api.session() });
+    expect(response.status).toBe(200);
+    expect(requestedPath).toBe('/v1/admin/projects/project-a/sources/source-b/snippet');
+    expect(JSON.stringify(response.body)).not.toMatch(/private-sentinel|Bearer/);
+    expect(
+      (
+        await api.call('/api/projects/project-a/websites/source%2Fother/snippet', {
+          cookie: await api.session()
+        })
+      ).status
+    ).toBe(400);
+  });
 });

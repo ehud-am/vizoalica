@@ -19,12 +19,47 @@ export type Summary = {
   endUtc: string;
   lastCompletedAggregateAt?: string;
 };
+export type DynamicConfigV1 = {
+  version: 1;
+  src: string;
+  'data-endpoint': string;
+  'data-source': string;
+  'data-project': string;
+  'data-token-url': string;
+  'data-consent': 'analytics-granted' | 'analytics-denied' | 'unknown';
+};
+export type StaticInstallation = { id: 'static'; snippet: string };
+export type CloudflareGuidance = {
+  publicVariables: Record<string, string>;
+  targetInputs: {
+    pagesProject: string;
+    environment: string;
+    productionBranch: string;
+    siteDirectory: string;
+    outputDirectory: string;
+  };
+  steps: Array<{
+    id: 'inspect' | 'configure' | 'review' | 'exercise' | 'deploy' | 'verify';
+    title: string;
+    commands: string[];
+  }>;
+  warnings: string[];
+};
+export type DynamicInstallation = {
+  id: 'dynamic';
+  snippet: string;
+  configUrl: '/vizoalica/config.json';
+  config: DynamicConfigV1;
+  cloudflare: CloudflareGuidance;
+};
 export type Integration = {
-  projectId?: string;
-  sourceId?: string;
+  projectId: string;
+  sourceId: string;
   publicSourceKey: string;
   allowedOrigins: string[];
-  tokenIssuer: 'website-owned';
+  modes: [StaticInstallation, DynamicInstallation];
+  privateSetup: { tokenIssuer: 'website-owned'; tokenSecretRequired: true };
+  /** Transitional compatibility alias; identical to modes[0].snippet. */
   html?: string;
 };
 export type Status = {

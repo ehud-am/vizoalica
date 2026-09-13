@@ -7,7 +7,7 @@ describe('website management accessibility', () => {
     const html = renderToStaticMarkup(<WebsiteForm onSubmit={async () => undefined} />);
     expect(html).toContain('Website name');
     expect(html).toContain('Allowed origins');
-    expect(html).toContain('aria-describedby="origins-help"');
+    expect(html).toMatch(/aria-describedby="[^"]*origins-help"/);
     expect(html).toContain('required=""');
   });
   it('announces copy feedback and makes code keyboard focusable', () => {
@@ -22,6 +22,6 @@ describe('website management accessibility', () => {
     );
     expect(html).toContain('role="status"');
     expect(html).toContain('tabindex="0"');
-    expect(html).toContain('aria-label="Integration code"');
+    expect(html).toContain('aria-label="Static integration code"');
   });
 });

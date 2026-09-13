@@ -41,7 +41,7 @@ Complete the steps in order. Repeat only step 2 when adding an operator and only
 adding a website. Each linked guide is self-contained; do not combine commands from the two
 operator setup options.
 
-Version 0.5.0 supports **fresh deployments only**. Backend deployment applies one complete schema
+Version 0.5.1 supports **fresh deployments only**. Backend deployment applies one complete schema
 baseline to a new empty D1 database. It does not upgrade, adopt, backfill, preserve, or roll back an
 existing Vizoalica database. Preflight detects existing or ambiguous schema state and stops without
 changing it; select a new empty database rather than deleting the old one.
@@ -59,7 +59,15 @@ story's failed step rather than entering another setup journey.
 
 ## Website integration
 
-The browser SDK and trusted token endpoint live on your website; the Worker accepts events.
+Use **Projects** in the local console to choose the ownership boundary before opening its analytics
+or websites. Adding a website always starts with an empty, required project choice; the current
+browsing context is never treated as implicit confirmation.
+
+The browser SDK and trusted token endpoint live on your website; the Worker accepts events. Every
+registered website offers two installation entry points: **Static snippet** embeds its six public
+values directly, while **Dynamic configuration** uses one generic loader plus the same versioned
+public JSON contract on Cloudflare Pages or another host. This public browser configuration is not
+a secret; signing, administrator, and deployment credentials remain server-side.
 [Website activation](docs/operations/pages.md) covers registration, deployment, consent, and the
 accepted-event check. After activation, use the [SDK reference](docs/operations/browser-sdk.md)
 for custom events or module integration. Never put signing secrets or administrator credentials
@@ -83,7 +91,7 @@ See [docs/operations/privacy.md](docs/operations/privacy.md).
 
 ```text
 Website
-  └─ Browser SDK
+  └─ Static Browser SDK or generic dynamic loader
       ├─ builds CloudEvents JSON events
       ├─ redacts URL/query/referrer data
       ├─ queues events in memory with bounded size

@@ -15,11 +15,53 @@ export type Website = {
   updatedAt?: string;
 };
 export type IntegrationSnippet = {
+  projectId: string;
+  sourceId: string;
   publicSourceKey: string;
   allowedOrigins: string[];
-  tokenIssuer: 'website-owned';
+  modes: [StaticInstallation, DynamicInstallation];
+  privateSetup: {
+    tokenIssuer: 'website-owned';
+    tokenSecretRequired: true;
+  };
+  /** Transitional compatibility alias; identical to the static snippet. */
   html?: string;
 };
+export type ConsentState = 'analytics-granted' | 'analytics-denied' | 'unknown';
+export type DynamicConfigV1 = {
+  version: 1;
+  src: string;
+  'data-endpoint': string;
+  'data-source': string;
+  'data-project': string;
+  'data-token-url': string;
+  'data-consent': ConsentState;
+};
+export type StaticInstallation = { id: 'static'; snippet: string };
+export type CloudflareGuidance = {
+  publicVariables: Record<string, string>;
+  targetInputs: {
+    pagesProject: string;
+    environment: string;
+    productionBranch: string;
+    siteDirectory: string;
+    outputDirectory: string;
+  };
+  steps: Array<{
+    id: 'inspect' | 'configure' | 'review' | 'exercise' | 'deploy' | 'verify';
+    title: string;
+    commands: string[];
+  }>;
+  warnings: string[];
+};
+export type DynamicInstallation = {
+  id: 'dynamic';
+  snippet: string;
+  configUrl: '/vizoalica/config.json';
+  config: DynamicConfigV1;
+  cloudflare: CloudflareGuidance;
+};
+export type InstallationGuidance = IntegrationSnippet;
 export type OperationalStatus = {
   sourceId: string;
   collection: 'healthy' | 'disabled';
@@ -67,6 +109,26 @@ export function validOrigins(value: unknown): value is string[] {
     }
   });
   return normalized.every(Boolean) && new Set(normalized).size === normalized.length;
+}
+
+export function isDynamicConfigV1(value: unknown): value is DynamicConfigV1 {
+  if (!value || typeof value !== 'object') return false;
+  const config = value as Partial<DynamicConfigV1>;
+  return (
+    config.version === 1 &&
+    typeof config.src === 'string' &&
+    typeof config['data-endpoint'] === 'string' &&
+    typeof config['data-source'] === 'string' &&
+    config['data-source'].length >= 1 &&
+    config['data-source'].length <= 256 &&
+    !/[\u0000-\u001f]/.test(config['data-source']) &&
+    typeof config['data-project'] === 'string' &&
+    isSafeId(config['data-project']) &&
+    typeof config['data-token-url'] === 'string' &&
+    (config['data-consent'] === 'analytics-granted' ||
+      config['data-consent'] === 'analytics-denied' ||
+      config['data-consent'] === 'unknown')
+  );
 }
 
 export type AnalyticsOverview = WorkerAnalyticsOverview;

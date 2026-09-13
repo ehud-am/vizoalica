@@ -38,6 +38,49 @@ describe('standalone website bundle', () => {
     dom.window.close();
   });
 
+  it('builds a deterministic generic loader that contains failures', async () => {
+    execFileSync(process.execPath, ['scripts/build-browser-sdk.mjs'], { cwd: process.cwd() });
+    const first = readFileSync('packages/browser-sdk/dist/vizoalica-loader.js', 'utf8');
+    execFileSync(process.execPath, ['scripts/build-browser-sdk.mjs'], { cwd: process.cwd() });
+    expect(readFileSync('packages/browser-sdk/dist/vizoalica-loader.js', 'utf8')).toBe(first);
+
+    const dom = new JSDOM('<!doctype html><title>Dynamic</title>', {
+      url: 'https://site.test/',
+      runScripts: 'dangerously'
+    });
+    dom.window.fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        version: 1,
+        src: '/vizoalica.js',
+        'data-endpoint': 'https://worker.test/v1/events:batch',
+        'data-source': 'public-key',
+        'data-project': 'project-1',
+        'data-token-url': '/vizoalica/ingest-token',
+        'data-consent': 'analytics-granted'
+      })
+    );
+    const loader = dom.window.document.createElement('script');
+    loader.textContent = first;
+    expect(() => dom.window.document.head.append(loader)).not.toThrow();
+    await vi.waitFor(() =>
+      expect(dom.window.document.querySelector('script[src$="/vizoalica.js"]')).toBeTruthy()
+    );
+    dom.window.close();
+
+    const broken = new JSDOM('<!doctype html><title>Still usable</title>', {
+      url: 'https://site.test/',
+      runScripts: 'dangerously'
+    });
+    broken.window.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+    const brokenLoader = broken.window.document.createElement('script');
+    brokenLoader.textContent = first;
+    expect(() => broken.window.document.head.append(brokenLoader)).not.toThrow();
+    await Promise.resolve();
+    expect(broken.window.document.title).toBe('Still usable');
+    expect(broken.window.document.querySelector('script[src]')).toBeNull();
+    broken.window.close();
+  });
+
   it('demo waits for consent and Decline never loads the SDK', () => {
     const html = readFileSync('examples/cloudflare-pages/public/index.html', 'utf8');
     const declined = new JSDOM(html, { url: 'https://site.test', runScripts: 'dangerously' });
@@ -49,7 +92,14 @@ describe('standalone website bundle', () => {
     const script = allowed.window.document.getElementById('vizoalica-sdk') as HTMLScriptElement;
     expect(script.dataset.consent).toBe('analytics-granted');
     expect(script.src).toBe('https://site.test/vizoalica.js');
+    const dynamic = new JSDOM(html, { url: 'https://site.test', runScripts: 'dangerously' });
+    (dynamic.window.document.querySelector('input[value="dynamic"]') as HTMLInputElement).click();
+    dynamic.window.document.getElementById('allow')!.click();
+    const loader = dynamic.window.document.getElementById('vizoalica-loader') as HTMLScriptElement;
+    expect(loader.src).toBe('https://site.test/vizoalica-loader.js');
+    expect(loader.dataset.endpoint).toBeUndefined();
     declined.window.close();
     allowed.window.close();
+    dynamic.window.close();
   });
 });

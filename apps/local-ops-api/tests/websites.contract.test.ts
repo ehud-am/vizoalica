@@ -57,6 +57,23 @@ describe('website operations contract', () => {
     expect(response).toMatchObject({ status: 503, body: { recovery: 'retry_safely' } });
   });
 
+  it('uses the explicitly selected nested project and maps stale-project failure atomically', async () => {
+    const calls: string[] = [];
+    const api = await startApi((url) => {
+      calls.push(url.pathname);
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    });
+    closers.push(api.close);
+    const response = await api.call('/api/projects/project-2/websites', {
+      method: 'POST',
+      cookie: await api.session(),
+      body: { name: 'Launch', allowedOrigins: ['https://launch.test'] }
+    });
+    expect(response.status).toBe(404);
+    expect(calls).toEqual(['/v1/admin/projects/project-2/sources']);
+    expect(response.body).toMatchObject({ error: 'not_found' });
+  });
+
   it('proxies collection, details, patch, and null deletion responses', async () => {
     const api = await startApi((url, init) =>
       init?.method === 'DELETE'

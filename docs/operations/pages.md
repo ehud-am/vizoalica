@@ -49,8 +49,10 @@ authorization; see [the known limitation](troubleshooting.md#onecli-and-pages-up
 
 ## 1. Create the website ID in the console
 
-Open the configured local console. Select **Websites**, create or select an analytics
-project, then choose **Add website**. Enter a clear display name and the exact production origin,
+Open the configured local console. Select **Projects**, create or explicitly select the ownership
+boundary, open **Websites**, then choose **Add website**. Its first field is an empty required
+project dropdown; confirm the project even when the surrounding view already shows it. Enter a
+clear display name and the exact production origin,
 including `https://` and without a trailing slash. Save the website and open its integration panel.
 Copy the generated project ID, website/source ID, and public source key; these are three different
 non-secret values. Start with the default low quota and seven-day retention.
@@ -83,12 +85,17 @@ shown in the dashboard, normally `https://YOUR_UNIQUE_PAGES_PROJECT.pages.dev`.
 
 Edit the working copy's `wrangler.toml`:
 
-| Field                   | Copy from                                  |
-| ----------------------- | ------------------------------------------ |
-| `name`                  | Pages project name                         |
-| `VIZOALICA_PROJECT_ID`  | Console's Integration snippet → Project ID |
-| `VIZOALICA_SOURCE_ID`   | Console's Integration snippet → Source ID  |
-| `VIZOALICA_SITE_ORIGIN` | Exact website origin, no trailing slash    |
+| Field                         | Copy from                                              |
+| ----------------------------- | ------------------------------------------------------ |
+| `name`                        | Pages project name                                     |
+| `VIZOALICA_SDK_SRC`           | Public SDK path, normally `/vizoalica.js`              |
+| `VIZOALICA_INGEST_ENDPOINT`   | Console's dynamic public configuration                 |
+| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's public source key                            |
+| `VIZOALICA_PROJECT_ID`        | Console's Project ID                                   |
+| `VIZOALICA_TOKEN_URL`         | Same-origin `/vizoalica/ingest-token`                  |
+| `VIZOALICA_CONSENT`           | Recorded state after the host grants analytics consent |
+| `VIZOALICA_SOURCE_ID`         | Console's Source ID; server-side token scope           |
+| `VIZOALICA_SITE_ORIGIN`       | Exact website origin, no trailing slash                |
 
 Edit `public/index.html`, replacing its three `REPLACE_…` values with your Worker hostname,
 public source key and project ID. The Worker hostname excludes `https://`; keep the full endpoint
@@ -104,6 +111,7 @@ Run from the Vizoalica checkout:
 ```sh
 pnpm browser-sdk:build
 cp packages/browser-sdk/dist/vizoalica.js "$VIZOALICA_SITE_DIR/public/vizoalica.js"
+cp packages/browser-sdk/dist/vizoalica-loader.js "$VIZOALICA_SITE_DIR/public/vizoalica-loader.js"
 ```
 
 **Check:** `public/vizoalica.js` exists in the website copy. This is a standalone IIFE bundle;
@@ -118,21 +126,42 @@ vizoalica-demo/
 ├── wrangler.toml
 ├── functions/
 │   └── vizoalica/
+│       ├── config.json.ts
 │       └── ingest-token.ts
 └── public/
     ├── index.html
     ├── vizoalica.js
+    ├── vizoalica-loader.js
     └── _routes.json
 ```
 
-The [`Function source`](../../examples/cloudflare-pages/functions/vizoalica/ingest-token.ts) is
-ready to deploy. It uses server configuration for project/source/origin, signs HS256 tokens with
+The public [`configuration Function`](../../examples/cloudflare-pages/functions/vizoalica/config.json.ts)
+maps six plaintext variables to the portable version 1 JSON contract with no-store/nosniff headers
+and no partial fallback. The [`token Function`](../../examples/cloudflare-pages/functions/vizoalica/ingest-token.ts)
+uses server configuration for project/source/origin, signs HS256 tokens with
 Web Crypto, sets a five-minute lifetime and a 25-event token limit, and returns `text/plain` with
 `Cache-Control: no-store`. Request parameters cannot select another project or origin. It rejects
 missing configuration, foreign provenance and requests on unconfigured preview domains.
 
 The shared signing secret stays on trusted servers. Use the site's existing session authentication
 as an additional requirement if the site is private.
+
+### Review sequence for dynamic Cloudflare configuration
+
+Keep this order and stop before deployment until the account, Pages project, environment,
+production branch, site directory, output directory, public-variable block, Function, loader, and
+route diff are approved:
+
+```sh
+pnpm exec wrangler whoami
+pnpm exec wrangler pages project list --json
+git diff -- wrangler.toml functions/vizoalica/config.json.ts public/vizoalica-loader.js public/_routes.json
+pnpm exec wrangler pages dev public --cwd "$VIZOALICA_SITE_DIR"
+# After review, use the site's actual Git-connected flow or the Direct Upload command below.
+pnpm exec wrangler pages deploy public --cwd "$VIZOALICA_SITE_DIR" --project-name "$VIZOALICA_PAGES_PROJECT" --branch main
+pnpm exec wrangler pages deployment list --project-name "$VIZOALICA_PAGES_PROJECT"
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
+```
 
 ## 5. Save the same signing secret on Pages
 
@@ -196,11 +225,13 @@ From the Vizoalica checkout, substitute your stable origin, project ID and **sou
 
 ```sh
 pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
 ```
 
 **Check:** the command reports that website content and token claims passed. It checks:
 
-- `/vizoalica.js`: successful status, JavaScript content type and parseable Vizoalica JavaScript.
+- Static mode checks `/vizoalica.js`; dynamic mode checks `/vizoalica-loader.js` and the complete,
+  project-scoped `/vizoalica/config.json` response.
 - `/vizoalica/ingest-token`: `text/plain`, `no-store`, three JWT parts, HS256 header, expected
   project/source/origin, audience/scope, expiry and five-minute lifetime.
 
@@ -240,7 +271,9 @@ visitor data.
 
 ## Add the integration to your own pages
 
-Copy the complete snippet from the local console after hosting the SDK and token Function. It
+Choose exactly one option in the local console after hosting the SDK and token Function. The static
+option is the existing complete website-specific snippet. Dynamic configuration keeps the generic
+loader unchanged while the hosting adapter supplies the six public values. It
 uses the first configured website origin for `src` and your configured Worker for `data-endpoint`.
 For several allowed origins, hosting at the same `/vizoalica.js` path lets you use a relative `src`.
 Install on **every page or shared layout** where you want collection. Check the deployed page
@@ -256,6 +289,11 @@ For CSP-restricted sites, allow the SDK's host in `script-src` and the Worker or
 `connect-src`; retain your existing policy. Keep same-origin referrers enabled for the token GET.
 If your site deliberately uses `Referrer-Policy: no-referrer`, adapt its authenticated backend
 rather than weakening this example's provenance check.
+
+For a non-Cloudflare host, serve the same `/vizoalica-loader.js` and version 1 JSON document from
+its public configuration mechanism. Keep field names, validation, no-store behavior, consent gate,
+and failure isolation identical. When switching modes, remove the other script path, review the
+deployed output, and verify again before resuming collection.
 
 ## Rotate or remove
 

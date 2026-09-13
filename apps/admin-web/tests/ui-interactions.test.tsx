@@ -6,6 +6,7 @@ import { App } from '../src/App.js';
 import { ApiError } from '../src/api/local-operations.js';
 import { IntegrationSnippet } from '../src/components/IntegrationSnippet.js';
 import { WebsiteForm } from '../src/components/WebsiteForm.js';
+import { primaryIntegration } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
@@ -40,11 +41,7 @@ beforeEach(() => {
   api.createWebsite.mockResolvedValue(website);
   api.updateWebsite.mockResolvedValue(website);
   api.deleteWebsite.mockResolvedValue({ status: 'deleted', audit: 'recorded' });
-  api.getSnippet.mockResolvedValue({
-    publicSourceKey: 'public',
-    allowedOrigins: ['https://docs.test'],
-    tokenIssuer: 'website-owned'
-  });
+  api.getSnippet.mockResolvedValue(primaryIntegration);
   api.getStatus.mockResolvedValue({
     collection: 'healthy',
     aggregation: 'available',
@@ -120,6 +117,10 @@ describe('interactive console', () => {
     await user.click(await screen.findByRole('button', { name: 'Websites' }));
     await screen.findByText('Operational status');
     await user.click(screen.getByText('Add a website'));
+    await user.selectOptions(
+      screen.getByRole('form', { name: 'Add website' }).querySelector('select')!,
+      'p1'
+    );
     const names = screen.getAllByLabelText('Website name');
     const origins = screen.getAllByLabelText('Allowed origins');
     await user.type(names[0]!, 'Marketing');
@@ -140,64 +141,137 @@ describe('interactive console', () => {
     expect(await screen.findByText(/operation was interrupted/i)).toBeTruthy();
   });
 
-  it('creates projects and announces clipboard success', async () => {
+  it('announces clipboard success', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'prompt').mockReturnValue('New project');
-    render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Websites' }));
-    await user.click(screen.getByRole('button', { name: 'New project' }));
-    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith('New project'));
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) }
     });
-    cleanup();
     render(
       <IntegrationSnippet
         snippet={{
-          publicSourceKey: 'public',
-          allowedOrigins: ['https://docs.test'],
-          tokenIssuer: 'website-owned',
+          ...primaryIntegration,
           projectId: 'p1',
           sourceId: 's1',
-          html: '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-project="p1" data-source="public" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>'
+          publicSourceKey: 'public',
+          html: '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-project="p1" data-source="public" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>',
+          modes: [
+            {
+              id: 'static',
+              snippet:
+                '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-project="p1" data-source="public" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>'
+            },
+            primaryIntegration.modes[1]
+          ]
         }}
       />
     );
-    await user.click(screen.getByRole('button', { name: 'Copy snippet' }));
-    expect(await screen.findByText('Copied to clipboard.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Copy static snippet' }));
+    expect(await screen.findByText('Static snippet copied to clipboard.')).toBeTruthy();
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       expect.stringContaining('data-endpoint="https://worker.test/v1/events:batch"')
     );
     expect(screen.getByText('s1')).toBeTruthy();
   });
 
+  it('reconciles unavailable projects before loading project-bound views', async () => {
+    const user = userEvent.setup();
+    const secondProject = { id: 'p2', name: 'Beta' };
+    api.listProjects
+      .mockResolvedValueOnce([project, secondProject])
+      .mockResolvedValueOnce([project]);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Projects' }));
+    await user.click(screen.getByRole('button', { name: 'Select Beta (p2)' }));
+    await user.click(screen.getByRole('button', { name: 'Refresh projects' }));
+
+    expect(await screen.findByText('Project list refreshed.')).toBeTruthy();
+    expect(screen.queryByText('Beta')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Open websites for Acme (p1)' }));
+    await waitFor(() => expect(api.listWebsites).toHaveBeenLastCalledWith('p1'));
+    expect(api.listWebsites).not.toHaveBeenCalledWith('p2');
+  });
+
+  it('creates a website only after confirming a non-current project', async () => {
+    const user = userEvent.setup();
+    const target = { id: 'p2', name: 'Beta' };
+    api.listProjects.mockResolvedValue([project, target]);
+    api.createWebsite.mockResolvedValue({ ...website, id: 's2', projectId: 'p2', name: 'Launch' });
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Websites' }));
+    await user.click(screen.getByText('Add a website'));
+    const form = screen.getByRole('form', { name: 'Add website' });
+    await user.selectOptions(form.querySelector('select')!, 'p2');
+    await user.type(screen.getAllByLabelText('Website name')[0]!, 'Launch');
+    await user.type(screen.getAllByLabelText('Allowed origins')[0]!, 'https://launch.test');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+
+    await waitFor(() =>
+      expect(api.createWebsite).toHaveBeenCalledWith('p2', {
+        name: 'Launch',
+        allowedOrigins: ['https://launch.test']
+      })
+    );
+    expect(await screen.findByText('Website Launch created in project Beta (p2).')).toBeTruthy();
+    expect(
+      (screen.getByRole('combobox', { name: 'Browsing project' }) as HTMLSelectElement).value
+    ).toBe('p2');
+  });
+
+  it('preserves a website draft when the selected project becomes unavailable', async () => {
+    const user = userEvent.setup();
+    const target = { id: 'p2', name: 'Beta' };
+    api.listProjects.mockResolvedValue([project, target]);
+    api.createWebsite.mockRejectedValueOnce(new ApiError('not_found', 404));
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Websites' }));
+    await user.click(screen.getByText('Add a website'));
+    const form = screen.getByRole('form', { name: 'Add website' });
+    await user.selectOptions(form.querySelector('select')!, 'p2');
+    await user.type(screen.getAllByLabelText('Website name')[0]!, 'Retained draft');
+    await user.type(screen.getAllByLabelText('Allowed origins')[0]!, 'https://retained.test');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+
+    expect(
+      await screen.findByText(
+        'The selected project is no longer available. Your entries were preserved.'
+      )
+    ).toBeTruthy();
+    expect((screen.getAllByLabelText('Website name')[0] as HTMLInputElement).value).toBe(
+      'Retained draft'
+    );
+    expect((screen.getAllByLabelText('Allowed origins')[0] as HTMLTextAreaElement).value).toBe(
+      'https://retained.test'
+    );
+  });
+
   it('keeps an unavailable snippet uncopyable', () => {
     render(
       <IntegrationSnippet
-        snippet={{
-          publicSourceKey: 'public',
-          allowedOrigins: ['https://site.test'],
-          tokenIssuer: 'website-owned'
-        }}
+        snippet={{ ...primaryIntegration, html: undefined, modes: undefined as never }}
       />
     );
     expect(
-      (screen.getByRole('button', { name: 'Copy snippet' }) as HTMLButtonElement).disabled
+      (screen.getByRole('button', { name: 'Copy static snippet' }) as HTMLButtonElement).disabled
     ).toBe(true);
     expect(screen.getByText(/Snippet unavailable/)).toBeTruthy();
   });
 
   it('clears a successful create form and restores its button after failure', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
-    render(<WebsiteForm onSubmit={submit} />);
+    render(<WebsiteForm projects={[project]} onSubmit={submit} />);
+    fireEvent.change(screen.getByLabelText('Project'), { target: { value: 'p1' } });
     fireEvent.change(screen.getByLabelText('Website name'), { target: { value: 'Site' } });
     fireEvent.change(screen.getByLabelText('Allowed origins'), {
       target: { value: 'https://site.test' }
     });
     fireEvent.submit(screen.getByRole('button', { name: 'Add website' }).closest('form')!);
     await waitFor(() =>
-      expect(submit).toHaveBeenCalledWith({ name: 'Site', allowedOrigins: ['https://site.test'] })
+      expect(submit).toHaveBeenCalledWith({
+        projectId: 'p1',
+        name: 'Site',
+        allowedOrigins: ['https://site.test']
+      })
     );
     await waitFor(() =>
       expect((screen.getByLabelText('Website name') as HTMLInputElement).value).toBe('')
@@ -217,6 +291,10 @@ describe('interactive console', () => {
     api.listProjects.mockResolvedValueOnce([]);
     render(<App />);
     expect(await screen.findByText('Choose a project to view analytics.')).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Websites' }));
+    expect(await screen.findByText('Create a project first')).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Go to Projects' }));
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
     expect(rerender).toBeTypeOf('function');
   });
 

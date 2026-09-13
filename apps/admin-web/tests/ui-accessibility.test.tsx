@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
@@ -72,6 +73,21 @@ describe('application shell landmarks and navigation state', () => {
     const main = document.querySelector('main');
     expect(main?.id).toBe('main');
     expect(main?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('explains the local and potentially remote workspace boundary by keyboard', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const trigger = await screen.findByRole('button', { name: 'Local workspace' });
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    const explanation = screen.getByRole('region', { name: 'Local workspace explanation' });
+    expect(explanation.textContent).toMatch(/console interface.*loopback service.*this computer/i);
+    expect(explanation.textContent).toMatch(/backend.*stored analytics may be remote/i);
+    await user.keyboard('{Escape}');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('marks the active navigation item with aria-current="page"', async () => {

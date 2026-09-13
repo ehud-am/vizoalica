@@ -25,6 +25,14 @@
         outline: 3px solid #215c42;
         outline-offset: 3px;
       }
+      fieldset {
+        border: 1px solid #8ca298;
+        padding: 1rem;
+      }
+      label {
+        display: block;
+        margin: 0.4rem 0;
+      }
     </style>
   </head>
   <body>
@@ -34,6 +42,11 @@
         This page can send a page view to your Vizoalica installation. Analytics starts only if you
         choose Allow. Your choice applies to this page visit.
       </p>
+      <fieldset>
+        <legend>Installation option for this test</legend>
+        <label><input type="radio" name="mode" value="static" checked /> Static snippet</label>
+        <label><input type="radio" name="mode" value="dynamic" /> Dynamic configuration</label>
+      </fieldset>
       <button id="allow" type="button">Allow analytics</button>
       <button id="decline" type="button">Decline analytics</button>
       <p id="status" role="status">Analytics has not started.</p>
@@ -41,19 +54,25 @@
     <script>
       const status = document.getElementById('status');
       document.getElementById('allow').addEventListener('click', () => {
-        if (document.getElementById('vizoalica-sdk')) return;
+        if (document.getElementById('vizoalica-sdk') || document.getElementById('vizoalica-loader'))
+          return;
         const script = document.createElement('script');
-        script.id = 'vizoalica-sdk';
         script.async = true;
-        script.src = '/vizoalica.js';
-        script.dataset.endpoint = 'https://REPLACE_WORKER_HOST/v1/events:batch';
-        script.dataset.source = 'REPLACE_PUBLIC_SOURCE_KEY';
-        script.dataset.project = 'REPLACE_PROJECT_ID';
-        script.dataset.tokenUrl = '/vizoalica/ingest-token';
-        script.dataset.consent = 'analytics-granted';
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        if (mode === 'dynamic') {
+          script.id = 'vizoalica-loader';
+          script.src = '/vizoalica-loader.js';
+        } else {
+          script.id = 'vizoalica-sdk';
+          script.src = '/vizoalica.js';
+          script.dataset.endpoint = 'https://REPLACE_WORKER_HOST/v1/events:batch';
+          script.dataset.source = 'REPLACE_PUBLIC_SOURCE_KEY';
+          script.dataset.project = 'REPLACE_PROJECT_ID';
+          script.dataset.tokenUrl = '/vizoalica/ingest-token';
+          script.dataset.consent = 'analytics-granted';
+        }
         document.head.append(script);
-        status.textContent =
-          'Analytics allowed. Check the Network panel and your local console to confirm delivery.';
+        status.textContent = `Analytics allowed with ${mode} installation. Check the Network panel and your local console to confirm delivery.`;
         document.getElementById('allow').disabled = true;
         document.getElementById('decline').disabled = true;
       });

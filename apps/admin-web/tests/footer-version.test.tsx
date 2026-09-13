@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppFooter } from '../src/components/AppFooter.js';
 import { App } from '../src/App.js';
+import { ApiError } from '../src/api/local-operations.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
@@ -67,18 +68,32 @@ afterEach(() => {
 describe('AppFooter on every console view', () => {
   it('renders the versioned footer on Overview', async () => {
     render(<App />);
-    expect(
-      await screen.findByText(new RegExp(`Vizoalica \\| v${rootPackageJson.version}`))
-    ).toBeTruthy();
+    expect(await screen.findByText(new RegExp(`Version ${rootPackageJson.version}`))).toBeTruthy();
   });
 
   it('renders the versioned footer on Websites too', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Websites' }));
-    expect(
-      await screen.findByText(new RegExp(`Vizoalica \\| v${rootPackageJson.version}`))
-    ).toBeTruthy();
+    expect(await screen.findByText(new RegExp(`Version ${rootPackageJson.version}`))).toBeTruthy();
+  });
+
+  it('keeps support and version information in loading, denied, and offline states', async () => {
+    api.bootstrapSession.mockImplementation(() => new Promise(() => undefined));
+    render(<App />);
+    expect(screen.getByRole('contentinfo')).toBeTruthy();
+    cleanup();
+
+    api.bootstrapSession.mockRejectedValueOnce(new Error('offline'));
+    render(<App />);
+    expect(await screen.findByText('Workspace unavailable')).toBeTruthy();
+    expect(screen.getByRole('contentinfo')).toBeTruthy();
+    cleanup();
+
+    api.bootstrapSession.mockRejectedValueOnce(new ApiError('access_revoked', 401));
+    render(<App />);
+    expect(await screen.findByText('Authorization required')).toBeTruthy();
+    expect(screen.getByRole('contentinfo')).toBeTruthy();
   });
 });
 
@@ -86,19 +101,23 @@ describe('AppFooter version', () => {
   it('renders the authoritative root package.json version', () => {
     vi.stubGlobal('__VIZOALICA_VERSION__', rootPackageJson.version);
     const html = renderToStaticMarkup(<AppFooter />);
-    expect(html).toContain(`v${rootPackageJson.version}`);
+    expect(html).toContain(`Version ${rootPackageJson.version}`);
+    expect(html).toContain('href="https://vizoalica.dev"');
+    expect(html).toContain('href="https://github.com/ehud-am/vizoalica"');
   });
 
-  it('renders the exact "YYYY | Vizoalica | vX.Y.Z" format', () => {
+  it('renders the current year, product, and semantic version', () => {
     vi.stubGlobal('__VIZOALICA_VERSION__', '0.3.1');
     const html = renderToStaticMarkup(<AppFooter />);
     const year = new Date().getFullYear();
-    expect(html).toContain(`${year} | Vizoalica | v0.3.1`);
+    expect(html).toContain(`© ${year} Vizoalica`);
+    expect(html).toContain('Version 0.3.1');
   });
 
-  it('falls back to "vunknown" when the build-time version constant is unavailable', () => {
+  it('falls back explicitly when the build-time version is unavailable or invalid', () => {
     vi.unstubAllGlobals();
-    const html = renderToStaticMarkup(<AppFooter />);
-    expect(html).toContain('vunknown');
+    expect(renderToStaticMarkup(<AppFooter />)).toContain('Version unavailable');
+    vi.stubGlobal('__VIZOALICA_VERSION__', 'unknown');
+    expect(renderToStaticMarkup(<AppFooter />)).toContain('Version unavailable');
   });
 });

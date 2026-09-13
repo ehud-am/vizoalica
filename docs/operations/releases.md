@@ -39,9 +39,9 @@ supported commands are described in [the Cloudflare operations guide](./cloudfla
 
 There is no automatic deployment on push, merge, tag creation, or GitHub Release publication.
 
-## Release 0.5.0 deployment boundary
+## Release 0.5.1 deployment boundary
 
-Version 0.5.0 supports **fresh deployments only**. A new installation applies the single complete
+Version 0.5.1 supports **fresh deployments only**. A new installation applies the single complete
 `0001_initial.sql` baseline to a new empty D1 database. In-place upgrades, data preservation,
 backfills, and schema rollback are not supported in this release. The backend preflight rejects
 existing or ambiguous Vizoalica schema state without changing it.
@@ -51,6 +51,6 @@ the two credential methods, and activate each website. It does not deploy an ope
 resources or alter credentials merely because a source release, tag, or GitHub Release is
 published.
 
-[Local validation evidence](../../specs/008-modernize-console-design/qa-report.md) distinguishes
+[Local validation evidence](../../specs/010-project-first-console/qa-report.md) distinguishes
 automated checks from human visual and assistive-technology review. A version bump in the checkout
 is not a published Git tag or GitHub Release.

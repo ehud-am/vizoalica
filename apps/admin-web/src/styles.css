@@ -226,6 +226,10 @@ body {
   background: var(--color-surface-page);
   color: var(--color-text-primary);
 }
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 button,
 input,
 select,
@@ -304,8 +308,30 @@ pre:focus-visible {
   border-radius: 50%;
   background: var(--color-success-dot);
 }
+.workspace-context {
+  position: relative;
+}
+.workspace-context-explanation {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgb(var(--shadow-color) / 18%);
+}
+.workspace-context-explanation p {
+  margin: 8px 0 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
 .workspace {
   min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
 }
@@ -365,8 +391,14 @@ pre:focus-visible {
   color: var(--color-text-tertiary);
   line-height: 1.4;
 }
+.content-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 main {
   min-width: 0;
+  flex: 1;
 }
 .page {
   max-width: 1200px;
@@ -412,11 +444,25 @@ h2 {
   padding: 24px;
 }
 .app-footer {
-  margin-top: 40px;
-  padding-top: 20px;
+  width: 100%;
+  margin-top: auto;
+  padding: 20px 40px;
   border-top: 1px solid var(--color-border-default);
   color: var(--color-text-tertiary);
   font-size: 12px;
+}
+.app-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  text-align: center;
+}
+.app-footer a {
+  color: var(--color-text-brand);
 }
 .technical-value,
 .website-row small,
@@ -616,6 +662,140 @@ textarea {
   border-color: var(--color-danger-border);
   color: var(--color-danger-notice-text);
   background: var(--color-danger-notice-bg);
+}
+.notice.success {
+  border-color: var(--color-success-dot);
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+}
+.project-create-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(300px, 1.3fr);
+  align-items: end;
+  gap: 24px;
+}
+.project-create-panel p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+.project-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.project-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.project-card {
+  height: 100%;
+  padding: 22px;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+.project-card.selected {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px var(--color-surface-accent);
+}
+.project-card-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.project-card-heading h2 {
+  margin: 0 0 5px;
+}
+.project-card-heading code {
+  color: var(--color-text-tertiary);
+  overflow-wrap: anywhere;
+}
+.project-card > p {
+  margin: 20px 0;
+  color: var(--color-text-secondary);
+}
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-empty {
+  margin-top: 22px;
+}
+.installation-options,
+.cloudflare-targets {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 0;
+  border: 0;
+}
+.installation-options legend,
+.cloudflare-targets legend {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.installation-options > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-surface-muted-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.installation-options input {
+  margin-top: 3px;
+}
+.installation-options span,
+.installation-options small {
+  display: block;
+}
+.installation-options small {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+}
+.installation-mode-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+.installation-mode-panel h3,
+.installation-mode-panel p {
+  margin: 0;
+}
+.cloudflare-targets {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 18px;
+  background: var(--color-surface-muted-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.cloudflare-targets legend {
+  grid-column: 1 / -1;
+}
+.cloudflare-steps {
+  display: grid;
+  gap: 18px;
+  padding-left: 24px;
+}
+.cloudflare-steps li::marker {
+  color: var(--color-text-brand);
+  font-weight: 700;
+}
+.cloudflare-steps pre {
+  margin: 8px 0 0;
+}
+.integration-warnings {
+  color: var(--color-warning-notice-text);
 }
 .principles {
   display: grid;
@@ -974,6 +1154,9 @@ pre {
   .topbar {
     padding: 0 16px;
   }
+  .app-footer {
+    padding-inline: 20px;
+  }
   .brand span:last-child {
     display: none;
   }
@@ -1011,6 +1194,9 @@ pre {
     flex-direction: column;
   }
   .selector-row,
+  .project-create-panel,
+  .project-list,
+  .cloudflare-targets,
   .metrics,
   .dashboard-grid,
   .principles,
@@ -1096,11 +1282,18 @@ pre {
     margin-bottom: 22px;
   }
   .page-heading .secondary,
+  .project-create-form .primary,
   .actions > button {
     width: 100%;
   }
   .actions {
     flex-direction: column;
+  }
+  .project-create-form {
+    grid-template-columns: 1fr;
+  }
+  .project-actions > button {
+    flex: 1 1 100%;
   }
   .time-range-popover {
     position: fixed;
@@ -1143,6 +1336,7 @@ pre {
 }
 @media (forced-colors: active) {
   .nav-item.active,
+  .project-card.selected,
   .website-row.selected,
   .theme-toggle button[aria-pressed='true'] {
     border: 2px solid Highlight;

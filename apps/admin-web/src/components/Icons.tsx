@@ -39,6 +39,15 @@ export function WebsitesIcon(props: IconProps) {
   );
 }
 
+export function ProjectsIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <path d="M3 10h18" />
+    </IconFrame>
+  );
+}
+
 export function LockIcon(props: IconProps) {
   return (
     <IconFrame {...props}>

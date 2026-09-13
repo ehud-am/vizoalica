@@ -16,12 +16,20 @@ origin checks, or alter an existing database. This release supports fresh deploy
 | Pages upload fails with `8000013`    | A proxy may have replaced Wrangler's upload token           | Use the native Cloudflare Pages path below. Do not add unrelated permissions.                                                     |
 | Deployment times out                 | Remote state is unknown                                     | Inspect D1 migration state and Worker deployment history before retrying.                                                         |
 | SDK URL returns HTML                 | The bundle was not copied to the deployed output            | Run `pnpm browser-sdk:build`, copy `vizoalica.js`, and redeploy.                                                                  |
+| Loader URL returns HTML              | The dynamic loader was not copied to the deployed output    | Build and copy `vizoalica-loader.js`, then redeploy without enabling the static path too.                                         |
+| Config URL returns 503               | One or more public variables are missing or invalid         | Review all six public values, exact project/source scope, HTTPS endpoints, and same-origin token URL; then redeploy.              |
+| Config URL returns fallback HTML     | The Function or `_routes.json` merge was not deployed       | Keep `config.json.ts` beside the token Function, merge the config route, and deploy from the real site root.                      |
+| Analytics initializes twice          | Static and dynamic paths are both enabled                   | Remove one path, redeploy, and verify a single loader/SDK element before resuming collection.                                     |
 | Token URL returns HTML               | The Function was not discovered                             | Deploy from the site root with `--cwd`; keep `functions/` beside, not inside, `public/`.                                          |
 | Token Function returns 503           | Secret or server variables are missing                      | Set the production Pages secret and variables, then redeploy.                                                                     |
 | Token Function returns 403           | Website origin or referrer differs                          | Use the registered production origin and a same-origin referrer.                                                                  |
 | Worker rejects the token             | Signing secret or source scope differs                      | Match the Worker and issuer secret, project ID, source ID, and origin.                                                            |
 | Push did not update the website      | The project uses Direct Upload or another production branch | Inspect its deployment mode and commit; use Wrangler for Direct Upload.                                                           |
 | Console counts remain zero           | The event was never accepted                                | Grant consent, confirm the Worker batch returns **202**, then refresh the same source's `24h` view.                               |
+
+Dynamic configuration never falls back to another endpoint or identifier. A failed fetch,
+malformed document, CSP block, or SDK load must leave the website usable and send no analytics;
+repair the configuration rather than adding a default destination.
 
 ## OneCLI and Pages uploads
 
