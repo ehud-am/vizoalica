@@ -14,92 +14,57 @@ function attribute(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
+const WORKFLOW_REF = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2';
 
-const targetInputs = {
-  pagesProject: 'YOUR_PAGES_PROJECT',
-  environment: 'production',
-  productionBranch: 'main',
-  siteDirectory: 'YOUR_SITE_DIRECTORY',
-  outputDirectory: 'public'
-};
-
-function cloudflareGuidance(config: DynamicConfigV1): CloudflareGuidance {
-  const publicVariables = {
+function cloudflareGuidance(
+  config: DynamicConfigV1,
+  sourceId: string,
+  siteOrigin: string
+): CloudflareGuidance {
+  const repoVariables: Record<string, string> = {
     VIZOALICA_SDK_SRC: config.src,
     VIZOALICA_INGEST_ENDPOINT: config['data-endpoint'],
     VIZOALICA_PUBLIC_SOURCE_KEY: config['data-source'],
     VIZOALICA_PROJECT_ID: config['data-project'],
     VIZOALICA_TOKEN_URL: config['data-token-url'],
-    VIZOALICA_CONSENT: config['data-consent']
+    VIZOALICA_CONSENT: config['data-consent'],
+    VIZOALICA_SOURCE_ID: sourceId,
+    VIZOALICA_SITE_ORIGIN: siteOrigin
   };
-  const project = shellQuote(targetInputs.pagesProject);
-  const directory = shellQuote(targetInputs.siteDirectory);
-  const output = shellQuote(targetInputs.outputDirectory);
-  const branch = shellQuote(targetInputs.productionBranch);
-  const environment = shellQuote(targetInputs.environment);
-  const wranglerFile = shellQuote(`${targetInputs.siteDirectory}/wrangler.toml`);
-  const functionFile = shellQuote(
-    `${targetInputs.siteDirectory}/functions/vizoalica/config.json.ts`
-  );
-  const loaderFile = shellQuote(
-    `${targetInputs.siteDirectory}/${targetInputs.outputDirectory}/vizoalica-loader.js`
-  );
-  const routesFile = shellQuote(
-    `${targetInputs.siteDirectory}/${targetInputs.outputDirectory}/_routes.json`
-  );
+  const accountSpecificVariables = ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'];
+  const repoSecretNames = ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'];
+  const starterWorkflowYaml = [
+    'name: Deploy website',
+    'on:',
+    '  push:',
+    '    branches: [main]',
+    '    paths: ["YOUR_SITE_DIRECTORY/**"]',
+    '',
+    'jobs:',
+    '  deploy:',
+    `    uses: ${WORKFLOW_REF}`,
+    '    with:',
+    '      site-directory: YOUR_SITE_DIRECTORY',
+    '    secrets: inherit'
+  ].join('\n');
+  const setupCommands = [
+    ...Object.entries(repoVariables).map(
+      ([name, value]) => `gh variable set ${name} --body ${JSON.stringify(value)}`
+    ),
+    ...accountSpecificVariables.map((name) => `gh variable set ${name} --body YOUR_${name}`),
+    ...repoSecretNames.map((name) => `gh secret set ${name}`)
+  ];
   return {
-    publicVariables,
-    targetInputs,
-    steps: [
-      {
-        id: 'inspect',
-        title: 'Inspect the account and exact Pages target',
-        commands: [
-          'pnpm exec wrangler whoami',
-          'pnpm exec wrangler pages project list --json',
-          `printf 'Target Pages project: %s\\nTarget environment: %s\\n' ${project} ${environment}`
-        ]
-      },
-      {
-        id: 'configure',
-        title: 'Merge the public variables and dynamic assets',
-        commands: [`sed -n '1,240p' ${wranglerFile}`]
-      },
-      {
-        id: 'review',
-        title: 'Review project, environment, branch, directories, and diff',
-        commands: [`git diff -- ${wranglerFile} ${functionFile} ${loaderFile} ${routesFile}`]
-      },
-      {
-        id: 'exercise',
-        title: 'Exercise the real Pages output locally',
-        commands: [`pnpm exec wrangler pages dev ${output} --cwd ${directory}`]
-      },
-      {
-        id: 'deploy',
-        title: 'Deploy with the site’s approved hosting mode',
-        commands: [
-          `pnpm exec wrangler pages deploy ${output} --cwd ${directory} --project-name ${project} --branch ${branch}`,
-          `git push origin ${shellQuote(targetInputs.productionBranch)} # Git-connected alternative`
-        ]
-      },
-      {
-        id: 'verify',
-        title: 'Inspect deployment and verify configuration and collection',
-        commands: [
-          `pnpm exec wrangler pages deployment list --project-name ${project}`,
-          'curl --fail --show-error https://YOUR_SITE.example/vizoalica/config.json',
-          `pnpm website:verify -- https://YOUR_SITE.example ${shellQuote(config['data-project'])} YOUR_SOURCE_ID --mode dynamic`
-        ]
-      }
-    ],
+    workflowRef: WORKFLOW_REF,
+    repoVariables,
+    accountSpecificVariables,
+    repoSecretNames,
+    starterWorkflowYaml,
+    setupCommands,
     warnings: [
-      'These six values are public browser configuration, not secrets.',
-      'Merge with the existing site configuration; do not overwrite unrelated settings or routes.',
-      'Keep VIZOALICA_TOKEN_SECRET and deployment credentials server-side and out of these commands.',
+      'The listed repository variables are public browser configuration, not secrets.',
+      'CF_API_TOKEN and VIZOALICA_TOKEN_SECRET are secrets: generate them yourself and set them with gh secret set (or the GitHub UI), never paste a real value into this console.',
+      'Scope CF_API_TOKEN to Cloudflare Pages: Edit on this account only.',
       'Enable only one installation mode so Vizoalica initializes once.'
     ]
   };
@@ -139,7 +104,7 @@ export function integrationSnippet(
         snippet: dynamicSnippet,
         configUrl: '/vizoalica/config.json',
         config,
-        cloudflare: cloudflareGuidance(config)
+        cloudflare: cloudflareGuidance(config, sourceId, origin.origin)
       }
     ],
     privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true },

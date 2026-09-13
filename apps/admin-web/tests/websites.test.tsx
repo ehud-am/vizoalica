@@ -120,12 +120,13 @@ describe('website lifecycle UI', () => {
     );
     expect(screen.getByText(/remove or disable the other installation path/i)).toBeTruthy();
     expect(
-      screen
-        .getAllByRole('listitem')
-        .map((item) => item.textContent)
-        .join(' ')
-    ).toMatch(
-      /Inspect target.*Configure public values.*Review changes.*Exercise locally.*Deploy approved changes.*Verify deployment/
+      screen.getByRole('region', { name: 'Starter GitHub Actions workflow' }).textContent
+    ).toContain('uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2');
+    expect(
+      screen.getByRole('region', { name: 'Required GitHub repository variables' }).textContent
+    ).toContain('VIZOALICA_SOURCE_ID');
+    expect(screen.getByRole('region', { name: 'gh CLI setup commands' }).textContent).toContain(
+      'gh secret set CF_API_TOKEN'
     );
     await user.click(screen.getByRole('button', { name: 'Copy dynamic snippet' }));
     expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(

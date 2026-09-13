@@ -37,20 +37,27 @@ describe('complete installation snippet', () => {
         'data-consent': 'unknown'
       }
     });
-    expect(response.body.modes[1].cloudflare.steps.map((step: { id: string }) => step.id)).toEqual([
-      'inspect',
-      'configure',
-      'review',
-      'exercise',
-      'deploy',
-      'verify'
+    expect(response.body.modes[1].cloudflare.workflowRef).toBe(
+      'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2'
+    );
+    expect(response.body.modes[1].cloudflare.repoVariables).toMatchObject({
+      VIZOALICA_SOURCE_ID: 'source-1',
+      VIZOALICA_SITE_ORIGIN: 'https://site.test'
+    });
+    expect(response.body.modes[1].cloudflare.accountSpecificVariables).toEqual([
+      'CF_ACCOUNT_ID',
+      'CF_PAGES_PROJECT'
     ]);
-    const commands = response.body.modes[1].cloudflare.steps
-      .flatMap((step: { commands: string[] }) => step.commands)
-      .join('\n');
-    expect(commands).toContain("Target environment: %s\\n' 'YOUR_PAGES_PROJECT' 'production'");
-    expect(commands).toContain("'YOUR_SITE_DIRECTORY/wrangler.toml'");
-    expect(commands).not.toContain("cd 'YOUR_SITE_DIRECTORY'");
+    expect(response.body.modes[1].cloudflare.repoSecretNames).toEqual([
+      'CF_API_TOKEN',
+      'VIZOALICA_TOKEN_SECRET'
+    ]);
+    expect(response.body.modes[1].cloudflare.starterWorkflowYaml).toContain(
+      'uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2'
+    );
+    expect(response.body.modes[1].cloudflare.setupCommands.join('\n')).not.toMatch(
+      /gh secret set (CF_API_TOKEN|VIZOALICA_TOKEN_SECRET) --body/
+    );
     expect(response.body.privateSetup).toEqual({
       tokenIssuer: 'website-owned',
       tokenSecretRequired: true
@@ -96,7 +103,7 @@ describe('complete installation snippet', () => {
     ).body.modes[1];
     expect(one.snippet).toBe(two.snippet);
     expect(one.config).not.toEqual(two.config);
-    expect(Object.keys(one.cloudflare.publicVariables)).toHaveLength(6);
+    expect(Object.keys(one.cloudflare.repoVariables)).toHaveLength(8);
     const serialized = JSON.stringify([one, two]);
     expect(serialized).not.toMatch(/ADMIN_SECRET|authorization|Bearer|top-secret|must-not-leak/i);
   });

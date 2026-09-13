@@ -30,19 +30,12 @@ export type DynamicConfigV1 = {
 };
 export type StaticInstallation = { id: 'static'; snippet: string };
 export type CloudflareGuidance = {
-  publicVariables: Record<string, string>;
-  targetInputs: {
-    pagesProject: string;
-    environment: string;
-    productionBranch: string;
-    siteDirectory: string;
-    outputDirectory: string;
-  };
-  steps: Array<{
-    id: 'inspect' | 'configure' | 'review' | 'exercise' | 'deploy' | 'verify';
-    title: string;
-    commands: string[];
-  }>;
+  workflowRef: string;
+  repoVariables: Record<string, string>;
+  accountSpecificVariables: string[];
+  repoSecretNames: string[];
+  starterWorkflowYaml: string;
+  setupCommands: string[];
   warnings: string[];
 };
 export type DynamicInstallation = {

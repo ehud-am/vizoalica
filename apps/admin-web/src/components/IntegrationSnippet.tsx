@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type {
   CloudflareGuidance,
   DynamicInstallation,
@@ -9,25 +9,10 @@ import { CopyIcon } from './Icons.js';
 
 type Mode = 'static' | 'dynamic';
 
-function publicVariables(guidance: CloudflareGuidance): string {
-  return `[vars]\n${Object.entries(guidance.publicVariables)
-    .map(([name, value]) => `${name} = ${JSON.stringify(value)}`)
-    .join('\n')}`;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'"'"'`)}'`;
-}
-
-function configuredCommand(
-  command: string,
-  initial: CloudflareGuidance['targetInputs'],
-  current: CloudflareGuidance['targetInputs']
-): string {
-  return (Object.keys(initial) as Array<keyof typeof initial>).reduce(
-    (result, key) => result.replaceAll(shellQuote(initial[key]), shellQuote(current[key])),
-    command
-  );
+function repoVariablesList(guidance: CloudflareGuidance): string {
+  return Object.entries(guidance.repoVariables)
+    .map(([name, value]) => `${name}=${value}`)
+    .join('\n');
 }
 
 export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
@@ -42,27 +27,6 @@ export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
     staticMode?.snippet ??
     snippet.html ??
     'Snippet unavailable. Restart the local API with the current Vizoalica version.';
-  const [targets, setTargets] = useState(
-    dynamicMode?.cloudflare.targetInputs ?? {
-      pagesProject: '',
-      environment: '',
-      productionBranch: '',
-      siteDirectory: '',
-      outputDirectory: ''
-    }
-  );
-  const commands = useMemo(
-    () =>
-      dynamicMode?.cloudflare.steps.flatMap((step) =>
-        step.commands.map((command) =>
-          configuredCommand(command, dynamicMode.cloudflare.targetInputs, targets)
-        )
-      ) ?? [],
-    [dynamicMode, targets]
-  );
-  const targetsReady = Object.values(targets).every(
-    (value) => value.trim() && !value.includes('YOUR_') && !value.includes('REPLACE_')
-  );
 
   async function copy(label: string, value: string) {
     await navigator.clipboard.writeText(value);
@@ -158,67 +122,63 @@ export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
             <code>{dynamicMode.snippet}</code>
           </pre>
           <p>
-            The loader requests <code>{dynamicMode.configUrl}</code> from this website. All values
-            below are public browser configuration—not secrets.
+            The loader requests <code>{dynamicMode.configUrl}</code> from this website, deployed
+            automatically by a GitHub Actions workflow whenever you push a change.
           </p>
-          <pre tabIndex={0} role="region" aria-label="Dynamic public configuration">
-            <code>{JSON.stringify(dynamicMode.config, null, 2)}</code>
-          </pre>
+
           <div className="card-heading">
-            <h3>Cloudflare public variables</h3>
+            <h3>1. Add this workflow to your website repository</h3>
             <button
               className="secondary"
-              onClick={() => void copy('variables', publicVariables(dynamicMode.cloudflare))}
+              onClick={() => void copy('workflow', dynamicMode.cloudflare.starterWorkflowYaml)}
             >
               <CopyIcon size={16} />
-              Copy public variables
+              Copy workflow file
             </button>
           </div>
-          <pre tabIndex={0} role="region" aria-label="Cloudflare public variable block">
-            <code>{publicVariables(dynamicMode.cloudflare)}</code>
+          <p>
+            Save as <code>.github/workflows/deploy-website.yml</code>, replacing{' '}
+            <code>YOUR_SITE_DIRECTORY</code> with your site&rsquo;s actual folder.
+          </p>
+          <pre tabIndex={0} role="region" aria-label="Starter GitHub Actions workflow">
+            <code>{dynamicMode.cloudflare.starterWorkflowYaml}</code>
           </pre>
 
-          <fieldset className="cloudflare-targets">
-            <legend>Confirm the Cloudflare target</legend>
-            {(Object.keys(targets) as Array<keyof typeof targets>).map((key) => (
-              <label key={key}>
-                {key.replace(/([A-Z])/g, ' $1')}
-                <input
-                  required
-                  value={targets[key]}
-                  onChange={(event) => setTargets({ ...targets, [key]: event.target.value })}
-                />
-              </label>
-            ))}
-          </fieldset>
+          <div className="card-heading">
+            <h3>2. Add these repository variables</h3>
+            <button
+              className="secondary"
+              onClick={() => void copy('variables', repoVariablesList(dynamicMode.cloudflare))}
+            >
+              <CopyIcon size={16} />
+              Copy variable list
+            </button>
+          </div>
+          <p>These are public browser configuration, not secrets.</p>
+          <pre tabIndex={0} role="region" aria-label="Required GitHub repository variables">
+            <code>{repoVariablesList(dynamicMode.cloudflare)}</code>
+          </pre>
+          <p>
+            You must also set, using your own Cloudflare account details:{' '}
+            {dynamicMode.cloudflare.accountSpecificVariables.join(', ')} (repository variables), and{' '}
+            {dynamicMode.cloudflare.repoSecretNames.join(', ')} (repository secrets — generate these
+            yourself, never paste a real value here).
+          </p>
 
-          <ol className="cloudflare-steps">
-            {dynamicMode.cloudflare.steps.map((step) => (
-              <li key={step.id}>
-                <strong>{step.title}</strong>
-                {step.commands.map((command) => (
-                  <pre
-                    key={command}
-                    tabIndex={0}
-                    role="region"
-                    aria-label={`${step.title} command`}
-                  >
-                    <code>
-                      {configuredCommand(command, dynamicMode.cloudflare.targetInputs, targets)}
-                    </code>
-                  </pre>
-                ))}
-              </li>
-            ))}
-          </ol>
-          <button
-            className="secondary"
-            disabled={!targetsReady}
-            onClick={() => void copy('commands', commands.join('\n'))}
-          >
-            <CopyIcon size={16} />
-            Copy reviewed commands
-          </button>
+          <div className="card-heading">
+            <h3>3. Or run this from your terminal</h3>
+            <button
+              className="secondary"
+              onClick={() => void copy('commands', dynamicMode.cloudflare.setupCommands.join('\n'))}
+            >
+              <CopyIcon size={16} />
+              Copy gh commands
+            </button>
+          </div>
+          <pre tabIndex={0} role="region" aria-label="gh CLI setup commands">
+            <code>{dynamicMode.cloudflare.setupCommands.join('\n')}</code>
+          </pre>
+
           <ul className="integration-warnings">
             {dynamicMode.cloudflare.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -233,7 +193,15 @@ export function IntegrationSnippet({ snippet }: { snippet: Integration }) {
 
       <p className="copy-status" role="status">
         {copied
-          ? `${copied === 'static' ? 'Static snippet' : copied === 'dynamic' ? 'Dynamic snippet' : copied === 'variables' ? 'Public variables' : 'Reviewed commands'} copied to clipboard.`
+          ? `${
+              {
+                static: 'Static snippet',
+                dynamic: 'Dynamic snippet',
+                workflow: 'Workflow file',
+                variables: 'Variable list',
+                commands: 'Setup commands'
+              }[copied] ?? copied
+            } copied to clipboard.`
           : 'Load the selected option only after the host consent manager grants analytics. Browser configuration is public; signing and deployment credentials stay server-side.'}
       </p>
     </section>

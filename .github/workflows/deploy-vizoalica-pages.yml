@@ -1,0 +1,172 @@
+name: Deploy Vizoalica website
+
+# Reusable workflow a Vizoalica customer's own website repository calls to
+# publish their site to their own Cloudflare Pages project, along with the
+# Vizoalica configuration and token-issuing Pages Functions, on every push to
+# their configured site path. See:
+# specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md
+#
+# Caller example (in the customer's own repo):
+#
+#   jobs:
+#     deploy:
+#       uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2
+#       with:
+#         site-directory: docs
+#       secrets: inherit
+#
+# Required caller repository variables: VIZOALICA_SDK_SRC,
+# VIZOALICA_INGEST_ENDPOINT, VIZOALICA_PUBLIC_SOURCE_KEY, VIZOALICA_PROJECT_ID,
+# VIZOALICA_TOKEN_URL, VIZOALICA_CONSENT, VIZOALICA_SOURCE_ID,
+# VIZOALICA_SITE_ORIGIN, CF_ACCOUNT_ID, CF_PAGES_PROJECT.
+# Required caller repository secrets: CF_API_TOKEN (Cloudflare Pages: Edit
+# scope only), VIZOALICA_TOKEN_SECRET (>= 32 random characters).
+#
+# None of these values are ever read from, or written to, the caller's
+# repository source. They are supplied by GitHub Actions and wired into the
+# Cloudflare Pages environment for this deployment only.
+
+on:
+  workflow_call:
+    inputs:
+      site-directory:
+        description: Path, relative to the caller repository root, of the static site to deploy.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # The Vizoalica ref this workflow's own Pages Functions and loader are
+  # vendored from. Bumped alongside this file when a new Vizoalica version is
+  # released, so a customer pinning a given tag always gets matching Functions.
+  VIZOALICA_REF: v0.5.2
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out website repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out Vizoalica Pages Functions and loader
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ehud-am/vizoalica
+          ref: ${{ env.VIZOALICA_REF }}
+          path: .vizoalica-src
+          sparse-checkout: examples/cloudflare-pages
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Validate required configuration
+        env:
+          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
+          VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
+          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
+          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
+          VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
+          VIZOALICA_SITE_ORIGIN: ${{ vars.VIZOALICA_SITE_ORIGIN }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
+            VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
+            VIZOALICA_SITE_ORIGIN CF_ACCOUNT_ID CF_PAGES_PROJECT CF_API_TOKEN \
+            VIZOALICA_TOKEN_SECRET; do
+            value="${!name:-}"
+            if [ -z "$value" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#VIZOALICA_TOKEN_SECRET}" -lt 32 ] 2>/dev/null; then
+            echo "::error::VIZOALICA_TOKEN_SECRET must be at least 32 characters"
+            exit 1
+          fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Missing required repository variables/secrets: ${missing[*]}"
+            echo "See specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md" \
+              "in ehud-am/vizoalica for the full list, or the admin console's website page."
+            exit 1
+          fi
+          if [ ! -d "${{ inputs.site-directory }}" ]; then
+            echo "::error::site-directory '${{ inputs.site-directory }}' does not exist in this repository"
+            exit 1
+          fi
+
+      - name: Vendor Vizoalica Pages Functions and loader
+        run: |
+          set -euo pipefail
+          site="${{ inputs.site-directory }}"
+          mkdir -p "$site/functions/vizoalica"
+          cp .vizoalica-src/examples/cloudflare-pages/functions/vizoalica/config.json.ts \
+            "$site/functions/vizoalica/config.json.ts"
+          cp .vizoalica-src/examples/cloudflare-pages/functions/vizoalica/ingest-token.ts \
+            "$site/functions/vizoalica/ingest-token.ts"
+          cp .vizoalica-src/examples/cloudflare-pages/public/vizoalica-loader.js \
+            "$site/vizoalica-loader.js"
+
+      - name: Generate ephemeral Cloudflare Pages configuration
+        env:
+          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
+          VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
+          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
+          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
+          VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
+          VIZOALICA_SITE_ORIGIN: ${{ vars.VIZOALICA_SITE_ORIGIN }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+        run: |
+          set -euo pipefail
+          # This file exists only in the ephemeral CI workspace for this run.
+          # It is never committed to the caller's repository.
+          cat > "${{ inputs.site-directory }}/wrangler.toml" <<TOML
+          name = "$CF_PAGES_PROJECT"
+          pages_build_output_dir = "."
+          compatibility_date = "2026-09-09"
+
+          [vars]
+          VIZOALICA_SDK_SRC = "$VIZOALICA_SDK_SRC"
+          VIZOALICA_INGEST_ENDPOINT = "$VIZOALICA_INGEST_ENDPOINT"
+          VIZOALICA_PUBLIC_SOURCE_KEY = "$VIZOALICA_PUBLIC_SOURCE_KEY"
+          VIZOALICA_PROJECT_ID = "$VIZOALICA_PROJECT_ID"
+          VIZOALICA_TOKEN_URL = "$VIZOALICA_TOKEN_URL"
+          VIZOALICA_CONSENT = "$VIZOALICA_CONSENT"
+          VIZOALICA_SOURCE_ID = "$VIZOALICA_SOURCE_ID"
+          VIZOALICA_SITE_ORIGIN = "$VIZOALICA_SITE_ORIGIN"
+          TOML
+
+      - name: Set the ingest token signing secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$VIZOALICA_TOKEN_SECRET" | npx --yes wrangler@4 pages secret put \
+            VIZOALICA_TOKEN_SECRET --project-name "${{ vars.CF_PAGES_PROJECT }}"
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 pages deploy \
+            --project-name "${{ vars.CF_PAGES_PROJECT }}" \
+            --branch "${{ github.ref_name }}" \
+            --cwd "${{ inputs.site-directory }}" \
+            .

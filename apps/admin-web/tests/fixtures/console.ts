@@ -50,28 +50,24 @@ export const primaryIntegration: Integration = {
         'data-consent': 'unknown'
       },
       cloudflare: {
-        publicVariables: {
+        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2',
+        repoVariables: {
           VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
           VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
           VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key',
           VIZOALICA_PROJECT_ID: primaryProject.id,
           VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
-          VIZOALICA_CONSENT: 'unknown'
+          VIZOALICA_CONSENT: 'unknown',
+          VIZOALICA_SOURCE_ID: primaryWebsite.id,
+          VIZOALICA_SITE_ORIGIN: 'https://docs.example.com'
         },
-        targetInputs: {
-          pagesProject: 'YOUR_PAGES_PROJECT',
-          environment: 'production',
-          productionBranch: 'main',
-          siteDirectory: 'YOUR_SITE_DIRECTORY',
-          outputDirectory: 'public'
-        },
-        steps: [
-          { id: 'inspect', title: 'Inspect target', commands: ['wrangler whoami'] },
-          { id: 'configure', title: 'Configure public values', commands: ['merge vars'] },
-          { id: 'review', title: 'Review changes', commands: ['git diff'] },
-          { id: 'exercise', title: 'Exercise locally', commands: ['wrangler pages dev public'] },
-          { id: 'deploy', title: 'Deploy approved changes', commands: ['wrangler pages deploy'] },
-          { id: 'verify', title: 'Verify deployment', commands: ['pnpm website:verify'] }
+        accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
+        repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
+        starterWorkflowYaml:
+          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+        setupCommands: [
+          'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
+          'gh secret set CF_API_TOKEN'
         ],
         warnings: ['Public values are not secrets.', 'Enable only one installation mode.']
       }
