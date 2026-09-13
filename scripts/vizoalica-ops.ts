@@ -284,7 +284,7 @@ async function setup(options: Options, dependencies: Dependencies): Promise<void
         '  Value: raw VIZOALICA_ADMIN_SECRET, without the word Bearer',
         `  Attach it only to agent: ${value.onecli.agent}`,
         '',
-        'Next: pnpm ops doctor, then pnpm ops run'
+        'Next: pnpm ops doctor, pnpm ops verify, then pnpm ops run'
       ].join('\n') + '\n'
     );
   } finally {
@@ -349,6 +349,36 @@ export function consoleArguments(config: OpsConfig): string[] {
     'serve',
     config.consoleConfigPath
   ];
+}
+
+export function verifyArguments(config: OpsConfig): string[] {
+  return [
+    'run',
+    '--project',
+    config.onecli.project,
+    '--agent',
+    config.onecli.agent,
+    '--gateway',
+    config.onecli.gateway,
+    '--',
+    'node',
+    '--import',
+    'tsx',
+    'scripts/verify-operator-access.ts',
+    config.workerUrl
+  ];
+}
+
+async function verifyAccess(options: Options, dependencies: Dependencies): Promise<void> {
+  const config = loadOpsConfig(text(options, 'config'));
+  const result = dependencies.spawnSync('onecli', verifyArguments(config), { stdio: 'inherit' });
+  if (result.status !== 0)
+    throw new Error(
+      'Authenticated access failed. Check the Worker identity, credential card, and agent grant.'
+    );
+  stdout.write(
+    `Verified through OneCLI agent ${config.onecli.agent}; no credential was printed.\n`
+  );
 }
 
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
@@ -452,6 +482,7 @@ export function help(): string {
     '',
     '  pnpm ops setup          Save non-secret Worker, OneCLI, and optional Pages settings',
     '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
+    '  pnpm ops verify         Verify authenticated project access through the selected agent',
     '  pnpm ops run            Start the OneCLI-wrapped API and web console together',
     '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
     '  pnpm ops show           Show parameter locations and the safe operating model',
@@ -494,6 +525,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'show') stdout.write(`${show()}\n`);
   else if (command === 'setup') await setup(options, injected);
   else if (command === 'doctor') await doctor(options, injected);
+  else if (command === 'verify') await verifyAccess(options, injected);
   else if (command === 'run') await runConsole(options, injected);
   else if (command === 'deploy-pages') await deployPages(options, injected);
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);

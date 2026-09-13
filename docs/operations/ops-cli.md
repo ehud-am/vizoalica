@@ -1,116 +1,154 @@
 # Set up an operator machine with OneCLI
 
-Run this guide **once per operator or data analyst** when OneCLI will inject the Vizoalica
-administrator credential. Use [the direct setup](local-analytics.md) instead for private local
-credential storage. Do not complete both paths on the same machine.
+Run this guide **once per operator**. Use [direct setup](local-analytics.md) instead when OneCLI
+will not manage the administrator credential. Do not combine the two methods.
 
 ## Prerequisites
 
-- A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
-- Node.js 22 or newer, pnpm 9, Git, and a current browser.
-- The exact Vizoalica release or commit recorded in the backend handoff.
-- OneCLI 2.11 or newer, authenticated to the intended project.
-- A dedicated operator agent, a reachable gateway, and authority to attach the Vizoalica
-  administrator secret to that agent.
+- A completed [backend deployment](cloudflare.md) and its verified handoff.
+- Node.js 22 or newer, Corepack, Git, and a current browser.
+- OneCLI 2.11 or newer and authority to manage one dedicated operator agent.
 
-For a self-hosted gateway, use its host-reachable loopback address, normally
-`127.0.0.1:10255`; a Docker-only hostname is not reachable from the operator machine.
+For a self-hosted gateway, use its host-reachable address, normally `127.0.0.1:10255`; a
+Docker-only hostname will not work from the operator machine.
 
 ## Inputs
 
-Obtain the Worker HTTPS origin and release/commit from the backend handoff. Obtain the OneCLI project slug,
-dedicated agent, and gateway address from OneCLI. Enter `VIZOALICA_ADMIN_SECRET` only in OneCLI's
-protected interface. A project or website ID is not required.
+From the backend handoff, obtain the customer/environment, exact release commit, Worker script
+name, complete Worker origin, account label and abbreviated ID, deployment/version ID,
+administrator password-manager record name, and verification timestamp. From OneCLI, obtain the
+project slug, dedicated agent identifier and ID, and gateway address. A project or website ID is
+not required.
 
 ## Security boundary
 
-OneCLI injects the real credential only into HTTPS requests from the local API to the exact Worker
-host. Vizoalica stores the literal placeholder `onecli-managed`, which is not a secret. The browser
-talks only to the loopback API. If the gateway or grant is unavailable, access must **fail closed**;
-never bypass OneCLI by copying the credential into local configuration.
+OneCLI injects the real credential only into HTTPS requests to the exact Worker host. Vizoalica
+stores only the literal placeholder `onecli-managed`. The browser talks only to the loopback API.
+Missing OneCLI access must fail closed; never copy the credential into local configuration.
 
-## 1. Prepare the reviewed checkout
+## 1. Verify the handoff and checkout
+
+Check the supplied origin before changing OneCLI:
+
+```sh
+curl --fail --silent --show-error https://<worker>.<account-subdomain>.workers.dev/healthz
+```
+
+Stop if it does not return JSON containing `"ok":true`. Reconcile the Worker name, complete
+origin, account, deployment/version, and commit with the backend owner; do not guess a replacement
+host.
 
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git
 cd vizoalica
-git checkout YOUR_US1_COMMIT
+git checkout YOUR_APPROVED_TAG_OR_COMMIT
 git rev-parse HEAD
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
 pnpm install --frozen-lockfile
 pnpm ops show
 ```
 
-Confirm that the commit matches the backend handoff and that OneCLI is authenticated to the
-intended project.
+The printed commit must exactly match the handoff.
 
-## 2. Create the OneCLI credential card
+## 2. Inspect the OneCLI agent
+
+Use the agent ID from OneCLI; do not infer it from the display name.
+
+```sh
+onecli auth status
+onecli agents grants list --id <agent-id> --project <project-slug>
+onecli agents credentials --id <agent-id> --project <project-slug>
+```
+
+Confirm the intended project and agent. Before adding the administrator card, the agent must have
+no Cloudflare deployment connection and no unrelated secret or grant. Do not run
+`onecli agents list --with-grants`: it may print agent access material. Treat such output as an
+exposure and rotate the affected agent token.
+
+## 3. Create or replace the credential card
 
 In OneCLI, create a **Generic** secret and attach it only to the dedicated operator agent:
 
-| Field  | Value                                                    |
-| ------ | -------------------------------------------------------- |
-| Name   | `Vizoalica administrator`                                |
-| Host   | Exact Worker hostname, without scheme, path, or wildcard |
-| Header | `Authorization`                                          |
-| Format | `Bearer {value}`                                         |
-| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without the word `Bearer`  |
+| Field  | Value                                                                     |
+| ------ | ------------------------------------------------------------------------- |
+| Name   | `Vizoalica administrator — <customer/environment> — <Worker script name>` |
+| Host   | Exact Worker hostname, without scheme, path, or wildcard                  |
+| Header | `Authorization`                                                           |
+| Format | `Bearer {value}`                                                          |
+| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without `Bearer`                            |
 
-Restrict the agent to Vizoalica administrator and analytics routes where policy allows. Do not
-attach Cloudflare deployment authority unless the operator separately owns deployment.
+Use the administrator password-manager record named in the same backend handoff. Never retarget
+only the host of an existing card: confirm or replace both its host and value together. Restrict
+the card to Vizoalica administrator and analytics routes where policy allows.
 
-## 3. Configure and start
+Repeat the two agent inspection commands from step 2. Confirm the agent has exactly this
+environment's administrator card, no Cloudflare deployment connection, and no unrelated secret.
 
-Run the guided setup and omit its optional website values:
+## 4. Configure, check, and verify
 
 ```sh
 pnpm ops setup
 pnpm ops doctor
-pnpm ops run
+pnpm ops verify
 ```
 
-Setup creates private `~/.config/vizoalica/ops.json` coordinates and a
-`~/.config/vizoalica/local-operations.json` file containing only `onecli-managed`. It refuses to
-overwrite existing configuration without confirmation. Doctor checks the gateway and Worker
-without printing credentials. Run starts both local processes.
+Setup writes private coordinates and the non-secret placeholder. If the existing client
+configuration points elsewhere, setup refuses to replace it; inspect the target and rerun with
+`--replace` only when intentional.
+Doctor checks public health and local prerequisites—it does **not** authenticate. Verify must report
+HTTP 200, a JSON array, and the selected OneCLI agent without printing a credential.
+
+Then start the local console:
+
+```sh
+pnpm ops run
+```
 
 Open the printed `http://127.0.0.1:<port>` URL. Do not expose either process to the network.
 
 ## Verify the operator setup
 
-1. Open **Websites**. The project list must load; an empty list is success.
-2. If a project exists, open **Overview** and load the `24h` range.
-3. Confirm browser requests go only to the loopback API.
-4. Confirm credentials and authorization headers appear nowhere in files, browser data, or output.
-5. Temporarily stop the gateway or detach the grant; the request must fail closed.
+Complete this positive–negative–positive test with the same `pnpm ops verify` request:
 
-If verification fails, check the gateway, Worker hostname, header format, secret card, agent
-attachment, OneCLI authentication, and release commit—in that order. Do not disable certificate
-validation or add a direct credential fallback.
+1. With the grant attached, verify succeeds.
+2. Detach the administrator grant from the operator agent.
+3. Verify fails.
+4. Restore the same grant.
+5. Verify succeeds again.
+
+Then open **Websites**; the project list must load, and an empty array is success. If a project
+exists, open **Overview** and load `24h`. In browser developer tools, confirm requests go only to
+loopback and no authorization header or credential appears in browser-visible storage.
+
+On failure, check the handoff identity, card host and value, agent ID and grant, OneCLI project and
+authentication, gateway, and commit. Do not disable certificate validation or add a direct-secret
+fallback.
 
 ## Operator handoff
 
-Record only:
+Record no secret or agent access material:
 
 ```text
 Credential method: OneCLI
 Operator/machine: <redacted label>
 Customer/environment: <label>
-Release/commit: <release and commit>
-Worker origin: https://<worker>.workers.dev
+Release commit: <exact commit>
+Worker script/origin: <script name> / https://<worker>.<account-subdomain>.workers.dev
+Cloudflare account: <label and safely abbreviated ID>
+Deployment/version ID: <identifier>
+Administrator record: <password-manager record name, not value>
 OneCLI project/agent: <non-secret coordinates>
-Gateway: <host-reachable address>
-Loopback origin: http://127.0.0.1:<port>
-Project listing and fail-closed behavior verified at: <timestamp>
+Gateway/loopback: <host-reachable address> / http://127.0.0.1:<port>
+Backend verified at: <timestamp>
+Authenticated and fail-closed verification completed at: <timestamp>
 ```
 
-The operator can now [activate a website](pages.md). Never include secret or agent access material.
+The operator can now [activate a website](pages.md).
 
 ## Revoke access
 
 Stop `pnpm ops run`, detach or revoke the operator agent, and move only this machine's two
 Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
-evidence. If exposure is possible, the customer owner must rotate the administrator secret and
-update every remaining operator.
-
-Revocation does not affect the backend, analytics data, websites, or other operators. A future
-session must be explicitly reauthorized; OneCLI setup never falls back to a local credential.
+evidence. If exposure is possible, rotate the administrator secret and update every remaining
+operator. Revocation does not affect the backend, analytics data, websites, or other operators.

@@ -15,7 +15,7 @@ the inputs for [operator setup without OneCLI](local-analytics.md),
 
 ## Prerequisites
 
-- Node.js 22 or newer and pnpm 9.
+- Node.js 22 or newer and Corepack.
 - A reviewed Vizoalica 0.5.0 checkout.
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
@@ -94,6 +94,8 @@ git clone https://github.com/ehud-am/vizoalica.git
 cd vizoalica
 git checkout YOUR_APPROVED_TAG_OR_COMMIT
 git rev-parse HEAD
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
 pnpm install --frozen-lockfile
 pnpm build
 cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
@@ -251,15 +253,17 @@ Record this redacted handoff for the customer. Do not include secret values:
 ```text
 Deployment: Cloudflare backend
 Customer/environment: <label>
-Release/commit: <release and commit>
-Cloudflare account: <redacted label and last identifying characters if needed>
-Worker origin: https://<worker>.<subdomain>.workers.dev
+Release commit: <exact commit>
+Worker script name: <name>
+Worker origin: https://<worker>.<account-subdomain>.workers.dev
+Cloudflare account: <label and safely abbreviated ID>
+Deployment/version ID: <identifier printed by deployment>
 D1 database name: <name>
 R2 bucket name: <name>
 Baseline: 0001_initial.sql applied
 Health verified at: <timestamp>
 R2 lifecycle/usage alerts: <verified or outstanding>
-Secret locations: token signing=<record>; administrator=<record>; analytics digest=<record>
+Secret record names: token signing=<record>; administrator=<record>; analytics digest=<record>
 ```
 
 Give each operator the Worker origin, release identity, and an approved way to obtain the

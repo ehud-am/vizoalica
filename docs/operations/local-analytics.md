@@ -7,7 +7,7 @@ the credential. Do not complete both paths on the same machine.
 ## Prerequisites
 
 - A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
-- Node.js 22 or newer, pnpm 9, Git, and a current browser.
+- Node.js 22 or newer, Corepack, Git, and a current browser.
 - The exact Vizoalica release or commit recorded in the backend handoff.
 - Permission to obtain and store the administrator credential on this machine.
 
@@ -29,8 +29,10 @@ expose either local process to the network.
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git
 cd vizoalica
-git checkout YOUR_US1_COMMIT
+git checkout YOUR_APPROVED_TAG_OR_COMMIT
 git rev-parse HEAD
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
 pnpm install --frozen-lockfile
 mkdir -p "$HOME/.config/vizoalica"
 chmod 700 "$HOME/.config/vizoalica"
@@ -46,7 +48,7 @@ Read the secret without displaying it or saving it in shell history:
 read -r -s VIZOALICA_ADMIN_SECRET
 pnpm --filter @vizoalica/local-ops-api dev configure \
   "$HOME/.config/vizoalica/local-operations.json" \
-  "https://YOUR_WORKER.workers.dev" \
+  "https://YOUR_WORKER.YOUR_ACCOUNT_SUBDOMAIN.workers.dev" \
   "$VIZOALICA_ADMIN_SECRET"
 unset VIZOALICA_ADMIN_SECRET
 ```
@@ -89,8 +91,8 @@ Record only:
 Credential method: Private local file
 Operator/machine: <redacted label>
 Customer/environment: <label>
-Release/commit: <release and commit>
-Worker origin: https://<worker>.workers.dev
+Release commit: <exact commit>
+Worker origin: https://<worker>.<account-subdomain>.workers.dev
 Configuration path: <private local path, no contents>
 Loopback origin: http://127.0.0.1:<port>
 Project listing verified at: <timestamp>
