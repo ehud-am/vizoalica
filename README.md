@@ -41,7 +41,7 @@ Complete the steps in order. Repeat only step 2 when adding an operator and only
 adding a website. Each linked guide is self-contained; do not combine commands from the two
 operator setup options.
 
-Version 0.5.0 supports **fresh deployments only**. Backend deployment applies one complete schema
+Version 0.5.1 supports **fresh deployments only**. Backend deployment applies one complete schema
 baseline to a new empty D1 database. It does not upgrade, adopt, backfill, preserve, or roll back an
 existing Vizoalica database. Preflight detects existing or ambiguous schema state and stops without
 changing it; select a new empty database rather than deleting the old one.

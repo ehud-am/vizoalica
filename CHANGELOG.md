@@ -2,6 +2,47 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.5.1] - 2026-09-13
+
+### Added
+
+- Projects are now a primary console destination with explicit project selection and direct
+  Overview and Websites actions.
+- Website creation starts with a required, empty Project selector and safely retains draft values
+  when project access changes or creation fails.
+- Installation guidance now offers two choices: the compatible static snippet and a generic
+  dynamic loader backed by a versioned six-field public configuration document.
+- A Cloudflare Pages configuration Function, generic loader asset, provider-neutral hosting
+  contract, ordered deployment guidance, and dynamic website verification mode.
+- An accessible Local workspace explanation and a centered footer with the Vizoalica website,
+  GitHub repository, current year, and release version.
+
+### Security
+
+- Dynamic configuration validates HTTP(S) locations, same-origin token routing, version, project,
+  source, and consent before loading the SDK, and fails closed without disrupting the host page.
+- Public browser configuration is separated from token-signing and deployment secrets throughout
+  the API, console, generated commands, examples, tests, and documentation.
+- Website creation remains authenticated, explicitly project-scoped, and atomic when the selected
+  project is invalid or no longer available.
+- Production dependencies report no known high-severity vulnerabilities. Automated accessibility
+  checks report no serious or critical findings on the primary console destinations.
+
+### Validation
+
+- Formatting, lint, type checking, production builds, browser bundle generation, 445 unit and
+  integration tests, and 11 Chromium scenarios pass.
+- Repository coverage is 95.83% for lines and 90.07% for branches. The Cloudflare Pages Functions
+  compile successfully and the local dynamic configuration endpoint returns the expected secure
+  response headers and public contract.
+
+### Upgrade
+
+- No database migration or breaking ingestion contract is introduced. Existing static snippets
+  remain compatible; operators may continue using them or adopt dynamic configuration per site.
+- This release remains fresh-deployment-only and does not deploy or alter Cloudflare resources when
+  the source release, tag, or GitHub Release is published.
+
 ## [0.5.0] - 2026-09-11
 
 ### Added
