@@ -73,9 +73,13 @@ pnpm admin-web:dev
 Open the printed `http://127.0.0.1:<port>` URL. Use that exact origin; `localhost` and
 `127.0.0.1` are different browser origins.
 
+The console’s **Local workspace** disclosure means the interface and trusted credential-holding
+loopback API run only on this computer. It does not mean analytics data is local: the selected
+backend and its D1/R2 storage may be remote.
+
 ## Verify the operator setup
 
-1. Open **Websites**. The project list must load; an empty list is success.
+1. Open **Projects**, then **Websites**. The project list must load; an empty list is success.
 2. If a project exists, open **Overview** and load the `24h` range.
 3. Confirm browser requests go to the loopback API, not directly to the Worker.
 4. Confirm the administrator credential appears nowhere in the browser, output, or logs.

@@ -4,9 +4,30 @@ This is the advanced SDK reference. For a complete registration, trusted token i
 consent, accepted-event check, and removal flow, follow [website activation](pages.md) once per
 website.
 
-Build the standalone bundle with `pnpm browser-sdk:build`, then host
-`packages/browser-sdk/dist/vizoalica.js` on your **website**. The ingestion Worker does not serve
-this file.
+Build both standalone assets with `pnpm browser-sdk:build`, then host
+`packages/browser-sdk/dist/vizoalica.js` and, when using dynamic configuration,
+`packages/browser-sdk/dist/vizoalica-loader.js` on your **website**. The ingestion Worker does not
+serve these files.
+
+## Choose one installation mode
+
+The console provides exactly two options. Do not enable both on one page.
+
+- **Static snippet** is the compatibility path. It embeds `src`, `data-endpoint`, `data-source`,
+  `data-project`, `data-token-url`, and `data-consent` directly in website-specific markup.
+- **Dynamic configuration** uses the byte-identical generic markup below on every website. The
+  loader reads the six public values from a versioned, same-origin JSON response. Cloudflare Pages
+  can map plaintext environment variables through the included Function; other hosts can use a
+  function, application route, configuration service, or generated public JSON asset.
+
+```html
+<script async src="/vizoalica-loader.js"></script>
+```
+
+The dynamic host must serve `GET /vizoalica/config.json` as `application/json` with
+`Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Version 1 contains only `version`
+and the six fields above. Missing, partial, malformed, cross-origin token, insecure production, or
+unsupported configuration fails closed without loading the SDK or affecting the host page.
 
 ## Recommended embed
 
@@ -58,6 +79,14 @@ Optional custom event:
 - Delivery failures are swallowed so analytics never breaks the host website.
 - Query values, referrers, and custom properties are minimized before delivery.
 - Browser code can receive short-lived ingest tokens, but must never receive signing secrets.
+- Dynamic loading initializes at most once and never falls back to another project, source, or
+  endpoint.
+
+For CSP-restricted sites, allow the website-hosted SDK/loader in `script-src`, the analytics Worker
+in `connect-src`, and the same-origin config/token routes in `connect-src 'self'`. Switching modes
+requires removing the old load path, deploying the new assets/configuration, reviewing the
+effective public values, and verifying an accepted consented event. If dynamic configuration is
+unavailable, keep the website usable, correct all six values, and redeploy; do not add defaults.
 
 ## Module usage for advanced integrations
 

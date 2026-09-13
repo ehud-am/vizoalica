@@ -22,7 +22,7 @@ independently after the small shared foundation.
 **Purpose**: Establish shared test data and feature types without changing user-visible behavior.
 
 - [X] T001 Add reusable two-project, duplicate-name, empty-project, and installation-guidance fixtures in apps/admin-web/tests/fixtures/console.ts and apps/local-ops-api/tests/fixtures/installation.ts
-- [ ] T002 [P] Add versioned dynamic-config fixtures for valid, malformed, mismatched, and secret-leak cases in packages/browser-sdk/tests/fixtures/dynamic-config.ts
+- [X] T002 [P] Add versioned dynamic-config fixtures for valid, malformed, mismatched, and secret-leak cases in packages/browser-sdk/tests/fixtures/dynamic-config.ts
 
 ---
 
@@ -32,9 +32,9 @@ independently after the small shared foundation.
 
 **⚠️ CRITICAL**: Complete this phase before user-story implementation.
 
-- [ ] T003 Define StaticInstallation, DynamicInstallation, DynamicConfigV1, CloudflareGuidance, and InstallationGuidance types and validators in apps/local-ops-api/src/contracts.ts
-- [ ] T004 Mirror the safe installation response types in apps/admin-web/src/api/local-operations.ts and retain a documented transitional html alias if needed
-- [ ] T005 [P] Define provider-neutral DynamicConfigV1 validation and duplicate-initialization guard interfaces in packages/browser-sdk/src/dynamic-config.ts
+- [X] T003 Define StaticInstallation, DynamicInstallation, DynamicConfigV1, CloudflareGuidance, and InstallationGuidance types and validators in apps/local-ops-api/src/contracts.ts
+- [X] T004 Mirror the safe installation response types in apps/admin-web/src/api/local-operations.ts and retain a documented transitional html alias if needed
+- [X] T005 [P] Define provider-neutral DynamicConfigV1 validation and duplicate-initialization guard interfaces in packages/browser-sdk/src/dynamic-config.ts
 
 **Checkpoint**: Shared contracts compile and contain no field capable of carrying private credentials.
 
@@ -76,16 +76,16 @@ project attempts create no website or partial record.
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Add failing form tests for first-control project selection, required/error associations, edit-mode immutability, success clearing, and failure retention in apps/admin-web/tests/websites.test.tsx
-- [ ] T014 [P] [US2] Add failing flow tests for explicit non-current project creation, named confirmation, zero-project CTA, and stale-project failure in apps/admin-web/tests/ui-interactions.test.tsx
-- [ ] T015 [P] [US2] Extend nested project validation, atomic failure, URL encoding, and cross-project isolation tests in apps/local-ops-api/tests/websites.contract.test.ts and apps/local-ops-api/tests/validation.test.ts
-- [ ] T016 [P] [US2] Add keyboard and assistive-technology checks for the project-first create flow and empty-project recovery in apps/admin-web/e2e/responsive-accessibility.spec.ts
+- [X] T013 [P] [US2] Add failing form tests for first-control project selection, required/error associations, edit-mode immutability, success clearing, and failure retention in apps/admin-web/tests/websites.test.tsx
+- [X] T014 [P] [US2] Add failing flow tests for explicit non-current project creation, named confirmation, zero-project CTA, and stale-project failure in apps/admin-web/tests/ui-interactions.test.tsx
+- [X] T015 [P] [US2] Extend nested project validation, atomic failure, URL encoding, and cross-project isolation tests in apps/local-ops-api/tests/websites.contract.test.ts and apps/local-ops-api/tests/validation.test.ts
+- [X] T016 [P] [US2] Add keyboard and assistive-technology checks for the project-first create flow and empty-project recovery in apps/admin-web/e2e/responsive-accessibility.spec.ts
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Split create behavior from edit behavior and make Project the empty, required first field in apps/admin-web/src/components/WebsiteForm.tsx
-- [ ] T018 [US2] Submit the form-selected project ID, reconcile browsing context on success, announce website/project names, and render the zero-project CTA in apps/admin-web/src/pages/WebsitesPage.tsx
-- [ ] T019 [US2] Route the zero-project action to Projects and preserve drafts across actionable nested-route failures in apps/admin-web/src/App.tsx and apps/admin-web/src/api/local-operations.ts
+- [X] T017 [US2] Split create behavior from edit behavior and make Project the empty, required first field in apps/admin-web/src/components/WebsiteForm.tsx
+- [X] T018 [US2] Submit the form-selected project ID, reconcile browsing context on success, announce website/project names, and render the zero-project CTA in apps/admin-web/src/pages/WebsitesPage.tsx
+- [X] T019 [US2] Route the zero-project action to Projects and preserve drafts across actionable nested-route failures in apps/admin-web/src/App.tsx and apps/admin-web/src/api/local-operations.ts
 
 **Checkpoint**: Every website has an explicitly confirmed available project and failed submissions
 leave no partial website while preserving safe draft input.
@@ -103,25 +103,25 @@ configurations fail without an event, fallback client, duplicate initialization,
 
 ### Tests for User Story 3
 
-- [ ] T020 [P] [US3] Expand local API contract tests for exact legacy static output, identical dynamic snippets, six scoped public values, Cloudflare steps, escaping, and forbidden private material in apps/local-ops-api/tests/snippet.test.ts
-- [ ] T021 [P] [US3] Add dynamic loader tests for v1 validation, HTTPS and same-origin rules, consent enums, no-store fetch, failure containment, no fallback, and initialize-once behavior in packages/browser-sdk/tests/dynamic-config.test.ts
-- [ ] T022 [P] [US3] Extend SDK bundle and host-failure tests to cover the generated loader artifact and non-blocking config/SDK failures in packages/browser-sdk/tests/bundle.test.ts and packages/browser-sdk/tests/failure.test.ts
-- [ ] T023 [P] [US3] Add Pages config Function tests for binding mapping, response headers, placeholder rejection, method rejection, and secret exclusion in apps/token-demo/tests/pages-config.test.ts
-- [ ] T024 [P] [US3] Add console tests for exactly two accessible choices, static default/copy, dynamic preview/copy, ordered Cloudflare guidance, and switch warning in apps/admin-web/tests/websites.test.tsx
-- [ ] T025 [P] [US3] Extend documentation contract tests for both modes, public-variable terminology, Cloudflare review/deploy/verify order, other-host mapping, and forbidden credentials in apps/deploy-cli/tests/contract/deployment-docs.contract.test.ts
+- [X] T020 [P] [US3] Expand local API contract tests for exact legacy static output, identical dynamic snippets, six scoped public values, Cloudflare steps, escaping, and forbidden private material in apps/local-ops-api/tests/snippet.test.ts
+- [X] T021 [P] [US3] Add dynamic loader tests for v1 validation, HTTPS and same-origin rules, consent enums, no-store fetch, failure containment, no fallback, and initialize-once behavior in packages/browser-sdk/tests/dynamic-config.test.ts
+- [X] T022 [P] [US3] Extend SDK bundle and host-failure tests to cover the generated loader artifact and non-blocking config/SDK failures in packages/browser-sdk/tests/bundle.test.ts and packages/browser-sdk/tests/failure.test.ts
+- [X] T023 [P] [US3] Add Pages config Function tests for binding mapping, response headers, placeholder rejection, method rejection, and secret exclusion in apps/token-demo/tests/pages-config.test.ts
+- [X] T024 [P] [US3] Add console tests for exactly two accessible choices, static default/copy, dynamic preview/copy, ordered Cloudflare guidance, and switch warning in apps/admin-web/tests/websites.test.tsx
+- [X] T025 [P] [US3] Extend documentation contract tests for both modes, public-variable terminology, Cloudflare review/deploy/verify order, other-host mapping, and forbidden credentials in apps/deploy-cli/tests/contract/deployment-docs.contract.test.ts
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Generate the discriminated static/dynamic response, public variable map, safely quoted target placeholders, and ordered Cloudflare guidance in apps/local-ops-api/src/routes/snippet.ts
-- [ ] T027 [US3] Preserve authenticated project-scoped snippet routing and map validation failures to safe non-success responses in apps/local-ops-api/src/server.ts
-- [ ] T028 [US3] Implement the same-origin config fetcher, complete v1 validator, SDK element creation, failure containment, and duplicate guard in packages/browser-sdk/src/dynamic-config.ts
-- [ ] T029 [US3] Add a dedicated generic loader build entry and deterministic vizoalica-loader.js output in scripts/build-browser-sdk.mjs and packages/browser-sdk/package.json
-- [ ] T030 [P] [US3] Implement the Cloudflare Pages public config adapter with no-store/nosniff responses and no partial output in examples/cloudflare-pages/functions/vizoalica/config.json.ts
-- [ ] T031 [US3] Add the loader asset, config Function route, non-secret vars, and consent-gated static/dynamic example selection in examples/cloudflare-pages/public/index.html, examples/cloudflare-pages/public/_routes.json, and examples/cloudflare-pages/wrangler.example.toml
-- [ ] T032 [US3] Render Static snippet and Dynamic configuration as accessible mutually exclusive options with per-mode copy status, public values, target inputs, commands, warnings, and portable notes in apps/admin-web/src/components/IntegrationSnippet.tsx
-- [ ] T033 [US3] Extend website verification to recognize the selected installation mode and validate loader/config content without printing tokens or private material in scripts/verify-website.ts
-- [ ] T034 [P] [US3] Document both modes, Cloudflare Pages vars/commands, Git versus Direct Upload, provider-neutral adapters, consent, CSP, switching, and recovery in docs/operations/browser-sdk.md and docs/operations/pages.md
-- [ ] T035 [P] [US3] Align the runnable Pages example and failure recovery guidance with the dual-mode contract in examples/cloudflare-pages/README.md and docs/operations/troubleshooting.md
+- [X] T026 [US3] Generate the discriminated static/dynamic response, public variable map, safely quoted target placeholders, and ordered Cloudflare guidance in apps/local-ops-api/src/routes/snippet.ts
+- [X] T027 [US3] Preserve authenticated project-scoped snippet routing and map validation failures to safe non-success responses in apps/local-ops-api/src/server.ts
+- [X] T028 [US3] Implement the same-origin config fetcher, complete v1 validator, SDK element creation, failure containment, and duplicate guard in packages/browser-sdk/src/dynamic-config.ts
+- [X] T029 [US3] Add a dedicated generic loader build entry and deterministic vizoalica-loader.js output in scripts/build-browser-sdk.mjs and packages/browser-sdk/package.json
+- [X] T030 [P] [US3] Implement the Cloudflare Pages public config adapter with no-store/nosniff responses and no partial output in examples/cloudflare-pages/functions/vizoalica/config.json.ts
+- [X] T031 [US3] Add the loader asset, config Function route, non-secret vars, and consent-gated static/dynamic example selection in examples/cloudflare-pages/public/index.html, examples/cloudflare-pages/public/_routes.json, and examples/cloudflare-pages/wrangler.example.toml
+- [X] T032 [US3] Render Static snippet and Dynamic configuration as accessible mutually exclusive options with per-mode copy status, public values, target inputs, commands, warnings, and portable notes in apps/admin-web/src/components/IntegrationSnippet.tsx
+- [X] T033 [US3] Extend website verification to recognize the selected installation mode and validate loader/config content without printing tokens or private material in scripts/verify-website.ts
+- [X] T034 [P] [US3] Document both modes, Cloudflare Pages vars/commands, Git versus Direct Upload, provider-neutral adapters, consent, CSP, switching, and recovery in docs/operations/browser-sdk.md and docs/operations/pages.md
+- [X] T035 [P] [US3] Align the runnable Pages example and failure recovery guidance with the dual-mode contract in examples/cloudflare-pages/README.md and docs/operations/troubleshooting.md
 
 **Checkpoint**: Both installation options work independently; static remains backward compatible;
 dynamic is portable, reviewable, consent-gated, and fail-closed.
@@ -139,17 +139,17 @@ explanation entirely by keyboard and confirm its accurate boundary wording.
 
 ### Tests for User Story 4
 
-- [ ] T036 [P] [US4] Add failing footer tests for exact links, current year/version, unavailable-version wording, and every access state in apps/admin-web/tests/footer-version.test.tsx
-- [ ] T037 [P] [US4] Add failing semantic, keyboard, focus-return, and accurate boundary-wording tests for Local workspace in apps/admin-web/tests/ui-accessibility.test.tsx
-- [ ] T038 [P] [US4] Add short/long page, centered footer, no-overlap, 320px, 200%-zoom, and focus-order browser assertions in apps/admin-web/e2e/responsive-accessibility.spec.ts
+- [X] T036 [P] [US4] Add failing footer tests for exact links, current year/version, unavailable-version wording, and every access state in apps/admin-web/tests/footer-version.test.tsx
+- [X] T037 [P] [US4] Add failing semantic, keyboard, focus-return, and accurate boundary-wording tests for Local workspace in apps/admin-web/tests/ui-accessibility.test.tsx
+- [X] T038 [P] [US4] Add short/long page, centered footer, no-overlap, 320px, 200%-zoom, and focus-order browser assertions in apps/admin-web/e2e/responsive-accessibility.spec.ts
 
 ### Implementation for User Story 4
 
-- [ ] T039 [P] [US4] Implement the accessible Local workspace disclosure with local console/service and possibly remote backend/data wording in apps/admin-web/src/components/WorkspaceContextHelp.tsx
-- [ ] T040 [P] [US4] Add the centered product/repository links, year, injected version, and explicit unavailable fallback in apps/admin-web/src/components/AppFooter.tsx
-- [ ] T041 [US4] Render the disclosure and footer across ready, loading, denied, and offline states in apps/admin-web/src/App.tsx
-- [ ] T042 [US4] Implement the non-overlay sticky-footer column, centered container, disclosure positioning, focus visibility, and responsive reflow in apps/admin-web/src/styles.css
-- [ ] T043 [P] [US4] Align operator documentation with the Local workspace boundary in docs/operations/local-analytics.md and docs/operations/ops-cli.md
+- [X] T039 [P] [US4] Implement the accessible Local workspace disclosure with local console/service and possibly remote backend/data wording in apps/admin-web/src/components/WorkspaceContextHelp.tsx
+- [X] T040 [P] [US4] Add the centered product/repository links, year, injected version, and explicit unavailable fallback in apps/admin-web/src/components/AppFooter.tsx
+- [X] T041 [US4] Render the disclosure and footer across ready, loading, denied, and offline states in apps/admin-web/src/App.tsx
+- [X] T042 [US4] Implement the non-overlay sticky-footer column, centered container, disclosure positioning, focus visibility, and responsive reflow in apps/admin-web/src/styles.css
+- [X] T043 [P] [US4] Align operator documentation with the Local workspace boundary in docs/operations/local-analytics.md and docs/operations/ops-cli.md
 
 **Checkpoint**: Footer/support context is always available, unobscured, centered, accurate, and
 keyboard/assistive-technology operable.
@@ -160,11 +160,11 @@ keyboard/assistive-technology operable.
 
 **Purpose**: Close security, documentation, coverage, and release-readiness gates across stories.
 
-- [ ] T044 [P] Extend loopback, origin, authorization, cross-project, and forbidden-secret response tests for changed local routes in apps/local-ops-api/tests/security.test.ts
-- [ ] T045 [P] Add repository-wide static checks that browser assets, generated commands, examples, and logs contain no private credential values in apps/deploy-cli/tests/unit/process-security.test.ts
-- [ ] T046 [P] Update README project-first navigation and dual-installation entry points and lock their terminology in README.md and apps/deploy-cli/tests/contract/deployment-docs.contract.test.ts
-- [ ] T047 Run the complete scenarios in specs/010-project-first-console/quickstart.md and record implementation, security/privacy, accessibility, and Cloudflare dry-run evidence in specs/010-project-first-console/qa-report.md
-- [ ] T048 Run pnpm format:check, pnpm lint, pnpm typecheck, pnpm test, pnpm coverage, pnpm build, pnpm browser-sdk:build, pnpm test:e2e, and pnpm audit --prod --audit-level high; resolve failures without lowering the 90% line/branch thresholds and record final results in specs/010-project-first-console/qa-report.md
+- [X] T044 [P] Extend loopback, origin, authorization, cross-project, and forbidden-secret response tests for changed local routes in apps/local-ops-api/tests/security.test.ts
+- [X] T045 [P] Add repository-wide static checks that browser assets, generated commands, examples, and logs contain no private credential values in apps/deploy-cli/tests/unit/process-security.test.ts
+- [X] T046 [P] Update README project-first navigation and dual-installation entry points and lock their terminology in README.md and apps/deploy-cli/tests/contract/deployment-docs.contract.test.ts
+- [X] T047 Run the complete scenarios in specs/010-project-first-console/quickstart.md and record implementation, security/privacy, accessibility, and Cloudflare dry-run evidence in specs/010-project-first-console/qa-report.md
+- [X] T048 Run pnpm format:check, pnpm lint, pnpm typecheck, pnpm test, pnpm coverage, pnpm build, pnpm browser-sdk:build, pnpm test:e2e, and pnpm audit --prod --audit-level high; resolve failures without lowering the 90% line/branch thresholds and record final results in specs/010-project-first-console/qa-report.md
 
 ---
 

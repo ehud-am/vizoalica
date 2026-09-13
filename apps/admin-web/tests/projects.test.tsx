@@ -101,9 +101,9 @@ describe('Projects destination', () => {
     );
     await waitFor(() => expect(api.listWebsites).toHaveBeenCalledWith(duplicateNameProject.id));
     expect(document.querySelector('main')?.getAttribute('data-view')).toBe('websites');
-    expect((screen.getByRole('combobox', { name: 'Project' }) as HTMLSelectElement).value).toBe(
-      duplicateNameProject.id
-    );
+    expect(
+      (screen.getByRole('combobox', { name: 'Browsing project' }) as HTMLSelectElement).value
+    ).toBe(duplicateNameProject.id);
 
     await user.click(screen.getByRole('button', { name: 'Projects' }));
     await user.click(

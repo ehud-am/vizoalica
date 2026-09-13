@@ -59,7 +59,15 @@ story's failed step rather than entering another setup journey.
 
 ## Website integration
 
-The browser SDK and trusted token endpoint live on your website; the Worker accepts events.
+Use **Projects** in the local console to choose the ownership boundary before opening its analytics
+or websites. Adding a website always starts with an empty, required project choice; the current
+browsing context is never treated as implicit confirmation.
+
+The browser SDK and trusted token endpoint live on your website; the Worker accepts events. Every
+registered website offers two installation entry points: **Static snippet** embeds its six public
+values directly, while **Dynamic configuration** uses one generic loader plus the same versioned
+public JSON contract on Cloudflare Pages or another host. This public browser configuration is not
+a secret; signing, administrator, and deployment credentials remain server-side.
 [Website activation](docs/operations/pages.md) covers registration, deployment, consent, and the
 accepted-event check. After activation, use the [SDK reference](docs/operations/browser-sdk.md)
 for custom events or module integration. Never put signing secrets or administrator credentials
@@ -83,7 +91,7 @@ See [docs/operations/privacy.md](docs/operations/privacy.md).
 
 ```text
 Website
-  └─ Browser SDK
+  └─ Static Browser SDK or generic dynamic loader
       ├─ builds CloudEvents JSON events
       ├─ redacts URL/query/referrer data
       ├─ queues events in memory with bounded size

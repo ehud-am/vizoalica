@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeId, validName, validOrigins } from '../src/contracts.js';
+import { isDynamicConfigV1, isSafeId, validName, validOrigins } from '../src/contracts.js';
 import {
   assertSafeIds,
   jsonInit,
@@ -57,6 +57,22 @@ describe('local route validation branches', () => {
       method: 'PATCH',
       body: '{"name":"x"}'
     });
+  });
+  it('validates the versioned dynamic browser configuration contract', () => {
+    const valid = {
+      version: 1,
+      src: 'https://site.test/vizoalica.js',
+      'data-endpoint': 'https://events.test/v1/events:batch',
+      'data-source': 'public-source',
+      'data-project': 'project-1',
+      'data-token-url': '/vizoalica/ingest-token',
+      'data-consent': 'analytics-granted'
+    };
+    expect(isDynamicConfigV1(valid)).toBe(true);
+    expect(isDynamicConfigV1({ ...valid, version: 2 })).toBe(false);
+    expect(isDynamicConfigV1({ ...valid, 'data-consent': 'maybe' })).toBe(false);
+    expect(isDynamicConfigV1({ ...valid, 'data-source': 'bad\nvalue' })).toBe(false);
+    expect(isDynamicConfigV1(null)).toBe(false);
   });
   it('maps remote response classes and analytics response shapes', async () => {
     const client = (response: Response) => ({ request: async () => response });

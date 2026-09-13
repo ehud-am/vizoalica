@@ -5,6 +5,7 @@ import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
 import { AnalyticsIcon, LockIcon, ProjectsIcon, WebsitesIcon } from './components/Icons.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
+import { WorkspaceContextHelp } from './components/WorkspaceContextHelp.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { ProjectsPage } from './pages/ProjectsPage.js';
 import { WebsitesPage } from './pages/WebsitesPage.js';
@@ -62,10 +63,7 @@ export function App() {
             saveError={theme.saveError}
             onChange={theme.setTheme}
           />
-          <div className="local-pill">
-            <span aria-hidden="true" />
-            <span className="local-pill-label">Local workspace</span>
-          </div>
+          <WorkspaceContextHelp />
         </div>
       </header>
       <div className="workspace">
@@ -103,35 +101,37 @@ export function App() {
             <span>Credentials stay on this machine.</span>
           </div>
         </aside>
-        <main id="main" tabIndex={-1} data-view={view}>
-          {access !== 'ready' ? (
-            <AccessState state={access} onRetry={() => void connect()} />
-          ) : view === 'projects' ? (
-            <ProjectsPage
-              projects={projects}
-              projectId={projectId}
-              onProjectSelect={setProjectId}
-              onProjectsChange={updateProjects}
-              onOpenOverview={(id) => openProjectView(id, 'overview')}
-              onOpenWebsites={(id) => openProjectView(id, 'websites')}
-            />
-          ) : view === 'overview' ? (
-            <AnalyticsPage
-              key={`analytics:${projectId}`}
-              projects={projects}
-              projectId={projectId}
-              onProjectChange={setProjectId}
-            />
-          ) : (
-            <WebsitesPage
-              key={`websites:${projectId}`}
-              projects={projects}
-              projectId={projectId}
-              onProjectChange={setProjectId}
-            />
-          )}
-          {access === 'ready' && <AppFooter />}
-        </main>
+        <div className="content-column">
+          <main id="main" tabIndex={-1} data-view={view}>
+            {access !== 'ready' ? (
+              <AccessState state={access} onRetry={() => void connect()} />
+            ) : view === 'projects' ? (
+              <ProjectsPage
+                projects={projects}
+                projectId={projectId}
+                onProjectSelect={setProjectId}
+                onProjectsChange={updateProjects}
+                onOpenOverview={(id) => openProjectView(id, 'overview')}
+                onOpenWebsites={(id) => openProjectView(id, 'websites')}
+              />
+            ) : view === 'overview' ? (
+              <AnalyticsPage
+                key={`analytics:${projectId}`}
+                projects={projects}
+                projectId={projectId}
+                onProjectChange={setProjectId}
+              />
+            ) : (
+              <WebsitesPage
+                projects={projects}
+                projectId={projectId}
+                onProjectChange={setProjectId}
+                onOpenProjects={() => setView('projects')}
+              />
+            )}
+          </main>
+          <AppFooter />
+        </div>
       </div>
     </div>
   );

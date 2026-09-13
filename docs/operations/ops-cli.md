@@ -107,6 +107,9 @@ pnpm ops run
 
 Open the printed `http://127.0.0.1:<port>` URL. Do not expose either process to the network.
 
+The **Local workspace** disclosure describes the local console and trusted loopback service that
+holds the injected credential. The selected analytics backend and stored data can still be remote.
+
 ## Verify the operator setup
 
 Complete this positive–negative–positive test with the same `pnpm ops verify` request:
@@ -117,7 +120,7 @@ Complete this positive–negative–positive test with the same `pnpm ops verify
 4. Restore the same grant.
 5. Verify succeeds again.
 
-Then open **Websites**; the project list must load, and an empty array is success. If a project
+Then open **Projects** followed by **Websites**; the project list must load, and an empty array is success. If a project
 exists, open **Overview** and load `24h`. In browser developer tools, confirm requests go only to
 loopback and no authorization header or credential appears in browser-visible storage.
 

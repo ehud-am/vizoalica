@@ -98,6 +98,29 @@ describe('deployment documentation contract', () => {
     expect(guide).toMatch(/remain usable/i);
   });
 
+  it('documents project-first creation and both portable installation modes', async () => {
+    const readme = await text('README.md');
+    const sdk = await text('docs/operations/browser-sdk.md');
+    const pages = await text('docs/operations/pages.md');
+    const combined = `${readme}\n${sdk}\n${pages}`;
+    expect(readme).toMatch(/Projects[\s\S]*empty, required project choice/i);
+    expect(combined).toMatch(/Static snippet/);
+    expect(combined).toMatch(/Dynamic configuration/);
+    expect(combined).toMatch(/public browser configuration/i);
+    expect(sdk).toContain('<script async src="/vizoalica-loader.js"></script>');
+    expect(sdk).toMatch(/other hosts/i);
+    for (const step of [
+      'whoami',
+      'project list',
+      'git diff',
+      'pages dev',
+      'pages deploy',
+      'website:verify'
+    ])
+      expect(pages).toContain(step);
+    expect(combined).not.toMatch(/private-sentinel|Bearer private|ADMIN_SECRET=/);
+  });
+
   it('contains no active historical upgrade instructions', async () => {
     const active = await Promise.all(
       [

@@ -8,6 +8,7 @@ blob-report/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+examples/cloudflare-pages/public/vizoalica-loader.js
 .agents/
 .specify/
 specs/

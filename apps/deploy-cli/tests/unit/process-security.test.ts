@@ -1,8 +1,9 @@
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { executeProcess, sanitizedCloudflareEnvironment } from '../../src/process.js';
 import { redact, safeMessage } from '../../src/redaction.js';
+import { integrationSnippet } from '../../../local-ops-api/src/routes/snippet.js';
 
 describe('safe process boundary', () => {
   it('removes ambient Cloudflare credentials and pins only account metadata', () => {
@@ -49,5 +50,31 @@ describe('safe process boundary', () => {
       timeoutMs: 10
     });
     expect(timed.interrupted).toBe(true);
+  });
+
+  it('keeps private credentials out of browser assets, examples, and generated commands', async () => {
+    const guidance = integrationSnippet(
+      {
+        publicSourceKey: 'public-key',
+        allowedOrigins: ['https://site.test'],
+        VIZOALICA_TOKEN_SECRET: 'private-sentinel',
+        authorization: 'Bearer private-sentinel'
+      },
+      'https://worker.test',
+      'project-1',
+      'source-1'
+    );
+    expect(JSON.stringify(guidance)).not.toMatch(/private-sentinel|Bearer/);
+
+    const assets = await Promise.all(
+      [
+        'examples/cloudflare-pages/public/index.html',
+        'examples/cloudflare-pages/public/vizoalica-loader.js',
+        'examples/cloudflare-pages/wrangler.example.toml'
+      ].map((path) => readFile(path, 'utf8'))
+    );
+    expect(assets.join('\n')).not.toMatch(/private-sentinel|CF_API_TOKEN=|ADMIN_SECRET=/);
+    expect(assets[0]).not.toContain('VIZOALICA_TOKEN_SECRET');
+    expect(assets[1]).not.toMatch(/TOKEN_SECRET|authorization|Bearer/i);
   });
 });

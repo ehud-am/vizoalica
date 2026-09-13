@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/vizoalica/ingest-token"],
+  "include": ["/vizoalica/config.json", "/vizoalica/ingest-token"],
   "exclude": []
 }

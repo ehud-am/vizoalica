@@ -3,7 +3,13 @@ pages_build_output_dir = "./public"
 compatibility_date = "2026-09-09"
 
 [vars]
+VIZOALICA_SDK_SRC = "/vizoalica.js"
+VIZOALICA_INGEST_ENDPOINT = "https://REPLACE_WORKER_HOST/v1/events:batch"
+VIZOALICA_PUBLIC_SOURCE_KEY = "REPLACE_PUBLIC_SOURCE_KEY"
 VIZOALICA_PROJECT_ID = "REPLACE_PROJECT_ID"
+VIZOALICA_TOKEN_URL = "/vizoalica/ingest-token"
+VIZOALICA_CONSENT = "analytics-granted"
 VIZOALICA_SOURCE_ID = "REPLACE_SOURCE_ID"
 VIZOALICA_SITE_ORIGIN = "https://REPLACE_PAGES_PROJECT_NAME.pages.dev"
-# Set VIZOALICA_TOKEN_SECRET with `wrangler pages secret put`, never here.
+# These vars are public browser configuration. Set only VIZOALICA_TOKEN_SECRET
+# with `wrangler pages secret put`; never place it in this file.

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { verifyWebsiteResponses, verifyWebsite } from '../../../scripts/verify-website.js';
+import {
+  verifyDynamicWebsiteResponses,
+  verifyWebsiteResponses,
+  verifyWebsite
+} from '../../../scripts/verify-website.js';
 import { createDemoIngestToken } from '../src/index.js';
 const expected = { origin: 'https://site.test', projectId: 'p1', sourceId: 's1' };
 const sdk = () =>
@@ -11,6 +15,23 @@ const token = (changes = {}) =>
     createDemoIngestToken({ projectId: 'p1', sourceId: 's1', origin: expected.origin, ...changes }),
     { headers: { 'content-type': 'text/plain', 'cache-control': 'no-store' } }
   );
+const loader = () =>
+  new Response('/* vizoalica loader */ (()=>fetch("/vizoalica/config.json"))();', {
+    headers: { 'content-type': 'application/javascript' }
+  });
+const dynamicConfig = () =>
+  Response.json(
+    {
+      version: 1,
+      src: '/vizoalica.js',
+      'data-endpoint': 'https://analytics.test/v1/events:batch',
+      'data-source': 'public-key',
+      'data-project': 'p1',
+      'data-token-url': '/vizoalica/ingest-token',
+      'data-consent': 'analytics-granted'
+    },
+    { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } }
+  );
 describe('website verification', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -18,6 +39,26 @@ describe('website verification', () => {
   });
   it('accepts executable SDK and scoped token without returning credentials', async () => {
     expect(await verifyWebsiteResponses(sdk(), token(), expected)).toBeUndefined();
+  });
+  it('accepts a scoped dynamic loader/config pair and rejects wrong projects', async () => {
+    await expect(
+      verifyDynamicWebsiteResponses(loader(), dynamicConfig(), token(), expected)
+    ).resolves.toBeUndefined();
+    const wrong = dynamicConfig();
+    const body = await wrong.json();
+    await expect(
+      verifyDynamicWebsiteResponses(
+        loader(),
+        Response.json(
+          { ...body, 'data-project': 'other' },
+          {
+            headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
+          }
+        ),
+        token(),
+        expected
+      )
+    ).rejects.toThrow(/expected project/);
   });
   it('rejects Pages HTML fallbacks even with status 200', async () => {
     await expect(
@@ -107,5 +148,13 @@ describe('website verification', () => {
     expect(fetch.mock.calls[1]?.[0].pathname).toBe('/vizoalica/ingest-token');
     expect(log).toHaveBeenCalledWith(expect.stringContaining('claims passed'));
     expect(JSON.stringify(log.mock.calls)).not.toContain('eyJ');
+
+    fetch.mockImplementation(async (url: URL) => {
+      if (url.pathname === '/vizoalica-loader.js') return loader();
+      if (url.pathname === '/vizoalica/config.json') return dynamicConfig();
+      return token();
+    });
+    await verifyWebsite([expected.origin, 'p1', 's1', '--mode', 'dynamic']);
+    expect(fetch.mock.calls.at(-1)?.[0].pathname).toBe('/vizoalica/config.json');
   });
 });

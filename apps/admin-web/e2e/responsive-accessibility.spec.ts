@@ -19,6 +19,21 @@ async function mockConsole(page: Page) {
     const path = url.pathname;
     let body: unknown = {};
     if (path === '/api/session') return route.fulfill({ status: 204 });
+    if (path.endsWith('/websites') && request.method() === 'POST') {
+      const projectId = path.split('/')[3]!;
+      const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 'site-created',
+          projectId,
+          name: input.name,
+          publicSourceKey: 'created-public-key',
+          allowedOrigins: input.allowedOrigins,
+          status: 'active'
+        }
+      });
+    }
     if (path === '/api/projects') body = [project, secondProject];
     else if (path === '/api/preferences/theme') body = { theme: null };
     else if (path.endsWith('/websites')) body = [website];
@@ -146,7 +161,7 @@ test('navigates Projects with the keyboard and preserves explicit current contex
     'aria-current',
     'page'
   );
-  await expect(page.getByRole('combobox', { name: 'Project' })).toHaveValue('project-2');
+  await expect(page.getByRole('combobox', { name: 'Browsing project' })).toHaveValue('project-2');
 });
 
 test('has no serious axe findings on Projects, Overview, and Websites', async ({ page }) => {
@@ -157,4 +172,90 @@ test('has no serious axe findings on Projects, Overview, and Websites', async ({
       results.violations.filter((item) => ['critical', 'serious'].includes(item.impact ?? ''))
     ).toEqual([]);
   }
+});
+
+test('requires project confirmation as the first website creation control', async ({ page }) => {
+  await page.getByRole('button', { name: 'Websites' }).click();
+  await page.getByText('Add a website').click();
+  const form = page.getByRole('form', { name: 'Add website' });
+  const projectChoice = form.getByRole('combobox', { name: 'Project' });
+  await expect(projectChoice).toHaveValue('');
+  await expect(projectChoice).toHaveAttribute('required', '');
+  expect(
+    await form.evaluate((element) => element.querySelector('select, input, textarea')?.tagName)
+  ).toBe('SELECT');
+  await projectChoice.selectOption(secondProject.id);
+  await form.getByRole('textbox', { name: 'Website name' }).fill('Launch');
+  await form.getByRole('textbox', { name: 'Allowed origins' }).fill('https://launch.example');
+  await form.getByRole('button', { name: 'Add website' }).click();
+  await expect(
+    page.getByText(`Website Launch created in project ${secondProject.name} (${secondProject.id}).`)
+  ).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Browsing project' })).toHaveValue(
+    secondProject.id
+  );
+});
+
+test('recovers from an empty project list with a keyboard-accessible Projects action', async ({
+  page
+}) => {
+  await page.route('http://127.0.0.1:4173/api/projects', (route) => route.fulfill({ json: [] }));
+  await page.reload();
+  await page.getByRole('button', { name: 'Websites' }).click();
+  const recovery = page.getByRole('button', { name: 'Go to Projects' });
+  await recovery.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(
+    page.getByText('Create a project before organizing websites or viewing analytics.')
+  ).toBeVisible();
+});
+
+test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom', async ({
+  page
+}) => {
+  await page.getByRole('button', { name: 'Projects', exact: true }).click();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  const footer = page.getByRole('contentinfo');
+  await footer.scrollIntoViewIfNeeded();
+  const footerBox = await footer.boundingBox();
+  const lastActionBox = await page
+    .getByRole('button', { name: /Open websites for Developer Tools \(project-2\)/ })
+    .boundingBox();
+  expect(footerBox).toBeTruthy();
+  expect(lastActionBox).toBeTruthy();
+  expect(lastActionBox!.y + lastActionBox!.height).toBeLessThanOrEqual(footerBox!.y);
+  const center = await page.locator('.app-footer-inner').evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+  expect(Math.abs(center - 160)).toBeLessThanOrEqual(2);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )
+  ).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('link', { name: 'vizoalica.dev' })).toHaveAttribute(
+    'href',
+    'https://vizoalica.dev'
+  );
+  await expect(page.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
+    'href',
+    'https://github.com/ehud-am/vizoalica'
+  );
+});
+
+test('opens and closes the Local workspace boundary explanation by keyboard', async ({ page }) => {
+  const trigger = page.getByRole('button', { name: 'Local workspace' });
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('region', { name: 'Local workspace explanation' })).toContainText(
+    'loopback service'
+  );
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
