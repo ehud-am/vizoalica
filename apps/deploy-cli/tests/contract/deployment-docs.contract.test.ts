@@ -65,6 +65,16 @@ describe('deployment documentation contract', () => {
     expect(guide).not.toMatch(/onecli run/i);
   });
 
+  it('gives returning operators an unambiguous mode selector and startup path', async () => {
+    const guide = await text('docs/operations/operator-local.md');
+    expect(guide).toMatch(/\| Without OneCLI\s+\| Real administrator secret/);
+    expect(guide).toMatch(/\| With OneCLI\s+\| Literal `onecli-managed`/);
+    expect(guide).toContain('pnpm ops status');
+    expect(guide).toContain('pnpm ops run');
+    expect(guide).toContain('pnpm local-ops-api:dev serve');
+    expect(guide).toMatch(/do not switch modes merely by changing the startup command/i);
+  });
+
   it('defines the complete OneCLI workstation journey', async () => {
     const guide = await text('docs/operations/ops-cli.md');
     expectJourney(guide, /once per operator/i, [
@@ -127,6 +137,7 @@ describe('deployment documentation contract', () => {
         'README.md',
         'docs/operations/cloudflare.md',
         'docs/operations/local-analytics.md',
+        'docs/operations/operator-local.md',
         'docs/operations/ops-cli.md',
         'docs/operations/pages.md',
         'docs/operations/browser-sdk.md',

@@ -24,6 +24,9 @@ export function App() {
   const [projectId, setProjectId] = useState('');
   const [view, setView] = useState<View>('overview');
   const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
+  const [denialReason, setDenialReason] = useState<
+    'session_expired' | 'worker_authorization' | undefined
+  >();
   const theme = useTheme();
   const updateProjects = useCallback((next: Project[], preferredProjectId?: string) => {
     setProjects(next);
@@ -31,12 +34,17 @@ export function App() {
   }, []);
   const connect = useCallback(async () => {
     setAccess('loading');
+    setDenialReason(undefined);
     try {
       await bootstrapSession();
       const next = await listProjects();
       updateProjects(next);
       setAccess('ready');
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401)
+        setDenialReason(
+          error.code === 'session_expired' ? 'session_expired' : 'worker_authorization'
+        );
       setAccess(error instanceof ApiError && error.status === 401 ? 'denied' : 'offline');
     }
   }, [updateProjects]);
@@ -104,7 +112,7 @@ export function App() {
         <div className="content-column">
           <main id="main" tabIndex={-1} data-view={view}>
             {access !== 'ready' ? (
-              <AccessState state={access} onRetry={() => void connect()} />
+              <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
             ) : view === 'projects' ? (
               <ProjectsPage
                 projects={projects}

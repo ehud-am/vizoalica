@@ -62,6 +62,8 @@ describe('operations CLI safety', () => {
       '--gateway',
       '127.0.0.1:10255',
       '--',
+      'env',
+      'VIZOALICA_ONECLI_WRAPPED=1',
       'pnpm',
       'local-ops-api:dev',
       'serve',

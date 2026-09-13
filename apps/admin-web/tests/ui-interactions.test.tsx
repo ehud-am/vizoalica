@@ -307,7 +307,7 @@ describe('interactive console', () => {
     api.getAnalyticsOverview.mockRejectedValueOnce(new ApiError('access_revoked', 401));
     render(<App />);
     expect(
-      await screen.findByText('Access expired. Reauthorize the local workspace.')
+      await screen.findByText('The Worker rejected the configured credential. Run pnpm ops status.')
     ).toBeTruthy();
     cleanup();
     api.getAnalyticsOverview.mockRejectedValueOnce(new Error('offline'));

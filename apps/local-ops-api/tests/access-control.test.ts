@@ -25,4 +25,25 @@ describe('local access lifecycle', () => {
     chmodSync(path, 0o644);
     expect(() => loadConfigFile(path)).toThrow('0600');
   });
+
+  it('refuses to replace an existing configuration unless explicitly requested', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'vizoalica-')), 'config.json');
+    writeConfigFile(path, {
+      VIZOALICA_REMOTE_URL: 'https://first.test',
+      VIZOALICA_ADMIN_SECRET: 'first'
+    });
+    expect(() =>
+      writeConfigFile(path, {
+        VIZOALICA_REMOTE_URL: 'https://second.test',
+        VIZOALICA_ADMIN_SECRET: 'second'
+      })
+    ).toThrow('config_exists_use_replace');
+    expect(loadConfigFile(path).remoteUrl).toBe('https://first.test');
+    writeConfigFile(
+      path,
+      { VIZOALICA_REMOTE_URL: 'https://second.test', VIZOALICA_ADMIN_SECRET: 'second' },
+      { replace: true }
+    );
+    expect(loadConfigFile(path).remoteUrl).toBe('https://second.test');
+  });
 });

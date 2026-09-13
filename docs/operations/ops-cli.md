@@ -3,6 +3,14 @@
 Run this guide **once per operator**. Use [direct setup](local-analytics.md) instead when OneCLI
 will not manage the administrator credential. Do not combine the two methods.
 
+## Returning operator: start here
+
+If this machine is already configured with OneCLI, use the one-terminal commands in
+[Start the local operator console](operator-local.md#with-onecli): run `pnpm ops verify`, then
+`pnpm ops run`. Keep that terminal open and press Ctrl+C once to stop both processes. Never start
+`pnpm local-ops-api:dev` directly when the file contains `onecli-managed`, and do not switch modes
+merely by changing the startup command.
+
 ## Prerequisites
 
 - A completed [backend deployment](cloudflare.md) and its verified handoff.
@@ -25,6 +33,10 @@ not required.
 OneCLI injects the real credential only into HTTPS requests to the exact Worker host. Vizoalica
 stores only the literal placeholder `onecli-managed`. The browser talks only to the loopback API.
 Missing OneCLI access must fail closed; never copy the credential into local configuration.
+
+> **Important:** If `local-operations.json` contains `onecli-managed`, the API must be launched
+> with `pnpm ops run`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
+> in HTTP 401. The API refuses this direct launch when it can identify the placeholder.
 
 ## 1. Verify the handoff and checkout
 
@@ -91,6 +103,7 @@ environment's administrator card, no Cloudflare deployment connection, and no un
 pnpm ops setup
 pnpm ops doctor
 pnpm ops verify
+pnpm ops status
 ```
 
 Setup writes private coordinates and the non-secret placeholder. If the existing client

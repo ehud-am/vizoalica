@@ -4,6 +4,13 @@ Run this guide **once per operator or data analyst** who will store the Vizoalic
 credential in a private local file. Use [the OneCLI setup](ops-cli.md) instead when OneCLI manages
 the credential. Do not complete both paths on the same machine.
 
+## Returning operator: start here
+
+If this machine is already configured without OneCLI, use the two-terminal commands in
+[Start the local operator console](operator-local.md#without-onecli). Keep both terminals open and
+press Ctrl+C in both to stop. Run `pnpm ops status` first whenever the configured mode is unclear.
+Do not switch modes merely by changing the startup command.
+
 ## Prerequisites
 
 - A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
@@ -42,19 +49,18 @@ Confirm that `git rev-parse HEAD` matches the backend handoff.
 
 ## 2. Create the private configuration
 
-Read the secret without displaying it or saving it in shell history:
+Run the configuration command in an interactive terminal. It reads the administrator secret from
+a hidden prompt; the secret is never a command argument:
 
 ```sh
-read -r -s VIZOALICA_ADMIN_SECRET
 pnpm --filter @vizoalica/local-ops-api dev configure \
   "$HOME/.config/vizoalica/local-operations.json" \
-  "https://YOUR_WORKER.YOUR_ACCOUNT_SUBDOMAIN.workers.dev" \
-  "$VIZOALICA_ADMIN_SECRET"
-unset VIZOALICA_ADMIN_SECRET
+  "https://YOUR_WORKER.YOUR_ACCOUNT_SUBDOMAIN.workers.dev"
 ```
 
 Use the exact Worker origin, with no path or trailing slash. The command creates a mode `0600`
-file and refuses to overwrite an existing configuration. Do not print the file.
+file and refuses to overwrite an existing configuration. To intentionally recreate a reviewed
+direct-mode configuration, add `--replace`; inspect the target path first. Do not print the file.
 
 ## 3. Start the console
 
@@ -78,6 +84,16 @@ loopback API run only on this computer. It does not mean analytics data is local
 backend and its D1/R2 storage may be remote.
 
 ## Verify the operator setup
+
+Before opening the browser, run the authenticated check:
+
+```sh
+pnpm ops verify
+pnpm ops status
+```
+
+For this mode, `verify` reads the private file internally and confirms HTTP 200 with a JSON project
+array without printing the credential. Then:
 
 1. Open **Projects**, then **Websites**. The project list must load; an empty list is success.
 2. If a project exists, open **Overview** and load the `24h` range.

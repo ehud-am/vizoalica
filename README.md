@@ -25,6 +25,9 @@ The current work focuses on:
 
 ## Start here
 
+Already configured? Use [Start the local operator console](docs/operations/operator-local.md) to
+identify the saved credential mode, check status, and run the correct daily startup command.
+
 Deploying Vizoalica has three main steps:
 
 1. **Deploy the Cloudflare backend** — run this **once per customer environment**. Follow

@@ -71,7 +71,9 @@ export function AnalyticsPage({
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
         setAnalyticsError(
           reason instanceof ApiError && reason.status === 401
-            ? 'Access expired. Reauthorize the local workspace.'
+            ? reason.code === 'session_expired'
+              ? 'Your browser session expired. Reconnect to the local workspace.'
+              : 'The Worker rejected the configured credential. Run pnpm ops status.'
             : 'Analytics are unavailable. No stale results are shown.'
         );
       })

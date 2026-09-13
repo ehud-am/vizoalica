@@ -1,4 +1,13 @@
-import { chmodSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  linkSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -55,11 +64,25 @@ export function resolvePreferencesPath(config: Config): string {
   return join(dirname(base), 'preferences.json');
 }
 
-export function writeConfigFile(path: string, values: Record<string, string>): void {
+export function writeConfigFile(
+  path: string,
+  values: Record<string, string>,
+  options: { replace?: boolean } = {}
+): void {
+  if (existsSync(path) && options.replace !== true) throw new Error('config_exists_use_replace');
   const temporaryPath = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
   writeFileSync(temporaryPath, `${JSON.stringify(values, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
   chmodSync(temporaryPath, 0o600);
-  renameSync(temporaryPath, path);
+  try {
+    if (options.replace === true) renameSync(temporaryPath, path);
+    else {
+      linkSync(temporaryPath, path);
+      unlinkSync(temporaryPath);
+    }
+  } catch (error) {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+    throw error;
+  }
 }
 
 /** A local revocation is performed by removing the credential from the operator-owned config. */

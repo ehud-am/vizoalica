@@ -136,6 +136,56 @@ export function validateConsoleConfig(path: string, workerUrl: string): boolean 
   }
 }
 
+type ClientConfig = {
+  path: string;
+  workerUrl: string;
+  adminSecret: string;
+  permissions: string;
+  mode: 'OneCLI' | 'private local file';
+};
+
+function loadClientConfig(path: string): ClientConfig {
+  const target = assertSafePath(path);
+  const permissions = statSync(target).mode & 0o777;
+  if ((permissions & 0o077) !== 0)
+    throw new Error(`Configuration must be private (chmod 600 ${target}).`);
+  const value = JSON.parse(readFileSync(target, 'utf8')) as Record<string, unknown>;
+  if (
+    typeof value.VIZOALICA_REMOTE_URL !== 'string' ||
+    typeof value.VIZOALICA_ADMIN_SECRET !== 'string' ||
+    !value.VIZOALICA_ADMIN_SECRET.trim()
+  )
+    throw new Error(`Client configuration is incomplete: ${target}`);
+  return {
+    path: target,
+    workerUrl: normalizeWorkerUrl(value.VIZOALICA_REMOTE_URL),
+    adminSecret: value.VIZOALICA_ADMIN_SECRET,
+    permissions: permissions.toString(8).padStart(4, '0'),
+    mode: value.VIZOALICA_ADMIN_SECRET === 'onecli-managed' ? 'OneCLI' : 'private local file'
+  };
+}
+
+function resolveClientConfig(options: Options): { client: ClientConfig; ops?: OpsConfig } {
+  const explicitClientPath = text(options, 'console-config');
+  const opsPath = text(options, 'config') ?? DEFAULT_CONFIG;
+  let ops: OpsConfig | undefined;
+  if (text(options, 'config')) ops = loadOpsConfig(opsPath);
+  let clientPath = explicitClientPath ?? ops?.consoleConfigPath ?? DEFAULT_CLIENT_CONFIG;
+  if (!existsSync(clientPath) && existsSync(opsPath)) {
+    ops ??= loadOpsConfig(opsPath);
+    clientPath = explicitClientPath ?? ops.consoleConfigPath;
+  }
+  const client = loadClientConfig(clientPath);
+  if (client.mode === 'OneCLI') {
+    if (!ops && existsSync(opsPath)) ops = loadOpsConfig(opsPath);
+    if (!ops)
+      throw new Error('OneCLI settings are missing; run pnpm ops setup or pass --config <path>.');
+    if (ops.workerUrl !== client.workerUrl)
+      throw new Error('The OneCLI and client configurations name different Workers.');
+  }
+  return { client, ...(ops ? { ops } : {}) };
+}
+
 async function ask(
   prompt: ReturnType<typeof createInterface>,
   label: string,
@@ -307,6 +357,20 @@ async function gatewayReachable(value: string): Promise<boolean> {
   });
 }
 
+async function portOccupied(port: number): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    const socket = createConnection({ host: '127.0.0.1', port });
+    const finish = (result: boolean) => {
+      socket.destroy();
+      resolvePromise(result);
+    };
+    socket.setTimeout(500);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
 async function doctor(options: Options, dependencies: Dependencies): Promise<void> {
   const config = loadOpsConfig(text(options, 'config'));
   const onecli = dependencies.spawnSync('onecli', ['version'], { encoding: 'utf8' });
@@ -344,6 +408,8 @@ export function consoleArguments(config: OpsConfig): string[] {
     '--gateway',
     config.onecli.gateway,
     '--',
+    'env',
+    'VIZOALICA_ONECLI_WRAPPED=1',
     'pnpm',
     'local-ops-api:dev',
     'serve',
@@ -370,14 +436,73 @@ export function verifyArguments(config: OpsConfig): string[] {
 }
 
 async function verifyAccess(options: Options, dependencies: Dependencies): Promise<void> {
-  const config = loadOpsConfig(text(options, 'config'));
-  const result = dependencies.spawnSync('onecli', verifyArguments(config), { stdio: 'inherit' });
-  if (result.status !== 0)
-    throw new Error(
-      'Authenticated access failed. Check the Worker identity, credential card, and agent grant.'
+  const { client, ops } = resolveClientConfig(options);
+  if (client.mode === 'OneCLI') {
+    const result = dependencies.spawnSync('onecli', verifyArguments(ops!), { stdio: 'inherit' });
+    if (result.status !== 0)
+      throw new Error(
+        'Authenticated access failed. Check the Worker identity, credential card, and agent grant.'
+      );
+    stdout.write(
+      `Verified through OneCLI agent ${ops!.onecli.agent}; no credential was printed.\n`
     );
+    return;
+  }
+  const response = await dependencies.fetch(`${client.workerUrl}/v1/admin/projects`, {
+    headers: { authorization: `Bearer ${client.adminSecret}` },
+    signal: AbortSignal.timeout(10_000)
+  });
+  const body: unknown = await response.json().catch(() => undefined);
+  if (response.status !== 200 || !Array.isArray(body))
+    throw new Error(`Authenticated project check failed with HTTP ${response.status}.`);
   stdout.write(
-    `Verified through OneCLI agent ${config.onecli.agent}; no credential was printed.\n`
+    'Verified with the private local file (HTTP 200, JSON array); no credential was printed.\n'
+  );
+}
+
+async function status(options: Options, dependencies: Dependencies): Promise<void> {
+  const { client, ops } = resolveClientConfig(options);
+  const [apiPort, webPort, publicHealth] = await Promise.all([
+    portOccupied(4318),
+    portOccupied(5173),
+    dependencies
+      .fetch(`${client.workerUrl}/healthz`, { signal: AbortSignal.timeout(5000) })
+      .then((response) => response.ok)
+      .catch(() => false)
+  ]);
+  const processList = dependencies.spawnSync('ps', ['-axo', 'command='], { encoding: 'utf8' });
+  const commands = typeof processList.stdout === 'string' ? processList.stdout : '';
+  const throughOneCli =
+    client.mode === 'OneCLI' && commands.includes('onecli run') && commands.includes(client.path);
+  let authenticated = false;
+  if (client.mode === 'OneCLI') {
+    authenticated =
+      dependencies.spawnSync('onecli', verifyArguments(ops!), { stdio: 'ignore' }).status === 0;
+  } else {
+    authenticated = await dependencies
+      .fetch(`${client.workerUrl}/v1/admin/projects`, {
+        headers: { authorization: `Bearer ${client.adminSecret}` },
+        signal: AbortSignal.timeout(10_000)
+      })
+      .then(async (response) => response.status === 200 && Array.isArray(await response.json()))
+      .catch(() => false);
+  }
+  const expected =
+    client.mode === 'OneCLI'
+      ? 'pnpm ops run'
+      : `pnpm local-ops-api:dev serve "${client.path}" (plus pnpm admin-web:dev)`;
+  stdout.write(
+    [
+      `Credential mode: ${client.mode}`,
+      `Worker hostname: ${new URL(client.workerUrl).hostname}`,
+      `Config file: ${client.path} (${client.permissions})`,
+      `Expected startup: ${expected}`,
+      `Port 4318 occupied: ${apiPort ? 'yes' : 'no'}`,
+      `Port 5173 occupied: ${webPort ? 'yes' : 'no'}`,
+      `API running through OneCLI: ${throughOneCli ? 'yes' : 'no'}`,
+      `Public health: ${publicHealth ? 'passed' : 'failed'}`,
+      `Authenticated access: ${authenticated ? 'passed' : 'failed'}`
+    ].join('\n') + '\n'
   );
 }
 
@@ -482,7 +607,8 @@ export function help(): string {
     '',
     '  pnpm ops setup          Save non-secret Worker, OneCLI, and optional Pages settings',
     '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
-    '  pnpm ops verify         Verify authenticated project access through the selected agent',
+    '  pnpm ops verify         Verify authenticated project access for the configured mode',
+    '  pnpm ops status         Report the configured mode, startup command, ports, and access checks',
     '  pnpm ops run            Start the OneCLI-wrapped API and web console together',
     '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
     '  pnpm ops show           Show parameter locations and the safe operating model',
@@ -526,6 +652,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'setup') await setup(options, injected);
   else if (command === 'doctor') await doctor(options, injected);
   else if (command === 'verify') await verifyAccess(options, injected);
+  else if (command === 'status') await status(options, injected);
   else if (command === 'run') await runConsole(options, injected);
   else if (command === 'deploy-pages') await deployPages(options, injected);
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);
