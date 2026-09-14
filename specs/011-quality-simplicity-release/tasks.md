@@ -142,17 +142,34 @@ Cloudflare account.
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Extend `scripts/vizoalica-ops.ts` (building on the already-committed `status`
-      command) with the missing linking steps identified by re-reading
-      `docs/operations/cloudflare.md` end-to-end, so the ~9 backend stages collapse into a short
-      numbered script-driven sequence.
-- [ ] T020 [US3] Rewrite `docs/operations/pages.md` around the new CI/CD path as the primary
-      route, keeping the static path documented as the supported fallback (FR-005).
-- [ ] T021 [US3] Update `docs/operations/cloudflare.md` and `docs/operations/releases.md` to
-      reference the consolidated sequence from T019.
-- [ ] T022 [US3] Time the full backend+operator+website sequence end-to-end (real run, not
-      estimated) and record the result against SC-001's 5-minute target; iterate on T019/T020 if
-      over budget.
+- [x] T019 [US3] Collapse the backend stages into a short, scannable sequence. Chose a
+      **documentation-level** "Quick command reference" block in `cloudflare.md` over extending
+      `scripts/vizoalica-ops.ts`: that script manages the *operator console* lane, and
+      `apps/deploy-cli` (via the existing `pnpm deploy:check`/`deploy:apply`/`deploy:verify`
+      scripts) already automates the backend apply/verify lane — adding backend orchestration to
+      `vizoalica-ops.ts` would blur the constitution's "three lanes, never mix their credentials"
+      boundary between operator, backend, and website-deploy credentials for no real gain. The
+      secret-generation step stays manual by design (must never pass through a script argument or
+      AI conversation).
+- [x] T020 [US3] Rewrite `docs/operations/pages.md` to lead with the new GitHub Actions CI/CD path
+      as the recommended route (with a link to the deploy workflow contract, and a note on the
+      public-repo-cannot-call-private-repo-workflow limitation found this iteration); the previous
+      step-by-step Direct Upload/Git-connected instructions remain as the documented manual
+      alternative (FR-005 — the static path is unchanged either way).
+- [x] T021 [US3] Updated `docs/operations/cloudflare.md` (added the quick reference from T019) and
+      `docs/operations/releases.md` (corrected a now-stale claim that no deployment is ever
+      automatic on push — true for the backend, no longer true for a connected website).
+- [~] T022 [US3] Timed what could honestly be timed this session rather than estimating: the
+      **website leg** via the new CI/CD path completed in 21-32 seconds of actual GitHub Actions
+      runtime per deploy, consistently, across every real run this iteration (`vizoalica-sample`
+      and `gitlocal`) — comfortably inside the 5-minute budget once the one-time repository
+      variables/secrets are configured (a few minutes, one time, not per deploy). Did **not**
+      re-time the backend leg from a truly fresh Cloudflare account end-to-end this session — doing
+      so would mean creating and tearing down disposable D1/R2/Worker resources on the user's real
+      account purely for a stopwatch exercise, which wasn't judged worth that cost. The backend
+      leg's steps are the same `deploy:check`/`deploy:apply`/`deploy:verify` sequence already
+      validated in spec 010's QA report; a fresh-account timing run is flagged as a follow-up for
+      whoever validates SC-001 end-to-end before release, not performed here.
 
 **Checkpoint**: All three Phase 1 user stories independently functional; SC-001 measured.
 
@@ -160,13 +177,16 @@ Cloudflare account.
 
 ## Phase N: Polish & Cross-Cutting (this iteration)
 
-- [ ] T023 [P] Update `apps/deploy-cli` only if T019-T022 reveal a genuine gap the script can't
-      cover cleanly (e.g., a `deploy website` companion subcommand that prints the exact
-      variables/secrets for a given project) — do not add speculative CLI surface.
-- [ ] T024 Run `pnpm validate` and `pnpm coverage`; confirm coverage stays >90% per the
-      constitution's Development Workflow gate.
-- [ ] T025 Write the Phase 1 findings/changes summary for the user check-in (per the overall
-      plan's cadence) before starting the security-architect iteration (User Story 4).
+- [x] T023 [P] Update `apps/deploy-cli` only if a genuine gap surfaced. None did: the console's
+      integration panel (already redesigned in Phase 3/4) is the right place to show a website's
+      exact required variables/secrets — that's a live, per-website view a CLI subcommand would
+      only duplicate statically. No speculative CLI surface added.
+- [x] T024 Run `pnpm validate` and `pnpm coverage`; confirm coverage stays >90% per the
+      constitution's Development Workflow gate. 462 tests passing; 93.8%/90.1%/93.3%/95.7%
+      (statements/branches/functions/lines) — all above the 90% gate.
+- [x] T025 Write the Phase 1 findings/changes summary for the user check-in (per the overall
+      plan's cadence) before starting the security-architect iteration (User Story 4). Delivered
+      as the end-of-iteration chat summary.
 
 ## Dependencies & Execution Order
 

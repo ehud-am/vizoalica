@@ -13,6 +13,44 @@ This guide does not configure an operator machine or connect a website. Its fina
 the inputs for [operator setup without OneCLI](local-analytics.md),
 [operator setup with OneCLI](ops-cli.md), and [website activation](pages.md).
 
+## Quick command reference
+
+The numbered sections below explain and justify each step; this block is the same sequence with
+the prose stripped out, for an operator (or agent) who already knows the model and just needs the
+commands in order. Generating the three secrets (step 1) is deliberately manual — it must never
+pass through a terminal history, script argument, or AI conversation — so it has no command here.
+
+```sh
+# 1. (manual, in a password manager — see "Generate and save the three secrets" below)
+
+# 2. Prepare the checkout
+git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
+git checkout YOUR_APPROVED_TAG_OR_COMMIT
+corepack enable && corepack prepare pnpm@9.15.4 --activate
+pnpm install --frozen-lockfile && pnpm build
+cp deploy/cloudflare/wrangler.example.toml deploy/cloudflare/wrangler.production.toml
+# then edit wrangler.production.toml per the table in step 3 below
+
+# 3. Authenticate and create fresh resources
+pnpm exec wrangler login
+pnpm exec wrangler d1 create YOUR_D1_NAME
+pnpm exec wrangler r2 bucket create YOUR_R2_BUCKET
+
+# 4. Store the three secrets (pastes from the password manager, one prompt each)
+pnpm exec wrangler secret put VIZOALICA_TOKEN_SECRET --config deploy/cloudflare/wrangler.production.toml
+pnpm exec wrangler secret put VIZOALICA_ADMIN_SECRET --config deploy/cloudflare/wrangler.production.toml
+pnpm exec wrangler secret put VIZOALICA_ANALYTICS_DIGEST_SECRET --config deploy/cloudflare/wrangler.production.toml
+
+# 5-6. Preflight, apply, and verify
+pnpm deploy:check
+pnpm deploy:apply
+export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
+pnpm deploy:verify
+```
+
+Then continue to [operator setup](local-analytics.md) and [website activation](pages.md) — those
+guides are each a single further command sequence, not a repeat of this one.
+
 ## Prerequisites
 
 - Node.js 22 or newer and Corepack.

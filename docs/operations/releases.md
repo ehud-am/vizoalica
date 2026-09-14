@@ -37,7 +37,14 @@ self-hosting operator decides whether and when to use the release.
 An operator deploys a selected release from their own checkout and Cloudflare account. The
 supported commands are described in [the Cloudflare operations guide](./cloudflare.md).
 
-There is no automatic deployment on push, merge, tag creation, or GitHub Release publication.
+There is no automatic deployment of the backend (Worker/D1/R2) on push, merge, tag creation, or
+GitHub Release publication — that stays a deliberate, approval-gated operator action.
+
+A connected **website**, however, can deploy automatically on push once configured: see
+[website activation](pages.md) and the
+[deploy workflow contract](../../specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md).
+That automation is scoped to the website's own Cloudflare Pages project and repository — it never
+touches the backend.
 
 ## Release 0.5.1 deployment boundary
 

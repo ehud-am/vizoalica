@@ -7,6 +7,38 @@ consented event reaches Vizoalica without making the host website depend on anal
 Repeat the complete activation with a separate registration and completion record for every
 additional website. Do not redeploy the backend or repeat workstation setup for each site.
 
+## Recommended: deploy via GitHub Actions CI/CD
+
+For a website whose source lives in its own GitHub repository, this is the primary, recommended
+path — a customer pushes a change and the deployment happens automatically, with no per-deploy
+manual steps and no analytics values ever committed to the website's source.
+
+1. **Create the website in the console** (same as step 1 below): Projects → select/create a
+   project → Websites → Add website → enter the exact production origin(s). Open its integration
+   panel and choose **Dynamic configuration**.
+2. **Copy the generated guidance**: the panel shows the exact GitHub repository variables and
+   secrets to add, a ready-to-paste starter workflow file, and the equivalent `gh` CLI commands.
+   Add the variables/secrets to the website's repository (GitHub → Settings → Secrets and
+   variables → Actions), and the two account-specific values (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`)
+   plus a Cloudflare API token scoped to **Cloudflare Pages: Edit only** (create it without any
+   Client IP Address Filtering restriction — a CI runner has no fixed IP).
+3. **Add the workflow file** shown in the panel to `.github/workflows/` in the website's repo, and
+   push. The workflow deploys the site, vendors the Vizoalica configuration and token-issuing
+   Functions, and wires the analytics configuration into the Cloudflare Pages environment — all
+   from repository variables/secrets, never from committed source.
+4. **Verify** using the [verification steps](#verify-website-activation) below against the
+   deployed URL, and check the website's page in the console shows **Website reachable**.
+
+See the [deploy workflow contract](../../specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md)
+for the full technical contract, including the caveat that a **public** website repository cannot
+call a reusable workflow hosted in a private repository — vendor the workflow's steps directly
+into the website's own repo instead in that case (see the contract for the exact reason).
+
+The rest of this guide documents the manual alternative (Direct Upload or an existing Git-connected
+Pages project) for a website not using GitHub Actions, or for the static integration path.
+
+## Manual alternative: Direct Upload, Git-connected Pages, or the static snippet
+
 ## Prerequisites
 
 - A verified [customer backend](cloudflare.md) and its redacted handoff.
