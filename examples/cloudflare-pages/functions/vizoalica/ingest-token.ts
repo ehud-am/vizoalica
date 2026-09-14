@@ -2,7 +2,8 @@ interface Env {
   VIZOALICA_TOKEN_SECRET: string;
   VIZOALICA_PROJECT_ID: string;
   VIZOALICA_SOURCE_ID: string;
-  VIZOALICA_SITE_ORIGIN: string;
+  /** Comma-separated list of allowed origins (e.g. apex + www serving the same site). */
+  VIZOALICA_SITE_ORIGINS: string;
 }
 
 const encoder = new TextEncoder();
@@ -35,7 +36,11 @@ export async function onRequest({
   env: Env;
 }): Promise<Response> {
   if (request.method !== 'GET') return reply('Method not allowed', 405);
+  let allowedOrigins: string[];
   try {
+    allowedOrigins = env.VIZOALICA_SITE_ORIGINS.split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
     if (
       !env.VIZOALICA_TOKEN_SECRET ||
       env.VIZOALICA_TOKEN_SECRET.length < 32 ||
@@ -43,8 +48,10 @@ export async function onRequest({
       env.VIZOALICA_PROJECT_ID.startsWith('REPLACE_') ||
       !env.VIZOALICA_SOURCE_ID ||
       env.VIZOALICA_SOURCE_ID.startsWith('REPLACE_') ||
-      new URL(env.VIZOALICA_SITE_ORIGIN).origin !== env.VIZOALICA_SITE_ORIGIN ||
-      !env.VIZOALICA_SITE_ORIGIN.startsWith('https://')
+      allowedOrigins.length === 0 ||
+      allowedOrigins.some(
+        (origin) => new URL(origin).origin !== origin || !origin.startsWith('https://')
+      )
     )
       return reply('Token issuer is not configured', 503);
   } catch {
@@ -58,10 +65,7 @@ export async function onRequest({
       return reply('Origin not allowed', 403);
     }
   }
-  if (
-    provenance !== env.VIZOALICA_SITE_ORIGIN ||
-    new URL(request.url).origin !== env.VIZOALICA_SITE_ORIGIN
-  )
+  if (!allowedOrigins.includes(provenance) || !allowedOrigins.includes(new URL(request.url).origin))
     return reply('Origin not allowed', 403);
 
   // Scope comes only from server configuration, never request parameters or headers.
@@ -72,7 +76,7 @@ export async function onRequest({
     sub: `source/${env.VIZOALICA_SOURCE_ID}`,
     project_id: env.VIZOALICA_PROJECT_ID,
     source_id: env.VIZOALICA_SOURCE_ID,
-    origin: env.VIZOALICA_SITE_ORIGIN,
+    origin: provenance,
     scope: 'events:write',
     iat: now,
     nbf: now,

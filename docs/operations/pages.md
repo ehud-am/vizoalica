@@ -85,17 +85,17 @@ shown in the dashboard, normally `https://YOUR_UNIQUE_PAGES_PROJECT.pages.dev`.
 
 Edit the working copy's `wrangler.toml`:
 
-| Field                         | Copy from                                              |
-| ----------------------------- | ------------------------------------------------------ |
-| `name`                        | Pages project name                                     |
-| `VIZOALICA_SDK_SRC`           | Public SDK path, normally `/vizoalica.js`              |
-| `VIZOALICA_INGEST_ENDPOINT`   | Console's dynamic public configuration                 |
-| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's public source key                            |
-| `VIZOALICA_PROJECT_ID`        | Console's Project ID                                   |
-| `VIZOALICA_TOKEN_URL`         | Same-origin `/vizoalica/ingest-token`                  |
-| `VIZOALICA_CONSENT`           | Recorded state after the host grants analytics consent |
-| `VIZOALICA_SOURCE_ID`         | Console's Source ID; server-side token scope           |
-| `VIZOALICA_SITE_ORIGIN`       | Exact website origin, no trailing slash                |
+| Field                         | Copy from                                                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `name`                        | Pages project name                                                                                                       |
+| `VIZOALICA_SDK_SRC`           | Public SDK path, normally `/vizoalica.js`                                                                                |
+| `VIZOALICA_INGEST_ENDPOINT`   | Console's dynamic public configuration                                                                                   |
+| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's public source key                                                                                              |
+| `VIZOALICA_PROJECT_ID`        | Console's Project ID                                                                                                     |
+| `VIZOALICA_TOKEN_URL`         | Same-origin `/vizoalica/ingest-token`                                                                                    |
+| `VIZOALICA_CONSENT`           | Recorded state after the host grants analytics consent                                                                   |
+| `VIZOALICA_SOURCE_ID`         | Console's Source ID; server-side token scope                                                                             |
+| `VIZOALICA_SITE_ORIGINS`      | Comma-separated exact website origin(s), no trailing slash; list every hostname (e.g. apex + `www`) that serves the site |
 
 Edit `public/index.html`, replacing its three `REPLACE_…` values with your Worker hostname,
 public source key and project ID. The Worker hostname excludes `https://`; keep the full endpoint

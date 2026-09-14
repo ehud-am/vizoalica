@@ -6,7 +6,7 @@ const env = {
   VIZOALICA_TOKEN_SECRET: 'test-only-signing-secret-with-32-characters',
   VIZOALICA_PROJECT_ID: 'project-test-id',
   VIZOALICA_SOURCE_ID: 'source-test-id',
-  VIZOALICA_SITE_ORIGIN: 'https://site.test'
+  VIZOALICA_SITE_ORIGINS: 'https://site.test, https://www.site.test'
 };
 const request = (headers: Record<string, string> = { referer: 'https://site.test/' }) =>
   new Request('https://site.test/vizoalica/ingest-token?project_id=attacker', { headers });
@@ -25,7 +25,7 @@ describe('Pages token issuer', () => {
     expect(claims).toMatchObject({
       project_id: env.VIZOALICA_PROJECT_ID,
       source_id: env.VIZOALICA_SOURCE_ID,
-      origin: env.VIZOALICA_SITE_ORIGIN,
+      origin: 'https://site.test',
       scope: 'events:write',
       max_events: 25
     });
@@ -37,6 +37,19 @@ describe('Pages token issuer', () => {
     const second = await onRequest({ request: request(), env });
     expect(await second.text()).not.toBe(token);
   });
+  it('issues a token recording whichever configured origin actually made the request', async () => {
+    const response = await onRequest({
+      request: new Request('https://www.site.test/vizoalica/ingest-token', {
+        headers: { origin: 'https://www.site.test' }
+      }),
+      env
+    });
+    expect(response.status).toBe(200);
+    const token = await response.text();
+    const result = await createWorkerTokenVerifier(env.VIZOALICA_TOKEN_SECRET)(`Bearer ${token}`);
+    if (!result.ok) throw new Error('verification failed');
+    expect(result.verified.claims.origin).toBe('https://www.site.test');
+  });
   it.each([
     {},
     { origin: 'https://evil.test', referer: 'https://site.test/' },
@@ -45,15 +58,15 @@ describe('Pages token issuer', () => {
   ])('rejects absent or foreign provenance %j', async (headers) => {
     expect((await onRequest({ request: request(headers), env })).status).toBe(403);
   });
-  it('accepts exact Origin and rejects preview origins', async () => {
+  it('accepts any configured origin and rejects preview origins', async () => {
     expect(
-      (await onRequest({ request: request({ origin: env.VIZOALICA_SITE_ORIGIN }), env })).status
+      (await onRequest({ request: request({ origin: 'https://site.test' }), env })).status
     ).toBe(200);
     expect(
       (
         await onRequest({
           request: new Request('https://preview.test/vizoalica/ingest-token', {
-            headers: { origin: env.VIZOALICA_SITE_ORIGIN }
+            headers: { origin: 'https://site.test' }
           }),
           env
         })
@@ -72,7 +85,8 @@ describe('Pages token issuer', () => {
     for (const invalid of [
       { ...env, VIZOALICA_TOKEN_SECRET: '' },
       { ...env, VIZOALICA_PROJECT_ID: 'REPLACE_PROJECT_ID' },
-      { ...env, VIZOALICA_SITE_ORIGIN: 'not-url' }
+      { ...env, VIZOALICA_SITE_ORIGINS: 'not-url' },
+      { ...env, VIZOALICA_SITE_ORIGINS: '' }
     ]) {
       const response = await onRequest({ request: request(), env: invalid });
       expect(response.status).toBe(503);

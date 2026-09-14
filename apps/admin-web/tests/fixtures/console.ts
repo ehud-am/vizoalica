@@ -59,7 +59,7 @@ export const primaryIntegration: Integration = {
           VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
           VIZOALICA_CONSENT: 'unknown',
           VIZOALICA_SOURCE_ID: primaryWebsite.id,
-          VIZOALICA_SITE_ORIGIN: 'https://docs.example.com'
+          VIZOALICA_SITE_ORIGINS: 'https://docs.example.com'
         },
         accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
         repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],

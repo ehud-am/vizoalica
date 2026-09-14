@@ -19,7 +19,7 @@ const WORKFLOW_REF = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages
 function cloudflareGuidance(
   config: DynamicConfigV1,
   sourceId: string,
-  siteOrigin: string
+  siteOrigins: string[]
 ): CloudflareGuidance {
   const repoVariables: Record<string, string> = {
     VIZOALICA_SDK_SRC: config.src,
@@ -29,7 +29,7 @@ function cloudflareGuidance(
     VIZOALICA_TOKEN_URL: config['data-token-url'],
     VIZOALICA_CONSENT: config['data-consent'],
     VIZOALICA_SOURCE_ID: sourceId,
-    VIZOALICA_SITE_ORIGIN: siteOrigin
+    VIZOALICA_SITE_ORIGINS: siteOrigins.join(',')
   };
   const accountSpecificVariables = ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'];
   const repoSecretNames = ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'];
@@ -104,7 +104,7 @@ export function integrationSnippet(
         snippet: dynamicSnippet,
         configUrl: '/vizoalica/config.json',
         config,
-        cloudflare: cloudflareGuidance(config, sourceId, origin.origin)
+        cloudflare: cloudflareGuidance(config, sourceId, item.allowedOrigins)
       }
     ],
     privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true },

@@ -30,7 +30,8 @@ jobs:
 
 `VIZOALICA_SDK_SRC`, `VIZOALICA_INGEST_ENDPOINT`, `VIZOALICA_PUBLIC_SOURCE_KEY`,
 `VIZOALICA_PROJECT_ID`, `VIZOALICA_TOKEN_URL`, `VIZOALICA_CONSENT`, `VIZOALICA_SOURCE_ID`,
-`VIZOALICA_SITE_ORIGIN`, `CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`.
+`VIZOALICA_SITE_ORIGINS` (comma-separated; include every hostname, e.g. apex + `www`, serving
+this site), `CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`.
 
 ## Required repository secrets (`secrets:`, via repo Settings → Secrets)
 

@@ -19,7 +19,7 @@ persisted by vizoalica itself.
 | `VIZOALICA_TOKEN_URL` | var | GH Actions variable | same-origin URL, validated by `config.json.ts` |
 | `VIZOALICA_CONSENT` | var | GH Actions variable | one of `analytics-granted`/`analytics-denied`/`unknown` |
 | `VIZOALICA_SOURCE_ID` | var | GH Actions variable | consumed by `ingest-token.ts` |
-| `VIZOALICA_SITE_ORIGIN` | var | GH Actions variable | must be `https://` per `ingest-token.ts` |
+| `VIZOALICA_SITE_ORIGINS` | var | GH Actions variable | comma-separated list, each `https://` origin, per `ingest-token.ts` — supports serving the same site from more than one hostname (e.g. apex + `www`) |
 | `CF_ACCOUNT_ID` | var or secret | GH Actions | Cloudflare account, workflow input |
 | `CF_PAGES_PROJECT` | var | GH Actions | Cloudflare Pages project name |
 | `CF_API_TOKEN` | secret | GH Actions secret | Pages:Edit scope only (research.md, Unknown 3) |

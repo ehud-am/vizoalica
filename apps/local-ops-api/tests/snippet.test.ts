@@ -42,7 +42,7 @@ describe('complete installation snippet', () => {
     );
     expect(response.body.modes[1].cloudflare.repoVariables).toMatchObject({
       VIZOALICA_SOURCE_ID: 'source-1',
-      VIZOALICA_SITE_ORIGIN: 'https://site.test'
+      VIZOALICA_SITE_ORIGINS: 'https://site.test'
     });
     expect(response.body.modes[1].cloudflare.accountSpecificVariables).toEqual([
       'CF_ACCOUNT_ID',

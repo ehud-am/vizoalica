@@ -10,6 +10,7 @@ VIZOALICA_PROJECT_ID = "REPLACE_PROJECT_ID"
 VIZOALICA_TOKEN_URL = "/vizoalica/ingest-token"
 VIZOALICA_CONSENT = "analytics-granted"
 VIZOALICA_SOURCE_ID = "REPLACE_SOURCE_ID"
-VIZOALICA_SITE_ORIGIN = "https://REPLACE_PAGES_PROJECT_NAME.pages.dev"
+# Comma-separated list; include every hostname (e.g. apex + www) that serves this site.
+VIZOALICA_SITE_ORIGINS = "https://REPLACE_PAGES_PROJECT_NAME.pages.dev"
 # These vars are public browser configuration. Set only VIZOALICA_TOKEN_SECRET
 # with `wrangler pages secret put`; never place it in this file.
