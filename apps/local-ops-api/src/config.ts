@@ -1,13 +1,4 @@
-import {
-  chmodSync,
-  existsSync,
-  linkSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync
-} from 'node:fs';
+import { existsSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -70,18 +61,26 @@ export function writeConfigFile(
   options: { replace?: boolean } = {}
 ): void {
   if (existsSync(path) && options.replace !== true) throw new Error('config_exists_use_replace');
-  const temporaryPath = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
-  writeFileSync(temporaryPath, `${JSON.stringify(values, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
-  chmodSync(temporaryPath, 0o600);
-  try {
-    if (options.replace === true) renameSync(temporaryPath, path);
-    else {
-      linkSync(temporaryPath, path);
-      unlinkSync(temporaryPath);
+  const content = `${JSON.stringify(values, null, 2)}\n`;
+  if (options.replace === true) {
+    // A same-directory temp file + rename is the atomic, portable way to
+    // replace an existing file's contents without a window where a reader
+    // could see a partially-written file.
+    const temporaryPath = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
+    writeFileSync(temporaryPath, content, { mode: 0o600, flag: 'wx' });
+    try {
+      renameSync(temporaryPath, path);
+    } catch (error) {
+      if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+      throw error;
     }
-  } catch (error) {
-    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
-    throw error;
+  } else {
+    // O_CREAT|O_EXCL ('wx') is itself the atomic, TOCTOU-safe "fail if it
+    // already exists" primitive — no temp file or hardlink dance needed.
+    // (An earlier version used create-then-hardlink-into-place here, which
+    // is POSIX-specific and fails on filesystems without hardlink support;
+    // 'wx' is the same guarantee and works everywhere Node does.)
+    writeFileSync(path, content, { mode: 0o600, flag: 'wx' });
   }
 }
 

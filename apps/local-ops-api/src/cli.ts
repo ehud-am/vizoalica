@@ -61,6 +61,10 @@ async function main(): Promise<void> {
     console.log(`Local authorization revoked: ${path}`);
   } else {
     const config = path ? loadConfigFile(path) : loadConfig();
+    // This check is a foot-gun guard for an honest operator who ran the
+    // wrong startup command, not a security boundary: anyone able to set
+    // VIZOALICA_ONECLI_WRAPPED=1 already has local shell access to this
+    // machine, and therefore to the config file itself.
     if (config.adminSecret === 'onecli-managed' && process.env.VIZOALICA_ONECLI_WRAPPED !== '1')
       throw new Error(
         'onecli_placeholder_requires_wrapper: start this configuration with pnpm ops run'
