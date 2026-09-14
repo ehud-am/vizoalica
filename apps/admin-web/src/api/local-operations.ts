@@ -1,5 +1,10 @@
 export type Window = '24h' | '7d' | '30d';
-export type Project = { id: string; name: string; websiteCount?: number };
+export type Project = {
+  id: string;
+  name: string;
+  websiteCount?: number;
+  status?: 'active' | 'deleted';
+};
 export type Website = {
   id: string;
   projectId: string;
@@ -139,6 +144,11 @@ export const bootstrapSession = () => request<void>('/api/session', { method: 'P
 export const listProjects = () => request<Project[]>('/api/projects');
 export const createProject = (name: string) =>
   request<Project>('/api/projects', json('POST', { name }));
+export const deleteProject = (projectId: string) =>
+  request<{ status: 'deleted'; audit: 'recorded' }>(
+    `/api/projects/${encodeURIComponent(projectId)}`,
+    json('DELETE')
+  );
 export const listWebsites = (projectId: string) =>
   request<Website[]>(`/api/projects/${encodeURIComponent(projectId)}/websites`);
 export const createWebsite = (

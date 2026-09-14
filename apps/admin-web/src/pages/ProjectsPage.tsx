@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { createProject, listProjects, type Project } from '../api/local-operations.js';
+import {
+  createProject,
+  deleteProject,
+  listProjects,
+  type Project
+} from '../api/local-operations.js';
 import { AnalyticsIcon, PlusIcon, RefreshIcon, WebsitesIcon } from '../components/Icons.js';
 
 export function ProjectsPage({
@@ -61,6 +66,29 @@ export function ProjectsPage({
     }
   }
 
+  async function removeProject(project: Project) {
+    if (
+      !window.confirm(
+        `Soft-delete project ${project.name} and all its websites? Historic analytics and audit evidence will be kept.`
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage('');
+    setError('');
+    try {
+      await deleteProject(project.id);
+      await refresh();
+      setMessage(
+        `Project ${project.name} deleted. Historic analytics and audit evidence were preserved.`
+      );
+    } catch {
+      setError('The project could not be deleted. Check the current project list and try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="page projects-page" data-page="projects">
       <div className="page-heading">
@@ -107,6 +135,7 @@ export function ProjectsPage({
         <ul className="project-list" aria-label="Available projects">
           {projects.map((project) => {
             const selected = project.id === projectId;
+            const deleted = project.status === 'deleted';
             const identity = `${project.name} (${project.id})`;
             return (
               <li key={project.id}>
@@ -116,7 +145,11 @@ export function ProjectsPage({
                       <h2>{project.name}</h2>
                       <code>{project.id}</code>
                     </div>
-                    {selected && <span className="status">Current project</span>}
+                    {deleted ? (
+                      <span className="status deleted">Deleted</span>
+                    ) : (
+                      selected && <span className="status">Current project</span>
+                    )}
                   </div>
                   <p>
                     {project.websiteCount === undefined
@@ -129,6 +162,7 @@ export function ProjectsPage({
                       type="button"
                       aria-label={`Select ${identity}`}
                       aria-pressed={selected}
+                      disabled={deleted}
                       onClick={() => onProjectSelect(project.id)}
                     >
                       {selected ? 'Selected' : 'Select project'}
@@ -137,6 +171,7 @@ export function ProjectsPage({
                       className="secondary"
                       type="button"
                       aria-label={`Open analytics for ${identity}`}
+                      disabled={deleted}
                       onClick={() => onOpenOverview(project.id)}
                     >
                       <AnalyticsIcon size={16} />
@@ -146,10 +181,20 @@ export function ProjectsPage({
                       className="secondary"
                       type="button"
                       aria-label={`Open websites for ${identity}`}
+                      disabled={deleted}
                       onClick={() => onOpenWebsites(project.id)}
                     >
                       <WebsitesIcon size={16} />
                       Websites
+                    </button>
+                    <button
+                      className="danger"
+                      type="button"
+                      aria-label={`Delete ${identity}`}
+                      disabled={busy || deleted}
+                      onClick={() => void removeProject(project)}
+                    >
+                      Delete project
                     </button>
                   </div>
                 </article>

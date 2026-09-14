@@ -131,6 +131,11 @@ unresolved open item at time of release.
 1. **Given** the security findings identified during review, **When** the release is tagged,
    **Then** no finding rated critical or high remains open without an explicit accepted-risk
    rationale on record.
+2. **Given** a project an operator no longer wants (e.g. one created by mistake or for a
+   since-abandoned test), **When** the operator deletes it from the console, **Then** the project
+   and its data are removed following the same soft-delete/audit conventions as website deletion,
+   and the operator is warned about what the deletion affects before it is irreversible in
+   practice.
 
 ---
 
@@ -192,9 +197,13 @@ turns up no instruction that contradicts current code behavior.
   linear, scriptable sequence sufficient to reach a working backend and authenticated console
   session within 5 minutes when followed by an agent.
 - **FR-009**: Every security finding identified during the security-architect review (ingest rate
-  limiting, OneCLI trust boundary, config-overwrite guard portability, and any new finding in the
+  limiting, OneCLI trust boundary, config-overwrite guard portability, the shared global
+  `VIZOALICA_TOKEN_SECRET` cross-project forgery risk found in Phase 1, and any new finding in the
   CI/CD workflow itself such as secret handling and API token scope) MUST be resolved or recorded
   with an explicit accepted-risk rationale before release.
+- **FR-009a**: The product MUST provide a way for an operator to delete a project (not only a
+  website) from the console, following the same soft-delete and audit-logging conventions already
+  used for website deletion, with a clear warning of what the deletion affects before it proceeds.
 - **FR-010**: The platform-engineer review MUST produce a written assessment of ingestion/storage
   performance, scale, and cost economics, updating `docs/operations/cost-model.md` if assumptions
   have changed.

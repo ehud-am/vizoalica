@@ -107,6 +107,16 @@ export function createLocalServer(config: Config) {
           await workerJson(client, '/v1/admin/projects', jsonInit('POST', body))
         );
       }
+      const projectItem = /^\/api\/projects\/([^/]+)$/.exec(url.pathname);
+      if (projectItem && request.method === 'DELETE') {
+        assertSafeIds(projectItem[1]!);
+        const result = await workerJson(
+          client,
+          `/v1/admin/projects/${encodeURIComponent(projectItem[1]!)}`,
+          jsonInit('DELETE')
+        );
+        return send(response, 200, { ...((result as object) ?? {}), audit: 'recorded' });
+      }
       const collection = /^\/api\/projects\/([^/]+)\/websites$/.exec(url.pathname);
       if (collection) {
         assertSafeIds(collection[1]!);

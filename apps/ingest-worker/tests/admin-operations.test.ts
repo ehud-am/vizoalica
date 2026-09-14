@@ -15,6 +15,9 @@ function repository() {
     getSource: vi.fn(async (): Promise<unknown> => source),
     updateSource: vi.fn(async (_p, _s, changes): Promise<unknown> => ({ ...source, ...changes })),
     setSourceStatus: vi.fn(async (_p, _s, status): Promise<unknown> => ({ ...source, status })),
+    setProjectStatus: vi.fn(async (id, status): Promise<unknown> =>
+      id === 'p1' ? { id, status } : undefined
+    ),
     getAnalyticsSummary: vi.fn(),
     saveAdminAudit: vi.fn(async () => undefined),
     createQuotaPolicy: vi.fn(),
@@ -51,6 +54,26 @@ describe('Worker website administration', () => {
     expect(await deleted?.json()).toEqual({ status: 'deleted' });
     expect(repositories.setSourceStatus).toHaveBeenCalledWith('p1', 's1', 'deleted');
     expect(repositories.saveAdminAudit).toHaveBeenCalled();
+  });
+  it('soft-deletes a project with audit records, and reports not_found otherwise', async () => {
+    const repositories = repository();
+    const deleted = await handleAdminRequest(req('/v1/admin/projects/p1', 'DELETE'), {
+      repositories: repositories as never,
+      adminSecret: 'secret'
+    });
+    expect(await deleted?.json()).toEqual({ status: 'deleted' });
+    expect(repositories.setProjectStatus).toHaveBeenCalledWith('p1', 'deleted');
+    expect(repositories.saveAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'delete_project', outcome: 'allowed', projectId: 'p1' })
+    );
+    const missing = await handleAdminRequest(req('/v1/admin/projects/missing', 'DELETE'), {
+      repositories: repositories as never,
+      adminSecret: 'secret'
+    });
+    expect(missing?.status).toBe(404);
+    expect(repositories.saveAdminAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'delete_project', outcome: 'denied' })
+    );
   });
   it('returns only safe snippet metadata and distinct health states', async () => {
     const repositories = repository();

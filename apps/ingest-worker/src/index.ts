@@ -22,6 +22,7 @@ export default {
       createQuotaPolicy: configuration.createQuotaPolicy.bind(configuration),
       createProject: configuration.createProject.bind(configuration),
       listProjects: configuration.listProjects.bind(configuration),
+      setProjectStatus: configuration.setProjectStatus.bind(configuration),
       createSource: configuration.createSource.bind(configuration),
       listSources: configuration.listSources.bind(configuration),
       setSourceStatus: configuration.setSourceStatus.bind(configuration),

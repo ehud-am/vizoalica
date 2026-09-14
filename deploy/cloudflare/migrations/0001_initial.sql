@@ -6,7 +6,8 @@ CREATE TABLE projects (
   name TEXT NOT NULL,
   mode TEXT NOT NULL CHECK (mode IN ('production', 'demo')),
   default_retention_days INTEGER NOT NULL,
-  quota_policy_id TEXT NOT NULL
+  quota_policy_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'deleted'))
 );
 
 CREATE TABLE sources (

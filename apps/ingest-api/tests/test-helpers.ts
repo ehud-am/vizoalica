@@ -24,7 +24,8 @@ export const project: Project = {
   name: 'Project 1',
   mode: 'production',
   defaultRetentionDays: 30,
-  quotaPolicyId: quotaPolicy.id
+  quotaPolicyId: quotaPolicy.id,
+  status: 'active'
 };
 
 export const source: Source = {

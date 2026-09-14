@@ -71,7 +71,8 @@ export async function handleAdminRequest(
       name: body.name.trim(),
       mode: 'production',
       defaultRetentionDays: policy.retentionDays,
-      quotaPolicyId: policy.id
+      quotaPolicyId: policy.id,
+      status: 'active'
     };
     await dependencies.repositories.createQuotaPolicy(policy);
     await dependencies.repositories.createProject(project);
@@ -82,6 +83,19 @@ export async function handleAdminRequest(
       projectId: project.id
     });
     return Response.json(project, { status: 201 });
+  }
+  const projectItem = /^\/v1\/admin\/projects\/([^/]+)$/.exec(url.pathname);
+  if (projectItem && request.method === 'DELETE') {
+    const deleted = await dependencies.repositories.setProjectStatus(projectItem[1]!, 'deleted');
+    await dependencies.repositories.saveAdminAudit({
+      operation: 'delete_project',
+      outcome: deleted ? 'allowed' : 'denied',
+      reasonCode: deleted ? 'deleted' : 'not_found',
+      projectId: projectItem[1]!
+    });
+    return deleted
+      ? Response.json({ status: 'deleted' })
+      : Response.json({ error: 'not_found' }, { status: 404 });
   }
   const overviewMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
   if (overviewMatch && request.method === 'GET') {

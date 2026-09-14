@@ -51,6 +51,7 @@ export interface AdminRepository {
   createProject(project: Project): Promise<void>;
   createQuotaPolicy(policy: QuotaPolicy): Promise<void>;
   listProjects(): Promise<Project[]>;
+  setProjectStatus(projectId: string, status: 'active' | 'deleted'): Promise<Project | undefined>;
   createSource(source: Source): Promise<void>;
   listSources(projectId: string): Promise<Source[]>;
   setSourceStatus(

@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
   listProjects: vi.fn(),
   createProject: vi.fn(),
+  deleteProject: vi.fn(),
   listWebsites: vi.fn(),
   createWebsite: vi.fn(),
   updateWebsite: vi.fn(),
@@ -38,6 +39,7 @@ beforeEach(() => {
   api.bootstrapSession.mockResolvedValue(undefined);
   api.listProjects.mockResolvedValue([project]);
   api.createProject.mockResolvedValue({ id: 'p2', name: 'New project' });
+  api.deleteProject.mockResolvedValue({ status: 'deleted', audit: 'recorded' });
   api.listWebsites.mockResolvedValue([website]);
   api.createWebsite.mockResolvedValue(website);
   api.updateWebsite.mockResolvedValue(website);
@@ -214,6 +216,35 @@ describe('interactive console', () => {
     await user.click(screen.getByRole('button', { name: 'Open websites for Acme (p1)' }));
     await waitFor(() => expect(api.listWebsites).toHaveBeenLastCalledWith('p1'));
     expect(api.listWebsites).not.toHaveBeenCalledWith('p2');
+  });
+
+  it('deletes a project after confirmation and disables its further actions once deleted', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.listProjects
+      .mockResolvedValueOnce([project])
+      .mockResolvedValueOnce([{ ...project, status: 'deleted' as const }]);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Projects' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Acme (p1)' }));
+    await waitFor(() => expect(api.deleteProject).toHaveBeenCalledWith('p1'));
+    expect(await screen.findByText(/Project Acme deleted/)).toBeTruthy();
+    expect(screen.getByText('Deleted')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Delete Acme (p1)' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Select Acme (p1)' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+  });
+
+  it('does not delete a project when the operator declines confirmation', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Projects' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Acme (p1)' }));
+    expect(api.deleteProject).not.toHaveBeenCalled();
   });
 
   it('creates a website only after confirming a non-current project', async () => {

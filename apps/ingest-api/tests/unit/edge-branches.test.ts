@@ -39,8 +39,20 @@ describe('ingestion edge branches', () => {
       })
     ).toMatchObject({ reason: 'source_disabled' });
     expect(
+      await authorizeSource({
+        repositories: repo({ ...source, status: 'deleted' }) as never,
+        publicSourceKey: 'x'
+      })
+    ).toMatchObject({ reason: 'source_disabled' });
+    expect(
       await authorizeSource({ repositories: repo(source, null) as never, publicSourceKey: 'x' })
     ).toMatchObject({ reason: 'project_not_found' });
+    expect(
+      await authorizeSource({
+        repositories: repo(source, { ...project, status: 'deleted' }) as never,
+        publicSourceKey: 'x'
+      })
+    ).toMatchObject({ reason: 'project_deleted' });
     expect(
       await authorizeSource({
         repositories: repo() as never,

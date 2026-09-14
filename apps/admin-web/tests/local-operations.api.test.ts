@@ -16,6 +16,7 @@ describe('browser local operations client', () => {
     vi.stubGlobal('fetch', fetch);
     await api.listProjects();
     await api.createProject('One');
+    await api.deleteProject('p/1');
     await api.listWebsites('p/1');
     await api.createWebsite('p1', { name: 'Site', allowedOrigins: ['https://site.test'] });
     await api.updateWebsite('p1', 's/1', { status: 'disabled' });
@@ -23,7 +24,7 @@ describe('browser local operations client', () => {
     await api.getSnippet('p1', 's1');
     await api.getStatus('p1', 's1');
     await api.getAnalytics('p1', 's1', '30d');
-    expect(fetch).toHaveBeenCalledTimes(9);
+    expect(fetch).toHaveBeenCalledTimes(10);
     expect(fetch.mock.calls.map(([path]) => path).join(' ')).toContain('p%2F1');
     expect(
       fetch.mock.calls.some(

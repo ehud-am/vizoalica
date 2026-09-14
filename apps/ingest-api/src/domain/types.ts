@@ -6,6 +6,7 @@ export interface Project {
   mode: 'production' | 'demo';
   defaultRetentionDays: number;
   quotaPolicyId: string;
+  status: 'active' | 'deleted';
 }
 
 export interface Source {

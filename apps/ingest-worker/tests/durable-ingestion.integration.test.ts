@@ -24,7 +24,8 @@ function database(queries: string[]): D1Database {
     name: 'Project A',
     mode: 'production',
     default_retention_days: 90,
-    quota_policy_id: 'quota-a'
+    quota_policy_id: 'quota-a',
+    status: 'active'
   };
   const source = {
     id: 'source-a',

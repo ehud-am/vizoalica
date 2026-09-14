@@ -18,7 +18,8 @@ function fakeDb(options: Options = {}) {
     name: 'Project',
     mode: 'production',
     default_retention_days: 7,
-    quota_policy_id: 'q1'
+    quota_policy_id: 'q1',
+    status: 'active'
   };
   const source = {
     id: 's1',
@@ -171,7 +172,8 @@ describe('D1 repositories', () => {
       name: 'Project',
       mode: 'production',
       defaultRetentionDays: 7,
-      quotaPolicyId: 'q1'
+      quotaPolicyId: 'q1',
+      status: 'active'
     });
     await repositories.createQuotaPolicy(policy);
     await repositories.createSource(source);
@@ -217,6 +219,23 @@ describe('D1 repositories', () => {
       await new D1Repositories(fakeDb({ deletedSource: true }).db).updateSource('p1', 's1', {
         name: 'No'
       })
+    ).toBeUndefined();
+  });
+
+  it('soft-deletes a project, cascading to its sources, with terminal deletion behavior', async () => {
+    const { db, calls } = fakeDb();
+    expect(await new D1Repositories(db).setProjectStatus('p1', 'deleted')).toMatchObject({
+      id: 'p1'
+    });
+    expect(calls.some((call) => /UPDATE projects SET status/.test(call.query))).toBe(true);
+    expect(
+      calls.some(
+        (call) =>
+          /UPDATE sources SET status = 'deleted'/.test(call.query) && call.values[1] === 'p1'
+      )
+    ).toBe(true);
+    expect(
+      await new D1Repositories(fakeDb({ changes: 0 }).db).setProjectStatus('p1', 'deleted')
     ).toBeUndefined();
   });
 

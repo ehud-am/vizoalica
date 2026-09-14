@@ -161,7 +161,10 @@ export function WebsitesPage({
                 />
                 <details className="add-site">
                   <summary>Add a website</summary>
-                  <WebsiteForm projects={projects} onSubmit={addWebsite} />
+                  <WebsiteForm
+                    projects={projects.filter((project) => project.status !== 'deleted')}
+                    onSubmit={addWebsite}
+                  />
                 </details>
               </div>
               <div className="details">

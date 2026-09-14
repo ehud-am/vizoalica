@@ -27,6 +27,7 @@ type ProjectRow = {
   mode: Project['mode'];
   default_retention_days: number;
   quota_policy_id: string;
+  status: Project['status'];
 };
 type SourceRow = {
   id: string;
@@ -83,7 +84,8 @@ export class D1Repositories
           name: row.name,
           mode: row.mode,
           defaultRetentionDays: row.default_retention_days,
-          quotaPolicyId: row.quota_policy_id
+          quotaPolicyId: row.quota_policy_id,
+          status: row.status
         }
       : undefined;
   }
@@ -444,16 +446,36 @@ export class D1Repositories
   async createProject(project: Project): Promise<void> {
     await this.db
       .prepare(
-        'INSERT INTO projects (id, name, mode, default_retention_days, quota_policy_id) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO projects (id, name, mode, default_retention_days, quota_policy_id, status) VALUES (?, ?, ?, ?, ?, ?)'
       )
       .bind(
         project.id,
         project.name,
         project.mode,
         project.defaultRetentionDays,
-        project.quotaPolicyId
+        project.quotaPolicyId,
+        project.status
       )
       .run();
+  }
+  async setProjectStatus(
+    projectId: string,
+    status: 'active' | 'deleted'
+  ): Promise<Project | undefined> {
+    const result = await this.db
+      .prepare("UPDATE projects SET status = ? WHERE id = ? AND status != 'deleted'")
+      .bind(status, projectId)
+      .run();
+    if ((result.meta?.changes ?? 0) !== 1) return undefined;
+    if (status === 'deleted') {
+      await this.db
+        .prepare(
+          "UPDATE sources SET status = 'deleted', updated_at = ? WHERE project_id = ? AND status != 'deleted'"
+        )
+        .bind(new Date().toISOString(), projectId)
+        .run();
+    }
+    return this.findProject(projectId);
   }
   async createQuotaPolicy(policy: QuotaPolicy): Promise<void> {
     await this.db
@@ -482,7 +504,8 @@ export class D1Repositories
       name: row.name,
       mode: row.mode,
       defaultRetentionDays: row.default_retention_days,
-      quotaPolicyId: row.quota_policy_id
+      quotaPolicyId: row.quota_policy_id,
+      status: row.status
     }));
   }
   async createSource(source: Source): Promise<void> {
