@@ -55,6 +55,11 @@ export type Integration = {
   /** Transitional compatibility alias; identical to modes[0].snippet. */
   html?: string;
 };
+export type Reachability = {
+  configEndpointReachable: boolean;
+  configEndpointCheckedAt: string;
+  configEndpointError: string | null;
+};
 export type Status = {
   collection: 'healthy' | 'disabled';
   aggregation: 'available' | 'processing' | 'unavailable';
@@ -162,6 +167,10 @@ export const getSnippet = (projectId: string, websiteId: string) =>
 export const getStatus = (projectId: string, websiteId: string) =>
   request<Status>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/status`
+  );
+export const getReachability = (projectId: string, websiteId: string) =>
+  request<Reachability>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/reachability`
   );
 export const getAnalytics = (projectId: string, websiteId: string, window: Window) =>
   request<Summary>(

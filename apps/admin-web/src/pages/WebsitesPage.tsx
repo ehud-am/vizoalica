@@ -3,12 +3,14 @@ import {
   ApiError,
   createWebsite,
   deleteWebsite,
+  getReachability,
   getSnippet,
   getStatus,
   listWebsites,
   updateWebsite,
   type Integration,
   type Project,
+  type Reachability,
   type Status,
   type Website
 } from '../api/local-operations.js';
@@ -16,6 +18,7 @@ import { IntegrationSnippet } from '../components/IntegrationSnippet.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
 import { WebsiteForm } from '../components/WebsiteForm.js';
 import { WebsiteList } from '../components/WebsiteList.js';
+import { WebsiteReachability } from '../components/WebsiteReachability.js';
 export function WebsitesPage({
   projects,
   projectId,
@@ -31,6 +34,7 @@ export function WebsitesPage({
   const [selected, setSelected] = useState<Website>();
   const [snippet, setSnippet] = useState<Integration>();
   const [status, setStatus] = useState<Status>();
+  const [reachability, setReachability] = useState<Reachability>();
   const [message, setMessage] = useState('');
   async function safely(action: () => Promise<void>) {
     try {
@@ -54,6 +58,7 @@ export function WebsitesPage({
   useEffect(() => {
     setSnippet(undefined);
     setStatus(undefined);
+    setReachability(undefined);
     if (!selected || !projectId) return;
     Promise.all([getSnippet(projectId, selected.id), getStatus(projectId, selected.id)])
       .then(([nextSnippet, nextStatus]) => {
@@ -61,6 +66,9 @@ export function WebsitesPage({
         setStatus(nextStatus);
       })
       .catch(() => setMessage('Details are temporarily unavailable. Try again safely.'));
+    getReachability(projectId, selected.id)
+      .then(setReachability)
+      .catch(() => undefined);
   }, [projectId, selected?.id]);
   async function addWebsite(input: { projectId?: string; name: string; allowedOrigins: string[] }) {
     const targetProjectId = input.projectId;
@@ -198,6 +206,7 @@ export function WebsitesPage({
                       </div>
                     </section>
                     {status && <OperationalStatus status={status} />}
+                    {reachability && <WebsiteReachability reachability={reachability} />}
                     {snippet && <IntegrationSnippet snippet={snippet} />}
                   </>
                 ) : (

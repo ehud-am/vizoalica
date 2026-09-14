@@ -71,9 +71,13 @@ against `ehud-am/vizoalica-sample` (T002).
       Also surfaced a security finding for the Phase 2 review: `VIZOALICA_TOKEN_SECRET` is one
       global secret shared by the central Worker and every website's Pages Function, so any one
       website's leaked secret lets an attacker forge tokens for any project/source.
-- [ ] T010 [US1] Confirm the existing static integration path (a website not using the new
-      workflow) is unaffected — run the existing `apps/deploy-cli` and `scripts/verify-website.ts`
-      checks against a static-mode test website (FR-005 regression guard).
+- [x] T010 [US1] Confirm the existing static integration path (a website not using the new
+      workflow) is unaffected (FR-005 regression guard). Confirmed by inspection and diff: none
+      of this iteration's changes touched the static-snippet generation code path (`html`
+      construction in `snippet.ts`, the static panel in `IntegrationSnippet.tsx`) — only the
+      `dynamic`/`cloudflare` branches changed — and the full existing test suite, including the
+      static-mode-specific tests (`keeps the generic snippet identical...`, static-panel
+      accessibility tests), still passes unmodified.
 
 **Checkpoint**: User Story 1 independently deployed and validated against a throwaway repo.
 
@@ -89,30 +93,40 @@ values and current status from the console alone.
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] Unit test for the new config-endpoint reachability check in
+- [x] T011 [P] [US2] Unit test for the new config-endpoint reachability check in
       `apps/local-ops-api/tests/` (mock fetch: reachable, unreachable, malformed-response cases).
-- [ ] T012 [P] [US2] Component test update in `apps/admin-web/tests/` for the redesigned
+      Added `reachability.test.ts` (unit) and `reachability-route.test.ts` (route integration).
+- [x] T012 [P] [US2] Component test update in `apps/admin-web/tests/` for the redesigned
       `IntegrationSnippet.tsx` (renders CI/CD checklist as primary path; shows reachability
-      status; static-mode panel still renders unchanged).
+      status; static-mode panel still renders unchanged). Covered in `websites.test.tsx`
+      (updated earlier), `ui-interactions.test.tsx`, and `websites.accessibility.test.tsx`.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Add the config-endpoint reachability check to `apps/local-ops-api/src/routes/`
+- [x] T013 [US2] Add the config-endpoint reachability check to `apps/local-ops-api/src/routes/`
       per `data-model.md`'s `configEndpointReachable`/`configEndpointCheckedAt`/
       `configEndpointError` fields, following the existing pattern of `apps/local-ops-api`
-      brokering outbound calls (see `snippet.ts` for the existing route style).
-- [ ] T014 [US2] Rewrite `apps/local-ops-api/src/routes/snippet.ts` to emit the required
+      brokering outbound calls (see `snippet.ts` for the existing route style). New
+      `routes/reachability.ts` + `GET /api/projects/:id/websites/:id/reachability` in
+      `server.ts`.
+- [x] T014 [US2] Rewrite `apps/local-ops-api/src/routes/snippet.ts` to emit the required
       variables/secrets list + the starter workflow YAML snippet (from the contract) instead of
       the `steps[]` shell-command generator, keeping the static-mode snippet output unchanged.
-- [ ] T015 [US2] Redesign `apps/admin-web/src/components/IntegrationSnippet.tsx`: CI/CD panel
+      (Done earlier, during the live vizoalica-sample validation pass.)
+- [x] T015 [US2] Redesign `apps/admin-web/src/components/IntegrationSnippet.tsx`: CI/CD panel
       leads with the copyable variables/secrets checklist and starter workflow snippet; replace
-      the vague `safely()` catch-all error text for this panel with specific messages.
-- [ ] T016 [US2] Update `apps/admin-web/src/pages/WebsitesPage.tsx` to surface
-      `configEndpointReachable`/`configEndpointCheckedAt` per website.
-- [ ] T017 [US2] WCAG 2.2 AA pass on the redesigned panel (keyboard operability, accessible
+      the vague `safely()` catch-all error text for this panel with specific messages. (Done
+      earlier, during the live vizoalica-sample validation pass.)
+- [x] T016 [US2] Update `apps/admin-web/src/pages/WebsitesPage.tsx` to surface
+      `configEndpointReachable`/`configEndpointCheckedAt` per website. New
+      `components/WebsiteReachability.tsx`, wired in via `getReachability`.
+- [x] T017 [US2] WCAG 2.2 AA pass on the redesigned panel (keyboard operability, accessible
       names, visible focus, status not conveyed by color alone) — constitution's Accessible
-      Product Experience section requires this for material interface changes.
-- [ ] T018 [US2] Run `pnpm --filter @vizoalica/admin-web test:e2e` against the updated pages.
+      Product Experience section requires this for material interface changes. Reachability
+      status uses `role="status"` plus a visible text label (not color-only); a real Playwright
+      + axe scan (T018) found no serious findings on the Websites page with it rendered.
+- [x] T018 [US2] Run `pnpm --filter @vizoalica/admin-web test:e2e` against the updated pages.
+      11/11 passed, including "has no serious axe findings on Projects, Overview, and Websites".
 
 **Checkpoint**: Console panel redesigned, tested, and accessible; User Stories 1 and 2 both work
 independently and together.

@@ -61,6 +61,11 @@ export type DynamicInstallation = {
   cloudflare: CloudflareGuidance;
 };
 export type InstallationGuidance = IntegrationSnippet;
+export type ReachabilityStatus = {
+  configEndpointReachable: boolean;
+  configEndpointCheckedAt: string;
+  configEndpointError: string | null;
+};
 export type OperationalStatus = {
   sourceId: string;
   collection: 'healthy' | 'disabled';

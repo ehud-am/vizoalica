@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   deleteWebsite: vi.fn(),
   getSnippet: vi.fn(),
   getStatus: vi.fn(),
+  getReachability: vi.fn(),
   getAnalytics: vi.fn(),
   getAnalyticsOverview: vi.fn()
 }));
@@ -47,6 +48,11 @@ beforeEach(() => {
     aggregation: 'available',
     configuration: 'healthy',
     dataAccess: 'available'
+  });
+  api.getReachability.mockResolvedValue({
+    configEndpointReachable: true,
+    configEndpointCheckedAt: '2026-01-01T00:00:00.000Z',
+    configEndpointError: null
   });
   api.getAnalytics.mockResolvedValue({
     projectId: 'p1',
@@ -139,6 +145,24 @@ describe('interactive console', () => {
     api.updateWebsite.mockRejectedValueOnce(new Error('offline'));
     await user.click(screen.getByRole('button', { name: 'Disable' }));
     expect(await screen.findByText(/operation was interrupted/i)).toBeTruthy();
+  });
+
+  it('shows whether the website configuration endpoint is reachable', async () => {
+    render(<App />);
+    await (await screen.findByRole('button', { name: 'Websites' })).click();
+    expect(await screen.findByText(/Website reachable/i)).toBeTruthy();
+  });
+
+  it('shows a specific reason when the website configuration endpoint is unreachable', async () => {
+    api.getReachability.mockResolvedValue({
+      configEndpointReachable: false,
+      configEndpointCheckedAt: '2026-01-01T00:00:00.000Z',
+      configEndpointError: 'network_error'
+    });
+    render(<App />);
+    await (await screen.findByRole('button', { name: 'Websites' })).click();
+    expect(await screen.findByText(/Website unreachable or misconfigured/i)).toBeTruthy();
+    expect(screen.getByText(/could not be reached/i)).toBeTruthy();
   });
 
   it('announces clipboard success', async () => {

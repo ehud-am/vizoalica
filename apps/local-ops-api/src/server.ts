@@ -5,8 +5,10 @@ import { resolvePreferencesPath } from './config.js';
 import { readPreferences, writePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
+import { checkReachability } from './routes/reachability.js';
 import { analytics, analyticsOverview } from './routes/analytics.js';
 import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
+import { validOrigins } from './contracts.js';
 import {
   assertSafeIds,
   jsonInit,
@@ -181,12 +183,19 @@ export function createLocalServer(config: Config) {
           return send(response, 200, saved);
         }
       }
-      const item = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status))?$/.exec(
-        url.pathname
-      );
+      const item =
+        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability))?$/.exec(
+          url.pathname
+        );
       if (item) {
         assertSafeIds(item[1]!, item[2]!);
-        const remotePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}${item[3] ? `/${item[3]}` : ''}`;
+        const basePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}`;
+        const remotePath = `${basePath}${item[3] && item[3] !== 'reachability' ? `/${item[3]}` : ''}`;
+        if (request.method === 'GET' && item[3] === 'reachability') {
+          const metadata = (await workerJson(client, basePath)) as { allowedOrigins?: unknown };
+          if (!validOrigins(metadata.allowedOrigins)) throw new Error('remote_unavailable');
+          return send(response, 200, await checkReachability(metadata.allowedOrigins[0]!));
+        }
         if (request.method === 'GET' && item[3]) {
           const metadata = await workerJson(client, remotePath);
           return send(
