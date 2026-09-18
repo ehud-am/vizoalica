@@ -21,6 +21,6 @@ describe('access state UI', () => {
   it('does not display analytics or maintenance actions while denied', () => {
     const html = renderToStaticMarkup(<AccessState state="denied" onRetry={() => undefined} />);
     expect(html).not.toContain('Page views');
-    expect(html).not.toContain('Soft delete');
+    expect(html).not.toContain('Delete');
   });
 });

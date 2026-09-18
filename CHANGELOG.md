@@ -9,6 +9,14 @@ All notable changes to Vizoalica are documented in this file.
 - `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
   websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
   project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
+- The daily Cron run now performs the same purge, so deleting a website or project is permanent
+  within a day.
+
+### Changed
+
+- **Deletion no longer retains audit evidence or history.** Deleting a website or project now
+  removes its data permanently on the next daily run; the console's wording says so, and its
+  button reads "Delete" rather than "Soft delete".
 
 ## [0.5.2] - 2026-09-18
 

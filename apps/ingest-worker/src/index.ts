@@ -68,6 +68,19 @@ export default {
     const before = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
     before.setUTCSeconds(0, 0);
     await repositories.deleteExpiredDashboardData(before.toISOString());
+    // Deletion is terminal, so whatever operators deleted is physically removed on the next run.
+    // A run that hits its operation budget resumes on the next one.
+    const purged = await purgeDeleted({
+      repositories,
+      bucket: env.VIZOALICA_EVENTS,
+      dryRun: false
+    });
+    if (purged.objects + Object.values(purged.rows).reduce((sum, count) => sum + count, 0) > 0)
+      await repositories.saveAdminAudit({
+        operation: 'purge_deleted',
+        outcome: 'allowed',
+        reasonCode: purged.complete ? 'purged' : 'partial'
+      });
     void config;
   }
 };

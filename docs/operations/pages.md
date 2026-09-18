@@ -344,12 +344,12 @@ resume. This single-key example has no overlapping-key rotation; old tokens fail
 key changes. Keep preview sources and secrets separate from production.
 
 To stop one website, disable its source in the console and remove the SDK load from the site's
-shared layout. Confirm new events are rejected while the website remains usable. Delete is a
-terminal soft deletion that retains aggregate history and audit evidence. It does not remove the
-backend, another website registration, or an operator workstation.
+shared layout. Confirm new events are rejected while the website remains usable. Delete is
+terminal and permanent: new events are rejected at once, and the daily Cron run then removes the
+website's raw event batches in R2 and every D1 row for it, including audit entries. Deleting a
+project does the same for the project and all its websites. It does not remove the backend,
+another website registration, or an operator workstation.
 
-To remove a deleted website's data for good, run `pnpm ops purge-deleted` to list what would go,
-then `pnpm ops purge-deleted --apply`. The purge is permanent: it deletes the raw event batches
-in R2 and every D1 row for soft-deleted websites and projects, including their audit entries and
-the project rows themselves. Expect the run to repeat internally until it finishes. The purge
-itself is audited without naming what it removed.
+To purge immediately instead of waiting for the Cron run, use `pnpm ops purge-deleted` to list
+what would go, then `pnpm ops purge-deleted --apply`. Each run is bounded and resumes on the next,
+so a large purge can take more than one run. A purge is audited without naming what it removed.

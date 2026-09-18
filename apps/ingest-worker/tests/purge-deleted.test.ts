@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
+import worker from '../src/index.js';
 import { handleAdminRequest } from '../src/http/admin-adapter.js';
 import type { D1Database, D1Statement, R2Bucket } from '../src/env.js';
 import { D1Repositories } from '../src/storage/d1-repositories.js';
@@ -243,5 +244,48 @@ describe('POST /v1/admin/purge-deleted', () => {
 
   it('is absent when the worker has no purge wired', async () => {
     expect((await call({ dryRun: true })).response.status).toBe(404);
+  });
+});
+
+describe('daily scheduled purge', () => {
+  const run = (sqlite: DatabaseSync, objects: R2Bucket) =>
+    worker.scheduled(
+      {},
+      {
+        VIZOALICA_DB: d1(sqlite),
+        VIZOALICA_EVENTS: objects,
+        VIZOALICA_TOKEN_SECRET: 'test-secret',
+        VIZOALICA_ADMIN_SECRET: 'admin-secret',
+        VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+      }
+    );
+  const purgeAudits = (sqlite: DatabaseSync) =>
+    count(
+      sqlite,
+      "SELECT COUNT(*) AS n FROM administrative_audit WHERE operation = 'purge_deleted'"
+    );
+
+  it('removes deleted websites and projects and records one id-free audit entry', async () => {
+    const sqlite = seed();
+    const objects = bucket(['events/live/gone/2026/a.json', 'events/live/keep/2026/k.json']);
+    await run(sqlite, objects);
+    expect(objects.keys).toEqual(['events/live/keep/2026/k.json']);
+    expect(count(sqlite, "SELECT COUNT(*) AS n FROM sources WHERE id != 'keep'")).toBe(0);
+    expect(count(sqlite, "SELECT COUNT(*) AS n FROM projects WHERE id = 'dead'")).toBe(0);
+    expect(purgeAudits(sqlite)).toBe(1);
+    expect(
+      count(
+        sqlite,
+        "SELECT COUNT(*) AS n FROM administrative_audit WHERE operation = 'purge_deleted' AND project_id IS NULL AND source_id IS NULL"
+      )
+    ).toBe(1);
+  });
+
+  it('stays silent when there is nothing to purge', async () => {
+    const sqlite = seed();
+    const objects = bucket([]);
+    await run(sqlite, objects);
+    await run(sqlite, objects);
+    expect(purgeAudits(sqlite)).toBe(1);
   });
 });
