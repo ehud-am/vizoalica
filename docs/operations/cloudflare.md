@@ -54,7 +54,7 @@ guides are each a single further command sequence, not a repeat of this one.
 ## Prerequisites
 
 - Node.js 22 or newer and Corepack.
-- A reviewed Vizoalica 0.5.1 checkout.
+- A reviewed Vizoalica 0.5.2 checkout.
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
   within an included allowance.
@@ -75,7 +75,7 @@ Record these non-secret choices before starting:
 | Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
 | D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
 | R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
-| Release                    | `v0.5.1`            | Use one reviewed checkout for setup and later operators |
+| Release                    | `v0.5.2`            | Use one reviewed checkout for setup and later operators |
 
 Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
@@ -256,12 +256,39 @@ the initial installation. D1's source retention value does not delete R2 objects
 Workers, D1, R2, and Pages pricing before relying on included allowances, enable available account
 usage alerts, and keep new website quotas small until traffic is understood.
 
-The deployed cron trigger deletes dashboard rollups older than the 32-day aggregate boundary in
-bounded batches. A source quota limits accepted events, not every incoming request or the total
-account bill.
+The deployed cron trigger deletes dashboard rollups, ingestion decisions, and quota windows older
+than the 32-day aggregate boundary. It works in bounded batches and repeats until each table is
+drained, up to 200 batches per table per daily run. A source quota limits accepted events, not
+every incoming request or the total account bill.
 
 **Check:** the R2 lifecycle rule targets only this environment's event prefix and account alerts go
 to the intended customer owner.
+
+### Ingest rate limiting (recommended for public websites)
+
+Requests without a valid signed token are rejected before any database read, so anonymous traffic
+costs Worker CPU only. Per-source quotas cap _accepted_ events but do not throttle a single client
+that repeatedly sends valid-looking requests. To add an edge throttle, uncomment the
+`[[ratelimits]]` block in your `wrangler.production.toml` (it is present, commented out, in
+`wrangler.example.toml`) and redeploy with `pnpm deploy:apply`:
+
+```toml
+[[ratelimits]]
+name = "VIZOALICA_INGEST_LIMITER"
+namespace_id = "1001"
+[ratelimits.simple]
+limit = 120
+period = 60
+```
+
+The Worker then allows at most `limit` ingest requests per `period` seconds for each client
+address, across all sources, and answers `429 rate_limited` with `Retry-After: 60` beyond it.
+The default of 120 per minute is far above a real visitor's page-view rate but shared office or
+mobile-carrier addresses can send many visitors' events, so raise it before lowering it. The
+binding uses the Worker's own Cloudflare account permissions; it needs no zone access. If the
+limiter is unavailable the Worker fails open and the source quotas still apply. Zone-level rules
+(Cloudflare WAF rate limiting, Bot Fight Mode) remain an optional additional layer for operators
+who serve the Worker from their own domain.
 
 ## Verify deployment health
 

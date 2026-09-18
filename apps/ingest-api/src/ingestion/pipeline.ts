@@ -70,6 +70,9 @@ export async function ingestBatch(
   const token = dependencies.verifyAuthorization
     ? await dependencies.verifyAuthorization(request.authorization)
     : new TokenVerifier(dependencies.tokenSecret).verifyAuthorizationHeader(request.authorization);
+  // Without the unsigned-demo bypass, a missing or invalid token can never be accepted,
+  // so refuse it before any D1 lookup: unauthenticated traffic then costs no database reads.
+  if (!token.ok && !dependencies.allowUnsignedDemo) return reject(401, token.reason);
   let claims: TokenClaims | undefined;
   if (token.ok) claims = token.verified.claims;
 

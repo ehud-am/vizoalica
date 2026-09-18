@@ -18,6 +18,11 @@ export interface R2Bucket {
   ): Promise<unknown>;
 }
 
+/** Cloudflare Workers Rate Limiting binding; see docs/operations/cloudflare.md. */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 export interface Env {
   VIZOALICA_DB: D1Database;
   VIZOALICA_EVENTS: R2Bucket;
@@ -26,4 +31,5 @@ export interface Env {
   VIZOALICA_ANALYTICS_DIGEST_SECRET: string;
   VIZOALICA_DEMO_MODE?: string;
   VIZOALICA_MAX_REQUEST_BYTES?: string;
+  VIZOALICA_INGEST_LIMITER?: RateLimiter;
 }

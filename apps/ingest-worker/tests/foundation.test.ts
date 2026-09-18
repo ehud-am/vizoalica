@@ -67,4 +67,62 @@ describe('Worker HTTP adapter', () => {
     expect(response.status).toBe(413);
     await expect(response.json()).resolves.toEqual({ error: 'request_too_large' });
   });
+
+  const ingestRequest = () =>
+    new Request('https://ingest.test/v1/events:batch', {
+      method: 'POST',
+      headers: { 'x-vizoalica-source': 'src_key', 'cf-connecting-ip': '203.0.113.9' },
+      body: '{}'
+    });
+
+  it('throttles with 429 and retry-after when the rate limiter denies the request', async () => {
+    const keys: string[] = [];
+    const rateLimiter = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: false };
+      }
+    };
+    const response = await handleWorkerRequest(ingestRequest(), { rateLimiter } as never, 64);
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    await expect(response.json()).resolves.toEqual({ error: 'rate_limited' });
+    expect(keys).toEqual(['203.0.113.9']);
+  });
+
+  it('keys the limiter on client address only, so a varied source header cannot evade it', async () => {
+    const keys: string[] = [];
+    const rateLimiter = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: true };
+      }
+    };
+    for (const source of ['a', 'b', 'c'])
+      await handleWorkerRequest(
+        new Request('https://ingest.test/v1/events:batch', {
+          method: 'POST',
+          headers: { 'x-vizoalica-source': source, 'cf-connecting-ip': '203.0.113.9' },
+          body: 'x'.repeat(65)
+        }),
+        { rateLimiter } as never,
+        64
+      );
+    expect(new Set(keys)).toEqual(new Set(['203.0.113.9']));
+  });
+
+  it('fails open when the rate limiter itself errors', async () => {
+    const rateLimiter = {
+      limit: async () => {
+        throw new Error('limiter unavailable');
+      }
+    };
+    const response = await handleWorkerRequest(
+      new Request('https://ingest.test/v1/events:batch', { method: 'POST', body: 'x'.repeat(65) }),
+      { rateLimiter } as never,
+      64
+    );
+    // Reached the body-size check, i.e. was not throttled.
+    expect(response.status).toBe(413);
+  });
 });

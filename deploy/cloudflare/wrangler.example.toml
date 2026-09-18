@@ -16,6 +16,17 @@ bucket_name = "vizoalica-events"
 VIZOALICA_DEMO_MODE = "false"
 VIZOALICA_MAX_REQUEST_BYTES = "131072"
 
+# Optional edge throttle for POST /v1/events:batch, keyed per client address.
+# Uncomment to enable; without it the Worker relies on per-source quotas only. `period` may
+# be 10 or 60 seconds. `namespace_id` is any positive integer unique within your account.
+# See docs/operations/cloudflare.md, "Ingest rate limiting".
+# [[ratelimits]]
+# name = "VIZOALICA_INGEST_LIMITER"
+# namespace_id = "1001"
+# [ratelimits.simple]
+# limit = 120
+# period = 60
+
 [triggers]
 crons = ["17 3 * * *"]
 # Configure VIZOALICA_TOKEN_SECRET, VIZOALICA_ADMIN_SECRET, and

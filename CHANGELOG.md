@@ -2,6 +2,74 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.5.2] - 2026-09-18
+
+### Added
+
+- A reusable GitHub Actions workflow that deploys a customer website and the Vizoalica
+  configuration and token Functions to Cloudflare Pages on push, with every per-deployment value
+  supplied from repository variables and secrets and none committed to the website's source.
+  Missing or malformed values fail the run before anything is deployed.
+- The console's website integration panel now leads with the required variables and secrets and a
+  starter workflow, and shows whether the website's configuration endpoint is reachable.
+- Project deletion from the console and API, using the same soft-delete and audit conventions as
+  website deletion, with a confirmation that explains the effect.
+- An optional Workers Rate Limiting binding that throttles ingest per client address. It ships commented out in `wrangler.example.toml`.
+
+### Changed
+
+- The Cloudflare guide has a short command reference, and the Pages guide leads with the CI/CD
+  path. Direct Upload and Git-connected Pages remain documented as the manual alternative; the
+  static snippet path is unchanged.
+- Ingest requests without a valid signed token are rejected with 401 before any database read.
+  An unknown source key without a token now reports 401 instead of 403.
+
+### Fixed
+
+- Soft-deleted websites and projects no longer accept events. Authorization now allows only
+  `active` sources and projects.
+- The daily retention job could not keep up with steady traffic (1,000 rows per table per day) and
+  never pruned `ingestion_decisions` or `quota_windows`, so D1 grew without bound. It now repeats
+  until each table is drained, up to a per-run cap, and prunes both tables.
+- The config-overwrite guard no longer depends on hard-link support, so it works on network and
+  FAT-family filesystems.
+- The token issuer accepts multiple site origins.
+
+### Security
+
+- Findings, resolutions, and accepted risks are recorded in
+  `specs/011-quality-simplicity-release/security-findings.md`. No critical or high finding is open
+  without a written rationale.
+- **Accepted risk:** `VIZOALICA_TOKEN_SECRET` is one backend-wide secret shared by every website, so
+  a leak from one website allows forging tokens for any project on that backend. Treat it like the
+  administrator secret and rotate it everywhere on suspicion of exposure. Per-website signing
+  secrets are deferred to a future release.
+- The console's reachability check caps the response it reads at 16 KiB.
+
+### Validation
+
+- Formatting of source and docs, lint, type checking, production builds, the deploy-workflow
+  generation check, and 480 unit and integration tests pass. Repository coverage is 95.86% for
+  lines and 90.54% for branches. A production dependency audit reports no known vulnerabilities.
+- A real end-to-end deployment through the new workflow completed in 21-32 seconds of Actions
+  runtime and recorded a page view in the backend.
+- Not re-run for this release: a from-scratch, timed backend deployment on a fresh Cloudflare
+  account (SC-001), and the Chromium accessibility suite after the final retention and ingest
+  changes (no console code changed after its last passing run).
+
+### Upgrade
+
+- **Existing 0.5.1 databases need one manual statement.** The baseline schema gained a
+  `projects.status` column for project deletion. This release still supports fresh deployments
+  only and adds no migration file. To keep an existing 0.5.1 database, run this once before
+  deploying the 0.5.2 Worker:
+  `ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'deleted'));`
+  The backend preflight (`pnpm deploy:check`) still refuses a non-empty database, so this path
+  means deploying the Worker with Wrangler directly. Otherwise deploy to a new, empty D1 database
+  as usual.
+- Existing static snippets remain compatible. The rate limiter is opt-in.
+- Publishing the source release does not deploy or alter Cloudflare resources.
+
 ## [0.5.1] - 2026-09-13
 
 ### Added

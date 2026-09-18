@@ -3,7 +3,7 @@ import worker from '../src/index.js';
 import { D1Repositories } from '../src/storage/d1-repositories.js';
 import type { D1Database, D1Statement, Env } from '../src/env.js';
 
-function fakeDb(options: { batchFails?: boolean } = {}) {
+function fakeDb(options: { batchFails?: boolean; changesPerBatch?: number[] } = {}) {
   const prepared: Array<{ query: string; values: unknown[] }> = [];
   let batchCalls = 0;
   const makeStatement = (query: string): D1Statement => {
@@ -31,7 +31,8 @@ function fakeDb(options: { batchFails?: boolean } = {}) {
       batchCalls += 1;
       if (options.batchFails) throw new Error('d1_unavailable');
       for (const statement of statements) await statement.run();
-      return statements.map(() => ({ meta: { changes: 0 } }));
+      const changes = options.changesPerBatch?.[batchCalls - 1] ?? 0;
+      return statements.map(() => ({ meta: { changes } }));
     }
   };
   return { db, prepared, batchCount: () => batchCalls };
@@ -85,6 +86,27 @@ describe('dashboard retention cleanup', () => {
     await expect(
       repositories.deleteExpiredDashboardData('2025-12-08T00:00:00.000Z')
     ).rejects.toThrow('d1_unavailable');
+  });
+
+  it('also prunes decision and quota-window rows so no table grows without bound', async () => {
+    const fake = fakeDb();
+    await new D1Repositories(fake.db).deleteExpiredDashboardData('2025-12-08T00:00:00.000Z');
+    for (const table of ['ingestion_decisions', 'quota_windows'])
+      expect(fake.prepared.some((entry) => entry.query.includes(`DELETE FROM ${table}`))).toBe(
+        true
+      );
+  });
+
+  it('repeats full batches until every table is drained', async () => {
+    const fake = fakeDb({ changesPerBatch: [1000, 1000, 40] });
+    await new D1Repositories(fake.db).deleteExpiredDashboardData('2025-12-08T00:00:00.000Z');
+    expect(fake.batchCount()).toBe(3);
+  });
+
+  it('caps the passes per run so a huge backlog cannot pin the Cron invocation', async () => {
+    const fake = fakeDb({ changesPerBatch: Array(1000).fill(1000) });
+    await new D1Repositories(fake.db).deleteExpiredDashboardData('2025-12-08T00:00:00.000Z');
+    expect(fake.batchCount()).toBe(200);
   });
 
   it('the Worker scheduled handler deletes rows older than 32 days, aligned to a whole minute', async () => {

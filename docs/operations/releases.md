@@ -46,12 +46,15 @@ A connected **website**, however, can deploy automatically on push once configur
 That automation is scoped to the website's own Cloudflare Pages project and repository — it never
 touches the backend.
 
-## Release 0.5.1 deployment boundary
+## Release 0.5.2 deployment boundary
 
-Version 0.5.1 supports **fresh deployments only**. A new installation applies the single complete
+Version 0.5.2 supports **fresh deployments only**. A new installation applies the single complete
 `0001_initial.sql` baseline to a new empty D1 database. In-place upgrades, data preservation,
 backfills, and schema rollback are not supported in this release. The backend preflight rejects
 existing or ambiguous Vizoalica schema state without changing it.
+An operator who wants to keep an existing 0.5.1 database can instead apply the single `ALTER TABLE`
+statement in the [0.5.2 upgrade notes](../../CHANGELOG.md) before deploying; this is a manual,
+unsupported-by-preflight step, not a migration.
 
 The release uses three deployment steps: deploy the backend, configure each operator using one of
 the two credential methods, and activate each website. It does not deploy an operator's Cloudflare

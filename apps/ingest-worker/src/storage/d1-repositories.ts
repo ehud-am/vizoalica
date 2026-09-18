@@ -66,6 +66,9 @@ async function hmacDigest(digestKey: string, ...parts: string[]): Promise<string
   );
 }
 
+const RETENTION_BATCH_ROWS = 1000;
+const RETENTION_MAX_PASSES = 200;
+
 export class D1Repositories
   implements ProjectRepository, IngestionDecisionRepository, AdminRepository
 {
@@ -176,12 +179,13 @@ export class D1Repositories
       (await reserve('day', day, reservation.maxEventsPerDay))
     );
   }
-  private async runBatch(statements: ReturnType<D1Database['prepare']>[]): Promise<void> {
-    if (this.db.batch) {
-      await this.db.batch(statements);
-      return;
-    }
-    for (const statement of statements) await statement.run();
+  private async runBatch(
+    statements: ReturnType<D1Database['prepare']>[]
+  ): Promise<Array<{ meta?: { changes?: number } }>> {
+    if (this.db.batch) return this.db.batch(statements);
+    const results: Array<{ meta?: { changes?: number } }> = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
   }
 
   async recordDashboardRollups(
@@ -832,19 +836,33 @@ export class D1Repositories
   }
 
   async deleteExpiredDashboardData(beforeUtc: string): Promise<void> {
-    const statements = [
+    let pending: Array<[string, string]> = [
       ['dashboard_minute_totals', 'minute_utc'],
       ['dashboard_minute_dimensions', 'minute_utc'],
       ['dashboard_minute_visitors', 'minute_utc'],
-      ['dashboard_seen_events', 'received_at']
-    ].map(([table, column]) =>
-      this.db
-        .prepare(
-          `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${column} < ? LIMIT 1000)`
+      ['dashboard_seen_events', 'received_at'],
+      // Operational tables share the aggregate boundary so no table grows without bound.
+      ['ingestion_decisions', 'received_at'],
+      ['quota_windows', 'window_start']
+    ];
+    // A single bounded batch cannot keep pace with steady traffic, so repeat while any table
+    // still returned a full batch, up to a per-run cap that keeps the Cron invocation short.
+    // Tables that came back short are drained and dropped from later passes, so they are not
+    // rescanned (some have no index on the retention column).
+    for (let pass = 0; pass < RETENTION_MAX_PASSES && pending.length > 0; pass += 1) {
+      const results = await this.runBatch(
+        pending.map(([table, column]) =>
+          this.db
+            .prepare(
+              `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${column} < ? LIMIT ${RETENTION_BATCH_ROWS})`
+            )
+            .bind(beforeUtc)
         )
-        .bind(beforeUtc)
-    );
-    await this.runBatch(statements);
+      );
+      pending = pending.filter(
+        (_entry, index) => (results[index]?.meta?.changes ?? 0) >= RETENTION_BATCH_ROWS
+      );
+    }
   }
   async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
     await this.db

@@ -50,7 +50,8 @@ export default {
         verifyAuthorization: createWorkerTokenVerifier(env.VIZOALICA_TOKEN_SECRET),
         allowUnsignedDemo: config.allowUnsignedDemo,
         metrics: new InMemoryMetricsSink(),
-        logger: workerLogger
+        logger: workerLogger,
+        ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes
     );

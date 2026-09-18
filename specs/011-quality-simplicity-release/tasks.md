@@ -188,6 +188,50 @@ Cloudflare account.
       plan's cadence) before starting the security-architect iteration (User Story 4). Delivered
       as the end-of-iteration chat summary.
 
+## Phase 6: Security, platform, and Cloudflare review (User Story 4, FR-009 to FR-011)
+
+Added during the autonomous continuation pass, after the iteration 1 check-in. Findings are
+recorded in `security-findings.md` (findings 6-10) and `docs/operations/cost-model.md`.
+
+- [x] T026 [US4] Review the OneCLI trust boundary (`scripts/vizoalica-ops.ts`,
+      `apps/local-ops-api/src/cli.ts`, `ops-cli.md`). Sound; recorded as finding 10 with no code
+      change.
+- [x] T027 [US4] Reject missing or invalid ingest tokens with 401 before any D1 lookup unless the
+      unsigned-demo bypass is on. Test: `apps/ingest-api/tests/integration/unauthenticated-cost.test.ts`.
+- [x] T028 [US4] Cap the reachability check's response read at 16 KiB, with tests.
+- [x] T029 [US4] Platform review: found that retention deleted at most 1,000 rows per table per day
+      and never pruned `ingestion_decisions` or `quota_windows`. Cleanup now repeats until
+      drained (cap 200 passes) and prunes both tables; verified against the real schema in SQLite.
+- [x] T030 [US4] Add an opt-in Workers Rate Limiting binding (`VIZOALICA_INGEST_LIMITER`),
+      keyed per client address, failing open. Commented out in
+      `wrangler.example.toml`; accepted by `wrangler deploy --dry-run`.
+- [x] T031 [US4] Confirm the deploy workflow's Cloudflare token scope: documented and used as
+      Pages: Edit only; no change needed.
+
+## Phase 7: Documentation reconciliation and release prep (User Story 5, FR-012)
+
+- [x] T032 [US5] Reconcile README and `docs/operations/*` with current behaviour: rate-limiting
+      section, retention description, troubleshooting rows, and the shared signing-secret warning
+      in `pages.md`.
+- [x] T033 [US5] Bump to 0.5.2 and add the CHANGELOG entry and `docs/releases/v0.5.2.md`, following
+      the `release: prepare v0.5.1` pattern. Not tagged, pushed, or published.
+- [x] T034 [US5] Run typecheck, lint, format check, build, `pnpm audit --prod`, the deploy-workflow
+      generation check, and coverage: 480 tests pass, 95.86% lines and 90.54% branches. The only
+      format warnings are in the untracked `.claude/skills/` files, which are not part of this work.
+
+## Known gaps left open for the owner
+
+- T022 stays partial: a from-scratch backend timing run for SC-001 was not done.
+- FR-007 asks for deployment success or failure. Vizoalica has no credential to read a customer's
+  GitHub Actions runs, so the console shows configuration-endpoint reachability instead (T013,
+  T016). This is a deliberate deviation.
+- The Playwright suite was last run in Phase 1 (T018) and not re-run after the retention and
+  ingest changes, which touched no console code.
+- Existing 0.5.1 databases lack `projects.status`; the manual `ALTER TABLE` is documented in the
+  changelog, but preflight still refuses non-empty databases.
+- The rate limiter is opt-in and not enabled on any live deployment.
+- Per-website signing secrets (security finding 5) remain a deferred design change.
+
 ## Dependencies & Execution Order
 
 - Setup (T001-T002) → Foundational (T003-T004, blocks everything else) → US1 (T005-T010) → US2

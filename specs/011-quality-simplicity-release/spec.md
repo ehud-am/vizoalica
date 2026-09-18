@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-13
 
-**Status**: Draft
+**Status**: Implemented, pending owner review and release tagging
 
 **Input**: User description: "Ship v0.5.2 as a quality-and-simplicity patch release, proven
 through five sequential expert review passes (QA/deployment engineer, security architect,

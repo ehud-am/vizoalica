@@ -68,6 +68,11 @@ while the website collects events.
 
 Project IDs, source IDs, public source keys, Worker origins, and website origins are non-secret.
 The token-signing secret belongs only on the Worker and the website's trusted server-side Function.
+`VIZOALICA_TOKEN_SECRET` is one backend-wide secret shared by every website on the same backend, so
+a leak from any one website lets an attacker mint tokens for any of them. Treat it like the
+administrator secret, and follow "Suspected signing-secret exposure" in [the backend
+guide](cloudflare.md) to rotate the Worker and every website together. Per-website signing secrets
+are a planned design change, not part of this release.
 The administrator secret and Cloudflare deployment credential never belong in website assets.
 
 A public token issuer is not visitor authentication: non-browser callers can forge origin headers.
