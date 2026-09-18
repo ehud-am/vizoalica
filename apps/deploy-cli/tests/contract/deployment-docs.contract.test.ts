@@ -11,17 +11,33 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('makes README the authoritative three-step deployment selector', async () => {
+  it('makes README describe the three parts and a get-started path for each', async () => {
     const readme = await text('README.md');
-    expect(readme).toContain('Deploying Vizoalica has three main steps');
+    for (const heading of [
+      '## The three parts',
+      '## Get started',
+      '### 1. Backend',
+      '### 2. Console',
+      '### 3. Website',
+      '## Build from source'
+    ])
+      expect(readme).toContain(heading);
+    // Each part ends by pointing at its full guide.
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/ops-cli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    expect(readme).toMatch(/once per customer/i);
+    expect(readme).toMatch(/once per environment/i);
     expect(readme).toMatch(/once per operator/i);
     expect(readme).toMatch(/once per website/i);
-    expect(readme).toMatch(/fresh deployments only/i);
+    expect(readme).toMatch(/fresh install only/i);
+    // The default console setup is the private file; OneCLI is supported but opt-in.
+    expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
+    expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
+    expect(readme).toContain('pnpm ops console');
+    // Get started must come after the overview and before building from source.
+    expect(readme.indexOf('## The three parts')).toBeLessThan(readme.indexOf('## Get started'));
+    expect(readme.indexOf('## Get started')).toBeLessThan(readme.indexOf('## Build from source'));
   });
 
   it('defines a complete fresh customer-backend journey', async () => {
