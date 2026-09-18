@@ -100,7 +100,10 @@ job repeats those batches until every table returns a partial batch, up to 200 r
 therefore bounded by roughly 32 days of the write volume above, not unbounded growth - a site
 generating this fixture's traffic shape indefinitely settles at roughly the 30-day row counts
 shown above, plus two days of margin, rather than growing forever. A backlog beyond the per-run cap
-(only reachable at well over the fixture's volume) drains over subsequent nights.
+(only reachable at well over the fixture's volume) drains over subsequent nights. The same daily
+run also permanently removes the data of deleted websites and projects (R2 batches and all their
+D1 rows) in bounded, resumable passes; see the
+[backend guide](cloudflare.md#deleted-websites-and-projects).
 
 ## Release 0.5.2 platform review
 

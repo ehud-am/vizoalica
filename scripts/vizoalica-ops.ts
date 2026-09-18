@@ -42,6 +42,7 @@ type Dependencies = {
 
 const DEFAULT_CONFIG = join(homedir(), '.config', 'vizoalica', 'ops.json');
 const DEFAULT_CLIENT_CONFIG = join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+const CONSOLE_URL = 'http://127.0.0.1:5173';
 const FORBIDDEN = /(secret|token|password|authorization|api.?key)/i;
 
 export function parseOptions(argv: readonly string[]): { command: string; options: Options } {
@@ -335,7 +336,7 @@ async function setup(options: Options, dependencies: Dependencies): Promise<void
         '  Value: raw VIZOALICA_ADMIN_SECRET, without the word Bearer',
         `  Attach it only to agent: ${value.onecli.agent}`,
         '',
-        'Next: pnpm ops doctor, pnpm ops verify, then pnpm ops run'
+        'Next: pnpm ops doctor, pnpm ops verify, then pnpm ops console'
       ].join('\n') + '\n'
     );
   } finally {
@@ -396,7 +397,7 @@ async function doctor(options: Options, dependencies: Dependencies): Promise<voi
       '\nFix failed checks, then rerun pnpm ops doctor. No secret values were inspected.\n'
     );
     process.exitCode = 1;
-  } else stdout.write('\nReady. Run: pnpm ops run\n');
+  } else stdout.write('\nReady. Run: pnpm ops console\n');
 }
 
 export function consoleArguments(config: OpsConfig): string[] {
@@ -516,16 +517,12 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       .then(async (response) => response.status === 200 && Array.isArray(await response.json()))
       .catch(() => false);
   }
-  const expected =
-    client.mode === 'OneCLI'
-      ? 'pnpm ops run'
-      : `pnpm local-ops-api:dev serve "${client.path}" (plus pnpm admin-web:dev)`;
   stdout.write(
     [
       `Credential mode: ${client.mode}`,
       `Worker hostname: ${new URL(client.workerUrl).hostname}`,
       `Config file: ${client.path} (${client.permissions})`,
-      `Expected startup: ${expected}`,
+      'Expected startup: pnpm ops console',
       `Port 4318 occupied: ${apiPort ? 'yes' : 'no'}`,
       `Port 5173 occupied: ${webPort ? 'yes' : 'no'}`,
       `API running through OneCLI: ${throughOneCli ? 'yes' : 'no'}`,
@@ -535,14 +532,24 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
   );
 }
 
+export function localApiArguments(client: { path: string }): string[] {
+  return ['local-ops-api:dev', 'serve', client.path];
+}
+
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
-  const config = loadOpsConfig(text(options, 'config'));
+  const { client, ops } = resolveClientConfig(options);
+  const viaOneCli = client.mode === 'OneCLI';
   stdout.write(
-    `Starting the private API through OneCLI (${config.onecli.gateway}) and the web console.\n` +
+    (viaOneCli
+      ? `Starting the private API through OneCLI (${ops!.onecli.gateway}) and the web console.\n`
+      : 'Starting the private API with the local administrator secret file and the web console.\n') +
+      `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );
   const children: ChildProcess[] = [
-    dependencies.spawn('onecli', consoleArguments(config), { stdio: 'inherit' }),
+    viaOneCli
+      ? dependencies.spawn('onecli', consoleArguments(ops!), { stdio: 'inherit' })
+      : dependencies.spawn('pnpm', localApiArguments(client), { stdio: 'inherit' }),
     dependencies.spawn('pnpm', ['admin-web:dev'], { stdio: 'inherit' })
   ];
   const stop = () => children.forEach((child) => child.kill('SIGTERM'));
@@ -639,7 +646,7 @@ export function help(): string {
     '  pnpm ops verify         Verify authenticated project access for the configured mode',
     '  pnpm ops purge-deleted  Dry-run, or with --apply permanently delete, soft-deleted data',
     '  pnpm ops status         Report the configured mode, startup command, ports, and access checks',
-    '  pnpm ops run            Start the OneCLI-wrapped API and web console together',
+    '  pnpm ops console        Start the private API and the web console together (alias: run)',
     '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
     '  pnpm ops show           Show parameter locations and the safe operating model',
     '',
@@ -654,7 +661,7 @@ function show(): string {
     '',
     '1. Worker + D1 + R2 → pnpm deploy:* (native Wrangler by default; approval-gated OneCLI profile optional)',
     '2. Website on Pages → pnpm ops deploy-pages (native Wrangler; never inside onecli run)',
-    '3. Local console → pnpm ops run (OneCLI injects only the Worker administrator header)',
+    '3. Local console → pnpm ops console (OneCLI injects only the Worker administrator header)',
     '',
     setupHelp(),
     '',
@@ -684,7 +691,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'verify') await verifyAccess(options, injected);
   else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
-  else if (command === 'run') await runConsole(options, injected);
+  else if (command === 'console' || command === 'run') await runConsole(options, injected);
   else if (command === 'deploy-pages') await deployPages(options, injected);
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);
 }

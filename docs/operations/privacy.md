@@ -81,6 +81,13 @@ client.track('signup_click', {
 
 Client-side filtering is a convenience, not a trust boundary. The ingestion backend also validates privacy defaults before persistence and rejects events that contain sensitive-looking fields or unredacted URL query values.
 
+## Deleting data
+
+Deleting a website or project in the console is permanent. Events for it are rejected at once,
+and the daily cleanup removes its raw event batches and every database row for it, including
+its audit entries. `pnpm ops purge-deleted` does the same immediately. Data that was never
+deleted follows the retention settings in the [backend guide](cloudflare.md).
+
 ## Logging
 
 Operational logs and metrics must use safe reason codes and counts. They must not include raw event payloads or visitor-sensitive values.

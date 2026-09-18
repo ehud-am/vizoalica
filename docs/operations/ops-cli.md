@@ -6,10 +6,10 @@ will not manage the administrator credential. Do not combine the two methods.
 ## Returning operator: start here
 
 If this machine is already configured with OneCLI, use the one-terminal commands in
-[Start the local operator console](operator-local.md#with-onecli): run `pnpm ops verify`, then
-`pnpm ops run`. Keep that terminal open and press Ctrl+C once to stop both processes. Never start
-`pnpm local-ops-api:dev` directly when the file contains `onecli-managed`, and do not switch modes
-merely by changing the startup command.
+[Start the local operator console](operator-local.md): run `pnpm ops verify`, then
+`pnpm ops console`. Keep that terminal open and press Ctrl+C once to stop both processes. Never
+start `pnpm local-ops-api:dev` directly when the file contains `onecli-managed`, and do not switch
+modes merely by changing the startup command.
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ stores only the literal placeholder `onecli-managed`. The browser talks only to 
 Missing OneCLI access must fail closed; never copy the credential into local configuration.
 
 > **Important:** If `local-operations.json` contains `onecli-managed`, the API must be launched
-> with `pnpm ops run`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
+> with `pnpm ops console`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
 > in HTTP 401. The API refuses this direct launch when it can identify the placeholder.
 
 ## 1. Verify the handoff and checkout
@@ -43,7 +43,7 @@ Missing OneCLI access must fail closed; never copy the credential into local con
 Check the supplied origin before changing OneCLI:
 
 ```sh
-curl --fail --silent --show-error https://<worker>.<account-subdomain>.workers.dev/healthz
+curl --fail --silent --show-error https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/healthz
 ```
 
 Stop if it does not return JSON containing `"ok":true`. Reconcile the Worker name, complete
@@ -115,10 +115,11 @@ HTTP 200, a JSON array, and the selected OneCLI agent without printing a credent
 Then start the local console:
 
 ```sh
-pnpm ops run
+pnpm ops console
 ```
 
-Open the printed `http://127.0.0.1:<port>` URL. Do not expose either process to the network.
+Open `http://127.0.0.1:5173`, or the URL Vite prints if that port was busy. Do not expose either
+process to the network.
 
 The **Local workspace** disclosure describes the local console and trusted loopback service that
 holds the injected credential. The selected analytics backend and stored data can still be remote.
@@ -150,7 +151,7 @@ Credential method: OneCLI
 Operator/machine: <redacted label>
 Customer/environment: <label>
 Release commit: <exact commit>
-Worker script/origin: <script name> / https://<worker>.<account-subdomain>.workers.dev
+Worker script/origin: <script name> / https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
 Cloudflare account: <label and safely abbreviated ID>
 Deployment/version ID: <identifier>
 Administrator record: <password-manager record name, not value>
@@ -164,7 +165,7 @@ The operator can now [activate a website](pages.md).
 
 ## Revoke access
 
-Stop `pnpm ops run`, detach or revoke the operator agent, and move only this machine's two
+Stop `pnpm ops console`, detach or revoke the operator agent, and move only this machine's two
 Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
 evidence. If exposure is possible, rotate the administrator secret and update every remaining
 operator. Revocation does not affect the backend, analytics data, websites, or other operators.

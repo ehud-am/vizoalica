@@ -45,6 +45,6 @@ describe('local operations CLI security', () => {
     const result = run(['serve', path]);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('onecli_placeholder_requires_wrapper');
-    expect(result.stderr).toContain('pnpm ops run');
+    expect(result.stderr).toContain('pnpm ops console');
   });
 });

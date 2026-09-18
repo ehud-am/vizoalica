@@ -6,10 +6,10 @@ the credential. Do not complete both paths on the same machine.
 
 ## Returning operator: start here
 
-If this machine is already configured without OneCLI, use the two-terminal commands in
-[Start the local operator console](operator-local.md#without-onecli). Keep both terminals open and
-press Ctrl+C in both to stop. Run `pnpm ops status` first whenever the configured mode is unclear.
-Do not switch modes merely by changing the startup command.
+If this machine is already configured without OneCLI, run `pnpm ops console` from your checkout
+(see [Start the local operator console](operator-local.md)). Keep that terminal open and press
+Ctrl+C once to stop. Run `pnpm ops status` first whenever the configured mode is unclear. Do not
+switch modes merely by changing the startup command.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ a hidden prompt; the secret is never a command argument:
 ```sh
 pnpm --filter @vizoalica/local-ops-api dev configure \
   "$HOME/.config/vizoalica/local-operations.json" \
-  "https://YOUR_WORKER.YOUR_ACCOUNT_SUBDOMAIN.workers.dev"
+  "https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
 ```
 
 Use the exact Worker origin, with no path or trailing slash. The command creates a mode `0600`
@@ -64,20 +64,14 @@ direct-mode configuration, add `--replace`; inspect the target path first. Do no
 
 ## 3. Start the console
 
-In the first terminal:
-
 ```sh
-pnpm local-ops-api:dev serve "$HOME/.config/vizoalica/local-operations.json"
+pnpm ops console
 ```
 
-In a second terminal:
-
-```sh
-pnpm admin-web:dev
-```
-
-Open the printed `http://127.0.0.1:<port>` URL. Use that exact origin; `localhost` and
-`127.0.0.1` are different browser origins.
+This starts the loopback API with your private file and the web console together. Open
+`http://127.0.0.1:5173`, or the URL Vite prints if that port was busy. Use that exact origin;
+`localhost` and `127.0.0.1` are different browser origins. Keep the terminal open; press Ctrl+C
+once to stop both processes.
 
 The console’s **Local workspace** disclosure means the interface and trusted credential-holding
 loopback API run only on this computer. It does not mean analytics data is local: the selected
@@ -112,7 +106,7 @@ Credential method: Private local file
 Operator/machine: <redacted label>
 Customer/environment: <label>
 Release commit: <exact commit>
-Worker origin: https://<worker>.<account-subdomain>.workers.dev
+Worker origin: https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
 Configuration path: <private local path, no contents>
 Loopback origin: http://127.0.0.1:<port>
 Project listing verified at: <timestamp>
@@ -122,7 +116,7 @@ The operator can now [activate a website](pages.md). Never include the credentia
 
 ## Stop or remove access
 
-Press Ctrl+C in both terminals. To remove access, stop both processes, move only
+Press Ctrl+C in the `pnpm ops console` terminal. To remove access, stop it, move only
 `~/.config/vizoalica/local-operations.json` to the operating system's trash, and clear browser
 data for the loopback origin if policy requires it. If exposure is possible, the customer owner
 must rotate `VIZOALICA_ADMIN_SECRET` and update every remaining operator.

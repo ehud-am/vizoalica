@@ -25,7 +25,7 @@ const config: OpsConfig = {
     project: 'vizoalica-site',
     branch: 'main',
     assetsDir: '.',
-    origin: 'https://vizoalica-site.pages.dev',
+    origin: 'https://example-site.pages.dev',
     analyticsProjectId: 'project-id',
     sourceId: 'source-id'
   }

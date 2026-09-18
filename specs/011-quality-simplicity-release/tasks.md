@@ -229,7 +229,7 @@ recorded in `security-findings.md` (findings 6-10) and `docs/operations/cost-mod
   ingest changes, which touched no console code.
 - Existing 0.5.1 databases lack `projects.status`; the manual `ALTER TABLE` is documented in the
   changelog, but preflight still refuses non-empty databases.
-- The rate limiter is opt-in and not enabled on any live deployment.
+- The rate limiter is opt-in and off by default.
 - Per-website signing secrets (security finding 5) remain a deferred design change.
 
 ## Dependencies & Execution Order

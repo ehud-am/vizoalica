@@ -9,11 +9,17 @@ All notable changes to Vizoalica are documented in this file.
 - `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
   websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
   project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
+- `pnpm ops console` starts the private API and the web console together in either credential
+  mode (with a local secret file, or through OneCLI). `pnpm ops run` remains as an alias.
 - The daily Cron run now performs the same purge, so deleting a website or project is permanent
   within a day.
 
 ### Changed
 
+- The README and operations guides were reorganised to remove contradictions: one console start
+  command for both modes, a documented procedure for updating a running backend (the install
+  commands refuse a non-empty database), consistent placeholders, and a website guide that puts
+  shared steps before its GitHub Actions and manual paths.
 - **Deletion no longer retains audit evidence or history.** Deleting a website or project now
   removes its data permanently on the next daily run; the console's wording says so, and its
   button reads "Delete" rather than "Soft delete".
@@ -203,7 +209,7 @@ All notable changes to Vizoalica are documented in this file.
   classification dimensions, visitor-presence tracking, an event-digest idempotency ledger, and a
   per-source completeness watermark, plus their supporting indexes. Purely additive - no existing
   table is modified or dropped. See
-  [the deployment guide](docs/operations/cloudflare.md#4-apply-all-migrations-and-deploy) for the
+  [the deployment guide](docs/operations/cloudflare.md#6-apply-and-deploy) for the
   secret it introduces, the daily cleanup it enables, and rollback limits.
 
 ### Security

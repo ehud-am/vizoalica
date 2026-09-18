@@ -111,7 +111,7 @@ deployments are unchanged until an operator opts in (`docs/operations/cloudflare
 rate limiting"). The key excludes the caller-supplied `x-vizoalica-source` header on purpose: an earlier
 draft included it, and code review showed a caller could vary it to get a fresh bucket per
 request. Verified with `wrangler deploy --dry-run` (binding accepted) and unit tests for deny,
-key shape, header-variation, and fail-open. Not enabled on the live deployment: that is an operator decision
+key shape, header-variation, and fail-open. Off by default: enabling it is an operator decision
 with a traffic-tuning component.
 
 **Residual risk**: opt-in means an operator who does not enable it has the prior posture. Zone-level
