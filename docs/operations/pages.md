@@ -347,3 +347,9 @@ To stop one website, disable its source in the console and remove the SDK load f
 shared layout. Confirm new events are rejected while the website remains usable. Delete is a
 terminal soft deletion that retains aggregate history and audit evidence. It does not remove the
 backend, another website registration, or an operator workstation.
+
+To remove a deleted website's data for good, run `pnpm ops purge-deleted` to list what would go,
+then `pnpm ops purge-deleted --apply`. The purge is permanent: it deletes the raw event batches
+in R2 and every D1 row for soft-deleted websites and projects, including their audit entries and
+the project rows themselves. Expect the run to repeat internally until it finishes. The purge
+itself is audited without naming what it removed.

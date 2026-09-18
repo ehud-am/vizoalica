@@ -2,13 +2,19 @@ import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
 import type { EventRepository } from '../../../ingest-api/src/storage/repositories.js';
 import type { R2Bucket } from '../env.js';
 
+/** Key prefix shared by every batch of one project, or of one website within it. */
+export function eventObjectPrefix(projectId: string, sourceId?: string): string {
+  const project = `events/${encodeURIComponent(projectId)}/`;
+  return sourceId === undefined ? project : `${project}${encodeURIComponent(sourceId)}/`;
+}
+
 function keyFor(event: StoredEvent): string {
   const day = event.receivedAt.toISOString().slice(0, 10);
-  return `events/${encodeURIComponent(event.projectId)}/${encodeURIComponent(event.sourceId)}/${day}/${crypto.randomUUID()}.json`;
+  return `${eventObjectPrefix(event.projectId, event.sourceId)}${day}/${crypto.randomUUID()}.json`;
 }
 
 export class R2EventBatchRepository implements EventRepository {
-  constructor(private readonly bucket: R2Bucket) {}
+  constructor(private readonly bucket: Pick<R2Bucket, 'put'>) {}
   async saveAcceptedEvents(events: StoredEvent[]): Promise<void> {
     if (!events.length) return;
     const first = events[0];

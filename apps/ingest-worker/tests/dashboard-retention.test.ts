@@ -113,7 +113,13 @@ describe('dashboard retention cleanup', () => {
     const fake = fakeDb();
     const env: Env = {
       VIZOALICA_DB: fake.db,
-      VIZOALICA_EVENTS: { async put() {} },
+      VIZOALICA_EVENTS: {
+        async put() {},
+        async list() {
+          return { objects: [], truncated: false };
+        },
+        async delete() {}
+      },
       VIZOALICA_TOKEN_SECRET: 'test-secret',
       VIZOALICA_ADMIN_SECRET: 'admin-secret',
       VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'

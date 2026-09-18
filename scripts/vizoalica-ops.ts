@@ -12,6 +12,7 @@ import {
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { formatReport, purgeDeleted } from './purge-deleted.js';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 
@@ -460,6 +461,34 @@ async function verifyAccess(options: Options, dependencies: Dependencies): Promi
   );
 }
 
+export function purgeArguments(config: OpsConfig, apply: boolean): string[] {
+  return [
+    ...verifyArguments(config).slice(0, -2),
+    'scripts/purge-deleted.ts',
+    config.workerUrl,
+    ...(apply ? ['--apply'] : [])
+  ];
+}
+
+async function purgeDeletedData(options: Options, dependencies: Dependencies): Promise<void> {
+  const { client, ops } = resolveClientConfig(options);
+  const apply = options.apply === true;
+  if (client.mode === 'OneCLI') {
+    const result = dependencies.spawnSync('onecli', purgeArguments(ops!, apply), {
+      stdio: 'inherit'
+    });
+    if (result.status !== 0) throw new Error('Purge failed; nothing further was attempted.');
+    return;
+  }
+  const reports = await purgeDeleted(
+    client.workerUrl,
+    `Bearer ${client.adminSecret}`,
+    apply,
+    dependencies.fetch
+  );
+  stdout.write(formatReport(reports));
+}
+
 async function status(options: Options, dependencies: Dependencies): Promise<void> {
   const { client, ops } = resolveClientConfig(options);
   const [apiPort, webPort, publicHealth] = await Promise.all([
@@ -608,6 +637,7 @@ export function help(): string {
     '  pnpm ops setup          Save non-secret Worker, OneCLI, and optional Pages settings',
     '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
     '  pnpm ops verify         Verify authenticated project access for the configured mode',
+    '  pnpm ops purge-deleted  Dry-run, or with --apply permanently delete, soft-deleted data',
     '  pnpm ops status         Report the configured mode, startup command, ports, and access checks',
     '  pnpm ops run            Start the OneCLI-wrapped API and web console together',
     '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
@@ -652,6 +682,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'setup') await setup(options, injected);
   else if (command === 'doctor') await doctor(options, injected);
   else if (command === 'verify') await verifyAccess(options, injected);
+  else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
   else if (command === 'run') await runConsole(options, injected);
   else if (command === 'deploy-pages') await deployPages(options, injected);

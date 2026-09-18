@@ -16,6 +16,12 @@ export interface R2Bucket {
     value: string,
     options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }
   ): Promise<unknown>;
+  list(options: {
+    prefix?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
+  delete(keys: string | string[]): Promise<void>;
 }
 
 /** Cloudflare Workers Rate Limiting binding; see docs/operations/cloudflare.md. */

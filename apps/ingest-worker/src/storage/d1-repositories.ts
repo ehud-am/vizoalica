@@ -69,6 +69,46 @@ async function hmacDigest(digestKey: string, ...parts: string[]): Promise<string
 const RETENTION_BATCH_ROWS = 1000;
 const RETENTION_MAX_PASSES = 200;
 
+// Physical purge of soft-deleted websites and projects. A website is purgeable when it is deleted
+// itself or belongs to a deleted project; a project only when it is deleted.
+const DELETED_PROJECTS = "SELECT id FROM projects WHERE status = 'deleted'";
+const DELETED_SOURCES = `SELECT id FROM sources WHERE status = 'deleted' OR project_id IN (${DELETED_PROJECTS})`;
+const PURGE_SOURCE_TABLES = [
+  'dashboard_rollups',
+  'dashboard_daily_users',
+  'dashboard_hourly_page_views',
+  'dashboard_hourly_visitors',
+  'dashboard_minute_totals',
+  'dashboard_minute_dimensions',
+  'dashboard_minute_visitors',
+  'dashboard_aggregate_watermarks',
+  'quota_windows',
+  'ingestion_decisions',
+  'administrative_audit'
+];
+// Rows are matched by website, or by project for rows recorded without one (project audit entries).
+const PURGE_SOURCE_WHERE = `source_id IN (${DELETED_SOURCES}) OR project_id IN (${DELETED_PROJECTS})`;
+// Quota policies unreferenced once the deleted projects go; dropped before the projects themselves.
+const PURGE_POLICY_WHERE = `id IN (SELECT quota_policy_id FROM projects WHERE status = 'deleted')
+  AND id NOT IN (SELECT quota_policy_id FROM projects WHERE status != 'deleted')
+  AND id NOT IN (SELECT quota_policy_id FROM sources WHERE quota_policy_id IS NOT NULL AND id NOT IN (${DELETED_SOURCES}))`;
+const PURGE_TABLES: Array<{ table: string; where: string }> = [
+  ...PURGE_SOURCE_TABLES.map((table) => ({ table, where: PURGE_SOURCE_WHERE })),
+  // Not attributable to a website; only a deleted project's digests can be removed.
+  { table: 'dashboard_seen_events', where: `project_id IN (${DELETED_PROJECTS})` },
+  { table: 'quota_policies', where: PURGE_POLICY_WHERE },
+  { table: 'sources', where: `id IN (${DELETED_SOURCES})` },
+  { table: 'projects', where: "status = 'deleted'" }
+];
+
+export type PurgeTargets = {
+  /** Deleted projects: their whole object prefix goes. */
+  projectIds: string[];
+  /** Deleted websites of projects that are still live. */
+  sources: Array<{ projectId: string; sourceId: string }>;
+};
+export type PurgeRowResult = { rows: Record<string, number>; complete: boolean };
+
 export class D1Repositories
   implements ProjectRepository, IngestionDecisionRepository, AdminRepository
 {
@@ -863,6 +903,55 @@ export class D1Repositories
         (_entry, index) => (results[index]?.meta?.changes ?? 0) >= RETENTION_BATCH_ROWS
       );
     }
+  }
+  async listPurgeTargets(): Promise<PurgeTargets> {
+    const projects = await this.db.prepare(DELETED_PROJECTS).all<{ id: string }>();
+    const sources = await this.db
+      .prepare(
+        `SELECT id, project_id FROM sources WHERE status = 'deleted' AND project_id NOT IN (${DELETED_PROJECTS})`
+      )
+      .all<{ id: string; project_id: string }>();
+    return {
+      projectIds: projects.results.map((row) => row.id),
+      sources: sources.results.map((row) => ({ projectId: row.project_id, sourceId: row.id }))
+    };
+  }
+
+  /** Rows a purge would remove, per table. */
+  async countPurgeRows(): Promise<Record<string, number>> {
+    const rows: Record<string, number> = {};
+    for (const { table, where } of PURGE_TABLES) {
+      const result = await this.db
+        .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`)
+        .first<{ n: number }>();
+      rows[table] = Number(result?.n ?? 0);
+    }
+    return rows;
+  }
+
+  /**
+   * Deletes purgeable rows in bounded batches, dependents first so the website and project rows
+   * that identify them are removed last. Stops when `budget.remaining` statements are spent;
+   * `complete` is false then, and rerunning resumes where it stopped.
+   */
+  async purgeDeletedRows(budget: { remaining: number }): Promise<PurgeRowResult> {
+    const rows: Record<string, number> = {};
+    for (const { table, where } of PURGE_TABLES) {
+      rows[table] = 0;
+      for (;;) {
+        if (budget.remaining < 1) return { rows, complete: false };
+        budget.remaining -= 1;
+        const result = await this.db
+          .prepare(
+            `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${where} LIMIT ${RETENTION_BATCH_ROWS})`
+          )
+          .run();
+        const changes = result.meta?.changes ?? 0;
+        rows[table] += changes;
+        if (changes < RETENTION_BATCH_ROWS) break;
+      }
+    }
+    return { rows, complete: true };
   }
   async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
     await this.db

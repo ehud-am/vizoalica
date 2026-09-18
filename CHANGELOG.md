@@ -2,6 +2,14 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
+  websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
+  project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
+
 ## [0.5.2] - 2026-09-18
 
 ### Added

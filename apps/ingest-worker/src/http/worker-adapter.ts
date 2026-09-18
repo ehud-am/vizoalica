@@ -3,6 +3,7 @@ import { healthResponse } from '../../../ingest-api/src/http/health.js';
 import type { PipelineDependencies } from '../../../ingest-api/src/ingestion/pipeline.js';
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import { handleAdminRequest } from './admin-adapter.js';
+import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { handleMcpRequest } from './mcp-adapter.js';
 import { classifyRequest } from '../analytics/classifier.js';
 import type { RateLimiter } from '../env.js';
@@ -62,6 +63,7 @@ export async function handleWorkerRequest(
   dependencies: PipelineDependencies & {
     adminSecret?: string;
     adminRepositories?: AdminRepository;
+    purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
     rateLimiter?: RateLimiter;
   },
   maxRequestBytes: number
@@ -76,7 +78,8 @@ export async function handleWorkerRequest(
     if (mcpResponse) return mcpResponse;
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,
-      repositories: dependencies.adminRepositories
+      repositories: dependencies.adminRepositories,
+      ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {})
     });
     if (adminResponse) return adminResponse;
   }
