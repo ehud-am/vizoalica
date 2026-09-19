@@ -182,3 +182,7 @@ examples/cloudflare-pages/public/vizoalica.js
 # Generated documentation site
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+
+# Generated when the docs site is published with analytics (docs/scripts/prepare-analytics.mjs)
+docs/functions/
+docs/wrangler.toml

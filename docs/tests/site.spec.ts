@@ -223,3 +223,53 @@ test('the console tour and home page are keyboard reachable, with a visible focu
   await page.goto('/tour');
   await expect(page.locator('.vp-doc figure')).toHaveCount(6);
 });
+
+// The consent prompt exists only in a site built for a Vizoalica backend (the CI build sets a
+// placeholder endpoint for this). A locally built site without one has no prompt to test.
+test.describe('analytics consent', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    test.skip(
+      (await page.getByRole('region', { name: /improve these docs/i }).count()) === 0 &&
+        (await page.getByRole('button', { name: /^Analytics:/ }).count()) === 0,
+      'built without analytics'
+    );
+  });
+
+  test('asks first, and loads nothing from Vizoalica until analytics is allowed', async ({
+    page
+  }) => {
+    const requested: string[] = [];
+    page.on('request', (request) => requested.push(request.url()));
+    await page.reload();
+    await expect(page.getByRole('region', { name: /improve these docs/i })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(requested.filter((url) => /vizoalica-loader|vizoalica\/config/.test(url))).toEqual([]);
+  });
+
+  test('"No thanks" is remembered and loads nothing, and the choice can be changed', async ({
+    page
+  }) => {
+    const requested: string[] = [];
+    page.on('request', (request) => requested.push(request.url()));
+    await page.getByRole('button', { name: 'No thanks' }).click();
+    await page.reload();
+    await expect(page.getByRole('region', { name: /improve these docs/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Analytics: off. Change' })).toBeVisible();
+    expect(requested.filter((url) => /vizoalica-loader/.test(url))).toEqual([]);
+    await page.getByRole('button', { name: 'Analytics: off. Change' }).click();
+    await expect(page.getByRole('region', { name: /improve these docs/i })).toBeVisible();
+  });
+
+  test('"Allow analytics" loads the loader, and only then', async ({ page }) => {
+    await page.route('**/vizoalica-loader.js', (route) =>
+      route.fulfill({ contentType: 'text/javascript', body: 'window.__loaderRan = true;' })
+    );
+    await page.getByRole('button', { name: 'Allow analytics' }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as { __loaderRan?: boolean }).__loaderRan))
+      .toBe(true);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Analytics: on. Change' })).toBeVisible();
+  });
+});

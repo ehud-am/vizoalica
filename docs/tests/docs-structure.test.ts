@@ -89,6 +89,9 @@ describe('site assets', () => {
     expect(script).not.toContain('unsafe-inline');
     expect(script).not.toContain('unsafe-eval');
     expect(csp).not.toMatch(/https?:\/\//);
+    // The ingestion Worker is not named in the repository; the build adds it (or removes this).
+    expect(csp).toContain("connect-src 'self' __INGEST_ORIGIN__;");
+    expect(headers.split('__INGEST_ORIGIN__')).toHaveLength(2);
     expect(headers).toContain('X-Content-Type-Options: nosniff');
     expect(headers).toMatch(/\/assets\/\*\n\s+Cache-Control: public, max-age=31536000, immutable/);
   });

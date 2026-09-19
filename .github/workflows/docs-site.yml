@@ -54,7 +54,11 @@ jobs:
       - name: Install the site's locked dependencies
         run: pnpm install --frozen-lockfile --filter @vizoalica/docs
 
+      # A placeholder endpoint turns the consent prompt and the extra Content-Security-Policy entry
+      # on, so the checks below cover them. Nothing is sent anywhere: the tests never allow analytics.
       - name: Build the site
+        env:
+          VIZOALICA_INGEST_ENDPOINT: https://ingest.example.test/v1/events:batch
         run: pnpm docs:build
 
       - name: Install Chromium
@@ -101,19 +105,49 @@ jobs:
       - name: Install the locked dependencies
         run: pnpm install --frozen-lockfile --filter . --filter @vizoalica/docs
 
-      # Built again here, from this exact commit, rather than passed between jobs.
+      # Built again here, from this exact commit, rather than passed between jobs. The endpoint is
+      # public; when it is not set the site is built and published without analytics.
       - name: Build the site
+        env:
+          VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
         run: pnpm docs:build
 
-      # The token exists only in this step's environment.
+      - name: Build the browser SDK
+        run: pnpm browser-sdk:build
+
+      # Adds the SDK, the loader, the token Functions and the public settings. Only public values.
+      - name: Add Vizoalica analytics
+        env:
+          PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
+          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
+          VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
+          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
+          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
+          VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
+          VIZOALICA_SITE_ORIGINS: ${{ vars.VIZOALICA_SITE_ORIGINS }}
+        run: node docs/scripts/prepare-analytics.mjs
+
+      # The Cloudflare token exists only in this step's environment, and so does the signing secret,
+      # which is set on the Pages project (the same value as the Worker's) and never written to a file.
       - name: Publish
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_DOCS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
-        run: >-
-          pnpm exec wrangler pages deploy docs/.vitepress/dist
-          --project-name "$PAGES_PROJECT"
-          --branch main
-          --commit-hash "$GITHUB_SHA"
-          --commit-message "docs: publish $GITHUB_SHA"
+          VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VIZOALICA_INGEST_ENDPOINT" ]; then
+            if [ "${#VIZOALICA_TOKEN_SECRET}" -lt 32 ]; then
+              echo "::error::VIZOALICA_TOKEN_SECRET must be set, at least 32 characters"
+              exit 1
+            fi
+            printf '%s' "$VIZOALICA_TOKEN_SECRET" | pnpm exec wrangler pages secret put \
+              VIZOALICA_TOKEN_SECRET --project-name "$PAGES_PROJECT" --cwd docs
+          fi
+          pnpm exec wrangler pages deploy .vitepress/dist --cwd docs \
+            --project-name "$PAGES_PROJECT" --branch main \
+            --commit-hash "$GITHUB_SHA" --commit-message "docs: publish $GITHUB_SHA"

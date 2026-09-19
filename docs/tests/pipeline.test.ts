@@ -32,10 +32,27 @@ describe('docs site pipeline', () => {
   it('keeps the Cloudflare credential out of the build job and in exactly one publish step', () => {
     expect(buildJob).not.toContain('secrets.');
     expect(buildJob).not.toContain('CLOUDFLARE_API_TOKEN');
-    expect(workflow.match(/secrets\./g)).toHaveLength(1);
-    expect(publishJob).toMatch(
-      /- name: Publish\n\s+env:\n\s+CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CF_DOCS_API_TOKEN \}\}/
+    // Two secrets, both in the one publish step: the Cloudflare token, and the analytics signing
+    // secret that is handed to Cloudflare Pages.
+    expect(workflow.match(/secrets\./g)).toHaveLength(2);
+    const [beforePublish, publishStep] = publishJob.split('- name: Publish\n') as [string, string];
+    expect(beforePublish).not.toContain('secrets.');
+    expect(publishStep).toMatch(
+      /env:\n\s+CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CF_DOCS_API_TOKEN \}\}/
     );
+    expect(publishStep).toContain('VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}');
+  });
+
+  it('adds analytics only from public variables, and never writes the signing secret to a file', () => {
+    expect(publishJob).toContain('node docs/scripts/prepare-analytics.mjs');
+    const addStep = publishJob
+      .split('- name: Add Vizoalica analytics\n')[1]!
+      .split('# The Cloudflare')[0]!;
+    expect(addStep).not.toContain('secrets.');
+    expect(publishJob).toMatch(
+      /printf '%s' "\$VIZOALICA_TOKEN_SECRET" \| pnpm exec wrangler pages secret put/
+    );
+    expect(publishJob).not.toMatch(/>\s*\S*wrangler\.toml/);
   });
 
   it('publishes only from the main branch, never for a pull request, and only when configured', () => {
@@ -48,7 +65,7 @@ describe('docs site pipeline', () => {
   });
 
   it('publishes with the repository’s locked Wrangler to the production branch, not a third-party action', () => {
-    expect(publishJob).toContain('pnpm exec wrangler pages deploy docs/.vitepress/dist');
+    expect(publishJob).toContain('pnpm exec wrangler pages deploy .vitepress/dist --cwd docs');
     expect(publishJob).toContain('--branch main');
     expect(workflow).not.toMatch(/wrangler-action/);
   });
