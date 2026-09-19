@@ -37,6 +37,14 @@ function linkOutsideDocsToGithub(md: MarkdownRenderer): void {
 }
 
 export default defineConfig({
+  // The consent prompt and the analytics loader exist only when the site is built for a Vizoalica
+  // backend (VIZOALICA_INGEST_ENDPOINT set). Without it the site is exactly as before: no prompt,
+  // no analytics.
+  vite: {
+    define: {
+      __VIZOALICA_ANALYTICS__: JSON.stringify(Boolean(process.env.VIZOALICA_INGEST_ENDPOINT))
+    }
+  },
   title: 'Vizoalica',
   description: DESCRIPTION,
   lang: 'en-US',

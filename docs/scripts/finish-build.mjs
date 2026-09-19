@@ -35,7 +35,26 @@ if (!headers.includes('__SCRIPT_HASHES__'))
   throw new Error('_headers has no __SCRIPT_HASHES__ placeholder.');
 if (headers.split('__SCRIPT_HASHES__').length !== 2)
   throw new Error('_headers must use __SCRIPT_HASHES__ exactly once, in the policy.');
-writeFileSync(headersPath, headers.replaceAll('__SCRIPT_HASHES__', [...hashes].sort().join(' ')));
+
+// The one extra place the page may send data to: the site's own Vizoalica ingestion Worker, and
+// only when the site is built for one. It is taken from the public endpoint URL, so the policy
+// names an origin and never a path.
+if (headers.split('__INGEST_ORIGIN__').length < 2)
+  throw new Error('_headers has no __INGEST_ORIGIN__ placeholder.');
+let ingestOrigin = '';
+if (process.env.VIZOALICA_INGEST_ENDPOINT) {
+  const endpoint = new URL(process.env.VIZOALICA_INGEST_ENDPOINT);
+  if (endpoint.protocol !== 'https:' || !/^[a-z0-9.-]+(:\d+)?$/.test(endpoint.host))
+    throw new Error('VIZOALICA_INGEST_ENDPOINT must be an https URL.');
+  ingestOrigin = endpoint.origin;
+}
+
+writeFileSync(
+  headersPath,
+  headers
+    .replaceAll('__SCRIPT_HASHES__', [...hashes].sort().join(' '))
+    .replaceAll(' __INGEST_ORIGIN__', ingestOrigin ? ` ${ingestOrigin}` : '')
+);
 
 writeFileSync(join(DIST, 'llms.txt'), toSiteLlms(readFileSync(ROOT_LLMS, 'utf8')));
 

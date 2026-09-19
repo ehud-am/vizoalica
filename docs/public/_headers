@@ -1,9 +1,10 @@
 # Cloudflare Pages response headers. The script placeholder in the policy below is replaced at build
 # time (scripts/finish-build.mjs) with the hashes of the few inline scripts VitePress writes into
 # every page, so scripts are limited to this site's own files plus exactly those, with no
-# 'unsafe-inline'.
+# 'unsafe-inline'. The last connect-src entry is likewise replaced at build time with the origin of
+# the site's Vizoalica ingestion Worker (when built with VIZOALICA_INGEST_ENDPOINT), or removed.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' __SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' __SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self' __INGEST_ORIGIN__; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

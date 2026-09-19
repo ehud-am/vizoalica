@@ -75,6 +75,29 @@ Because the zone is on Cloudflare, the DNS records and certificates are created 
 to the apex, add a **Redirect Rule** from `www.vizoalica.dev/*` to `https://vizoalica.dev/${1}` (301).
 Certificates can take a few minutes to become active.
 
+## Measure the site with Vizoalica (optional)
+
+The site can count its own page views with the Vizoalica you run, after the visitor allows it. This
+is the [GitHub Actions path](./pages.md#path-a-github-actions-recommended) from the activation guide,
+built into this workflow instead of a separate one. Without the variables below the site is published
+exactly as before, with no consent prompt and no analytics.
+
+1. In the console, create a website for `https://vizoalica.dev` (the exact origin, no trailing slash).
+   Its **Install** page lists the values below.
+2. Add these public repository **variables** (Settings → Secrets and variables → Actions → Variables):
+   `VIZOALICA_SDK_SRC` (`https://vizoalica.dev/vizoalica.js`), `VIZOALICA_INGEST_ENDPOINT`,
+   `VIZOALICA_PUBLIC_SOURCE_KEY`, `VIZOALICA_PROJECT_ID`, `VIZOALICA_TOKEN_URL`
+   (`/vizoalica/ingest-token`), `VIZOALICA_CONSENT` (`analytics-granted`, recorded because the loader
+   runs only after the visitor allows it), `VIZOALICA_SOURCE_ID`, and `VIZOALICA_SITE_ORIGINS`.
+3. Add one **secret**, `VIZOALICA_TOKEN_SECRET`: the same value your Worker uses to verify tokens
+   (`gh secret set VIZOALICA_TOKEN_SECRET`). It is given to the Pages project by the publish step and
+   never written to a file or to the site.
+4. Run the workflow. Then check with `pnpm website:verify -- https://vizoalica.dev PROJECT_ID SOURCE_ID --mode dynamic`,
+   open the site, choose **Allow analytics**, and watch the event arrive in the console.
+
+Remove it by deleting `VIZOALICA_INGEST_ENDPOINT` and publishing again. Rotating the signing secret
+follows [the activation guide](./pages.md#rotate-or-remove): change it on the Worker and here together.
+
 ## Check it
 
 After the first publish and the domain step:
@@ -118,10 +141,14 @@ The workflow then keeps building and checking the site but skips publishing.
   (so never for a fork), only runs for the `main` branch, and runs in an environment you can lock down.
 - Third-party actions are pinned to full commits. Publishing uses the repository's own locked
   Wrangler, not an action from someone else.
-- The site loads nothing from another origin, has no analytics or tracking, and is served with a
-  Content-Security-Policy that allows scripts only from its own files and the few inline scripts the
-  site generator writes (allowed by hash, computed at build time), plus `nosniff`, a strict referrer
-  policy, and frame denial. The header file is [`docs/public/_headers`](https://github.com/ehud-am/vizoalica/blob/main/docs/public/_headers).
+- The site loads nothing from another origin. Its only analytics are Vizoalica's own, sent to the
+  maintainer's own ingestion Worker (never a third party), and only after a visitor chooses **Allow
+  analytics**. Until then nothing is loaded or sent. A browser that sends Global Privacy Control or
+  Do Not Track is never asked. The site is served with a Content-Security-Policy that allows scripts
+  only from its own files and the few inline scripts the site generator writes (allowed by hash,
+  computed at build time), lets the page send data only to itself and that one Worker origin (added
+  at build time from a public variable), plus `nosniff`, a strict referrer policy, and frame denial.
+  The header file is [`docs/public/_headers`](https://github.com/ehud-am/vizoalica/blob/main/docs/public/_headers).
 - Tests fail if any of this is weakened: the workflow's permissions, action pinning, secret use, and
   publish conditions, and the site's headers, third-party requests, and accessibility.
 
