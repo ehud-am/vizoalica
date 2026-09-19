@@ -11,12 +11,12 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('makes README a fast path first, then the three parts in their deployment order', async () => {
+  it('explains the three parts first, then a quick start for a demo, then production deployment', async () => {
     const readme = await text('README.md');
     for (const heading of [
-      '## Try it',
       '## The three parts, in order',
-      '## Get started, part by part',
+      '## Quick start',
+      '## Production deployment, part by part',
       '### 1. Backend',
       '### 2. Console',
       '### 3. Website',
@@ -25,15 +25,20 @@ describe('deployment documentation contract', () => {
     ])
       expect(readme).toContain(heading);
     const at = (heading: string) => readme.indexOf(heading);
-    expect(at('## Try it')).toBeLessThan(at('## The three parts, in order'));
-    expect(at('## The three parts, in order')).toBeLessThan(at('## Get started, part by part'));
+    // Concepts before the command that uses them, and the demo before the production path.
+    expect(at('## The three parts, in order')).toBeLessThan(at('## Quick start'));
+    expect(at('## Quick start')).toBeLessThan(at('## Production deployment, part by part'));
     expect(at('### 1. Backend')).toBeLessThan(at('### 2. Console'));
     expect(at('### 2. Console')).toBeLessThan(at('### 3. Website'));
-    expect(at('## Get started, part by part')).toBeLessThan(at('## Build from source'));
+    expect(at('## Production deployment, part by part')).toBeLessThan(at('## Build from source'));
+    expect(readme).not.toContain('## Try it');
     // The diagram states the sequence explicitly.
     expect(readme).toMatch(/1\. BACKEND[\s\S]*2\. CONSOLE[\s\S]*3\. WEBSITE/);
-    // The one-command path is the first thing to run.
-    expect(readme).toContain('pnpm vizoalica install');
+    // The quick start is one command, says what it covers, and points on to production.
+    const quick = readme.slice(at('## Quick start'), at('## Production deployment, part by part'));
+    expect(quick).toContain('pnpm vizoalica install');
+    expect(quick).toMatch(/demo app/);
+    expect(quick).toMatch(/Ready for production\?/);
     for (const command of [
       'pnpm vizoalica backend',
       'pnpm vizoalica connect',
@@ -52,12 +57,48 @@ describe('deployment documentation contract', () => {
     expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
   });
 
+  it('describes the project in plain, findable terms for people, search, and agents', async () => {
+    const readme = await text('README.md');
+    const manifest = JSON.parse(await text('package.json')) as {
+      description: string;
+      keywords: string[];
+    };
+    const intro = readme.slice(0, readme.indexOf('## The three parts, in order'));
+    for (const phrase of [
+      'open-source',
+      'self-hosted',
+      'privacy',
+      'Cloudflare',
+      'web and product analytics'
+    ])
+      expect(intro, phrase).toMatch(new RegExp(phrase, 'i'));
+    expect(intro).toContain('At a glance:');
+    expect(manifest.description).toMatch(/self-hosted.*analytics.*Cloudflare/i);
+    expect(manifest.keywords).toEqual(
+      expect.arrayContaining(['analytics', 'self-hosted', 'cloudflare-workers'])
+    );
+    // The logo's alt text carries the description too, since bots read it.
+    expect(readme).toMatch(/alt="Vizoalica: [^"]*analytics[^"]*"/);
+  });
+
+  it('keeps an llms.txt whose links all exist', async () => {
+    const llms = await text('llms.txt');
+    expect(llms).toMatch(/^# Vizoalica\n\n> /);
+    expect(llms).toContain('pnpm vizoalica install');
+    const links = [...llms.matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]!);
+    expect(links.length).toBeGreaterThan(5);
+    for (const link of links) await expect(readFile(link), link).resolves.toBeInstanceOf(Buffer);
+  });
+
   it('gives the README a logo, badges, and a screenshot that exist', async () => {
     const readme = await text('README.md');
     // One image that reads on light and dark pages: <picture> is not rendered everywhere (see below).
     expect(readme).toContain('docs/assets/vizoalica-logo.svg');
     for (const badge of ['actions/workflows/ci.yml/badge.svg', 'License-MIT', 'node-%3E%3D22'])
       expect(readme).toContain(badge);
+    // These two were removed on purpose.
+    expect(readme).not.toContain('package-json/v/');
+    expect(readme).not.toMatch(/runs%20on-Cloudflare/i);
     for (const [, path] of readme.matchAll(/(?:src|srcset)="((?:apps|docs)\/[^"]+)"/g)) {
       await expect(readFile(path!), path).resolves.toBeInstanceOf(Buffer);
     }

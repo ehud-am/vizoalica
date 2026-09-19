@@ -1,7 +1,21 @@
 {
   "name": "vizoalica",
   "version": "0.5.2",
-  "description": "Privacy-aware, self-hosted product analytics on Cloudflare.",
+  "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
+  "keywords": [
+    "analytics",
+    "web-analytics",
+    "product-analytics",
+    "privacy",
+    "privacy-first",
+    "self-hosted",
+    "open-source",
+    "cloudflare",
+    "cloudflare-workers",
+    "cloudflare-d1",
+    "cloudflare-r2",
+    "cloudevents"
+  ],
   "private": true,
   "license": "MIT",
   "repository": {

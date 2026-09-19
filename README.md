@@ -1,52 +1,26 @@
 <p align="center">
-  <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica" width="380">
+  <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica: self-hosted, privacy-first web and product analytics on Cloudflare" width="380">
 </p>
 
-<p align="center"><strong>Self-hosted, privacy-first web analytics that runs in your own Cloudflare account. One command sets it up; your visitors' data never leaves infrastructure you control.</strong></p>
+<p align="center"><strong>Open-source, self-hosted, privacy-first web and product analytics that runs in your own Cloudflare account. One command sets it up, and your visitors' data stays in infrastructure you control.</strong></p>
 
 [![CI](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/package-json/v/ehud-am/vizoalica)](package.json)
 [![Website](https://img.shields.io/badge/website-vizoalica.dev-168bff)](https://vizoalica.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
-[![Runs on Cloudflare](https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
 
-Vizoalica collects page views from your websites, strips out anything sensitive before it is
-stored, and gives you a local console to read the numbers: traffic over time, top pages,
-referrers, browsers, devices, and unique visitors. You need a Cloudflare account, and a computer
-with Node.js 22 or newer and Git.
+**Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
+Cloudflare Workers, D1, and R2. A small browser SDK sends privacy-filtered page views and custom events
+to your own backend, and a local console shows traffic over time, top pages, referrers, browsers,
+devices, and unique visitors. Visitor data stays in your own Cloudflare account.
 
-## Try it
+At a glance:
 
-```sh
-git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
-corepack enable && pnpm install
-pnpm vizoalica install
-```
-
-`pnpm vizoalica install` takes you from an empty Cloudflare account to a working console, and asks for
-almost nothing. In a rehearsal on a real account (already signed in to Cloudflare) it took under
-two minutes, most of it Cloudflare deploying and the numbers appearing:
-
-1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
-   install. It detects the answer and offers it as the default.
-2. It creates the database, storage bucket, and Worker, and deploys them. There is nothing to
-   copy or edit.
-3. It **generates your three secrets and shows them once**. You save them in a password manager
-   and type `saved`; the screen is then cleared. It never asks you to invent or paste a key.
-4. It sets up this computer as an operator console, and offers to send sample page views through
-   your new backend so the console has something real to show.
-5. It starts the console and opens it in your browser.
-
-<p align="center">
-  <img src="docs/assets/console-overview-light.png" alt="The Vizoalica console showing 96 page views and 29 unique visitors from sample data" width="900">
-</p>
-
-_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
-
-Delete the sample any time with `pnpm vizoalica demo --remove`, then add your real website (below).
-Windows is not supported yet: the console's private-file permission checks and the deploy scripts
-assume macOS or Linux.
+- **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
+- **Collects:** page views and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, page text, or session replay, and it records the consent state on every event.
+- **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
+- **Setup:** one command, `pnpm vizoalica install`. You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
+- **License:** MIT.
 
 ## The three parts, in order
 
@@ -76,10 +50,55 @@ Three secrets keep it safe, and none of them is ever in browser code:
 | `VIZOALICA_TOKEN_SECRET`            | The Worker and your website's token endpoint (server side) | Set up a website                        |
 | `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing day to day; keep it as a backup |
 
-## Get started, part by part
+## Quick start
 
-`pnpm vizoalica install` runs all three parts' first steps for you. Use the commands below to do one
-part on its own, for example to add a second operator or to update the backend later.
+Want to see it working before you plan a production setup? One command does all three parts above
+for a demo app: it deploys a real backend to your Cloudflare account, sets up this computer as the
+console, and sends sample page views for a make-believe website through that backend, so you are
+looking at real analytics about two minutes later.
+
+```sh
+git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
+corepack enable && pnpm install
+pnpm vizoalica install
+```
+
+You need Node.js 22 or newer, Git, and a Cloudflare account. The command asks for almost nothing.
+In a rehearsal on a real account (already signed in to Cloudflare) it took under two minutes, most
+of it Cloudflare deploying and the numbers appearing:
+
+1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
+   install. It detects the answer and offers it as the default.
+2. It creates the database, storage bucket, and Worker, and deploys them (part 1). There is nothing
+   to copy or edit.
+3. It **generates your three secrets and shows them once**. You save them in a password manager
+   and type `saved`; the screen is then cleared. It never asks you to invent or paste a key.
+4. It sets up this computer as an operator console (part 2), and offers to send sample page views
+   through your new backend so the console has something real to show (a stand-in for part 3).
+5. It starts the console and opens it in your browser.
+
+<p align="center">
+  <img src="docs/assets/console-overview-light.png" alt="The Vizoalica web analytics console showing 96 page views and 29 unique visitors from sample data" width="900">
+</p>
+
+_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
+
+The backend it creates is a real one, and only the sample data is throwaway: remove that any time
+with `pnpm vizoalica demo --remove`. Setting this up with an AI coding agent? Run
+`pnpm vizoalica install` yourself in a terminal. It shows your secrets once, they should not pass
+through an agent conversation, and the command refuses to run without an interactive terminal for
+that reason. Windows is not supported yet: the console's private-file permission checks and the
+deploy scripts assume macOS or Linux.
+
+**Ready for production?** The quick start does not connect a website of yours. Read the next
+section to do that, and to install on another computer, choose your own names, use OneCLI, or
+update an existing backend.
+
+## Production deployment, part by part
+
+The quick start already did parts 1 and 2 on this computer. Use this section to do the parts one at
+a time: add another operator, choose your own names, use OneCLI, update the backend, or connect your
+real website (part 3), which the quick start only simulates.
 
 ### 1. Backend — first
 
