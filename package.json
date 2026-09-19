@@ -12,13 +12,16 @@
     "node": ">=22"
   },
   "type": "module",
+  "bin": {
+    "vizoalica": "bin/vizoalica.mjs"
+  },
   "packageManager": "pnpm@9.15.4",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "build": "pnpm -r --if-present build",
+    "build": "tsc -b && pnpm -r --if-present build",
     "typecheck": "tsc -b --pretty false && pnpm typecheck:examples",
     "test": "vitest run",
     "test:e2e": "pnpm --filter @vizoalica/admin-web test:e2e",
@@ -43,8 +46,8 @@
     "coverage": "vitest run --coverage",
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
-    "ops": "node --import tsx scripts/vizoalica-ops.ts",
-    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica-ops.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
+    "vizoalica": "node bin/vizoalica.mjs",
+    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

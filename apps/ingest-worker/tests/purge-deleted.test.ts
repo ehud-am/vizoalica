@@ -68,13 +68,14 @@ function seed() {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(schema);
   sqlite.exec(`
-    INSERT INTO quota_policies VALUES ('q-live',1,1,1,1,1,1,1,7), ('q-dead',1,1,1,1,1,1,1,7);
+    INSERT INTO quota_policies VALUES ('q-live',1,1,1,1,1,1,1,7), ('q-dead',1,1,1,1,1,1,1,7),
+      ('q-keep',1,1,1,1,1,1,1,7), ('q-gone',1,1,1,1,1,1,1,7), ('q-dead-site',1,1,1,1,1,1,1,7);
     INSERT INTO projects VALUES ('live','Live','production',7,'q-live','active'),
                                 ('dead','Dead','production',7,'q-dead','deleted');
     INSERT INTO sources VALUES
-      ('keep','live','Keep','k1','[]','active',NULL,'t','t'),
-      ('gone','live','Gone','k2','[]','deleted',NULL,'t','t'),
-      ('dead-site','dead','Dead site','k3','[]','deleted',NULL,'t','t');
+      ('keep','live','Keep','k1','[]','active','q-keep','t','t'),
+      ('gone','live','Gone','k2','[]','deleted','q-gone','t','t'),
+      ('dead-site','dead','Dead site','k3','[]','deleted','q-dead-site','t','t');
     INSERT INTO dashboard_seen_events VALUES ('live','d1','t',NULL,1), ('dead','d2','t',NULL,1);
   `);
   for (const [project, source] of [
@@ -115,7 +116,7 @@ describe('purging soft-deleted websites and projects', () => {
       dryRun: true
     });
     expect(summary).toMatchObject({ dryRun: true, complete: true, objects: 2 });
-    expect(summary.rows).toMatchObject({ sources: 2, projects: 1, quota_policies: 1 });
+    expect(summary.rows).toMatchObject({ sources: 2, projects: 1, quota_policies: 3 });
     expect(summary.rows.dashboard_rollups).toBe(2);
     expect(objects.keys).toHaveLength(2);
     expect(count(sqlite, 'SELECT COUNT(*) AS n FROM sources')).toBe(3);
@@ -147,7 +148,21 @@ describe('purging soft-deleted websites and projects', () => {
       ).toBe(0);
     expect(count(sqlite, "SELECT COUNT(*) AS n FROM sources WHERE id != 'keep'")).toBe(0);
     expect(count(sqlite, "SELECT COUNT(*) AS n FROM projects WHERE id = 'dead'")).toBe(0);
-    expect(count(sqlite, "SELECT COUNT(*) AS n FROM quota_policies WHERE id = 'q-dead'")).toBe(0);
+    // The deleted project's policy and every deleted website's own policy go; a live one stays.
+    expect(
+      count(
+        sqlite,
+        "SELECT COUNT(*) AS n FROM quota_policies WHERE id IN ('q-dead','q-gone','q-dead-site')"
+      )
+    ).toBe(0);
+    expect(count(sqlite, "SELECT COUNT(*) AS n FROM quota_policies WHERE id = 'q-keep'")).toBe(1);
+    // No quota policy is left that nothing references.
+    expect(
+      count(
+        sqlite,
+        'SELECT COUNT(*) AS n FROM quota_policies WHERE id NOT IN (SELECT quota_policy_id FROM projects) AND id NOT IN (SELECT quota_policy_id FROM sources WHERE quota_policy_id IS NOT NULL)'
+      )
+    ).toBe(0);
     expect(
       count(sqlite, "SELECT COUNT(*) AS n FROM dashboard_seen_events WHERE project_id = 'dead'")
     ).toBe(0);
@@ -175,6 +190,18 @@ describe('purging soft-deleted websites and projects', () => {
         dryRun: true
       })
     ).toMatchObject({ complete: true, objects: 0 });
+  });
+
+  it('never removes a quota policy that a live project or website still references', async () => {
+    const sqlite = seed();
+    sqlite.exec("UPDATE sources SET quota_policy_id = 'q-live' WHERE id = 'gone'");
+    await purgeDeleted({
+      repositories: new D1Repositories(d1(sqlite)),
+      bucket: bucket([]),
+      dryRun: false
+    });
+    expect(count(sqlite, "SELECT COUNT(*) AS n FROM quota_policies WHERE id = 'q-live'")).toBe(1);
+    expect(count(sqlite, "SELECT COUNT(*) AS n FROM projects WHERE id = 'live'")).toBe(1);
   });
 
   it('keeps identifying rows until every object is gone, then finishes on a rerun', async () => {

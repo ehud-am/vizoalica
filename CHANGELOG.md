@@ -2,57 +2,69 @@
 
 All notable changes to Vizoalica are documented in this file.
 
-## [Unreleased]
-
-### Added
-
-- `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
-  websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
-  project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
-- `pnpm ops console` starts the private API and the web console together in either credential
-  mode (with a local secret file, or through OneCLI). `pnpm ops run` remains as an alias.
-- The daily Cron run now performs the same purge, so deleting a website or project is permanent
-  within a day.
-
-### Changed
-
-- The README and operations guides were reorganised to remove contradictions: one console start
-  command for both modes, a documented procedure for updating a running backend (the install
-  commands refuse a non-empty database), consistent placeholders, and a website guide that puts
-  shared steps before its GitHub Actions and manual paths.
-- **Deletion no longer retains audit evidence or history.** Deleting a website or project now
-  removes its data permanently on the next daily run; the console's wording says so, and its
-  button reads "Delete" rather than "Soft delete".
-
 ## [0.5.2] - 2026-09-18
 
 ### Added
 
+- **Guided setup.** `pnpm vizoalica install` takes an empty Cloudflare account to a connected console
+  with sample data: it creates the D1 database and R2 bucket, writes the production Wrangler config
+  from the example, deploys, generates the three secrets, shows them once (then clears the screen),
+  saves the administrator secret for this computer, and sends signed sample events through the real
+  ingestion path. `backend` installs or updates (it detects which and asks), `connect` sets up another
+  operator computer, `demo` adds or removes the sample, and `rotate` replaces one or all secrets after
+  explaining what each rotation breaks. Secrets travel to Wrangler over stdin only and are never
+  arguments; a first install never adopts an existing database and, on failure, offers to remove only
+  the empty resources it created.
+- `pnpm vizoalica console` starts the private API and the web console together in either credential
+  mode (a local secret file, or OneCLI). `run` remains as an alias.
 - A reusable GitHub Actions workflow that deploys a customer website and the Vizoalica
   configuration and token Functions to Cloudflare Pages on push, with every per-deployment value
   supplied from repository variables and secrets and none committed to the website's source.
   Missing or malformed values fail the run before anything is deployed.
 - The console's website integration panel now leads with the required variables and secrets and a
   starter workflow, and shows whether the website's configuration endpoint is reachable.
-- Project deletion from the console and API, using the same soft-delete and audit conventions as
-  website deletion, with a confirmation that explains the effect.
+- Project deletion from the console and API. Like website deletion it is permanent (see Changed).
+- `pnpm vizoalica purge-deleted` (a dry run, or `--apply`) and the daily Cron run permanently remove every
+  trace of deleted websites and projects: raw event batches in R2 and all their D1 rows, including
+  audit entries, quota policies, and the website and project rows. Backed by
+  `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
 - An optional Workers Rate Limiting binding that throttles ingest per client address. It ships commented out in `wrangler.example.toml`.
 
 ### Changed
 
-- The Cloudflare guide has a short command reference, and the Pages guide leads with the CI/CD
-  path. Direct Upload and Git-connected Pages remain documented as the manual alternative; the
-  static snippet path is unchanged.
+- **Breaking: the command line is now `vizoalica`.** `pnpm ops <command>` (introduced in 0.5.0) is
+  `pnpm vizoalica <command>`; `pnpm ops run` is `pnpm vizoalica console` (`run` still works). There is no
+  `pnpm ops` alias. The package declares a `vizoalica` bin, so `pnpm link --global` makes
+  `vizoalica <command>` work from any directory; it always operates on the checkout it was linked
+  from. An existing OneCLI settings file (`~/.config/vizoalica/ops.json`) keeps its name and keeps
+  working. The OneCLI guide moved to `docs/operations/onecli.md`.
+- **Breaking: deleting a website or project is now permanent.** In 0.5.1 a delete was soft and kept
+  aggregate history and audit evidence. Now new events are rejected at once and the next daily run
+  removes all of its data. The console's wording says so, and its button reads "Delete" rather than
+  "Soft delete".
+- The README opens with a logo, badges, a one-command path, and a screenshot, then explains the
+  three parts in deployment order (backend, console, website); it renders in GitHub and gitlocal.
+  The operations guides were reorganised to remove contradictions: one console start command for both
+  modes, a documented procedure for updating a running backend (the install commands refuse a
+  non-empty database), consistent placeholders, and a website guide that puts shared steps before its
+  GitHub Actions and manual paths. `scripts/capture-console-screenshot.ts` regenerates the screenshots
+  (with `--live`, from a real console against a real backend that has the sample data).
 - Ingest requests without a valid signed token are rejected with 401 before any database read.
   An unknown source key without a token now reports 401 instead of 403.
 
 ### Fixed
 
+- `pnpm build` failed on a fresh clone (`TS6305` in `local-ops-api`): the per-package `tsc -p` build
+  does not build referenced projects, and the failure was hidden wherever an earlier `tsc -b` had
+  left `dist` behind, including CI, which type-checked before it built. The root build now runs
+  `tsc -b` first, and CI builds on a clean tree.
 - Soft-deleted websites and projects no longer accept events. Authorization now allows only
   `active` sources and projects.
 - The daily retention job could not keep up with steady traffic (1,000 rows per table per day) and
   never pruned `ingestion_decisions` or `quota_windows`, so D1 grew without bound. It now repeats
   until each table is drained, up to a per-run cap, and prunes both tables.
+- `pnpm vizoalica console` says so when the console ports are already in use, instead of failing with a raw
+  `EADDRINUSE` trace. `demo --remove` no longer needs an interactive terminal (it asks nothing).
 - The config-overwrite guard no longer depends on hard-link support, so it works on network and
   FAT-family filesystems.
 - The token issuer accepts multiple site origins.
@@ -64,20 +76,24 @@ All notable changes to Vizoalica are documented in this file.
   without a written rationale.
 - **Accepted risk:** `VIZOALICA_TOKEN_SECRET` is one backend-wide secret shared by every website, so
   a leak from one website allows forging tokens for any project on that backend. Treat it like the
-  administrator secret and rotate it everywhere on suspicion of exposure. Per-website signing
-  secrets are deferred to a future release.
+  administrator secret and rotate it everywhere on suspicion of exposure (`pnpm vizoalica rotate token`).
+  Per-website signing secrets are deferred to a future release.
 - The console's reachability check caps the response it reads at 16 KiB.
 
 ### Validation
 
-- Formatting of source and docs, lint, type checking, production builds, the deploy-workflow
-  generation check, and 480 unit and integration tests pass. Repository coverage is 95.86% for
-  lines and 90.54% for branches. A production dependency audit reports no known vulnerabilities.
-- A real end-to-end deployment through the new workflow completed in 21-32 seconds of Actions
-  runtime and recorded a page view in the backend.
-- Not re-run for this release: a from-scratch, timed backend deployment on a fresh Cloudflare
-  account (SC-001), and the Chromium accessibility suite after the final retention and ingest
-  changes (no console code changed after its last passing run).
+- Formatting of source and docs, lint, type checking, a production build from a clean tree, the
+  deploy-workflow generation check, the standalone SDK build, and 589 unit and integration tests
+  pass. Repository coverage is 94.60% for lines and 90.70% for branches. All 11 Chromium responsive
+  and accessibility scenarios pass. A production dependency audit reports no known vulnerabilities.
+- Two from-scratch `pnpm vizoalica install` runs on a real Cloudflare account (signed in) took 113 s and
+  102 s, each ending with sample events read back from analytics (96 page views, 29 visitors); update,
+  connect-again, admin-secret rotation, the refuse-to-adopt guard, and sample removal were also run
+  there, and the scratch resources were deleted afterwards. A real end-to-end deployment through the
+  new workflow completed in 21-32 seconds of Actions runtime and recorded a page view in the backend.
+- Not verified: Windows (not supported: the console's file-permission checks and the deploy scripts
+  assume macOS or Linux), and the interactive Cloudflare sign-in and R2-activation error paths
+  (covered by tests with doubles only).
 
 ### Upgrade
 
@@ -86,9 +102,12 @@ All notable changes to Vizoalica are documented in this file.
   only and adds no migration file. To keep an existing 0.5.1 database, run this once before
   deploying the 0.5.2 Worker:
   `ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'deleted'));`
-  The backend preflight (`pnpm deploy:check`) still refuses a non-empty database, so this path
-  means deploying the Worker with Wrangler directly. Otherwise deploy to a new, empty D1 database
-  as usual.
+  Then deploy with `pnpm vizoalica backend --update` (or Wrangler directly); `pnpm deploy:check` and
+  `pnpm deploy:apply` still refuse a non-empty database. Otherwise deploy to a new, empty D1
+  database as usual.
+- **Anything already soft-deleted is removed at the first daily run after you deploy.** If you want
+  to keep that history, export it first.
+- Replace `pnpm ops …` with `pnpm vizoalica …` in your notes and scripts.
 - Existing static snippets remain compatible. The rate limiter is opt-in.
 - Publishing the source release does not deploy or alter Cloudflare resources.
 

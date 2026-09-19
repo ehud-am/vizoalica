@@ -11,7 +11,7 @@ additional website. Do not redeploy the backend or repeat workstation setup for 
 
 - A verified [customer backend](cloudflare.md) and its redacted handoff.
 - One authorized operator with a working console, configured either
-  [without OneCLI](local-analytics.md) or [with OneCLI](ops-cli.md).
+  [without OneCLI](local-analytics.md) or [with OneCLI](onecli.md).
 - Control of the production website, its build/deployment settings, and its consent integration.
 - Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by the backend.
 - For the GitHub Actions path: the website's GitHub repository, and a Cloudflare API token scoped
@@ -66,6 +66,10 @@ non-secret values. Start with the default low quota and seven-day retention.
 
 **Check:** the new website belongs to the intended customer project, lists only its real allowed
 origin(s), and has its own source ID and public key.
+
+If you ran `pnpm vizoalica install` and accepted the sample data, the console also shows a project called
+"Vizoalica demo (sample data)". It is separate from your websites; remove it whenever you like with
+`pnpm vizoalica demo --remove`.
 
 ## 2. Choose a deployment path
 
@@ -360,6 +364,6 @@ website's raw event batches in R2 and every D1 row for it, including audit entri
 project does the same for the project and all its websites. It does not remove the backend,
 another website registration, or an operator workstation.
 
-To purge immediately instead of waiting for the Cron run, use `pnpm ops purge-deleted` to list
-what would go, then `pnpm ops purge-deleted --apply`. Each run is bounded and resumes on the next,
+To purge immediately instead of waiting for the Cron run, use `pnpm vizoalica purge-deleted` to list
+what would go, then `pnpm vizoalica purge-deleted --apply`. Each run is bounded and resumes on the next,
 so a large purge can take more than one run. A purge is audited without naming what it removed.

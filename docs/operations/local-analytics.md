@@ -1,14 +1,14 @@
 # Set up an operator machine without OneCLI
 
 Run this guide **once per operator or data analyst** who will store the Vizoalica administrator
-credential in a private local file. Use [the OneCLI setup](ops-cli.md) instead when OneCLI manages
+credential in a private local file. Use [the OneCLI setup](onecli.md) instead when OneCLI manages
 the credential. Do not complete both paths on the same machine.
 
 ## Returning operator: start here
 
-If this machine is already configured without OneCLI, run `pnpm ops console` from your checkout
+If this machine is already configured without OneCLI, run `pnpm vizoalica console` from your checkout
 (see [Start the local operator console](operator-local.md)). Keep that terminal open and press
-Ctrl+C once to stop. Run `pnpm ops status` first whenever the configured mode is unclear. Do not
+Ctrl+C once to stop. Run `pnpm vizoalica status` first whenever the configured mode is unclear. Do not
 switch modes merely by changing the startup command.
 
 ## Prerequisites
@@ -49,6 +49,11 @@ Confirm that `git rev-parse HEAD` matches the backend handoff.
 
 ## 2. Create the private configuration
 
+**Fast path:** `pnpm vizoalica connect` does this step and verifies the secret before saving it. It asks
+for the Worker address and the administrator secret (hidden), checks them against your Worker,
+and writes the file with the right permissions. On the computer that ran `pnpm vizoalica install` this
+is already done. The commands below are the manual equivalent.
+
 Run the configuration command in an interactive terminal. It reads the administrator secret from
 a hidden prompt; the secret is never a command argument:
 
@@ -65,7 +70,7 @@ direct-mode configuration, add `--replace`; inspect the target path first. Do no
 ## 3. Start the console
 
 ```sh
-pnpm ops console
+pnpm vizoalica console
 ```
 
 This starts the loopback API with your private file and the web console together. Open
@@ -82,8 +87,8 @@ backend and its D1/R2 storage may be remote.
 Before opening the browser, run the authenticated check:
 
 ```sh
-pnpm ops verify
-pnpm ops status
+pnpm vizoalica verify
+pnpm vizoalica status
 ```
 
 For this mode, `verify` reads the private file internally and confirms HTTP 200 with a JSON project
@@ -116,7 +121,7 @@ The operator can now [activate a website](pages.md). Never include the credentia
 
 ## Stop or remove access
 
-Press Ctrl+C in the `pnpm ops console` terminal. To remove access, stop it, move only
+Press Ctrl+C in the `pnpm vizoalica console` terminal. To remove access, stop it, move only
 `~/.config/vizoalica/local-operations.json` to the operating system's trash, and clear browser
 data for the loopback origin if policy requires it. If exposure is possible, the customer owner
 must rotate `VIZOALICA_ADMIN_SECRET` and update every remaining operator.

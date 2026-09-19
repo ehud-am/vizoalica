@@ -9,7 +9,7 @@ import {
   verifyArguments,
   validateConsoleConfig,
   type OpsConfig
-} from '../../../../scripts/vizoalica-ops.js';
+} from '../../../../scripts/vizoalica.js';
 
 const config: OpsConfig = {
   version: 1,

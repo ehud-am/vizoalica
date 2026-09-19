@@ -11,33 +11,85 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('makes README describe the three parts and a get-started path for each', async () => {
+  it('makes README a fast path first, then the three parts in their deployment order', async () => {
     const readme = await text('README.md');
     for (const heading of [
-      '## The three parts',
-      '## Get started',
+      '## Try it',
+      '## The three parts, in order',
+      '## Get started, part by part',
       '### 1. Backend',
       '### 2. Console',
       '### 3. Website',
+      '## Keep it running',
       '## Build from source'
     ])
       expect(readme).toContain(heading);
+    const at = (heading: string) => readme.indexOf(heading);
+    expect(at('## Try it')).toBeLessThan(at('## The three parts, in order'));
+    expect(at('## The three parts, in order')).toBeLessThan(at('## Get started, part by part'));
+    expect(at('### 1. Backend')).toBeLessThan(at('### 2. Console'));
+    expect(at('### 2. Console')).toBeLessThan(at('### 3. Website'));
+    expect(at('## Get started, part by part')).toBeLessThan(at('## Build from source'));
+    // The diagram states the sequence explicitly.
+    expect(readme).toMatch(/1\. BACKEND[\s\S]*2\. CONSOLE[\s\S]*3\. WEBSITE/);
+    // The one-command path is the first thing to run.
+    expect(readme).toContain('pnpm vizoalica install');
+    for (const command of [
+      'pnpm vizoalica backend',
+      'pnpm vizoalica connect',
+      'pnpm vizoalica console',
+      'pnpm vizoalica rotate',
+      'pnpm vizoalica demo'
+    ])
+      expect(readme).toContain(command);
     // Each part ends by pointing at its full guide.
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
-    expect(readme).toContain('(docs/operations/ops-cli.md)');
+    expect(readme).toContain('(docs/operations/onecli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    expect(readme).toMatch(/once per environment/i);
-    expect(readme).toMatch(/once per operator/i);
-    expect(readme).toMatch(/once per website/i);
-    expect(readme).toMatch(/fresh install only/i);
     // The default console setup is the private file; OneCLI is supported but opt-in.
     expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
     expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
-    expect(readme).toContain('pnpm ops console');
-    // Get started must come after the overview and before building from source.
-    expect(readme.indexOf('## The three parts')).toBeLessThan(readme.indexOf('## Get started'));
-    expect(readme.indexOf('## Get started')).toBeLessThan(readme.indexOf('## Build from source'));
+  });
+
+  it('gives the README a logo, badges, and a screenshot that exist', async () => {
+    const readme = await text('README.md');
+    // One image that reads on light and dark pages: <picture> is not rendered everywhere (see below).
+    expect(readme).toContain('docs/assets/vizoalica-logo.svg');
+    for (const badge of ['actions/workflows/ci.yml/badge.svg', 'License-MIT', 'node-%3E%3D22'])
+      expect(readme).toContain(badge);
+    for (const [, path] of readme.matchAll(/(?:src|srcset)="((?:apps|docs)\/[^"]+)"/g)) {
+      await expect(readFile(path!), path).resolves.toBeInstanceOf(Buffer);
+    }
+  });
+
+  it('uses only the HTML that both GitHub and gitlocal render (p, strong, img)', async () => {
+    // gitlocal renders <p align>, <strong>, and <img>; <picture>, <a><img></a>, <br>, and <sub> show up as
+    // raw text there. Badges are plain markdown links instead.
+    const readme = (await text('README.md'))
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]*`/g, '');
+    const tags = new Set(
+      [...readme.matchAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)/g)].map((match) => match[1]!.toLowerCase())
+    );
+    expect([...tags].sort()).toEqual(['img', 'p', 'strong']);
+    expect(readme).toMatch(/\[!\[CI\]\(https:\/\/github\.com\/[^)]+badge\.svg[^)]*\)\]\(/);
+  });
+
+  it('only mentions pnpm vizoalica commands that exist', async () => {
+    const { help } = await import('../../../../scripts/vizoalica.js');
+    const known = new Set(
+      [...help().matchAll(/pnpm vizoalica ([a-z-]+)/g)].map((match) => match[1])
+    );
+    for (const command of ['help', 'show']) known.add(command); // real commands the help text does not list as rows
+    for (const path of [
+      'README.md',
+      'docs/operations/cloudflare.md',
+      'docs/operations/local-analytics.md',
+      'docs/operations/pages.md'
+    ])
+      for (const [, command] of (await text(path)).matchAll(/pnpm vizoalica ([a-z-]+)/g))
+        expect(known, `${path}: pnpm vizoalica ${command}`).toContain(command);
   });
 
   it('defines a complete fresh customer-backend journey', async () => {
@@ -59,15 +111,35 @@ describe('deployment documentation contract', () => {
     expect(guide).toMatch(/health route does not access D1/i);
   });
 
+  it('leads the backend guide with the automated install, rotation, and update', async () => {
+    const guide = await text('docs/operations/cloudflare.md');
+    for (const heading of [
+      '## Automated install (recommended)',
+      '## Manual install',
+      '## Rotate a secret'
+    ])
+      expect(guide).toContain(heading);
+    expect(guide.indexOf('## Automated install (recommended)')).toBeLessThan(
+      guide.indexOf('## Quick command reference')
+    );
+    for (const command of [
+      'pnpm vizoalica install',
+      'pnpm vizoalica backend --update',
+      'pnpm vizoalica rotate admin'
+    ])
+      expect(guide).toContain(command);
+    expect(guide).toMatch(/never adopts an existing database/i);
+  });
+
   it('separates first install from updating a running backend', async () => {
     const guide = await text('docs/operations/cloudflare.md');
     expect(guide).toContain('## Update an existing backend');
     expect(guide).toContain(
       'pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml'
     );
-    expect(guide).toMatch(/first-install\*{0,2} commands/i);
+    expect(guide).toMatch(/first-install\*{0,2}\s+commands/i);
     expect(guide).toContain('### Deleted websites and projects');
-    expect(guide).toContain('pnpm ops purge-deleted --apply');
+    expect(guide).toContain('pnpm vizoalica purge-deleted --apply');
     // `deploy:apply` refuses a non-empty database, so no doc may tell operators to use it to update.
     expect(guide).not.toMatch(/redeploy with `pnpm deploy:apply`/);
   });
@@ -75,13 +147,13 @@ describe('deployment documentation contract', () => {
   it('starts the console with one command in both credential modes', async () => {
     for (const path of [
       'docs/operations/local-analytics.md',
-      'docs/operations/ops-cli.md',
+      'docs/operations/onecli.md',
       'docs/operations/operator-local.md',
       'docs/operations/troubleshooting.md'
     ])
-      expect(await text(path), path).not.toMatch(/pnpm ops run\b(?!` is an alias)/);
-    expect(await text('docs/operations/local-analytics.md')).toContain('pnpm ops console');
-    expect(await text('docs/operations/ops-cli.md')).toContain('pnpm ops console');
+      expect(await text(path), path).not.toMatch(/pnpm vizoalica run\b(?!` is an alias)/);
+    expect(await text('docs/operations/local-analytics.md')).toContain('pnpm vizoalica console');
+    expect(await text('docs/operations/onecli.md')).toContain('pnpm vizoalica console');
   });
 
   it('uses one placeholder shape for the Worker origin', async () => {
@@ -89,7 +161,7 @@ describe('deployment documentation contract', () => {
       'README.md',
       'docs/operations/cloudflare.md',
       'docs/operations/local-analytics.md',
-      'docs/operations/ops-cli.md',
+      'docs/operations/onecli.md',
       'docs/operations/pages.md'
     ])
       expect(await text(path), path).not.toMatch(
@@ -123,14 +195,14 @@ describe('deployment documentation contract', () => {
     const guide = await text('docs/operations/operator-local.md');
     expect(guide).toMatch(/\| Without OneCLI\s+\| Real administrator secret/);
     expect(guide).toMatch(/\| With OneCLI\s+\| Literal `onecli-managed`/);
-    expect(guide).toContain('pnpm ops status');
-    expect(guide).toContain('pnpm ops console');
+    expect(guide).toContain('pnpm vizoalica status');
+    expect(guide).toContain('pnpm vizoalica console');
     expect(guide).toMatch(/never start the API yourself with `pnpm local-ops-api:dev`/i);
     expect(guide).toMatch(/do not switch modes merely by changing the startup command/i);
   });
 
   it('defines the complete OneCLI workstation journey', async () => {
-    const guide = await text('docs/operations/ops-cli.md');
+    const guide = await text('docs/operations/onecli.md');
     expectJourney(guide, /once per operator/i, [
       '## Prerequisites',
       '## Inputs',
@@ -141,7 +213,7 @@ describe('deployment documentation contract', () => {
     ]);
     expect(guide).toContain('onecli-managed');
     expect(guide).toMatch(/fail closed/i);
-    expect(guide).toContain('pnpm ops verify');
+    expect(guide).toContain('pnpm vizoalica verify');
     expect(guide).toMatch(/positive–negative–positive/i);
     expect(guide).not.toContain('YOUR_US1_COMMIT');
     expect(guide).not.toContain('https://<worker>.workers.dev');
@@ -192,7 +264,7 @@ describe('deployment documentation contract', () => {
         'docs/operations/cloudflare.md',
         'docs/operations/local-analytics.md',
         'docs/operations/operator-local.md',
-        'docs/operations/ops-cli.md',
+        'docs/operations/onecli.md',
         'docs/operations/pages.md',
         'docs/operations/browser-sdk.md',
         'docs/operations/cost-model.md',

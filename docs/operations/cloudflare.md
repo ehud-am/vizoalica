@@ -13,7 +13,62 @@ Worker build to an installation that already has data, use
 
 This guide does not configure an operator machine or connect a website. Its final handoff supplies
 the inputs for [operator setup without OneCLI](local-analytics.md),
-[operator setup with OneCLI](ops-cli.md), and [website activation](pages.md).
+[operator setup with OneCLI](onecli.md), and [website activation](pages.md).
+
+## Automated install (recommended)
+
+From a checkout of this repository (see [Build from source](../../README.md#build-from-source)),
+one command does the whole first install and the first console setup:
+
+```sh
+pnpm vizoalica install
+```
+
+Or, for the backend alone (for example when another person will set up the console):
+
+```sh
+pnpm vizoalica backend
+```
+
+What it does, in order:
+
+1. Runs `pnpm build` and checks your Cloudflare login, opening a browser window to sign in if you
+   are not signed in. If your login has several accounts it asks which to use.
+2. Detects whether Vizoalica is already installed and asks **first install or update?**, offering
+   the detected answer as the default.
+3. **First install:** creates the D1 database and R2 bucket, writes
+   `deploy/cloudflare/wrangler.production.toml` from the example (nothing to copy or edit),
+   creates the tables, and deploys the Worker.
+4. **Generates the three secrets, stores them on the Worker, and shows them once.** You save them in
+   a password manager and type `saved`; the screen is then cleared. They travel to Wrangler over
+   standard input, never as a command argument or a file. It never asks you to invent or paste a key.
+5. Checks the Worker's `/healthz`, and prints its address.
+
+`pnpm vizoalica install` then continues: it offers to set up this computer as an operator console (using
+the administrator secret it just generated, so you paste nothing), to send sample data through the
+new backend, and to start the console.
+
+Names default to `vizoalica-ingest`, `vizoalica-config`, and `vizoalica-events`. Override them with
+`--worker-name`, `--database`, and `--bucket`, and skip the question with `--first-run` or
+`--update`.
+
+Safety properties worth knowing:
+
+- A first install **never adopts an existing database or bucket**. If either already exists it
+  stops and tells you to choose new names or answer "update".
+- If a first install fails after creating resources, it offers to delete **only the empty resources
+  that run created**, so you can retry cleanly. It never touches anything that existed before.
+- An old `wrangler.production.toml` is moved aside (`.bak-…`), never overwritten.
+- An update keeps your data and secrets. It only generates a secret if one is missing, which also
+  makes an interrupted install resumable: run the command again and answer "update".
+- R2 not being activated is detected and explained instead of surfacing a raw error.
+
+The manual procedure below does the same steps by hand and is the reference for what the command
+runs. Use it when policy requires approving each step.
+
+## Manual install
+
+Everything from **Quick command reference** through **Backend handoff** is the manual procedure.
 
 ## Quick command reference
 
@@ -279,8 +334,8 @@ rejected immediately, and the next daily run removes all its data. The purge wri
 entry that names nothing it removed. To purge now instead of waiting:
 
 ```sh
-pnpm ops purge-deleted           # dry run: prints what would be removed, deletes nothing
-pnpm ops purge-deleted --apply   # permanent; repeats until the Worker reports it finished
+pnpm vizoalica purge-deleted           # dry run: prints what would be removed, deletes nothing
+pnpm vizoalica purge-deleted --apply   # permanent; repeats until the Worker reports it finished
 ```
 
 The dry run needs a Worker that includes the purge endpoint (`POST /v1/admin/purge-deleted`);
@@ -361,17 +416,28 @@ administrator credential:
 
 - [Direct local credential](local-analytics.md), once for an operator who manages it in a private
   local file; or
-- [OneCLI-managed credential](ops-cli.md), once for an operator whose organization injects it
+- [OneCLI-managed credential](onecli.md), once for an operator whose organization injects it
   through OneCLI.
 
 After one operator is verified, [activate a website](pages.md) once for each website.
 
 ## Update an existing backend
 
-`pnpm deploy:check` and `pnpm deploy:apply` are **first-install** commands. Both refuse a D1
-database that already contains Vizoalica tables, so they cannot ship a newer Worker build, a
-changed Wrangler setting such as the rate limiter, or a new secret onto a running installation.
-Use native Wrangler for that, from an approved checkout:
+The quick way, from an approved checkout:
+
+```sh
+git fetch --tags && git checkout YOUR_APPROVED_TAG_OR_COMMIT
+pnpm vizoalica backend --update
+```
+
+It builds, deploys, keeps your data and secrets, and checks health. If this checkout has no
+`wrangler.production.toml` (for example on a second computer), it rebuilds one from your existing
+install.
+
+The manual equivalent is below. `pnpm deploy:check` and `pnpm deploy:apply` are **first-install**
+commands: both refuse a D1 database that already contains Vizoalica tables, so they cannot ship a
+newer Worker build, a changed Wrangler setting such as the rate limiter, or a new secret onto a
+running installation. Use native Wrangler for that, from an approved checkout:
 
 ```sh
 git fetch --tags && git checkout YOUR_APPROVED_TAG_OR_COMMIT
@@ -380,7 +446,7 @@ pnpm build
 pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml
 export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
 pnpm deploy:verify
-pnpm ops verify
+pnpm vizoalica verify
 ```
 
 Worker secrets, D1 data, and R2 objects are untouched by `wrangler deploy`, so there is nothing to
@@ -396,7 +462,7 @@ re-enter. Before you run it:
   change, obtain the owner's explicit approval to use native Wrangler for this update; do not
   work around the check.
 
-**Check:** `pnpm deploy:verify` reports `/healthz` returned `"ok":true`, and `pnpm ops verify`
+**Check:** `pnpm deploy:verify` reports `/healthz` returned `"ok":true`, and `pnpm vizoalica verify`
 still reports authenticated access. Then run a website's accepted-event check from
 [website activation](pages.md#verify-website-activation) if the release touched ingestion.
 
@@ -436,6 +502,24 @@ The profile runner removes ambient Cloudflare credentials and never falls back t
 The OneCLI deployment connection is unrelated to the OneCLI administrator credential used for an
 operator machine.
 
+## Rotate a secret
+
+```sh
+pnpm vizoalica rotate admin     # or: token | digest | all
+```
+
+It shows what the rotation will break, asks before changing anything, generates a new value,
+stores it on the Worker, shows it once, and updates what it can:
+
+| Secret   | What changes                                                                                                                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `pnpm vizoalica connect`; a OneCLI console needs its credential card updated. |
+| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                             |
+| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                           |
+
+Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`.
+If a secret may have been exposed, rotate it at once; see the recovery notes below.
+
 ## Recovery and removal
 
 - **Existing schema detected:** stop. Select a new empty D1 database. This release provides no
@@ -448,10 +532,10 @@ operator machine.
   receipt before retrying.
 - **Unhealthy Worker:** use Cloudflare deployment history only when the selected Worker version is
   compatible with the fresh baseline. Never change D1 schema as an improvised recovery step.
-- **Suspected signing-secret exposure:** pause collection, replace it on the Worker and every
+- **Suspected signing-secret exposure:** pause collection, run `pnpm vizoalica rotate token`, update every
   connected website, verify a new accepted event, then resume.
-- **Suspected administrator-secret exposure:** replace it on the Worker and update every authorized
-  operator path. Revoke affected OneCLI agents or remove affected direct local files.
+- **Suspected administrator-secret exposure:** run `pnpm vizoalica rotate admin` and update every other
+  operator (`pnpm vizoalica connect`). Revoke affected OneCLI agents or remove affected direct local files.
 - **Removal:** teardown is a separate destructive customer-owner decision. First revoke access and
   export anything the owner is required to retain; then obtain distinct approval for the exact
   Worker, D1 database, and R2 bucket. Backend automation never deletes them.

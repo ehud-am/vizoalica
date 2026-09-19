@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica-ops.js';
+import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica.js';
 
 const workerUrl = 'https://analytics.example.workers.dev';
 
@@ -24,10 +24,19 @@ function fakeSpawn() {
     queueMicrotask(() => child.emit('exit', 0));
     return child;
   }) as never;
-  return { calls, dependencies: { spawn, spawnSync: (() => ({})) as never, fetch, isTTY: false } };
+  return {
+    calls,
+    dependencies: {
+      spawn,
+      spawnSync: (() => ({})) as never,
+      fetch,
+      isTTY: false,
+      portInUse: async () => false
+    }
+  };
 }
 
-describe('pnpm ops console', () => {
+describe('pnpm vizoalica console', () => {
   const directory = mkdtempSync(join(tmpdir(), 'vizoalica-console-'));
   const ops = {
     version: 1,
@@ -72,5 +81,26 @@ describe('pnpm ops console', () => {
     const { calls, dependencies } = fakeSpawn();
     await run(['run', '--console-config', consoleConfig], dependencies);
     expect(calls).toHaveLength(2);
+  });
+
+  it('refuses to start a second console when its ports are taken, and does not spawn anything', async () => {
+    const consoleConfig = privateJson(directory, 'console-busy.json', {
+      VIZOALICA_REMOTE_URL: workerUrl,
+      VIZOALICA_ADMIN_SECRET: 'not-a-real-secret'
+    });
+    const { calls, dependencies } = fakeSpawn();
+    await expect(
+      run(['console', '--console-config', consoleConfig], {
+        ...dependencies,
+        portInUse: async (port) => port === 5173
+      })
+    ).rejects.toThrow(/Port 5173 is already in use[\s\S]*stop the other console/);
+    await expect(
+      run(['console', '--console-config', consoleConfig], {
+        ...dependencies,
+        portInUse: async () => true
+      })
+    ).rejects.toThrow(/Ports 4318 and 5173 are already in use/);
+    expect(calls).toHaveLength(0);
   });
 });
