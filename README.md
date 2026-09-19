@@ -1,20 +1,15 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="apps/admin-web/public/brand/vizoalica-lockup-dark.svg">
-    <img src="apps/admin-web/public/brand/vizoalica-lockup-light.svg" alt="Vizoalica" width="380">
-  </picture>
+  <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica" width="380">
 </p>
 
 <p align="center"><strong>Self-hosted, privacy-first web analytics that runs in your own Cloudflare account. One command sets it up; your visitors' data never leaves infrastructure you control.</strong></p>
 
-<p align="center">
-  <a href="https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="package.json"><img alt="Version" src="https://img.shields.io/github/package-json/v/ehud-am/vizoalica"></a>
-  <a href="https://vizoalica.dev"><img alt="Website" src="https://img.shields.io/badge/website-vizoalica.dev-168bff"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
-  <a href="https://nodejs.org"><img alt="Node.js" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen"></a>
-  <a href="https://workers.cloudflare.com"><img alt="Runs on Cloudflare" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white"></a>
-</p>
+[![CI](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/package-json/v/ehud-am/vizoalica)](package.json)
+[![Website](https://img.shields.io/badge/website-vizoalica.dev-168bff)](https://vizoalica.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
+[![Runs on Cloudflare](https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
 
 Vizoalica collects page views from your websites, strips out anything sensitive before it is
 stored, and gives you a local console to read the numbers: traffic over time, top pages,
@@ -44,13 +39,10 @@ two minutes, most of it Cloudflare deploying and the numbers appearing:
 5. It starts the console and opens it in your browser.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/console-overview-dark.png">
-    <img src="docs/assets/console-overview-light.png" alt="The Vizoalica console showing 96 page views and 29 unique visitors from sample data" width="900">
-  </picture>
-  <br>
-  <sub>The console after <code>pnpm vizoalica install</code>, showing the sample data it sent through your own backend.</sub>
+  <img src="docs/assets/console-overview-light.png" alt="The Vizoalica console showing 96 page views and 29 unique visitors from sample data" width="900">
 </p>
+
+_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
 
 Delete the sample any time with `pnpm vizoalica demo --remove`, then add your real website (below).
 Windows is not supported yet: the console's private-file permission checks and the deploy scripts

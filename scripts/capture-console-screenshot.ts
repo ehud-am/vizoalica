@@ -122,10 +122,7 @@ async function main(): Promise<void> {
     }
     const browser = await chromium.launch();
     mkdirSync('docs/assets', { recursive: true });
-    for (const [scheme, file] of [
-      ['light', 'console-overview-light.png'],
-      ['dark', 'console-overview-dark.png']
-    ] as const) {
+    for (const [scheme, file] of [['light', 'console-overview-light.png']] as const) {
       const page = await (
         await browser.newContext({
           viewport: { width: 1360, height: 1180 },

@@ -54,13 +54,26 @@ describe('deployment documentation contract', () => {
 
   it('gives the README a logo, badges, and a screenshot that exist', async () => {
     const readme = await text('README.md');
-    expect(readme).toContain('vizoalica-lockup-light.svg');
-    expect(readme).toContain('vizoalica-lockup-dark.svg');
+    // One image that reads on light and dark pages: <picture> is not rendered everywhere (see below).
+    expect(readme).toContain('docs/assets/vizoalica-logo.svg');
     for (const badge of ['actions/workflows/ci.yml/badge.svg', 'License-MIT', 'node-%3E%3D22'])
       expect(readme).toContain(badge);
     for (const [, path] of readme.matchAll(/(?:src|srcset)="((?:apps|docs)\/[^"]+)"/g)) {
       await expect(readFile(path!), path).resolves.toBeInstanceOf(Buffer);
     }
+  });
+
+  it('uses only the HTML that both GitHub and gitlocal render (p, strong, img)', async () => {
+    // gitlocal renders <p align>, <strong>, and <img>; <picture>, <a><img></a>, <br>, and <sub> show up as
+    // raw text there. Badges are plain markdown links instead.
+    const readme = (await text('README.md'))
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]*`/g, '');
+    const tags = new Set(
+      [...readme.matchAll(/<\/?([a-zA-Z][a-zA-Z0-9]*)/g)].map((match) => match[1]!.toLowerCase())
+    );
+    expect([...tags].sort()).toEqual(['img', 'p', 'strong']);
+    expect(readme).toMatch(/\[!\[CI\]\(https:\/\/github\.com\/[^)]+badge\.svg[^)]*\)\]\(/);
   });
 
   it('only mentions pnpm vizoalica commands that exist', async () => {
