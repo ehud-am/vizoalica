@@ -46,6 +46,12 @@ export async function install(ctx: Ctx, options: InstallOptions): Promise<Instal
     });
     demo = true;
   }
+  ctx.out(`\nWorker: ${backend.workerUrl}`);
+  ctx.out(
+    connection
+      ? `This computer: connected (${demo ? 'with sample data; remove it with "pnpm ops demo --remove"' : 'no sample data'})`
+      : 'This computer: not connected yet (run "pnpm ops connect")'
+  );
   done(ctx, 'Setup complete.');
   return { workerUrl: backend.workerUrl, connected: connection !== undefined, demo };
 }

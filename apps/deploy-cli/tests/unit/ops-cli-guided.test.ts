@@ -39,6 +39,7 @@ const deps = (guided?: () => ReturnType<typeof fakeCtx>['ctx'], isTTY = true) =>
   spawnSync: (() => ({})) as never,
   fetch,
   isTTY,
+  portInUse: async () => false,
   ...(guided ? { guided } : {})
 });
 

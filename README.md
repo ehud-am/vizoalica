@@ -30,7 +30,8 @@ pnpm ops install
 ```
 
 `pnpm ops install` takes you from an empty Cloudflare account to a working console, and asks for
-almost nothing:
+almost nothing. In a rehearsal on a real account (already signed in to Cloudflare) it took under
+two minutes, most of it Cloudflare deploying and the numbers appearing:
 
 1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
    install. It detects the answer and offers it as the default.

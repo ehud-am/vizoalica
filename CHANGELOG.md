@@ -26,6 +26,16 @@ All notable changes to Vizoalica are documented in this file.
 - The daily Cron run now performs the same purge, so deleting a website or project is permanent
   within a day.
 
+### Fixed
+
+- `pnpm build` failed on a fresh clone (`TS6305` in `local-ops-api`): the per-package `tsc -p` build
+  does not build referenced projects, and the failure was hidden wherever an earlier `tsc -b` had
+  left `dist` behind, including CI, which type-checked before it built. The root build now runs
+  `tsc -b` first, and CI builds on a clean tree. Found by rehearsing `pnpm ops install` on a real
+  account from a fresh worktree.
+- `pnpm ops console` now says so when the console ports are already in use, instead of failing with
+  a raw `EADDRINUSE` trace. `pnpm ops install` ends with a recap of the Worker address.
+
 ### Changed
 
 - The README and operations guides were reorganised to remove contradictions: one console start

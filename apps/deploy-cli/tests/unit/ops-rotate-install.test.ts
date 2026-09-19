@@ -262,6 +262,8 @@ describe('the one-command install', () => {
     );
     expect(output()).toContain('96 page views from 30 visitors');
     expect(output()).toContain('Setup complete');
+    expect(output()).toContain(`Worker: ${WORKER_URL}`);
+    expect(output()).toContain('with sample data');
   });
 
   it('skips the console and sample data when the operator declines', async () => {

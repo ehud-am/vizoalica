@@ -55,6 +55,8 @@ type Dependencies = {
   isTTY: boolean;
   /** Builds the context for the guided commands; replaced in tests. */
   guided?: () => Ctx;
+  /** Whether something already listens on a local port; replaced in tests. */
+  portInUse?: (port: number) => Promise<boolean>;
 };
 
 const DEFAULT_CONFIG = join(homedir(), '.config', 'vizoalica', 'ops.json');
@@ -659,6 +661,15 @@ export function localApiArguments(client: { path: string }): string[] {
 
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
   const { client, ops } = resolveClientConfig(options);
+  // A second console cannot bind the same ports and would die with a raw EADDRINUSE trace.
+  const inUse = dependencies.portInUse ?? portOccupied;
+  const busy = (
+    await Promise.all([4318, 5173].map(async (port) => ((await inUse(port)) ? port : 0)))
+  ).filter(Boolean);
+  if (busy.length > 0)
+    throw new OpsError(
+      `${busy.length > 1 ? 'Ports' : 'Port'} ${busy.join(' and ')} ${busy.length > 1 ? 'are' : 'is'} already in use, so a console is probably running already.\nOpen ${CONSOLE_URL}, or stop the other console first (Ctrl+C in its terminal) and run this again.`
+    );
   const viaOneCli = client.mode === 'OneCLI';
   stdout.write(
     (viaOneCli
