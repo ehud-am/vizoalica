@@ -98,30 +98,3 @@ export function classifyRequest(request: Request): RequestAnalyticsContext {
     taxonomyVersion: 1
   };
 }
-
-export const analyticsTaxonomy = {
-  version: 1,
-  browsers: [
-    'Chrome',
-    'Edge',
-    'Firefox',
-    'Safari',
-    'Samsung Internet',
-    'Opera',
-    'Internet Explorer',
-    'Other',
-    'Unknown'
-  ],
-  operatingSystems: [
-    'Windows',
-    'macOS',
-    'iOS',
-    'Android',
-    'Chrome OS',
-    'Linux',
-    'Other',
-    'Unknown'
-  ],
-  devices: ['desktop', 'mobile', 'tablet', 'other', 'unknown'],
-  traffic: ['bot', 'human', 'unknown']
-} as const;

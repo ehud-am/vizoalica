@@ -5,7 +5,11 @@ operator installation remain separate actions.
 
 ## Source and history
 
-- [ ] Run a current secret scanner against every reachable Git commit.
+- [ ] Run a current secret scanner against every reachable Git commit, for example
+      `gitleaks detect --source . --config .gitleaks.toml` (the config allows the reviewed base64
+      example files embedded in the reusable workflow, and nothing else).
+- [ ] Check commit author and committer names and emails (`git log --format='%an <%ae>' | sort -u`)
+      are ones you are happy to publish; they are permanent once the history is public.
 - [ ] Scan the exact tracked and untracked-but-publishable tree after release metadata is final.
 - [ ] Confirm `.env`, `.dev.vars`, Wrangler production configuration, deployment profiles,
       receipts, audit logs, local console files, generated SDK output, coverage, and browser reports

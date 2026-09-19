@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode
 } from 'react';
@@ -44,53 +43,73 @@ function messageFor(reason: unknown): string {
 }
 
 /**
- * Loads the overview once per scope and range so every Analytics view shares it, plus the
- * preceding equal-length period (totals only) for the change indicators.
+ * Loads the overview once per scope and range so every Analytics view shares it. When
+ * `comparePrevious` is set (only the Overview shows change indicators) it also loads the preceding
+ * equal-length period, totals only, without ever holding up the current period.
  */
-export function AnalyticsProvider({ children }: { children: ReactNode }) {
+export function AnalyticsProvider({
+  children,
+  comparePrevious = true
+}: {
+  children: ReactNode;
+  comparePrevious?: boolean;
+}) {
   const { projectId, websiteId, range } = useScope();
-  const [state, setState] = useState<Omit<AnalyticsValue, 'retry'>>({
-    status: 'idle',
-    overview: undefined,
-    previous: { state: 'loading' },
-    error: ''
-  });
+  const [state, setState] = useState<{
+    status: AnalyticsValue['status'];
+    overview: AnalyticsOverview | undefined;
+    error: string;
+  }>({ status: 'idle', overview: undefined, error: '' });
+  const [previous, setPrevious] = useState<PreviousPeriod>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const generation = useRef(0);
 
   useEffect(() => {
     if (!projectId) {
-      setState({ status: 'idle', overview: undefined, previous: { state: 'loading' }, error: '' });
+      setState({ status: 'idle', overview: undefined, error: '' });
       return;
     }
     const controller = new AbortController();
-    const current = ++generation.current;
-    const live = () => generation.current === current && !controller.signal.aborted;
-    setState({ status: 'loading', overview: undefined, previous: { state: 'loading' }, error: '' });
-    const site = websiteId || undefined;
-    getAnalyticsOverview(projectId, site, range.startUtc, range.endUtc, controller.signal)
+    setState({ status: 'loading', overview: undefined, error: '' });
+    getAnalyticsOverview(
+      projectId,
+      websiteId || undefined,
+      range.startUtc,
+      range.endUtc,
+      controller.signal
+    )
       .then((overview) => {
-        if (live()) setState((prior) => ({ ...prior, status: 'ready', overview }));
+        if (!controller.signal.aborted) setState({ status: 'ready', overview, error: '' });
       })
       .catch((reason) => {
-        if (live()) setState((prior) => ({ ...prior, status: 'error', error: messageFor(reason) }));
-      });
-    const earlier = previousRange(range);
-    getAnalyticsOverview(projectId, site, earlier.startUtc, earlier.endUtc, controller.signal)
-      .then((overview) => {
-        if (live())
-          setState((prior) => ({
-            ...prior,
-            previous: { state: comparisonState(overview), totals: overview.totals }
-          }));
-      })
-      .catch(() => {
-        if (live()) setState((prior) => ({ ...prior, previous: { state: 'unavailable' } }));
+        if (!controller.signal.aborted)
+          setState({ status: 'error', overview: undefined, error: messageFor(reason) });
       });
     return () => controller.abort();
   }, [projectId, websiteId, range, attempt]);
 
+  useEffect(() => {
+    setPrevious({ state: 'loading' });
+    if (!projectId || !comparePrevious) return;
+    const controller = new AbortController();
+    const earlier = previousRange(range);
+    getAnalyticsOverview(
+      projectId,
+      websiteId || undefined,
+      earlier.startUtc,
+      earlier.endUtc,
+      controller.signal
+    )
+      .then((overview) => {
+        if (!controller.signal.aborted)
+          setPrevious({ state: comparisonState(overview), totals: overview.totals });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPrevious({ state: 'unavailable' });
+      });
+    return () => controller.abort();
+  }, [projectId, websiteId, range, attempt, comparePrevious]);
+
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
-  const value = useMemo(() => ({ ...state, retry }), [state, retry]);
+  const value = useMemo(() => ({ ...state, previous, retry }), [state, previous, retry]);
   return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
 }

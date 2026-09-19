@@ -1,0 +1,96 @@
+/*
+ * Brand colors for the default theme. Every pair used for text is at least 4.5:1: the light
+ * brand blue on white is 5.7:1, and the dark theme's lighter blue on its surface is well above.
+ */
+:root {
+  --vp-c-brand-1: #0866c1;
+  --vp-c-brand-2: #075cae;
+  --vp-c-brand-3: #0866c1;
+  --vp-c-brand-soft: rgb(8 102 193 / 14%);
+  --vp-button-brand-bg: #0866c1;
+  --vp-button-brand-hover-bg: #075cae;
+  --vp-button-brand-active-bg: #064f96;
+  --vp-button-brand-text: #fff;
+  --vp-home-hero-name-color: #0866c1;
+  /* The default muted grey is 2.9:1 on the soft background; this is 5:1. */
+  --vp-c-text-3: #6a6a70;
+}
+.dark {
+  --vp-c-brand-1: #62b3ff;
+  --vp-c-brand-2: #8bc7ff;
+  --vp-c-brand-3: #319cff;
+  --vp-c-brand-soft: rgb(98 179 255 / 16%);
+  --vp-button-brand-bg: #319cff;
+  --vp-button-brand-hover-bg: #62b3ff;
+  --vp-button-brand-active-bg: #8bc7ff;
+  --vp-button-brand-text: #07101b;
+  --vp-home-hero-name-color: #62b3ff;
+  --vp-c-text-3: rgb(235 235 245 / 62%);
+}
+
+.VPNavBarTitle .logo {
+  height: 30px;
+}
+
+/* The intro video and the tour images sit in the page column, at the reading width. */
+.intro-video {
+  margin: 24px 0 8px;
+}
+.intro-video video {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  background: #0d1118;
+  aspect-ratio: 16 / 9;
+}
+.intro-video figcaption {
+  margin-top: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.intro-video summary {
+  cursor: pointer;
+}
+.vp-doc figure img,
+.vp-doc .tour-shot img {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+}
+.tour-shot {
+  margin: 28px 0 40px;
+}
+.tour-shot figcaption {
+  margin-top: 10px;
+  color: var(--vp-c-text-2);
+  font-size: 15px;
+}
+.promo-note {
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.promo-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.promo-steps > div {
+  padding: 18px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.promo-steps strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

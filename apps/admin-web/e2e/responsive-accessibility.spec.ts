@@ -144,16 +144,34 @@ test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom',
   );
 });
 
-test('opens and closes the Local workspace boundary explanation by keyboard', async ({ page }) => {
-  const trigger = page.getByRole('button', { name: 'Local workspace' });
-  await trigger.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('region', { name: 'Local workspace explanation' })).toContainText(
-    'loopback service'
-  );
-  await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+test('the console has no Local workspace indicator', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Local workspace' })).toHaveCount(0);
+  await expect(page.getByText('Local workspace')).toHaveCount(0);
+});
+
+test('time range options are ordinary radio buttons with the label after them on one line', async ({
+  page
+}) => {
+  await page.getByRole('button', { name: /^Last/ }).click();
+  const options = page.locator('.time-range-presets label');
+  await expect(options).toHaveCount(6);
+  for (let index = 0; index < 6; index += 1) {
+    const label = options.nth(index);
+    const radio = await label.locator('input[type="radio"]').boundingBox();
+    const text = await label.evaluate((element) => {
+      const range = document.createRange();
+      const node = Array.from(element.childNodes).find(
+        (child) => child.nodeType === Node.TEXT_NODE
+      )!;
+      range.selectNodeContents(node);
+      const box = range.getBoundingClientRect();
+      return { left: box.left, top: box.top, height: box.height };
+    });
+    expect(radio).toBeTruthy();
+    // Same line: their vertical centres agree, and the text starts to the right of the radio.
+    expect(Math.abs(radio!.y + radio!.height / 2 - (text.top + text.height / 2))).toBeLessThan(4);
+    expect(text.left).toBeGreaterThan(radio!.x + radio!.width);
+  }
 });
 
 test('has no serious axe findings on any screen, in light and dark', async ({ page }) => {

@@ -61,10 +61,15 @@
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
     "vizoalica": "node bin/vizoalica.mjs",
-    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts"
+    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",
+    "promo:snapshots": "node --import tsx scripts/promo/capture-snapshots.ts",
+    "promo:video": "node --import tsx scripts/promo/render-video.ts",
+    "docs:dev": "pnpm --filter @vizoalica/docs site:dev",
+    "docs:build": "pnpm --filter @vizoalica/docs site:build",
+    "docs:preview": "pnpm --filter @vizoalica/docs site:preview",
+    "docs:test": "pnpm --filter @vizoalica/docs site:test"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/d3-geo": "^3.1.1",
@@ -78,7 +83,6 @@
     "d3-geo": "^3.1.1",
     "esbuild": "0.28.2",
     "eslint": "^9.17.0",
-    "fast-uri": "^3.1.6",
     "i18n-iso-countries": "^7.14.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.4.2",
@@ -90,14 +94,15 @@
     "wrangler": "^4.127.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   },
   "pnpm": {
     "overrides": {
       "sharp@<0.35.4": "0.35.4",
-      "js-yaml@>=4.0.0 <4.3.2": "4.3.2"
+      "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
+      "fast-uri@<3.1.6": "3.1.6",
+      "vitepress>vite": "^6.4.3"
     }
   }
 }

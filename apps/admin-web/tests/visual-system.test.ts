@@ -39,4 +39,21 @@ describe('developer-centric visual system', () => {
     expect(css).toContain('@media (forced-colors: active)');
     expect(css).toContain('outline: 3px solid var(--color-focus-ring)');
   });
+
+  it('keeps the range popup options as plain radio rows, unaffected by the scope bar labels', () => {
+    // The scope bar's stacked label style must only apply to its own Project and Website labels.
+    expect(css).toContain('.context-controls > label {');
+    expect(css).not.toMatch(/\.context-controls label \{/);
+    expect(css).toMatch(/\.time-range-presets label \{\s*display: flex;\s*align-items: center;/);
+  });
+
+  it('no longer ships the Local workspace indicator styles', () => {
+    expect(css).not.toContain('local-pill');
+    expect(css).not.toContain('workspace-context');
+  });
+
+  it('gives bar lists room on wide screens and keeps their values on one line', () => {
+    expect(css).toMatch(/\.distribution-card \{\s*grid-column: span 2;/);
+    expect(css).toMatch(/\.bar-value \{[^}]*white-space: nowrap;/);
+  });
 });

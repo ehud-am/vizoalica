@@ -60,7 +60,8 @@ export default {
     );
   },
   async scheduled(_controller: unknown, env: Env): Promise<void> {
-    const config = loadWorkerConfig(env);
+    // Fails closed on a missing or weak binding, like a request does.
+    loadWorkerConfig(env);
     const repositories = new D1Repositories(
       env.VIZOALICA_DB,
       env.VIZOALICA_ANALYTICS_DIGEST_SECRET
@@ -81,6 +82,5 @@ export default {
         outcome: 'allowed',
         reasonCode: purged.complete ? 'purged' : 'partial'
       });
-    void config;
   }
 };

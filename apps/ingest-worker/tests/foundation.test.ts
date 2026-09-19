@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { loadWorkerConfig } from '../src/config.js';
 import { handleWorkerRequest } from '../src/http/worker-adapter.js';
 
+const STRONG = 'a-strong-secret-of-at-least-32-chars!';
+
 describe('Worker configuration', () => {
   it('requires D1, R2, and token bindings', () => {
     expect(() => loadWorkerConfig({} as never)).toThrow('missing_required_cloudflare_binding');
@@ -11,12 +13,58 @@ describe('Worker configuration', () => {
       loadWorkerConfig({
         VIZOALICA_DB: {},
         VIZOALICA_EVENTS: {},
-        VIZOALICA_TOKEN_SECRET: 'x',
-        VIZOALICA_ADMIN_SECRET: 'x',
-        VIZOALICA_ANALYTICS_DIGEST_SECRET: 'x',
+        VIZOALICA_TOKEN_SECRET: STRONG,
+        VIZOALICA_ADMIN_SECRET: STRONG,
+        VIZOALICA_ANALYTICS_DIGEST_SECRET: STRONG,
         VIZOALICA_MAX_REQUEST_BYTES: '0'
       } as never)
     ).toThrow('invalid_max_request_bytes');
+  });
+  it.each([
+    ['too short', 'x'.repeat(31)],
+    ['too long', 'x'.repeat(257)],
+    ['containing whitespace', `${'x'.repeat(40)} y`],
+    ['containing a control character', `${'x'.repeat(40)}\n`]
+  ])('rejects a secret that is %s, naming the setting and never the value', (_label, weak) => {
+    for (const name of [
+      'VIZOALICA_TOKEN_SECRET',
+      'VIZOALICA_ADMIN_SECRET',
+      'VIZOALICA_ANALYTICS_DIGEST_SECRET'
+    ]) {
+      const env = {
+        VIZOALICA_DB: {},
+        VIZOALICA_EVENTS: {},
+        VIZOALICA_TOKEN_SECRET: STRONG,
+        VIZOALICA_ADMIN_SECRET: STRONG,
+        VIZOALICA_ANALYTICS_DIGEST_SECRET: STRONG,
+        [name]: weak
+      };
+      let message = '';
+      try {
+        loadWorkerConfig(env as never);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toBe(`weak_secret:${name}`);
+      expect(message).not.toContain(weak.trim());
+    }
+  });
+  it('accepts 32 to 256 printable characters, and the secrets the CLI generates', () => {
+    for (const secret of [
+      'x'.repeat(32),
+      'y'.repeat(256),
+      // 256 random bits as base64url, exactly what generateSecret() produces
+      'Zk3_-9aQ1mN0pLx7VbT4uRw2YhCe8DsJfGiAoKqMnBt'
+    ])
+      expect(
+        loadWorkerConfig({
+          VIZOALICA_DB: {},
+          VIZOALICA_EVENTS: {},
+          VIZOALICA_TOKEN_SECRET: secret,
+          VIZOALICA_ADMIN_SECRET: secret,
+          VIZOALICA_ANALYTICS_DIGEST_SECRET: secret
+        } as never)
+      ).toEqual({ allowUnsignedDemo: false, maxRequestBytes: 131072 });
   });
   it('requires a dedicated analytics digest secret', () => {
     expect(() =>
@@ -53,6 +101,8 @@ describe('Worker HTTP adapter', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://analytics.example');
     expect(response.headers.get('access-control-allow-headers')).toContain('x-vizoalica-source');
+    // Preflights are cached, so a batch does not cost a second Worker invocation each time.
+    expect(response.headers.get('access-control-max-age')).toBe('86400');
   });
 
   it('rejects an unadvertised oversized streamed request before ingestion', async () => {

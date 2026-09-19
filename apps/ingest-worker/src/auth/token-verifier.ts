@@ -35,6 +35,10 @@ export function createWorkerTokenVerifier(secret: string) {
         encoder.encode(`${headerPart}.${payloadPart}`) as BufferSource
       );
       if (!valid) return { ok: false, reason: 'invalid_signature' };
+      // The signature is always checked as HMAC-SHA256, so this is defence in depth: a token that
+      // says it is anything else was not made by this system.
+      const header = JSON.parse(decoder.decode(decodeBase64Url(headerPart))) as { alg?: unknown };
+      if (header.alg !== 'HS256') return { ok: false, reason: 'malformed_token' };
       const claims = JSON.parse(decoder.decode(decodeBase64Url(payloadPart))) as unknown;
       if (!claimValidator(claims)) return { ok: false, reason: 'invalid_claims' };
       return { ok: true, verified: { claims: claims as unknown as TokenClaims, token } };

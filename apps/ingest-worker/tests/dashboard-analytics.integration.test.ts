@@ -44,57 +44,62 @@ function fakeDb(
     status: options.deletedSource ? 'deleted' : 'active',
     quota_policy_id: 'q1'
   };
+  // What a query returns, keyed by the table it reads; single-row aggregates come back as one row.
+  const rowsFor = (query: string): unknown[] => {
+    const grouped = query.includes('GROUP BY');
+    if (query.includes('FROM dashboard_minute_totals'))
+      return grouped ? (options.pageTrend ?? []) : [{ pageViews: options.pageViews ?? 0 }];
+    if (query.includes('DISTINCT identity_kind'))
+      return (options.identityKinds ?? ['source-local']).map((kind) => ({ kind }));
+    if (query.includes('FROM dashboard_minute_visitors'))
+      return grouped ? (options.visitorTrend ?? []) : [{ uniqueUsers: options.uniqueUsers ?? 0 }];
+    if (query.includes('DISTINCT taxonomy_version'))
+      return (options.taxonomyVersions ?? [1]).map((version) => ({ version }));
+    if (query.includes('FROM dashboard_minute_dimensions')) return options.dimensionRows ?? [];
+    if (query.includes('FROM dashboard_aggregate_watermarks'))
+      return options.availableFromUtc || options.lastCompletedAt
+        ? [
+            {
+              availableFromUtc: options.availableFromUtc,
+              lastCompletedAt: options.lastCompletedAt
+            }
+          ]
+        : [{}];
+    if (query.includes('FROM projects')) return options.missingProject ? [] : [project];
+    if (query.includes('FROM sources')) return options.missingSource ? [] : [source];
+    return [];
+  };
+  const trips: number[] = [];
+  const statement = (query: string): D1Statement & { rows(): unknown[] } => {
+    const self: D1Statement & { rows(): unknown[] } = {
+      bind(...next: unknown[]) {
+        calls.push({ query, values: next });
+        return self;
+      },
+      rows: () => rowsFor(query),
+      async run() {
+        return { meta: { changes: 1 } };
+      },
+      async all<T>() {
+        trips.push(1);
+        return { results: self.rows() as T[] };
+      },
+      async first<T>() {
+        trips.push(1);
+        return (self.rows()[0] ?? null) as T | null;
+      }
+    };
+    return self;
+  };
   const db: D1Database = {
-    prepare(query: string): D1Statement {
-      let values: unknown[] = [];
-      return {
-        bind(...next: unknown[]) {
-          values = next;
-          calls.push({ query, values });
-          return this;
-        },
-        async run() {
-          return { meta: { changes: 1 } };
-        },
-        async all<T>() {
-          if (query.includes('FROM dashboard_minute_totals') && query.includes('GROUP BY'))
-            return { results: (options.pageTrend ?? []) as T[] };
-          if (query.includes('FROM dashboard_minute_visitors') && query.includes('GROUP BY'))
-            return { results: (options.visitorTrend ?? []) as T[] };
-          if (query.includes('FROM dashboard_minute_dimensions') && query.includes('GROUP BY'))
-            return { results: (options.dimensionRows ?? []) as T[] };
-          if (query.includes('DISTINCT taxonomy_version'))
-            return {
-              results: (options.taxonomyVersions ?? [1]).map((version) => ({ version })) as T[]
-            };
-          if (query.includes('DISTINCT identity_kind'))
-            return {
-              results: (options.identityKinds ?? ['source-local']).map((kind) => ({ kind })) as T[]
-            };
-          return { results: [] };
-        },
-        async first<T>() {
-          if (query.includes('SUM(page_view_count)'))
-            return { pageViews: options.pageViews ?? 0 } as T | null;
-          if (query.includes('COUNT(DISTINCT visitor_digest) AS uniqueUsers'))
-            return { uniqueUsers: options.uniqueUsers ?? 0 } as T | null;
-          if (query.includes('FROM dashboard_aggregate_watermarks'))
-            return options.availableFromUtc || options.lastCompletedAt
-              ? ({
-                  availableFromUtc: options.availableFromUtc,
-                  lastCompletedAt: options.lastCompletedAt
-                } as T | null)
-              : (null as T | null);
-          if (query.includes('FROM projects'))
-            return (options.missingProject ? null : project) as T | null;
-          if (query.includes('FROM sources'))
-            return (options.missingSource ? null : source) as T | null;
-          return null;
-        }
-      };
+    prepare: (query: string) => statement(query),
+    async batch(statements) {
+      // One round trip, however many statements it carries.
+      trips.push(1);
+      return statements.map((item) => ({ results: (item as ReturnType<typeof statement>).rows() }));
     }
   };
-  return { db, calls };
+  return { db, calls, trips };
 }
 
 describe('dashboard analytics overview query', () => {
@@ -283,5 +288,43 @@ describe('dashboard analytics overview query', () => {
       '2026-01-02T00:00:00.000Z'
     );
     expect(overview?.scope.identityMode).toBe('mixed');
+  });
+
+  it('reads the whole overview in one batched round trip after the two authorization lookups', async () => {
+    const fake = fakeDb({ pageViews: 5, uniqueUsers: 2 });
+    await new D1Repositories(fake.db).getAnalyticsOverview(
+      'p1',
+      's1',
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z'
+    );
+    // findProject + getSource, then all 15 reads together.
+    expect(fake.trips).toHaveLength(3);
+    const reads = fake.calls.filter((call) => /FROM dashboard_/.test(call.query));
+    expect(reads).toHaveLength(15);
+    // Every read is scoped to the project and the website, and binds (never concatenates) its values.
+    for (const read of reads) {
+      expect(
+        read.values.slice(0, 4).filter((value) => value === 's1').length
+      ).toBeGreaterThanOrEqual(read.query.includes('watermarks') ? 0 : 1);
+      expect(read.query).not.toContain('p1');
+      expect(read.query).not.toContain('2026-01-01');
+    }
+  });
+
+  it('still returns the same overview when the database cannot batch', async () => {
+    const withBatch = fakeDb({ pageViews: 9, uniqueUsers: 4, dimensionRows: manyDimensionRows(3) });
+    const withoutBatch = fakeDb({
+      pageViews: 9,
+      uniqueUsers: 4,
+      dimensionRows: manyDimensionRows(3)
+    });
+    delete (withoutBatch.db as { batch?: unknown }).batch;
+    const args = ['p1', undefined, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z'] as const;
+    const expected = await new D1Repositories(withBatch.db).getAnalyticsOverview(...args);
+    const actual = await new D1Repositories(withoutBatch.db).getAnalyticsOverview(...args);
+    expect(actual).toEqual(expected);
+    expect(actual?.totals).toEqual({ pageViews: 9, uniqueUsers: 4 });
+    expect(withoutBatch.trips.length).toBeGreaterThan(withBatch.trips.length);
   });
 });

@@ -1,7 +1,7 @@
 import type { ProcessResult } from './types.js';
 import { DeploymentFailure } from './types.js';
 
-export const VIZOALICA_SCHEMA_TABLES = [
+const VIZOALICA_SCHEMA_TABLES = [
   'd1_migrations',
   'projects',
   'sources',

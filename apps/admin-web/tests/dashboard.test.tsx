@@ -48,6 +48,18 @@ describe('analytics overview', () => {
     );
   });
 
+  it('loads the earlier period only on the Overview, and not again when returning to it', async () => {
+    window.location.hash = '#/analytics/pages';
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: 'Pages' });
+    await waitFor(() => expect(api.getAnalyticsOverview).toHaveBeenCalledTimes(1));
+    window.location.hash = '#/analytics/overview';
+    await screen.findByRole('heading', { level: 1, name: 'Overview' });
+    // One more request for the earlier period; the current period is shared, not fetched again.
+    await waitFor(() => expect(api.getAnalyticsOverview).toHaveBeenCalledTimes(2));
+    window.location.hash = '';
+  });
+
   it('shows explicit zeros and a no-page-views hint rather than a blank page', async () => {
     render(<App />);
     expect(await screen.findByText('Page views')).toBeTruthy();

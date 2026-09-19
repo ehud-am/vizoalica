@@ -16,7 +16,7 @@ const PRESET_HOURS: Record<RangePreset, number> = {
   '30d': 24 * 30
 };
 
-export const MAX_RANGE_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_RANGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type AppliedRange =
   | { kind: 'preset'; preset: RangePreset; startUtc: string; endUtc: string }

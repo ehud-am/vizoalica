@@ -78,9 +78,9 @@ This starts the loopback API with your private file and the web console together
 `localhost` and `127.0.0.1` are different browser origins. Keep the terminal open; press Ctrl+C
 once to stop both processes.
 
-The console’s **Local workspace** disclosure means the interface and trusted credential-holding
-loopback API run only on this computer. It does not mean analytics data is local: the selected
-backend and its D1/R2 storage may be remote.
+The console’s interface and its trusted, credential-holding loopback API run only on this
+computer. That does not mean analytics data is local: the selected backend and its D1/R2 storage
+may be remote.
 
 ## Verify the operator setup
 

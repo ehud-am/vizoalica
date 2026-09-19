@@ -9,6 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
 
+**Documentation, a product tour, and a short video: [vizoalica.dev](https://vizoalica.dev).**
+
 **Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
 Cloudflare Workers, D1, and R2. A small browser SDK sends privacy-filtered page views and custom events
 to your own backend, and a local console shows traffic over time, top pages, referrers, browsers,
@@ -309,6 +311,7 @@ tokens, and an explicit consent state on every event.
 | What is collected and what is not                      | [Privacy](docs/operations/privacy.md)                                                          |
 | Why only country and continent, and not more           | [Audience attributes review](docs/privacy/audience-attributes-review.md)                       |
 | D1 and R2 cost and capacity                            | [Cost model](docs/operations/cost-model.md)                                                    |
+| Publishing the documentation site (vizoalica.dev)      | [Publishing this site](docs/operations/docs-site.md)                                           |
 | Something failed                                       | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
 | Publishing a release, and making the repository public | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |
 | Vulnerability reports, contributing, brand             | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |

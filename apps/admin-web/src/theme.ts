@@ -12,7 +12,7 @@ function systemTheme(): Theme {
 }
 
 /** Applies the resolved theme to the document: data-theme only when explicit, always color-scheme. */
-export function applyDocumentTheme(resolved: Theme, explicit: Theme | null): void {
+function applyDocumentTheme(resolved: Theme, explicit: Theme | null): void {
   const root = document.documentElement;
   if (explicit) root.setAttribute('data-theme', explicit);
   else root.removeAttribute('data-theme');

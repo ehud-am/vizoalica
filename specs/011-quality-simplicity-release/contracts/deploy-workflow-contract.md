@@ -46,7 +46,11 @@ this site), `CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`.
    *resolve* the `workflow_call`, not what `actions/checkout` can read).
 2. Validates every required variable/secret is present and non-empty; on any missing/malformed
    value, fails the job with a message naming exactly which one, before any deploy action runs
-   (FR-004). No partial or insecure deploy is attempted.
+   (FR-004). No partial or insecure deploy is attempted. Public values must also be free of
+   whitespace, control characters, quotes, backslashes, `$`, and backticks, and `site-directory`
+   must be a relative path without `..`, because they end up in a generated TOML file and in shell
+   arguments. Inputs and variables reach the shell as environment variables, never as text pasted
+   into the script.
 3. Writes `functions/vizoalica/{config.json.ts,ingest-token.ts}` and `vizoalica-loader.js` into
    the caller's build output under `site-directory`, decoded from a base64 copy embedded directly
    in this workflow file (kept in sync with the real source under
@@ -56,7 +60,8 @@ this site), `CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`.
    populating `[vars]` from the required variables above.
 5. Runs `wrangler pages secret put VIZOALICA_TOKEN_SECRET` against the target Pages project
    (idempotent) using `CF_API_TOKEN`/`CF_ACCOUNT_ID`.
-6. Runs `wrangler pages deploy <site-directory> --project-name <CF_PAGES_PROJECT>`.
+6. Runs `wrangler pages deploy <site-directory> --project-name <CF_PAGES_PROJECT>`. Wrangler is
+   pinned to an exact version (currently 4.127.1) in steps 5 and 6; bump it deliberately.
 7. On success, the job output includes the deployed URL. On failure at any step, the job fails
    with the underlying `wrangler`/Cloudflare error surfaced, not swallowed.
 

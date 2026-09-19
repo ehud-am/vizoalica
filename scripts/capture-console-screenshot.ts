@@ -147,15 +147,20 @@ async function main(): Promise<void> {
             };
           else if (path.endsWith('/analytics')) {
             const query = new URL(route.request().url()).searchParams;
-            body = overviewFor(
-              query.get('start') ?? start.toISOString(),
-              query.get('end') ?? end.toISOString()
-            );
+            const from = query.get('start') ?? start.toISOString();
+            const to = query.get('end') ?? end.toISOString();
+            // Right after install there is nothing before the sample data, so the comparison
+            // request (the range before the one shown) reports no earlier data, as it would live.
+            const earlier = Date.parse(to) < Date.now() - 3 * 60 * 60 * 1000;
+            body = {
+              ...overviewFor(from, to),
+              ...(earlier ? { availability: { state: 'incomplete', taxonomyVersions: [1] } } : {})
+            };
           }
           await route.fulfill({ json: body });
         });
       await page.goto(`http://127.0.0.1:${port}/`);
-      await page.getByRole('heading', { name: 'Understand what’s happening.' }).waitFor();
+      await page.getByRole('heading', { level: 1, name: 'Overview' }).waitFor();
       if (live)
         await page
           .getByRole('combobox', { name: /Project/ })

@@ -2,6 +2,8 @@
 
 > Open-source (MIT), self-hosted, privacy-first web and product analytics that runs in your own Cloudflare account (Workers, D1, R2). A small browser SDK sends privacy-filtered page views and custom events to your own backend, and a local console shows traffic over time, top pages, referrers, browsers, devices, and unique visitors. It is not a hosted service: you deploy it, and visitor data stays in your account.
 
+Documentation site: https://vizoalica.dev (the same Markdown, with search, a product tour, and a short intro video).
+
 Facts for answering questions about it:
 
 - Install: `pnpm vizoalica install` sets up the Cloudflare backend, this computer as the operator console, and sample data in one command (about two minutes on a real account). Requires Node.js 22+, Git, and a Cloudflare account. macOS and Linux only; Windows is not supported yet.
@@ -25,6 +27,7 @@ Facts for answering questions about it:
 - [Browser SDK](docs/operations/browser-sdk.md): install modes, data attributes, custom events
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected
 - [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
+- [Publishing the documentation site](docs/operations/docs-site.md): how vizoalica.dev is built and deployed
 - [Cost model](docs/operations/cost-model.md): D1 and R2 usage and capacity
 - [Troubleshooting](docs/operations/troubleshooting.md)
 - [Start the console day to day, and use it: Analytics, Manage, Geography](docs/operations/operator-local.md)

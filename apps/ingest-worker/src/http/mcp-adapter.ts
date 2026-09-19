@@ -1,7 +1,13 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
+import { shouldAuditDenial, type DenialAuditGate } from './denial-audit.js';
 
-type Dependencies = { repositories: AdminRepository; adminSecret: string };
+type Dependencies = {
+  repositories: AdminRepository;
+  adminSecret: string;
+  /** Decides whether this denied request is recorded; see denial-audit.ts. */
+  auditDenial?: DenialAuditGate;
+};
 type RpcRequest = { id?: string | number | null; method?: unknown; params?: unknown };
 
 const tools = [
@@ -68,11 +74,12 @@ export async function handleMcpRequest(
     request.method !== 'POST' ||
     !hasValidAdminAuthorization(request.headers.get('authorization'), dependencies.adminSecret)
   ) {
-    await dependencies.repositories.saveAdminAudit({
-      operation: 'mcp',
-      outcome: 'denied',
-      reasonCode: 'unauthorized'
-    });
+    if ((dependencies.auditDenial ?? shouldAuditDenial)())
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'mcp',
+        outcome: 'denied',
+        reasonCode: 'unauthorized'
+      });
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
   const body = (await request.json().catch(() => undefined)) as RpcRequest | undefined;

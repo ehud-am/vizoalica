@@ -1,0 +1,21 @@
+# Cloudflare Pages response headers. The script placeholder in the policy below is replaced at build
+# time (scripts/finish-build.mjs) with the hashes of the few inline scripts VitePress writes into
+# every page, so scripts are limited to this site's own files plus exactly those, with no
+# 'unsafe-inline'.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' __SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Fingerprinted files never change under the same name, so they can be cached for good.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Brand and media files keep their names, so they are cached for a day only.
+/brand/*
+  Cache-Control: public, max-age=86400
+/media/*
+  Cache-Control: public, max-age=86400

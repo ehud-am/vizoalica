@@ -15,7 +15,7 @@ export type PurgeSummary = {
 };
 
 /** Each D1 statement and R2 call is one operation; keeps a run under Worker subrequest limits. */
-export const PURGE_OPERATION_BUDGET = 40;
+const PURGE_OPERATION_BUDGET = 40;
 const R2_PAGE = 1000;
 
 async function purgePrefix(

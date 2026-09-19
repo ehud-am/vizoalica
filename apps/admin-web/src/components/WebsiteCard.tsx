@@ -10,13 +10,15 @@ export function WebsiteCard({ website }: { website: Website }) {
         {website.name.slice(0, 1).toUpperCase()}
       </span>
       <span className="card-main">
-        <strong>{website.name}</strong>
+        <span className="card-title">
+          <strong>{website.name}</strong>
+          <span className={`status ${website.status}`}>{website.status}</span>
+        </span>
         <small>
           {first ?? 'No origin'}
           {rest.length > 0 && ` +${rest.length} more`}
         </small>
       </span>
-      <span className={`status ${website.status}`}>{website.status}</span>
     </a>
   );
 }

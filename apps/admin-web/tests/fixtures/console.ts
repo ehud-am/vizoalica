@@ -19,9 +19,7 @@ export const duplicateNameProject: Project = {
 
 export const consoleProjects: Project[] = [primaryProject, duplicateNameProject];
 
-export const emptyProjects: Project[] = [];
-
-export const primaryWebsite: Website = {
+const primaryWebsite: Website = {
   id: 'site-1',
   projectId: primaryProject.id,
   name: 'Docs',
@@ -30,7 +28,7 @@ export const primaryWebsite: Website = {
   status: 'active'
 };
 
-export const staticSnippet =
+const staticSnippet =
   '<script async src="https://docs.example.com/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key" data-project="project-1" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>';
 
 export const primaryIntegration: Integration = {

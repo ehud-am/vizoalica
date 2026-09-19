@@ -115,4 +115,14 @@ describe('local API security boundary', () => {
       ).status
     ).toBe(400);
   });
+
+  it('keeps a bounded number of sessions, dropping the oldest first', async () => {
+    const api = await startApi(() => Response.json([]));
+    closers.push(api.close);
+    const first = await api.session();
+    for (let index = 0; index < 40; index += 1) await api.session();
+    const last = await api.session();
+    expect((await api.call('/api/projects', { cookie: first })).status).toBe(401);
+    expect((await api.call('/api/projects', { cookie: last })).status).toBe(200);
+  });
 });

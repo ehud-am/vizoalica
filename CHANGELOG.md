@@ -2,6 +2,8 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [Unreleased]
+
 ## [0.5.3] - 2026-09-19
 
 ### Added
@@ -21,6 +23,22 @@ All notable changes to Vizoalica are documented in this file.
 - **A page for each website.** It shows the website's origins, identifiers with copy controls, live
   status, and the actions Edit, Install, and View analytics, with enable, disable, and delete
   apart from the routine ones.
+- **The documentation is now a website.** `docs/` builds into a static site for vizoalica.dev with a
+  home page, a quick start, a product tour, search, and every existing guide in grouped navigation.
+  It loads nothing from another origin, has no tracking, is checked for accessibility (light and
+  dark) and for its security headers, and has a sitemap, `robots.txt`, and an `llms.txt`. Preview it
+  with `pnpm docs:dev`; build it with `pnpm docs:build`.
+- **A pipeline to Cloudflare Pages.** `.github/workflows/docs-site.yml` builds and checks the site on
+  every change to `docs/`, and publishes it from the main branch once the maintainer has done the
+  one-time setup in [Publishing this site](docs/operations/docs-site.md). Until then it only builds
+  and checks. Nothing is deployed or created in Cloudflare by the repository itself.
+- Six product snapshots in `docs/assets/promo-src/` and a 13-second intro video (typed key messages
+  over the console, with the official logo), all generated from fictional demo data by
+  `pnpm promo:snapshots` and `pnpm promo:video`.
+
+- Repository hygiene for going public: a `.gitleaks.toml` for secret scanning, Dependabot for npm
+  and GitHub Actions, a pull-request template, and an issue-template chooser that sends
+  vulnerability reports to private advisories.
 
 ### Changed
 
@@ -52,6 +70,36 @@ All notable changes to Vizoalica are documented in this file.
 - The Worker's overview response now returns up to 300 countries and up to 100 pages, sources, and
   user agents (was 10). **Redeploy the Worker to get the complete lists**; an older Worker still
   works and the console shows its top ten.
+- The console's header no longer has the "Local workspace" indicator. What it explained (the console
+  and its credential-holding service run on your computer; your data may be remote) is in the
+  operator guides.
+- The time range picker's options are ordinary radio buttons with the label after them on one line
+  (the scope bar's label style had been stacking them).
+- On wide screens the Technology view shows two bar lists to a row so their values no longer wrap,
+  and website cards show each website's full origin, with its status beside the name.
+- The README screenshot is regenerated for the current console.
+- The analytics overview reads its fifteen queries in one D1 round trip instead of fifteen.
+- The console asks for the previous period (for the change indicators) only on the Overview, not on
+  every Analytics view.
+- Removed code nothing used: the pre-0.5.3 summary card and its client call, unused icons and
+  exports, and dependencies no package imported (`ajv` from the console service,
+  `@vizoalica/privacy` from the Worker, the MCP SDK, and the Workers test pool).
+
+### Security
+
+- The Worker now refuses to start when the token, admin, or digest secret is shorter than 32
+  characters or contains characters other than printable ASCII (`weak_secret:<NAME>`). Secrets made
+  by `pnpm vizoalica` were already 256-bit; this stops a hand-typed weak one.
+- Ingest tokens must declare `alg: HS256` in their header; anything else is `malformed_token`.
+- Repeated denied admin and MCP requests write at most one audit row per minute per Worker
+  instance, so a flood of bad credentials cannot fill the audit log. Denials are still refused.
+- CORS preflight responses carry `Access-Control-Max-Age: 86400`, so browsers stop repeating them.
+- The local console service prunes expired sessions and keeps at most 32; the session lifetime
+  (`VIZOALICA_SESSION_TTL_MS`, default 30 minutes) is validated and rejected outside 1 minute to 24
+  hours.
+- The reusable deploy workflow passes every input and repository variable through environment
+  variables instead of pasting them into shell scripts, validates them (no whitespace, quotes,
+  backslashes, `$`, backticks, or `..` paths), and pins Wrangler to an exact version.
 
 ### Removed
 

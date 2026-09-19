@@ -2,6 +2,7 @@ import type { AdminRepository } from '../../../ingest-api/src/storage/repositori
 import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
+import { shouldAuditDenial, type DenialAuditGate } from './denial-audit.js';
 import {
   AnalyticsRangeError,
   parseAnalyticsRange
@@ -11,6 +12,8 @@ type Dependencies = {
   repositories: AdminRepository;
   adminSecret: string;
   purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
+  /** Decides whether this denied request is recorded; see denial-audit.ts. */
+  auditDenial?: DenialAuditGate;
 };
 
 const safePolicy = (id: string): QuotaPolicy => ({
@@ -52,11 +55,12 @@ export async function handleAdminRequest(
   const url = new URL(request.url);
   if (!url.pathname.startsWith('/v1/admin/')) return undefined;
   if (!hasValidAdminAuthorization(request.headers.get('authorization'), dependencies.adminSecret)) {
-    await dependencies.repositories.saveAdminAudit({
-      operation: 'admin',
-      outcome: 'denied',
-      reasonCode: 'unauthorized'
-    });
+    if ((dependencies.auditDenial ?? shouldAuditDenial)())
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'admin',
+        outcome: 'denied',
+        reasonCode: 'unauthorized'
+      });
     return unauthorized();
   }
   if (request.method === 'GET' && url.pathname === '/v1/admin/projects')

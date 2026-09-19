@@ -11,6 +11,8 @@ export default [
       'playwright-report/**',
       'test-results/**',
       'blob-report/**',
+      'docs/.vitepress/cache/**',
+      'docs/.vitepress/dist/**',
       '*.min.js'
     ]
   },

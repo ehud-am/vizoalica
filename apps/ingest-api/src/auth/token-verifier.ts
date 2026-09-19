@@ -57,6 +57,11 @@ export class TokenVerifier {
     }
     let claims: unknown;
     try {
+      const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')) as {
+        alg?: unknown;
+      };
+      // Defence in depth: the signature above is always HMAC-SHA256.
+      if (header.alg !== 'HS256') return { ok: false, reason: 'malformed_token' };
       claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     } catch {
       return { ok: false, reason: 'malformed_token' };

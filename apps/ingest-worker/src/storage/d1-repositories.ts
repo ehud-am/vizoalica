@@ -224,6 +224,12 @@ export class D1Repositories
       (await reserve('day', day, reservation.maxEventsPerDay))
     );
   }
+  /** Runs read statements in one round trip when the database supports batching (D1 does). */
+  private async readAll(statements: ReturnType<D1Database['prepare']>[]): Promise<unknown[][]> {
+    if (this.db.batch)
+      return (await this.db.batch(statements)).map((result) => result.results ?? []);
+    return Promise.all(statements.map(async (statement) => (await statement.all()).results));
+  }
   private async runBatch(
     statements: ReturnType<D1Database['prepare']>[]
   ): Promise<Array<{ meta?: { changes?: number } }>> {
@@ -727,55 +733,92 @@ export class D1Repositories
       ? 'AND source_id = ?'
       : "AND source_id IN (SELECT id FROM sources WHERE project_id = ? AND status != 'deleted')";
     const rangeValues = () => [projectId, startUtc, endUtc, sourceId ?? projectId];
-    const total = await this.db
-      .prepare(
-        `SELECT COALESCE(SUM(page_view_count), 0) AS pageViews
-         FROM dashboard_minute_totals
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}`
-      )
-      .bind(...rangeValues())
-      .first<{ pageViews: number }>();
-    const unique = await this.db
-      .prepare(
-        `SELECT COUNT(DISTINCT visitor_digest) AS uniqueUsers
-         FROM dashboard_minute_visitors
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}`
-      )
-      .bind(...rangeValues())
-      .first<{ uniqueUsers: number }>();
     const bucket =
       interval === 'hour'
         ? "substr(minute_utc, 1, 13) || ':00:00.000Z'"
         : "substr(minute_utc, 1, 10) || 'T00:00:00.000Z'";
-    const pageTrend = await this.db
-      .prepare(
+    const inRange = `project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}`;
+    const rangeQuery = (sql: string, ...extra: unknown[]) =>
+      this.db.prepare(sql).bind(...rangeValues(), ...extra);
+    // Ranking limits keep responses bounded: real countries number about 250, while pages and
+    // referrers are open-ended, so those are capped and the remainder is folded into `otherCount`.
+    const dimensions: Array<[AnalyticsDimensionKind, number]> = [
+      ['page_path', RANKING_LIMIT],
+      ['country', COUNTRY_RANKING_LIMIT],
+      ['user_agent', RANKING_LIMIT],
+      ['referrer', RANKING_LIMIT],
+      ['os', 0],
+      ['browser', 0],
+      ['device', 0],
+      ['traffic', 0]
+    ];
+
+    // Every read goes out in one round trip, and D1 runs a batch as one transaction, so the
+    // numbers on a dashboard also come from one consistent snapshot.
+    const [
+      totalRows,
+      uniqueRows,
+      pageTrendRows,
+      visitorTrendRows,
+      watermarkRows,
+      versionRows,
+      identityRows,
+      ...dimensionResults
+    ] = await this.readAll([
+      rangeQuery(
+        `SELECT COALESCE(SUM(page_view_count), 0) AS pageViews FROM dashboard_minute_totals WHERE ${inRange}`
+      ),
+      rangeQuery(
+        `SELECT COUNT(DISTINCT visitor_digest) AS uniqueUsers FROM dashboard_minute_visitors WHERE ${inRange}`
+      ),
+      rangeQuery(
         `SELECT ${bucket} AS startUtc, SUM(page_view_count) AS pageViews
-         FROM dashboard_minute_totals
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}
-         GROUP BY startUtc ORDER BY startUtc`
-      )
-      .bind(...rangeValues())
-      .all<{ startUtc: string; pageViews: number }>();
-    const visitorTrend = await this.db
-      .prepare(
+         FROM dashboard_minute_totals WHERE ${inRange} GROUP BY startUtc ORDER BY startUtc`
+      ),
+      rangeQuery(
         `SELECT ${bucket} AS startUtc, COUNT(DISTINCT visitor_digest) AS uniqueUsers
-         FROM dashboard_minute_visitors
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}
-         GROUP BY startUtc ORDER BY startUtc`
+         FROM dashboard_minute_visitors WHERE ${inRange} GROUP BY startUtc ORDER BY startUtc`
+      ),
+      this.db
+        .prepare(
+          `SELECT MAX(expanded_from_utc) AS availableFromUtc, MAX(last_completed_at) AS lastCompletedAt
+           FROM dashboard_aggregate_watermarks WHERE project_id = ?${sourceId ? ' AND source_id = ?' : ''}`
+        )
+        .bind(...(sourceId ? [projectId, sourceId] : [projectId])),
+      rangeQuery(
+        `SELECT DISTINCT taxonomy_version AS version FROM dashboard_minute_dimensions WHERE ${inRange} ORDER BY version`
+      ),
+      rangeQuery(
+        `SELECT DISTINCT identity_kind AS kind FROM dashboard_minute_visitors WHERE ${inRange}`
+      ),
+      ...dimensions.map(([kind]) =>
+        rangeQuery(
+          `SELECT dimension_value AS label, SUM(event_count) AS count
+           FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
+           GROUP BY dimension_value ORDER BY count DESC, label ASC`,
+          kind
+        )
       )
-      .bind(...rangeValues())
-      .all<{ startUtc: string; uniqueUsers: number }>();
+    ]);
+
+    const total = totalRows?.[0] as { pageViews: number } | undefined;
+    const unique = uniqueRows?.[0] as { uniqueUsers: number } | undefined;
+    const watermark = watermarkRows?.[0] as
+      { availableFromUtc?: string; lastCompletedAt?: string } | undefined;
     const trendMap = new Map<
       string,
       { startUtc: string; pageViews: number; uniqueUsers: number }
     >();
-    for (const row of pageTrend.results)
+    for (const row of (pageTrendRows ?? []) as Array<{ startUtc: string; pageViews: number }>)
       trendMap.set(row.startUtc, {
         startUtc: row.startUtc,
         pageViews: Number(row.pageViews),
         uniqueUsers: 0
       });
-    for (const row of visitorTrend.results) {
+    for (const row of (visitorTrendRows ?? []) as Array<{
+      startUtc: string;
+      uniqueUsers: number;
+    }>) {
       const current = trendMap.get(row.startUtc) ?? {
         startUtc: row.startUtc,
         pageViews: 0,
@@ -785,71 +828,43 @@ export class D1Repositories
       trendMap.set(row.startUtc, current);
     }
 
-    const dimensionRows = async (kind: AnalyticsDimensionKind) =>
-      this.db
-        .prepare(
-          `SELECT dimension_value AS label, SUM(event_count) AS count
-           FROM dashboard_minute_dimensions
-           WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql} AND dimension_kind = ?
-           GROUP BY dimension_value ORDER BY count DESC, label ASC`
-        )
-        .bind(...rangeValues(), kind)
-        .all<{ label: string; count: number }>();
-    // Every ranking reads all rows already, so returning more of them costs nothing extra. The
-    // limits keep responses bounded: real countries number about 250, while pages and referrers
-    // are open-ended, so those are capped and the remainder is folded into `otherCount`.
-    const ranked = async (kind: AnalyticsDimensionKind, limit: number): Promise<RankedResult> => {
-      const rows = (await dimensionRows(kind)).results.map((row) => ({
+    const counted = (index: number) =>
+      ((dimensionResults[index] ?? []) as Array<{ label: string; count: number }>).map((row) => ({
         label: row.label,
         count: Number(row.count)
       }));
+    const sum = (rows: Array<{ count: number }>) => rows.reduce((all, row) => all + row.count, 0);
+    const ranked = (index: number): RankedResult => {
+      const rows = counted(index);
+      const limit = dimensions[index]![1];
       return {
         items: rows.slice(0, limit),
-        otherCount: rows.slice(limit).reduce((sum, row) => sum + row.count, 0),
-        total: rows.reduce((sum, row) => sum + row.count, 0)
+        otherCount: sum(rows.slice(limit)),
+        total: sum(rows)
       };
     };
-    const distribution = async (kind: AnalyticsDimensionKind): Promise<DistributionResult> => {
-      const rows = (await dimensionRows(kind)).results.map((row) => ({
-        label: row.label,
-        count: Number(row.count)
-      }));
+    const distribution = (index: number): DistributionResult => {
+      const rows = counted(index);
       const items = rows.slice(0, 11);
-      const remainder = rows.slice(11).reduce((sum, row) => sum + row.count, 0);
+      const remainder = sum(rows.slice(11));
       if (remainder) items.push({ label: 'Other', count: remainder });
-      return { items, total: rows.reduce((sum, row) => sum + row.count, 0) };
+      return { items, total: sum(rows) };
     };
-    const pagePaths = await ranked('page_path', RANKING_LIMIT);
-    const countries = await ranked('country', COUNTRY_RANKING_LIMIT);
-    const userAgents = await ranked('user_agent', RANKING_LIMIT);
-    const referrers = await ranked('referrer', RANKING_LIMIT);
-    const operatingSystems = await distribution('os');
-    const browsers = await distribution('browser');
-    const devices = await distribution('device');
-    const traffic = await distribution('traffic');
-    const watermarkValues = sourceId ? [projectId, sourceId] : [projectId];
-    const watermark = await this.db
-      .prepare(
-        `SELECT MAX(expanded_from_utc) AS availableFromUtc, MAX(last_completed_at) AS lastCompletedAt
-         FROM dashboard_aggregate_watermarks WHERE project_id = ?${sourceId ? ' AND source_id = ?' : ''}`
-      )
-      .bind(...watermarkValues)
-      .first<{ availableFromUtc?: string; lastCompletedAt?: string }>();
-    const versions = await this.db
-      .prepare(
-        `SELECT DISTINCT taxonomy_version AS version FROM dashboard_minute_dimensions
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql} ORDER BY version`
-      )
-      .bind(...rangeValues())
-      .all<{ version: number }>();
-    const identities = await this.db
-      .prepare(
-        `SELECT DISTINCT identity_kind AS kind FROM dashboard_minute_visitors
-         WHERE project_id = ? AND minute_utc >= ? AND minute_utc < ? ${scopeSql}`
-      )
-      .bind(...rangeValues())
-      .all<{ kind: 'source-local' | 'project-supplied' }>();
-    const identityKinds = new Set(identities.results.map((row) => row.kind));
+    const [pagePaths, countries, userAgents, referrers] = [0, 1, 2, 3].map(ranked) as [
+      RankedResult,
+      RankedResult,
+      RankedResult,
+      RankedResult
+    ];
+    const [operatingSystems, browsers, devices, traffic] = [4, 5, 6, 7].map(distribution) as [
+      DistributionResult,
+      DistributionResult,
+      DistributionResult,
+      DistributionResult
+    ];
+    const identityKinds = new Set(
+      ((identityRows ?? []) as Array<{ kind: string }>).map((row) => row.kind)
+    );
     const identityMode =
       identityKinds.size > 1
         ? 'mixed'
@@ -878,7 +893,9 @@ export class D1Repositories
         ...(incomplete && watermark?.availableFromUtc
           ? { availableFromUtc: watermark.availableFromUtc }
           : {}),
-        taxonomyVersions: versions.results.map((row) => Number(row.version))
+        taxonomyVersions: ((versionRows ?? []) as Array<{ version: number }>).map((row) =>
+          Number(row.version)
+        )
       }
     };
   }

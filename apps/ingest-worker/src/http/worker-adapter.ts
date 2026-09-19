@@ -41,6 +41,9 @@ function withCors(request: Request, response: Response): Response {
   headers.set('access-control-allow-origin', origin);
   headers.set('access-control-allow-methods', 'POST, OPTIONS');
   headers.set('access-control-allow-headers', 'authorization, content-type, x-vizoalica-source');
+  // Every event batch carries an Authorization header, so each one would otherwise be preceded by
+  // a preflight (a second Worker invocation). Browsers cap this at their own maximum.
+  headers.set('access-control-max-age', '86400');
   headers.set('vary', 'Origin');
   return new Response(response.body, { status: response.status, headers });
 }

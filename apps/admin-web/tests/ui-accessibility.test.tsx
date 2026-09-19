@@ -75,21 +75,6 @@ describe('application shell landmarks and navigation state', () => {
     expect(main?.getAttribute('tabindex')).toBe('-1');
   });
 
-  it('explains the local and potentially remote workspace boundary by keyboard', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const trigger = await screen.findByRole('button', { name: 'Local workspace' });
-    trigger.focus();
-    await user.keyboard('{Enter}');
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    const explanation = screen.getByRole('region', { name: 'Local workspace explanation' });
-    expect(explanation.textContent).toMatch(/console interface.*loopback service.*this computer/i);
-    expect(explanation.textContent).toMatch(/backend.*stored analytics may be remote/i);
-    await user.keyboard('{Escape}');
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    expect(document.activeElement).toBe(trigger);
-  });
-
   it('marks the active navigation item with aria-current="page"', async () => {
     render(<App />);
     const overview = await screen.findByRole('link', { name: 'Overview' });

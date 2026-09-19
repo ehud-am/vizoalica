@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 
-export const project = { id: 'project-1', name: 'Developer Tools', websiteCount: 1 };
+const project = { id: 'project-1', name: 'Developer Tools', websiteCount: 1 };
 export const secondProject = { id: 'project-2', name: 'Developer Tools', websiteCount: 0 };
-export const website = {
+const website = {
   id: 'site-1',
   projectId: project.id,
   name: 'Docs',
@@ -41,7 +41,7 @@ export const COUNTRY_CODES = [
   'EG'
 ];
 
-export const geographyItems = [
+const geographyItems = [
   ...COUNTRY_CODES.map((label, index) => ({ label, count: 1000 - index * 30 })),
   { label: 'T1', count: 40 },
   { label: 'Unknown', count: 20 }

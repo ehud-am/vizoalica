@@ -120,9 +120,9 @@ describe('dashboard retention cleanup', () => {
         },
         async delete() {}
       },
-      VIZOALICA_TOKEN_SECRET: 'test-secret',
-      VIZOALICA_ADMIN_SECRET: 'admin-secret',
-      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+      VIZOALICA_TOKEN_SECRET: 'test-token-secret-0123456789abcdefgh',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret-0123456789abcdefghijklmn',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret-0123456789abcd'
     };
     const before = Date.now();
     await worker.scheduled!({} as never, env);

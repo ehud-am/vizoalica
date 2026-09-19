@@ -16,7 +16,8 @@ export default defineConfig({
     include: [
       'packages/**/tests/**/*.test.ts',
       'apps/**/tests/**/*.test.ts',
-      'apps/**/tests/**/*.test.tsx'
+      'apps/**/tests/**/*.test.tsx',
+      'docs/tests/**/*.test.ts'
     ],
     environment: 'node',
     setupFiles: ['apps/admin-web/tests/setup.ts'],

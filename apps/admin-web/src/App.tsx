@@ -4,7 +4,6 @@ import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
-import { WorkspaceContextHelp } from './components/WorkspaceContextHelp.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
 import { GeographyPage } from './analytics/GeographyPage.js';
 import {
@@ -82,7 +81,7 @@ function Console({ route }: { route: Route }) {
           />
           <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>
             {area === 'analytics' ? (
-              <AnalyticsProvider>
+              <AnalyticsProvider comparePrevious={route.path === 'analytics/overview'}>
                 <AnalyticsRoute route={route} />
               </AnalyticsProvider>
             ) : (
@@ -135,7 +134,6 @@ export function App() {
             saveError={theme.saveError}
             onChange={theme.setTheme}
           />
-          <WorkspaceContextHelp />
         </div>
       </header>
       {access === 'ready' ? (
