@@ -88,8 +88,10 @@ const PURGE_SOURCE_TABLES = [
 ];
 // Rows are matched by website, or by project for rows recorded without one (project audit entries).
 const PURGE_SOURCE_WHERE = `source_id IN (${DELETED_SOURCES}) OR project_id IN (${DELETED_PROJECTS})`;
-// Quota policies unreferenced once the deleted projects go; dropped before the projects themselves.
-const PURGE_POLICY_WHERE = `id IN (SELECT quota_policy_id FROM projects WHERE status = 'deleted')
+// A deleted project and each deleted website own a quota policy. Drop those, but never one that a
+// live project or website still references; done before the website and project rows go.
+const PURGE_POLICY_WHERE = `(id IN (SELECT quota_policy_id FROM projects WHERE status = 'deleted')
+    OR id IN (SELECT quota_policy_id FROM sources WHERE quota_policy_id IS NOT NULL AND id IN (${DELETED_SOURCES})))
   AND id NOT IN (SELECT quota_policy_id FROM projects WHERE status != 'deleted')
   AND id NOT IN (SELECT quota_policy_id FROM sources WHERE quota_policy_id IS NOT NULL AND id NOT IN (${DELETED_SOURCES}))`;
 const PURGE_TABLES: Array<{ table: string; where: string }> = [
