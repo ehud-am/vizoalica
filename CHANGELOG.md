@@ -20,7 +20,8 @@ All notable changes to Vizoalica are documented in this file.
   remove only the empty resources it created.
 - The README now opens with a logo, badges, a one-command path, and a screenshot, then explains the
   three parts in deployment order (backend, console, website). `scripts/capture-console-screenshot.ts`
-  regenerates the screenshots from the demo's own events.
+  regenerates the screenshots (with `--live`, from a real console running against a real backend that
+  has the sample data, as the current ones were).
 - `pnpm vizoalica console` starts the private API and the web console together in either credential
   mode (with a local secret file, or through OneCLI). `pnpm vizoalica run` remains as an alias.
 - The daily Cron run now performs the same purge, so deleting a website or project is permanent
@@ -44,6 +45,8 @@ All notable changes to Vizoalica are documented in this file.
   account from a fresh worktree.
 - `pnpm vizoalica console` now says so when the console ports are already in use, instead of failing with
   a raw `EADDRINUSE` trace. `pnpm vizoalica install` ends with a recap of the Worker address.
+- `pnpm vizoalica demo --remove` no longer requires an interactive terminal (it asks nothing), so it can
+  run in a script; commands that ask questions or generate secrets still do.
 
 ### Changed
 

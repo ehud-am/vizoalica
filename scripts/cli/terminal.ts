@@ -23,6 +23,18 @@ export type RunOptions = {
 export type RunResult = { code: number; stdout: string; stderr: string };
 export type Run = (args: readonly string[], options?: RunOptions) => Promise<RunResult>;
 
+/** For commands that never ask anything: if one ever does without a terminal, fail instead of hanging. */
+export const noTerminalPrompter: Prompter = {
+  text: () =>
+    Promise.reject(new Error('This step asks a question, so run it in an interactive terminal.')),
+  hidden: () =>
+    Promise.reject(new Error('This step asks for a secret, so run it in an interactive terminal.')),
+  confirm: () =>
+    Promise.reject(new Error('This step asks a question, so run it in an interactive terminal.')),
+  typeToContinue: () =>
+    Promise.reject(new Error('This step asks a question, so run it in an interactive terminal.'))
+};
+
 export function terminalPrompter(): Prompter {
   const input = process.stdin;
   const output = process.stdout;

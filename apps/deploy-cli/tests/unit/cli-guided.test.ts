@@ -204,6 +204,23 @@ describe('pnpm vizoalica connect and demo', () => {
     expect(prompts.log).toEqual([]);
   });
 
+  it('demo --remove asks nothing, so it also works in a script without a terminal', async () => {
+    const secret = generateSecret();
+    const path = consoleConfig(secret);
+    const lines: string[] = [];
+    const write = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: string) => void lines.push(String(chunk))) as never;
+    try {
+      await run(['demo', '--remove', '--console-config', path], {
+        ...deps(undefined, false),
+        fetch: okWorker(secret)
+      });
+    } finally {
+      process.stdout.write = write;
+    }
+    expect(lines.join('')).toMatch(/no sample data/);
+  });
+
   it('demo cannot use a OneCLI-managed secret and says why', async () => {
     const path = consoleConfig('onecli-managed');
     const { ctx } = fakeCtx({ cwd: '.' });

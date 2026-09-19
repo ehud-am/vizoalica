@@ -1,7 +1,9 @@
 /**
- * Renders the console with the analytics that `pnpm vizoalica demo` produces and saves README screenshots.
- * The numbers are computed from the demo's real events using the Worker's own classifier; only the
- * network is mocked. Run: node --import tsx scripts/capture-console-screenshot.ts
+ * Saves the README screenshots of the console showing the sample data from `pnpm vizoalica demo`.
+ *
+ * Default: starts the dev console and mocks its API with numbers computed from the demo's own events
+ * and the Worker's classifier. With --live: captures a console you already started against a real
+ * backend that has the sample data (no mocks). Run: node --import tsx scripts/capture-console-screenshot.ts [--live]
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -12,7 +14,8 @@ import { DEMO_ORIGIN, DEMO_PROJECT, buildDemoBatches } from './cli/demo.js';
 const require = createRequire(new URL('../apps/admin-web/package.json', import.meta.url));
 const { chromium } = require('@playwright/test') as typeof import('@playwright/test');
 
-const port = 4173;
+const live = process.argv.includes('--live');
+const port = live ? 5173 : 4173;
 const now = new Date();
 const end = new Date(now);
 end.setUTCSeconds(0, 0);
@@ -99,11 +102,13 @@ const website = {
 };
 
 async function main(): Promise<void> {
-  const server = spawn(
-    'pnpm',
-    ['--filter', '@vizoalica/admin-web', 'dev', '--host', '127.0.0.1', '--port', String(port)],
-    { stdio: 'ignore' }
-  );
+  const server = live
+    ? undefined
+    : spawn(
+        'pnpm',
+        ['--filter', '@vizoalica/admin-web', 'dev', '--host', '127.0.0.1', '--port', String(port)],
+        { stdio: 'ignore' }
+      );
   try {
     for (let attempt = 0; attempt < 60; attempt += 1) {
       if (
@@ -128,31 +133,37 @@ async function main(): Promise<void> {
           colorScheme: scheme
         })
       ).newPage();
-      await page.route(new RegExp(`^http://127\\.0\\.0\\.1:${port}/api/`), async (route) => {
-        const path = new URL(route.request().url()).pathname;
-        let body: unknown = {};
-        if (path === '/api/session') return route.fulfill({ status: 204 });
-        if (path === '/api/projects') body = [project];
-        else if (path === '/api/preferences/theme') body = { theme: null };
-        else if (path.endsWith('/websites')) body = [website];
-        else if (path.endsWith('/status'))
-          body = {
-            collection: 'healthy',
-            aggregation: 'available',
-            configuration: 'healthy',
-            dataAccess: 'available'
-          };
-        else if (path.endsWith('/analytics')) {
-          const query = new URL(route.request().url()).searchParams;
-          body = overviewFor(
-            query.get('start') ?? start.toISOString(),
-            query.get('end') ?? end.toISOString()
-          );
-        }
-        await route.fulfill({ json: body });
-      });
+      if (!live)
+        await page.route(new RegExp(`^http://127\\.0\\.0\\.1:${port}/api/`), async (route) => {
+          const path = new URL(route.request().url()).pathname;
+          let body: unknown = {};
+          if (path === '/api/session') return route.fulfill({ status: 204 });
+          if (path === '/api/projects') body = [project];
+          else if (path === '/api/preferences/theme') body = { theme: null };
+          else if (path.endsWith('/websites')) body = [website];
+          else if (path.endsWith('/status'))
+            body = {
+              collection: 'healthy',
+              aggregation: 'available',
+              configuration: 'healthy',
+              dataAccess: 'available'
+            };
+          else if (path.endsWith('/analytics')) {
+            const query = new URL(route.request().url()).searchParams;
+            body = overviewFor(
+              query.get('start') ?? start.toISOString(),
+              query.get('end') ?? end.toISOString()
+            );
+          }
+          await route.fulfill({ json: body });
+        });
       await page.goto(`http://127.0.0.1:${port}/`);
       await page.getByRole('heading', { name: 'Understand what’s happening.' }).waitFor();
+      if (live)
+        await page
+          .getByRole('combobox', { name: /Project/ })
+          .first()
+          .selectOption({ label: DEMO_PROJECT });
       // Wait for the headline numbers, not a fixed delay, so the capture is never mid-render.
       await page
         .getByRole('button', { name: /Last 24 hours/ })
@@ -166,7 +177,7 @@ async function main(): Promise<void> {
     }
     await browser.close();
   } finally {
-    server.kill('SIGTERM');
+    server?.kill('SIGTERM');
   }
 }
 await main();

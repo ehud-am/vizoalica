@@ -24,6 +24,7 @@ import { parseSecretKind } from './cli/secrets.js';
 import {
   buildRunner,
   clearScreen,
+  noTerminalPrompter,
   openBrowser,
   terminalPrompter,
   wranglerRunner
@@ -511,13 +512,21 @@ async function purgeDeletedData(options: Options, dependencies: Dependencies): P
   stdout.write(formatReport(reports));
 }
 
-function guidedContext(dependencies: Dependencies): Ctx {
+/**
+ * Builds the context for the guided commands. Commands that ask questions or generate secrets need a
+ * terminal, because failing at the first question could lose secrets that were never shown; a command
+ * that asks nothing (like `demo --remove`) passes needsTerminal: false and can run in a script.
+ */
+function guidedContext(
+  dependencies: Dependencies,
+  { needsTerminal = true }: { needsTerminal?: boolean } = {}
+): Ctx {
   if (dependencies.guided) return dependencies.guided();
-  if (!dependencies.isTTY)
+  if (needsTerminal && !dependencies.isTTY)
     throw new OpsError('This command asks questions, so run it in an interactive terminal.');
   return {
     run: wranglerRunner(process.cwd()),
-    prompt: terminalPrompter(),
+    prompt: dependencies.isTTY ? terminalPrompter() : noTerminalPrompter,
     fetch: dependencies.fetch,
     out: (text) => void stdout.write(`${text}\n`),
     cwd: process.cwd(),
@@ -575,7 +584,7 @@ async function connectCommand(options: Options, dependencies: Dependencies): Pro
 }
 
 async function demoCommand(options: Options, dependencies: Dependencies): Promise<void> {
-  const ctx = guidedContext(dependencies);
+  const ctx = guidedContext(dependencies, { needsTerminal: options.remove !== true });
   const admin = localAdmin(options);
   if (options.remove === true) {
     await removeDemoData(ctx, admin);
