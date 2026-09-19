@@ -19,6 +19,7 @@ export default defineConfig({
       'apps/**/tests/**/*.test.tsx'
     ],
     environment: 'node',
+    setupFiles: ['apps/admin-web/tests/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

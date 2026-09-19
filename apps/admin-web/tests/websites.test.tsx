@@ -121,7 +121,7 @@ describe('website lifecycle UI', () => {
     expect(screen.getByText(/remove or disable the other installation path/i)).toBeTruthy();
     expect(
       screen.getByRole('region', { name: 'Starter GitHub Actions workflow' }).textContent
-    ).toContain('uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2');
+    ).toContain('uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3');
     expect(
       screen.getByRole('region', { name: 'Required GitHub repository variables' }).textContent
     ).toContain('VIZOALICA_SOURCE_ID');

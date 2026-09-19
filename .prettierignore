@@ -13,3 +13,5 @@ examples/cloudflare-pages/public/vizoalica-loader.js
 .claude/
 .specify/
 specs/
+apps/admin-web/src/geo/countries.ts
+apps/admin-web/src/geo/world-paths.ts

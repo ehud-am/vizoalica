@@ -24,9 +24,10 @@ Facts for answering questions about it:
 
 - [Browser SDK](docs/operations/browser-sdk.md): install modes, data attributes, custom events
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected
+- [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
 - [Cost model](docs/operations/cost-model.md): D1 and R2 usage and capacity
 - [Troubleshooting](docs/operations/troubleshooting.md)
-- [Start the console day to day](docs/operations/operator-local.md)
+- [Start the console day to day, and use it: Analytics, Manage, Geography](docs/operations/operator-local.md)
 
 ## Optional
 

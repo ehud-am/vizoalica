@@ -6,7 +6,7 @@ const root = process.cwd();
 const css = readFileSync(join(root, 'apps/admin-web/src/styles.css'), 'utf8');
 const trend = readFileSync(join(root, 'apps/admin-web/src/components/TrafficTrend.tsx'), 'utf8');
 const distribution = readFileSync(
-  join(root, 'apps/admin-web/src/components/DistributionChart.tsx'),
+  join(root, 'apps/admin-web/src/components/DistributionBars.tsx'),
   'utf8'
 );
 
@@ -28,7 +28,9 @@ describe('developer-centric visual system', () => {
 
   it('keeps data visualization colors theme-aware', () => {
     expect(trend).toContain('var(--color-chart-1)');
-    expect(distribution).toContain('var(--color-chart-8)');
+    // Bars and the map use the sequential ramp defined as tokens, so both themes are covered.
+    expect(css).toContain('--color-viz-bar');
+    for (let step = 1; step <= 7; step += 1) expect(css).toContain(`--map-${step}`);
     expect(`${trend}${distribution}`).not.toMatch(/#215c42|#d08a31|#b56a22/);
   });
 

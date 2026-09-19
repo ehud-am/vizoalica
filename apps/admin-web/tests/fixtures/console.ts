@@ -1,4 +1,9 @@
-import type { Integration, Project, Website } from '../../src/api/local-operations.js';
+import type {
+  AnalyticsOverview,
+  Integration,
+  Project,
+  Website
+} from '../../src/api/local-operations.js';
 
 export const primaryProject: Project = {
   id: 'project-1',
@@ -50,7 +55,7 @@ export const primaryIntegration: Integration = {
         'data-consent': 'unknown'
       },
       cloudflare: {
-        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2',
+        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3',
         repoVariables: {
           VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
           VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
@@ -64,7 +69,7 @@ export const primaryIntegration: Integration = {
         accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
         repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
         starterWorkflowYaml:
-          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
         setupCommands: [
           'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
           'gh secret set CF_API_TOKEN'
@@ -75,3 +80,36 @@ export const primaryIntegration: Integration = {
   ],
   privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true }
 };
+
+export function makeOverview(overrides: Partial<AnalyticsOverview> = {}): AnalyticsOverview {
+  return {
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-02T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { pageViews: 0, uniqueUsers: 0 },
+    trend: [],
+    rankings: {
+      pagePaths: { items: [], otherCount: 0, total: 0 },
+      countries: { items: [], otherCount: 0, total: 0 },
+      userAgents: { items: [], otherCount: 0, total: 0 },
+      referrers: { items: [], otherCount: 0, total: 0 }
+    },
+    distributions: {
+      operatingSystems: { items: [], total: 0 },
+      browsers: { items: [], total: 0 },
+      devices: { items: [], total: 0 },
+      traffic: { items: [], total: 0 }
+    },
+    availability: { state: 'complete', taxonomyVersions: [1] },
+    ...overrides
+  };
+}

@@ -190,7 +190,7 @@ describe('dashboard analytics overview query', () => {
     ]);
   });
 
-  it('caps ranked results at ten with a remainder Other count beyond the top ten', async () => {
+  it('returns every ranked row when there are fewer than the ranking limits', async () => {
     const fake = fakeDb({ dimensionRows: manyDimensionRows(13) });
     const overview = await new D1Repositories(fake.db).getAnalyticsOverview(
       'p1',
@@ -198,15 +198,31 @@ describe('dashboard analytics overview query', () => {
       '2026-01-01T00:00:00.000Z',
       '2026-01-02T00:00:00.000Z'
     );
-    expect(overview?.rankings.pagePaths.items).toHaveLength(10);
-    expect(overview?.rankings.pagePaths.otherCount).toBe(
-      manyDimensionRows(13)
-        .slice(10)
-        .reduce((sum, row) => sum + row.count, 0)
-    );
+    expect(overview?.rankings.pagePaths.items).toHaveLength(13);
+    expect(overview?.rankings.countries.items).toHaveLength(13);
+    expect(overview?.rankings.pagePaths.otherCount).toBe(0);
     expect(overview?.rankings.pagePaths.total).toBe(
       manyDimensionRows(13).reduce((sum, row) => sum + row.count, 0)
     );
+  });
+
+  it('caps pages, referrers, and user agents at 100 rows and countries at 300, folding the rest into otherCount', async () => {
+    const rows = manyDimensionRows(350);
+    const fake = fakeDb({ dimensionRows: rows });
+    const overview = await new D1Repositories(fake.db).getAnalyticsOverview(
+      'p1',
+      undefined,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z'
+    );
+    const sum = (list: typeof rows) => list.reduce((total, row) => total + row.count, 0);
+    expect(overview?.rankings.pagePaths.items).toHaveLength(100);
+    expect(overview?.rankings.pagePaths.otherCount).toBe(sum(rows.slice(100)));
+    expect(overview?.rankings.referrers.items).toHaveLength(100);
+    expect(overview?.rankings.userAgents.items).toHaveLength(100);
+    expect(overview?.rankings.countries.items).toHaveLength(300);
+    expect(overview?.rankings.countries.otherCount).toBe(sum(rows.slice(300)));
+    expect(overview?.rankings.countries.total).toBe(sum(rows));
   });
 
   it('caps distributions at eleven explicit items with a synthesized Other slice beyond that', async () => {

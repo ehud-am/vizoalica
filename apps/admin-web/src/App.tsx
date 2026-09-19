@@ -3,42 +3,97 @@ import { ApiError, bootstrapSession, listProjects, type Project } from './api/lo
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
-import { AnalyticsIcon, LockIcon, ProjectsIcon, WebsitesIcon } from './components/Icons.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { WorkspaceContextHelp } from './components/WorkspaceContextHelp.js';
-import { AnalyticsPage } from './pages/AnalyticsPage.js';
-import { ProjectsPage } from './pages/ProjectsPage.js';
-import { WebsitesPage } from './pages/WebsitesPage.js';
+import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
+import { GeographyPage } from './analytics/GeographyPage.js';
+import {
+  PagesPage,
+  SourcesPage,
+  TechnologyPage,
+  TrafficQualityPage
+} from './analytics/ListPages.js';
+import { OverviewPage } from './analytics/OverviewPage.js';
+import { HealthPage } from './manage/HealthPage.js';
+import { InstallationPage } from './manage/InstallationPage.js';
+import { ProjectsPage } from './manage/ProjectsPage.js';
+import { WebsitesPage } from './manage/WebsitesPage.js';
+import { hrefFor, routeArea, useRoute, type RoutePath } from './router.js';
+import { ScopeProvider } from './scope/ScopeProvider.js';
+import { AreaNav } from './shell/AreaNav.js';
+import { ScopeBar } from './shell/ScopeBar.js';
 import { useTheme } from './theme.js';
 
-type View = 'projects' | 'overview' | 'websites';
+function AnalyticsRoute({ route }: { route: RoutePath }) {
+  switch (route) {
+    case 'analytics/pages':
+      return <PagesPage />;
+    case 'analytics/sources':
+      return <SourcesPage />;
+    case 'analytics/geography':
+      return <GeographyPage />;
+    case 'analytics/technology':
+      return <TechnologyPage />;
+    case 'analytics/traffic-quality':
+      return <TrafficQualityPage />;
+    default:
+      return <OverviewPage />;
+  }
+}
 
-function reconciledProjectId(current: string, projects: Project[], preferred?: string): string {
-  if (preferred && projects.some((project) => project.id === preferred)) return preferred;
-  if (current && projects.some((project) => project.id === current)) return current;
-  return projects[0]?.id ?? '';
+function ManageRoute({ route }: { route: RoutePath }) {
+  switch (route) {
+    case 'manage/websites':
+      return <WebsitesPage />;
+    case 'manage/installation':
+      return <InstallationPage />;
+    case 'manage/health':
+      return <HealthPage />;
+    default:
+      return <ProjectsPage />;
+  }
+}
+
+function Console({ route }: { route: RoutePath }) {
+  const area = routeArea(route);
+  return (
+    <div className="workspace">
+      <aside className="sidebar">
+        <AreaNav route={route} />
+      </aside>
+      <div className="content-column">
+        <ScopeBar showProject={route !== 'manage/projects'} showRange={area === 'analytics'} />
+        <main id="main" tabIndex={-1} data-area={area} data-route={route}>
+          {area === 'analytics' ? (
+            <AnalyticsProvider>
+              <AnalyticsRoute route={route} />
+            </AnalyticsProvider>
+          ) : (
+            <ManageRoute route={route} />
+          )}
+        </main>
+        <AppFooter />
+      </div>
+    </div>
+  );
 }
 
 export function App() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState('');
-  const [view, setView] = useState<View>('overview');
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
+  const [session, setSession] = useState(0);
   const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
   const [denialReason, setDenialReason] = useState<
     'session_expired' | 'worker_authorization' | undefined
   >();
+  const route = useRoute();
   const theme = useTheme();
-  const updateProjects = useCallback((next: Project[], preferredProjectId?: string) => {
-    setProjects(next);
-    setProjectId((current) => reconciledProjectId(current, next, preferredProjectId));
-  }, []);
   const connect = useCallback(async () => {
     setAccess('loading');
     setDenialReason(undefined);
     try {
       await bootstrapSession();
-      const next = await listProjects();
-      updateProjects(next);
+      setInitialProjects(await listProjects());
+      setSession((value) => value + 1);
       setAccess('ready');
     } catch (error) {
       if (error instanceof ApiError && error.status === 401)
@@ -47,21 +102,12 @@ export function App() {
         );
       setAccess(error instanceof ApiError && error.status === 401 ? 'denied' : 'offline');
     }
-  }, [updateProjects]);
-  useEffect(() => void connect(), [connect]);
-  const openProjectView = useCallback((id: string, nextView: Exclude<View, 'projects'>) => {
-    setProjectId(id);
-    setView(nextView);
   }, []);
+  useEffect(() => void connect(), [connect]);
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a
-          className="brand"
-          href="#main"
-          aria-label="Vizoalica overview"
-          onClick={() => setView('overview')}
-        >
+        <a className="brand" href={hrefFor('analytics/overview')} aria-label="Vizoalica overview">
           <BrandLogo theme={theme.theme} />
         </a>
         <div className="topbar-actions">
@@ -74,73 +120,20 @@ export function App() {
           <WorkspaceContextHelp />
         </div>
       </header>
-      <div className="workspace">
-        <aside className="sidebar">
-          <p className="eyebrow">Workspace</p>
-          <nav aria-label="Primary navigation">
-            <button
-              className={view === 'projects' ? 'nav-item active' : 'nav-item'}
-              onClick={() => setView('projects')}
-              aria-current={view === 'projects' ? 'page' : undefined}
-            >
-              <ProjectsIcon size={20} />
-              Projects
-            </button>
-            <button
-              className={view === 'overview' ? 'nav-item active' : 'nav-item'}
-              onClick={() => setView('overview')}
-              aria-current={view === 'overview' ? 'page' : undefined}
-            >
-              <AnalyticsIcon size={20} />
-              Overview
-            </button>
-            <button
-              className={view === 'websites' ? 'nav-item active' : 'nav-item'}
-              onClick={() => setView('websites')}
-              aria-current={view === 'websites' ? 'page' : undefined}
-            >
-              <WebsitesIcon size={20} />
-              Websites
-            </button>
-          </nav>
-          <div className="privacy-note">
-            <LockIcon size={20} />
-            <strong>Private by design</strong>
-            <span>Credentials stay on this machine.</span>
-          </div>
-        </aside>
-        <div className="content-column">
-          <main id="main" tabIndex={-1} data-view={view}>
-            {access !== 'ready' ? (
+      {access === 'ready' ? (
+        <ScopeProvider key={session} initialProjects={initialProjects}>
+          <Console route={route} />
+        </ScopeProvider>
+      ) : (
+        <div className="workspace workspace-single">
+          <div className="content-column">
+            <main id="main" tabIndex={-1}>
               <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
-            ) : view === 'projects' ? (
-              <ProjectsPage
-                projects={projects}
-                projectId={projectId}
-                onProjectSelect={setProjectId}
-                onProjectsChange={updateProjects}
-                onOpenOverview={(id) => openProjectView(id, 'overview')}
-                onOpenWebsites={(id) => openProjectView(id, 'websites')}
-              />
-            ) : view === 'overview' ? (
-              <AnalyticsPage
-                key={`analytics:${projectId}`}
-                projects={projects}
-                projectId={projectId}
-                onProjectChange={setProjectId}
-              />
-            ) : (
-              <WebsitesPage
-                projects={projects}
-                projectId={projectId}
-                onProjectChange={setProjectId}
-                onOpenProjects={() => setView('projects')}
-              />
-            )}
-          </main>
-          <AppFooter />
+            </main>
+            <AppFooter />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

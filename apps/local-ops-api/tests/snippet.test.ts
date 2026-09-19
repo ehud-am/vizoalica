@@ -38,7 +38,7 @@ describe('complete installation snippet', () => {
       }
     });
     expect(response.body.modes[1].cloudflare.workflowRef).toBe(
-      'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2'
+      'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3'
     );
     expect(response.body.modes[1].cloudflare.repoVariables).toMatchObject({
       VIZOALICA_SOURCE_ID: 'source-1',
@@ -53,7 +53,7 @@ describe('complete installation snippet', () => {
       'VIZOALICA_TOKEN_SECRET'
     ]);
     expect(response.body.modes[1].cloudflare.starterWorkflowYaml).toContain(
-      'uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2'
+      'uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3'
     );
     expect(response.body.modes[1].cloudflare.setupCommands.join('\n')).not.toMatch(
       /gh secret set (CF_API_TOKEN|VIZOALICA_TOKEN_SECRET) --body/

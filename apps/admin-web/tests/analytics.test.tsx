@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AnalyticsSummary } from '../src/components/AnalyticsSummary.js';
-import { WebsiteSelector } from '../src/components/WebsiteSelector.js';
 const summary = {
   projectId: 'p1',
   websiteId: 's1',
@@ -56,27 +55,5 @@ describe('analytics browser UI', () => {
         />
       )
     ).toContain('No stale totals');
-  });
-  it('never offers a deleted or cross-project website', () => {
-    const html = renderToStaticMarkup(
-      <WebsiteSelector
-        projects={[{ id: 'p1', name: 'One' }]}
-        websites={[
-          {
-            id: 'deleted',
-            projectId: 'p1',
-            name: 'Gone',
-            allowedOrigins: ['https://x.test'],
-            publicSourceKey: 'x',
-            status: 'deleted'
-          }
-        ]}
-        projectId="p1"
-        websiteId=""
-        onProjectChange={() => undefined}
-        onWebsiteChange={() => undefined}
-      />
-    );
-    expect(html).not.toContain('Gone');
   });
 });

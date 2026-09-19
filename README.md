@@ -12,9 +12,32 @@
 **Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
 Cloudflare Workers, D1, and R2. A small browser SDK sends privacy-filtered page views and custom events
 to your own backend, and a local console shows traffic over time, top pages, referrers, browsers,
-devices, and unique visitors. Visitor data stays in your own Cloudflare account.
+devices, unique visitors, and where they are (countries on a world map). Visitor data stays in your own Cloudflare account.
 
-At a glance:
+## At a glance
+
+```mermaid
+flowchart LR
+  install["pnpm vizoalica install"]
+  console["Local console<br/>runs on demand"]
+
+  subgraph site["Your website"]
+    direction TB
+    token["Server token endpoint"] -->|"short-lived ingest token"| sdk["Browser SDK<br/>in each visitor's browser"]
+  end
+
+  subgraph account["Your Cloudflare account"]
+    direction TB
+    worker["Worker<br/>validation, privacy guard, and APIs"]
+    worker --> d1[("D1<br/>bounded aggregates")]
+    worker --> r2[("R2<br/>raw event batches")]
+  end
+
+  install --> worker
+  install --> console
+  sdk -->|"privacy-filtered<br/>CloudEvents batches"| worker
+  console <-->|"admin API"| worker
+```
 
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
 - **Collects:** page views and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, page text, or session replay, and it records the consent state on every event.
@@ -278,9 +301,11 @@ tokens, and an explicit consent state on every event.
 | Console, default (private credential file)             | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                     | [With OneCLI](docs/operations/onecli.md)                                                       |
 | Daily console startup and mode check                   | [Start the console](docs/operations/operator-local.md)                                         |
+| Using the console: Analytics, Manage, Geography        | [Using the console](docs/operations/operator-local.md#using-the-console)                       |
 | Register, deploy, verify, and remove a website         | [Website activation](docs/operations/pages.md)                                                 |
 | Browser SDK reference                                  | [Browser SDK](docs/operations/browser-sdk.md)                                                  |
 | What is collected and what is not                      | [Privacy](docs/operations/privacy.md)                                                          |
+| Why only country and continent, and not more           | [Audience attributes review](docs/privacy/audience-attributes-review.md)                       |
 | D1 and R2 cost and capacity                            | [Cost model](docs/operations/cost-model.md)                                                    |
 | Something failed                                       | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
 | Publishing a release, and making the repository public | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |

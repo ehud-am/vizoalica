@@ -2,19 +2,8 @@ import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AnalyticsSummary } from '../src/components/AnalyticsSummary.js';
-import { WebsiteSelector } from '../src/components/WebsiteSelector.js';
 describe('analytics accessibility', () => {
-  it('provides semantic names, pressed state, and a live region', () => {
-    const selectors = renderToStaticMarkup(
-      <WebsiteSelector
-        projects={[]}
-        websites={[]}
-        projectId=""
-        websiteId=""
-        onProjectChange={() => undefined}
-        onWebsiteChange={() => undefined}
-      />
-    );
+  it('provides pressed state and a live region', () => {
     const metrics = renderToStaticMarkup(
       <AnalyticsSummary
         summary={undefined}
@@ -23,7 +12,6 @@ describe('analytics accessibility', () => {
         onWindowChange={() => undefined}
       />
     );
-    expect(selectors).toMatch(/aria-label="Project"/);
     expect(metrics).toMatch(/aria-pressed="true"/);
     expect(metrics).toMatch(/aria-live="polite"/);
   });

@@ -2,11 +2,9 @@ import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { MetricCard } from '../src/components/MetricCard.js';
-import { RankedTable } from '../src/components/RankedTable.js';
+import { RankedList } from '../src/components/RankedList.js';
 import { TrafficTrend } from '../src/components/TrafficTrend.js';
-import { DistributionChart } from '../src/components/DistributionChart.js';
-import { DashboardFilters } from '../src/components/DashboardFilters.js';
-import { presetToRange } from '../src/time-range.js';
+import { DistributionBars } from '../src/components/DistributionBars.js';
 
 describe('dashboard accessibility', () => {
   it('gives every metric card a semantic heading naming the metric', () => {
@@ -16,26 +14,32 @@ describe('dashboard accessibility', () => {
     expect(markup).toMatch(/<h2>Page views<\/h2>/);
   });
 
-  it('exposes a ranked table as a real <table> with a labelled section and column headers', () => {
+  it('exposes a ranked list as a real <table> with a labelled section and column headers', () => {
     const markup = renderToStaticMarkup(
-      <RankedTable
+      <RankedList
         title="Top pages"
+        countLabel="Page views"
         result={{ items: [{ label: '/', count: 10 }], otherCount: 3, total: 13 }}
       />
     );
-    expect(markup).toContain('aria-labelledby="Top-pages-title"');
-    expect(markup).toContain('id="Top-pages-title"');
-    expect(markup).toMatch(/<h2 id="Top-pages-title">Top pages<\/h2>/);
+    expect(markup).toMatch(/<section[^>]*aria-labelledby="([^"]+)"/);
+    expect(markup).toMatch(/<h2 id="[^"]+">Top pages<\/h2>/);
     expect(markup).toContain('role="region"');
     expect(markup).toContain('tabindex="0"');
     expect(markup).toContain('<table>');
     expect(markup).toContain('scope="col"');
     expect(markup).toContain('scope="row"');
+    expect(markup).toContain('Page views');
+    expect(markup).not.toContain('Rank');
   });
 
-  it('announces an empty ranked table as text rather than an empty grid', () => {
+  it('announces an empty ranked list as text rather than an empty grid', () => {
     const markup = renderToStaticMarkup(
-      <RankedTable title="Top pages" result={{ items: [], otherCount: 0, total: 0 }} />
+      <RankedList
+        title="Top pages"
+        countLabel="Page views"
+        result={{ items: [], otherCount: 0, total: 0 }}
+      />
     );
     expect(markup).toContain('No data in this range.');
     expect(markup).not.toContain('<table>');
@@ -66,34 +70,31 @@ describe('dashboard accessibility', () => {
     expect(source).toContain('strokeDasharray');
   });
 
-  it('pairs a hidden distribution chart with an accessible text legend of exact values', () => {
+  it('prints every distribution value next to its bar so nothing depends on color', () => {
     const markup = renderToStaticMarkup(
-      <DistributionChart
+      <DistributionBars
         title="Browsers"
-        result={{ items: [{ label: 'Chrome', count: 8 }], total: 8 }}
+        result={{
+          items: [
+            { label: 'Chrome', count: 8 },
+            { label: 'Other', count: 2 }
+          ],
+          total: 10
+        }}
       />
     );
-    expect(markup).toMatch(/<div class="pie-canvas" aria-hidden="true">/);
-    expect(markup).toContain('<ul class="distribution-list">');
+    expect(markup).toContain('class="bar-track" aria-hidden="true"');
     expect(markup).toContain('Chrome');
-    expect(markup).toContain('100%');
-    expect(markup).toContain('8');
+    expect(markup).toContain('80% · 8');
+    expect(markup).toContain('20% · 2');
+    expect(markup).toContain('View as table');
   });
 
-  it('labels the project and website selectors for assistive technology', () => {
+  it('announces an empty distribution as text', () => {
     const markup = renderToStaticMarkup(
-      <DashboardFilters
-        projects={[{ id: 'p1', name: 'Acme' }]}
-        websites={[]}
-        projectId="p1"
-        websiteId=""
-        onProjectChange={() => undefined}
-        onWebsiteChange={() => undefined}
-        range={presetToRange('24h')}
-        onRangeApply={() => undefined}
-      />
+      <DistributionBars title="Devices" result={{ items: [], total: 0 }} />
     );
-    expect(markup).toContain('aria-label="Project"');
-    expect(markup).toContain('aria-label="Website"');
+    expect(markup).toContain('No data in this range.');
+    expect(markup).not.toContain('View as table');
   });
 });

@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import type { Project } from '../api/local-operations.js';
+import { ActionButton } from './ActionButton.js';
 import { PlusIcon } from './Icons.js';
 export function WebsiteForm({
   onSubmit,
@@ -102,10 +103,15 @@ export function WebsiteForm({
           {error}
         </p>
       )}
-      <button className="primary" disabled={busy || (creating && !projectId)}>
+      <ActionButton
+        capability={creating ? 'add-website' : 'edit-website'}
+        type="submit"
+        className="primary"
+        disabled={busy || (creating && !projectId)}
+      >
         {!busy && submitLabel === 'Add website' && <PlusIcon size={16} />}
         {busy ? 'Saving…' : submitLabel}
-      </button>
+      </ActionButton>
     </form>
   );
 }

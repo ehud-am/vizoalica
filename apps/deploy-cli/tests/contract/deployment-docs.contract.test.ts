@@ -72,7 +72,8 @@ describe('deployment documentation contract', () => {
       'web and product analytics'
     ])
       expect(intro, phrase).toMatch(new RegExp(phrase, 'i'));
-    expect(intro).toContain('At a glance:');
+    // The summary is a heading (with the architecture diagram beneath it), not a lead-in line.
+    expect(intro).toMatch(/^## At a glance$/m);
     expect(manifest.description).toMatch(/self-hosted.*analytics.*Cloudflare/i);
     expect(manifest.keywords).toEqual(
       expect.arrayContaining(['analytics', 'self-hosted', 'cloudflare-workers'])

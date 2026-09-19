@@ -38,6 +38,10 @@ export function WorkspaceContextHelp() {
             This console interface and its trusted, credential-holding loopback service run only on
             this computer. The selected analytics backend and stored analytics may be remote.
           </p>
+          <p>
+            <strong>Private by design.</strong> Credentials stay on this machine. Every report is a
+            bounded aggregate, and visitor identifiers never reach this browser.
+          </p>
           <button className="secondary" type="button" onClick={() => setOpen(false)}>
             Close
           </button>

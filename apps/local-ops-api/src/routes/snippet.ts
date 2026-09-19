@@ -14,7 +14,7 @@ function attribute(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
-const WORKFLOW_REF = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.2';
+const WORKFLOW_REF = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3';
 
 function cloudflareGuidance(
   config: DynamicConfigV1,

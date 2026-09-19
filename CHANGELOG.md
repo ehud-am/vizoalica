@@ -2,6 +2,40 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [0.5.3] - 2026-09-19
+
+### Added
+
+- **Geography.** A new Analytics view shows visitor countries by full name on a world map, a
+  sortable table of every country, and totals by continent. Tor traffic and unknown locations are
+  labelled ("Tor network", "Unknown location") instead of showing `T1` or `XX`. Only country and
+  continent are shown; the [audience attributes review](docs/privacy/audience-attributes-review.md)
+  records why nothing finer is collected. The map is bundled with the console and makes no network
+  requests.
+- **Overview with comparison.** Page views and unique users now show the change against the
+  previous period of equal length, with a small trend.
+- Sources, Pages, Technology, and Traffic quality are separate Analytics views. Long lists have a
+  "Show all" control, and distributions use bars with a table view instead of pie charts.
+- A Manage > Health screen showing every website's status and reachability, with the next step.
+
+### Changed
+
+- **The console is reorganized into Analytics (viewing) and Manage (setup) areas.** Nothing under
+  Analytics can create, change, disable, or delete anything, which prepares the ground for
+  role-based access. The project and website are chosen once, in the shell, and are remembered
+  across screens and reloads.
+- Deleting or disabling a project or website now happens in a "danger zone" with an in-console
+  confirmation that names the target (a project also asks you to type its name), replacing the
+  browser's native dialog.
+- The Worker's overview response now returns up to 300 countries and up to 100 pages, sources, and
+  user agents (was 10). **Redeploy the Worker to get the complete lists**; an older Worker still
+  works and the console shows its top ten.
+
+### Removed
+
+- The Overview "principles" panel and the sidebar privacy note. Their text moved into the help
+  popover under "Local workspace".
+
 ## [0.5.2] - 2026-09-18
 
 ### Added

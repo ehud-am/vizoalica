@@ -66,6 +66,9 @@ async function hmacDigest(digestKey: string, ...parts: string[]): Promise<string
   );
 }
 
+// Rows returned per overview ranking; see `ranked` in the analytics overview query.
+const COUNTRY_RANKING_LIMIT = 300;
+const RANKING_LIMIT = 100;
 const RETENTION_BATCH_ROWS = 1000;
 const RETENTION_MAX_PASSES = 200;
 
@@ -792,14 +795,17 @@ export class D1Repositories
         )
         .bind(...rangeValues(), kind)
         .all<{ label: string; count: number }>();
-    const ranked = async (kind: AnalyticsDimensionKind): Promise<RankedResult> => {
+    // Every ranking reads all rows already, so returning more of them costs nothing extra. The
+    // limits keep responses bounded: real countries number about 250, while pages and referrers
+    // are open-ended, so those are capped and the remainder is folded into `otherCount`.
+    const ranked = async (kind: AnalyticsDimensionKind, limit: number): Promise<RankedResult> => {
       const rows = (await dimensionRows(kind)).results.map((row) => ({
         label: row.label,
         count: Number(row.count)
       }));
       return {
-        items: rows.slice(0, 10),
-        otherCount: rows.slice(10).reduce((sum, row) => sum + row.count, 0),
+        items: rows.slice(0, limit),
+        otherCount: rows.slice(limit).reduce((sum, row) => sum + row.count, 0),
         total: rows.reduce((sum, row) => sum + row.count, 0)
       };
     };
@@ -813,10 +819,10 @@ export class D1Repositories
       if (remainder) items.push({ label: 'Other', count: remainder });
       return { items, total: rows.reduce((sum, row) => sum + row.count, 0) };
     };
-    const pagePaths = await ranked('page_path');
-    const countries = await ranked('country');
-    const userAgents = await ranked('user_agent');
-    const referrers = await ranked('referrer');
+    const pagePaths = await ranked('page_path', RANKING_LIMIT);
+    const countries = await ranked('country', COUNTRY_RANKING_LIMIT);
+    const userAgents = await ranked('user_agent', RANKING_LIMIT);
+    const referrers = await ranked('referrer', RANKING_LIMIT);
     const operatingSystems = await distribution('os');
     const browsers = await distribution('browser');
     const devices = await distribution('device');

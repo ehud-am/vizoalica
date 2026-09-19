@@ -92,9 +92,9 @@ describe('application shell landmarks and navigation state', () => {
 
   it('marks the active navigation item with aria-current="page"', async () => {
     render(<App />);
-    const overview = await screen.findByRole('button', { name: 'Overview' });
+    const overview = await screen.findByRole('link', { name: 'Overview' });
     expect(overview.getAttribute('aria-current')).toBe('page');
-    const websites = screen.getByRole('button', { name: 'Websites' });
+    const websites = screen.getByRole('link', { name: 'Websites' });
     expect(websites.getAttribute('aria-current')).toBeNull();
   });
 });
