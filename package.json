@@ -18,7 +18,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "pnpm -r --if-present build",
+    "build": "tsc -b && pnpm -r --if-present build",
     "typecheck": "tsc -b --pretty false && pnpm typecheck:examples",
     "test": "vitest run",
     "test:e2e": "pnpm --filter @vizoalica/admin-web test:e2e",

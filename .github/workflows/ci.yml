@@ -32,6 +32,10 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
+      # First, on a clean tree: the later type-check emits dist and would hide a broken build order.
+      - name: Build production packages
+        run: pnpm build
+
       - name: Lint GitHub Actions workflows
         uses: reviewdog/action-actionlint@8b682e1e7e512151d73a6b9449cbff173846226e # v1.74.0
         with:
@@ -54,9 +58,6 @@ jobs:
 
       - name: Enforce coverage thresholds
         run: pnpm coverage
-
-      - name: Build production packages
-        run: pnpm build
 
       - name: Build the standalone browser SDK
         run: pnpm browser-sdk:build
