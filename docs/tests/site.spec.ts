@@ -30,9 +30,13 @@ async function collectProblems(page: Page) {
     if (!url.startsWith(ORIGIN) && !url.startsWith('data:') && !url.startsWith('blob:'))
       outside.push(url);
   });
-  page.on('requestfailed', (request) =>
-    failed.push(`${request.url()} ${request.failure()?.errorText}`)
-  );
+  page.on('requestfailed', (request) => {
+    const reason = request.failure()?.errorText;
+    // The browser cancels a video download when the page is left before it finishes. That is not a
+    // failure to load anything.
+    if (request.resourceType() === 'media' && reason === 'net::ERR_ABORTED') return;
+    failed.push(`${request.url()} ${reason}`);
+  });
   page.on('console', (message) => {
     if (/content security policy|refused to (load|execute|apply)/i.test(message.text()))
       csp.push(message.text());
@@ -61,8 +65,10 @@ test('every page loads with a title, a description, a canonical link, and one ma
   expect(missing?.status()).toBe(404);
 });
 
-test('has no serious accessibility findings on any page, in light and dark', async ({ page }) => {
-  for (const scheme of ['light', 'dark'] as const) {
+// One test per colour scheme, each with room for a slower CI runner: axe scans every page.
+for (const scheme of ['light', 'dark'] as const) {
+  test(`has no serious accessibility findings on any page (${scheme})`, async ({ page }) => {
+    test.setTimeout(120_000);
     await page.emulateMedia({ colorScheme: scheme });
     for (const path of PAGES) {
       await page.goto(path);
@@ -71,8 +77,8 @@ test('has no serious accessibility findings on any page, in light and dark', asy
         []
       );
     }
-  }
-});
+  });
+}
 
 test('loads nothing from another origin, and the Content-Security-Policy blocks nothing it needs', async ({
   page
