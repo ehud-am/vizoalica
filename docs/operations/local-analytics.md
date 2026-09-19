@@ -49,6 +49,11 @@ Confirm that `git rev-parse HEAD` matches the backend handoff.
 
 ## 2. Create the private configuration
 
+**Fast path:** `pnpm ops connect` does this step and verifies the secret before saving it. It asks
+for the Worker address and the administrator secret (hidden), checks them against your Worker,
+and writes the file with the right permissions. On the computer that ran `pnpm ops install` this
+is already done. The commands below are the manual equivalent.
+
 Run the configuration command in an interactive terminal. It reads the administrator secret from
 a hidden prompt; the secret is never a command argument:
 

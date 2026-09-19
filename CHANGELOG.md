@@ -9,6 +9,18 @@ All notable changes to Vizoalica are documented in this file.
 - `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
   websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
   project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
+- **Guided setup.** `pnpm ops install` takes an empty Cloudflare account to a connected console with
+  sample data: it creates the D1 database and R2 bucket, writes the production Wrangler config from
+  the example, deploys, generates the three secrets, shows them once (then clears the screen), saves
+  the administrator secret for this computer, and sends signed sample events through the real
+  ingestion path. `pnpm ops backend` installs or updates (it detects which and asks), `connect` sets
+  up another operator computer, `demo` adds or removes the sample, and `rotate` replaces one or all
+  secrets after explaining what each rotation breaks. Secrets travel to Wrangler over stdin only and
+  are never arguments; a first install never adopts an existing database and, on failure, offers to
+  remove only the empty resources it created.
+- The README now opens with a logo, badges, a one-command path, and a screenshot, then explains the
+  three parts in deployment order (backend, console, website). `scripts/capture-console-screenshot.ts`
+  regenerates the screenshots from the demo's own events.
 - `pnpm ops console` starts the private API and the web console together in either credential
   mode (with a local secret file, or through OneCLI). `pnpm ops run` remains as an alias.
 - The daily Cron run now performs the same purge, so deleting a website or project is permanent

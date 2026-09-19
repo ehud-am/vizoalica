@@ -11,33 +11,70 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('makes README describe the three parts and a get-started path for each', async () => {
+  it('makes README a fast path first, then the three parts in their deployment order', async () => {
     const readme = await text('README.md');
     for (const heading of [
-      '## The three parts',
-      '## Get started',
+      '## Try it',
+      '## The three parts, in order',
+      '## Get started, part by part',
       '### 1. Backend',
       '### 2. Console',
       '### 3. Website',
+      '## Keep it running',
       '## Build from source'
     ])
       expect(readme).toContain(heading);
+    const at = (heading: string) => readme.indexOf(heading);
+    expect(at('## Try it')).toBeLessThan(at('## The three parts, in order'));
+    expect(at('## The three parts, in order')).toBeLessThan(at('## Get started, part by part'));
+    expect(at('### 1. Backend')).toBeLessThan(at('### 2. Console'));
+    expect(at('### 2. Console')).toBeLessThan(at('### 3. Website'));
+    expect(at('## Get started, part by part')).toBeLessThan(at('## Build from source'));
+    // The diagram states the sequence explicitly.
+    expect(readme).toMatch(/1\. BACKEND[\s\S]*2\. CONSOLE[\s\S]*3\. WEBSITE/);
+    // The one-command path is the first thing to run.
+    expect(readme).toContain('pnpm ops install');
+    for (const command of [
+      'pnpm ops backend',
+      'pnpm ops connect',
+      'pnpm ops console',
+      'pnpm ops rotate',
+      'pnpm ops demo'
+    ])
+      expect(readme).toContain(command);
     // Each part ends by pointing at its full guide.
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/ops-cli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    expect(readme).toMatch(/once per environment/i);
-    expect(readme).toMatch(/once per operator/i);
-    expect(readme).toMatch(/once per website/i);
-    expect(readme).toMatch(/fresh install only/i);
     // The default console setup is the private file; OneCLI is supported but opt-in.
     expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
     expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
-    expect(readme).toContain('pnpm ops console');
-    // Get started must come after the overview and before building from source.
-    expect(readme.indexOf('## The three parts')).toBeLessThan(readme.indexOf('## Get started'));
-    expect(readme.indexOf('## Get started')).toBeLessThan(readme.indexOf('## Build from source'));
+  });
+
+  it('gives the README a logo, badges, and a screenshot that exist', async () => {
+    const readme = await text('README.md');
+    expect(readme).toContain('vizoalica-lockup-light.svg');
+    expect(readme).toContain('vizoalica-lockup-dark.svg');
+    for (const badge of ['actions/workflows/ci.yml/badge.svg', 'License-MIT', 'node-%3E%3D22'])
+      expect(readme).toContain(badge);
+    for (const [, path] of readme.matchAll(/(?:src|srcset)="((?:apps|docs)\/[^"]+)"/g)) {
+      await expect(readFile(path!), path).resolves.toBeInstanceOf(Buffer);
+    }
+  });
+
+  it('only mentions pnpm ops commands that exist', async () => {
+    const { help } = await import('../../../../scripts/vizoalica-ops.js');
+    const known = new Set([...help().matchAll(/pnpm ops ([a-z-]+)/g)].map((match) => match[1]));
+    for (const command of ['help', 'show']) known.add(command); // real commands the help text does not list as rows
+    for (const path of [
+      'README.md',
+      'docs/operations/cloudflare.md',
+      'docs/operations/local-analytics.md',
+      'docs/operations/pages.md'
+    ])
+      for (const [, command] of (await text(path)).matchAll(/pnpm ops ([a-z-]+)/g))
+        expect(known, `${path}: pnpm ops ${command}`).toContain(command);
   });
 
   it('defines a complete fresh customer-backend journey', async () => {
@@ -59,13 +96,33 @@ describe('deployment documentation contract', () => {
     expect(guide).toMatch(/health route does not access D1/i);
   });
 
+  it('leads the backend guide with the automated install, rotation, and update', async () => {
+    const guide = await text('docs/operations/cloudflare.md');
+    for (const heading of [
+      '## Automated install (recommended)',
+      '## Manual install',
+      '## Rotate a secret'
+    ])
+      expect(guide).toContain(heading);
+    expect(guide.indexOf('## Automated install (recommended)')).toBeLessThan(
+      guide.indexOf('## Quick command reference')
+    );
+    for (const command of [
+      'pnpm ops install',
+      'pnpm ops backend --update',
+      'pnpm ops rotate admin'
+    ])
+      expect(guide).toContain(command);
+    expect(guide).toMatch(/never adopts an existing database/i);
+  });
+
   it('separates first install from updating a running backend', async () => {
     const guide = await text('docs/operations/cloudflare.md');
     expect(guide).toContain('## Update an existing backend');
     expect(guide).toContain(
       'pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml'
     );
-    expect(guide).toMatch(/first-install\*{0,2} commands/i);
+    expect(guide).toMatch(/first-install\*{0,2}\s+commands/i);
     expect(guide).toContain('### Deleted websites and projects');
     expect(guide).toContain('pnpm ops purge-deleted --apply');
     // `deploy:apply` refuses a non-empty database, so no doc may tell operators to use it to update.

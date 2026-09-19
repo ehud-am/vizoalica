@@ -67,6 +67,10 @@ non-secret values. Start with the default low quota and seven-day retention.
 **Check:** the new website belongs to the intended customer project, lists only its real allowed
 origin(s), and has its own source ID and public key.
 
+If you ran `pnpm ops install` and accepted the sample data, the console also shows a project called
+"Vizoalica demo (sample data)". It is separate from your websites; remove it whenever you like with
+`pnpm ops demo --remove`.
+
 ## 2. Choose a deployment path
 
 | Path                                                             | Use it when                                                                    |
