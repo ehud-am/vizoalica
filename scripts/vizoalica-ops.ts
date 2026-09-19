@@ -13,6 +13,21 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { formatReport, purgeDeleted } from './purge-deleted.js';
+import { DEFAULT_NAMES } from './ops/backend.js';
+import { setUpBackend } from './ops/backend.js';
+import { connectConsole } from './ops/connect.js';
+import { type Ctx, OpsError } from './ops/context.js';
+import { addDemoData, removeDemoData } from './ops/demo.js';
+import { install } from './ops/install.js';
+import { rotateSecrets } from './ops/rotate.js';
+import { parseSecretKind } from './ops/secrets.js';
+import {
+  buildRunner,
+  clearScreen,
+  openBrowser,
+  terminalPrompter,
+  wranglerRunner
+} from './ops/terminal.js';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 
@@ -38,6 +53,8 @@ type Dependencies = {
   spawnSync: typeof spawnSync;
   fetch: typeof fetch;
   isTTY: boolean;
+  /** Builds the context for the guided commands; replaced in tests. */
+  guided?: () => Ctx;
 };
 
 const DEFAULT_CONFIG = join(homedir(), '.config', 'vizoalica', 'ops.json');
@@ -490,6 +507,110 @@ async function purgeDeletedData(options: Options, dependencies: Dependencies): P
   stdout.write(formatReport(reports));
 }
 
+function guidedContext(dependencies: Dependencies): Ctx {
+  if (dependencies.guided) return dependencies.guided();
+  if (!dependencies.isTTY)
+    throw new OpsError('This command asks questions, so run it in an interactive terminal.');
+  return {
+    run: wranglerRunner(process.cwd()),
+    prompt: terminalPrompter(),
+    fetch: dependencies.fetch,
+    out: (text) => void stdout.write(`${text}\n`),
+    cwd: process.cwd(),
+    build: buildRunner(process.cwd()),
+    sleep: (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms)),
+    clear: clearScreen
+  };
+}
+
+function backendOptions(options: Options) {
+  return {
+    worker: text(options, 'worker-name') ?? DEFAULT_NAMES.worker,
+    database: text(options, 'database') ?? DEFAULT_NAMES.database,
+    bucket: text(options, 'bucket') ?? DEFAULT_NAMES.bucket,
+    ...(options['first-run'] === true
+      ? { firstRun: true }
+      : options.update === true
+        ? { firstRun: false }
+        : {})
+  };
+}
+
+const localConfigPath = (options: Options): string =>
+  assertSafePath(text(options, 'console-config') ?? DEFAULT_CLIENT_CONFIG);
+
+/** Reads the administrator secret from the private local file, for commands that call the Worker directly. */
+function localAdmin(options: Options): { workerUrl: string; adminSecret: string } {
+  const client = loadClientConfig(localConfigPath(options));
+  if (client.mode === 'OneCLI')
+    throw new OpsError(
+      'This computer keeps the administrator secret in OneCLI, so this command cannot use it directly.\nUse the console instead, or run the command on a computer with the direct credential.'
+    );
+  return { workerUrl: client.workerUrl, adminSecret: client.adminSecret };
+}
+
+async function backendCommand(options: Options, dependencies: Dependencies): Promise<void> {
+  const ctx = guidedContext(dependencies);
+  const result = await setUpBackend(ctx, backendOptions(options));
+  ctx.out(`\nWorker: ${result.workerUrl}`);
+  ctx.out(
+    result.firstRun
+      ? 'Next: pnpm ops connect   (set up this computer as an operator console)'
+      : 'Updated.'
+  );
+}
+
+async function connectCommand(options: Options, dependencies: Dependencies): Promise<void> {
+  const ctx = guidedContext(dependencies);
+  const workerUrl = text(options, 'worker-url');
+  await connectConsole(ctx, {
+    configPath: localConfigPath(options),
+    ...(workerUrl ? { workerUrl } : {})
+  });
+  ctx.out('Next: pnpm ops console');
+}
+
+async function demoCommand(options: Options, dependencies: Dependencies): Promise<void> {
+  const ctx = guidedContext(dependencies);
+  const admin = localAdmin(options);
+  if (options.remove === true) {
+    await removeDemoData(ctx, admin);
+    return;
+  }
+  const tokenSecret = await ctx.prompt.hidden(
+    'Paste the token secret (VIZOALICA_TOKEN_SECRET) — nothing is shown as you type: '
+  );
+  await addDemoData(ctx, { ...admin, tokenSecret });
+  ctx.out('Next: pnpm ops console   (remove the sample later with: pnpm ops demo --remove)');
+}
+
+async function rotateCommand(
+  kind: string | undefined,
+  options: Options,
+  dependencies: Dependencies
+): Promise<void> {
+  const parsed = parseSecretKind(kind);
+  if (!parsed) throw new OpsError('Usage: pnpm ops rotate <admin|token|digest|all>');
+  await rotateSecrets(guidedContext(dependencies), {
+    kind: parsed,
+    localConfigPath: localConfigPath(options)
+  });
+}
+
+async function installCommand(options: Options, dependencies: Dependencies): Promise<void> {
+  const ctx = guidedContext(dependencies);
+  const result = await install(ctx, {
+    ...backendOptions(options),
+    localConfigPath: localConfigPath(options)
+  });
+  if (result.connected && (await ctx.prompt.confirm('\nStart the console now?', true)))
+    await runConsole({ ...options, open: true }, dependencies);
+  else
+    ctx.out(
+      result.connected ? 'Start it any time with: pnpm ops console' : 'Next: pnpm ops connect'
+    );
+}
+
 async function status(options: Options, dependencies: Dependencies): Promise<void> {
   const { client, ops } = resolveClientConfig(options);
   const [apiPort, webPort, publicHealth] = await Promise.all([
@@ -546,6 +667,7 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
       `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );
+  if (options.open === true) setTimeout(() => openBrowser(CONSOLE_URL), 3000);
   const children: ChildProcess[] = [
     viaOneCli
       ? dependencies.spawn('onecli', consoleArguments(ops!), { stdio: 'inherit' })
@@ -639,19 +761,28 @@ async function deployPages(options: Options, dependencies: Dependencies): Promis
 
 export function help(): string {
   return [
-    'Vizoalica operations — one command for the common path',
+    'Vizoalica operations',
     '',
-    '  pnpm ops setup          Save non-secret Worker, OneCLI, and optional Pages settings',
-    '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
-    '  pnpm ops verify         Verify authenticated project access for the configured mode',
-    '  pnpm ops purge-deleted  Dry-run, or with --apply permanently delete, soft-deleted data',
-    '  pnpm ops status         Report the configured mode, startup command, ports, and access checks',
-    '  pnpm ops console        Start the private API and the web console together (alias: run)',
+    'Get going',
+    '  pnpm ops install        First-time setup, start to finish: backend, this computer, sample data',
+    '  pnpm ops backend        Install or update the Cloudflare backend (asks first install or update)',
+    '  pnpm ops connect        Set up this computer as an operator console for an existing backend',
+    '  pnpm ops console        Start the private API and the web console (alias: run)',
+    '  pnpm ops demo           Add sample data (--remove deletes it)',
+    '',
+    'Look after it',
+    '  pnpm ops rotate <admin|token|digest|all>   Replace a secret and show the new value once',
+    '  pnpm ops purge-deleted  Dry-run; add --apply to permanently remove deleted websites/projects',
+    '  pnpm ops status         Report the credential mode, ports, and access checks',
+    '  pnpm ops verify         Verify authenticated project access',
     '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
-    '  pnpm ops show           Show parameter locations and the safe operating model',
     '',
-    'Run pnpm ops show before setup. Use --config <path> to select another non-secret config.',
-    'Worker/D1/R2 deployment keeps the approval-gated pnpm deploy:plan/check/apply workflow.'
+    'OneCLI (optional, keeps the administrator secret out of a local file)',
+    '  pnpm ops setup          Save the non-secret OneCLI settings',
+    '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
+    '',
+    'Secrets are never accepted as arguments. Use --config <path> for another non-secret config,',
+    '--console-config <path> for another private console file, and pnpm ops show for parameter sources.'
   ].join('\n');
 }
 
@@ -683,6 +814,13 @@ const dependencies: Dependencies = {
 };
 
 export async function run(argv: readonly string[], injected = dependencies): Promise<void> {
+  if (argv[0] === 'rotate') {
+    // `rotate` takes one positional word (admin, token, digest, or all) before any flags.
+    const kind = argv[1]?.startsWith('--') ? undefined : argv[1];
+    const { options } = parseOptions(['rotate', ...argv.slice(kind === undefined ? 1 : 2)]);
+    await rotateCommand(kind, options, injected);
+    return;
+  }
   const { command, options } = parseOptions(argv);
   if (command === 'help' || options.help === true) stdout.write(`${help()}\n`);
   else if (command === 'show') stdout.write(`${show()}\n`);
@@ -691,6 +829,10 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'verify') await verifyAccess(options, injected);
   else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
+  else if (command === 'install') await installCommand(options, injected);
+  else if (command === 'backend') await backendCommand(options, injected);
+  else if (command === 'connect') await connectCommand(options, injected);
+  else if (command === 'demo') await demoCommand(options, injected);
   else if (command === 'console' || command === 'run') await runConsole(options, injected);
   else if (command === 'deploy-pages') await deployPages(options, injected);
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);
