@@ -39,15 +39,6 @@ export function WebsitesIcon(props: IconProps) {
   );
 }
 
-export function ProjectsIcon(props: IconProps) {
-  return (
-    <IconFrame {...props}>
-      <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <path d="M3 10h18" />
-    </IconFrame>
-  );
-}
-
 export function LockIcon(props: IconProps) {
   return (
     <IconFrame {...props}>
@@ -100,14 +91,6 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
-export function ChevronDownIcon(props: IconProps) {
-  return (
-    <IconFrame {...props}>
-      <path d="m7 10 5 5 5-5" />
-    </IconFrame>
-  );
-}
-
 export function CheckCircleIcon(props: IconProps) {
   return (
     <IconFrame {...props}>
@@ -122,15 +105,6 @@ export function AlertTriangleIcon(props: IconProps) {
     <IconFrame {...props}>
       <path d="M10.3 3.7 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0z" />
       <path d="M12 9v4m0 4h.01" />
-    </IconFrame>
-  );
-}
-
-export function InfoIcon(props: IconProps) {
-  return (
-    <IconFrame {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v5m0-8h.01" />
     </IconFrame>
   );
 }

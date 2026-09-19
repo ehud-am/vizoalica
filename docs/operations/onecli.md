@@ -121,8 +121,8 @@ pnpm vizoalica console
 Open `http://127.0.0.1:5173`, or the URL Vite prints if that port was busy. Do not expose either
 process to the network.
 
-The **Local workspace** disclosure describes the local console and trusted loopback service that
-holds the injected credential. The selected analytics backend and stored data can still be remote.
+The local console and the trusted loopback service that holds the injected credential run only on
+this computer. The selected analytics backend and stored data can still be remote.
 
 ## Verify the operator setup
 

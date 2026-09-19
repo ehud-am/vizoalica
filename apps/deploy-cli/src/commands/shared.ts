@@ -27,7 +27,7 @@ export const defaultContext: CommandContext = {
   fetch: globalThis.fetch
 };
 
-export function resolveProfilePath(
+function resolveProfilePath(
   options: Record<string, string | boolean>,
   context: CommandContext
 ): string {

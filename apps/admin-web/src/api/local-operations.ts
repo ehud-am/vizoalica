@@ -1,4 +1,3 @@
-export type Window = '24h' | '7d' | '30d';
 export type Project = {
   id: string;
   name: string;
@@ -12,17 +11,6 @@ export type Website = {
   publicSourceKey: string;
   allowedOrigins: string[];
   status: 'active' | 'disabled' | 'deleted';
-};
-export type Summary = {
-  projectId: string;
-  websiteId: string;
-  window: Window;
-  pageViews?: number;
-  uniqueUsers?: number;
-  availability: 'complete' | 'processing' | 'unavailable';
-  startUtc: string;
-  endUtc: string;
-  lastCompletedAggregateAt?: string;
 };
 export type DynamicConfigV1 = {
   version: 1;
@@ -181,10 +169,6 @@ export const getStatus = (projectId: string, websiteId: string) =>
 export const getReachability = (projectId: string, websiteId: string) =>
   request<Reachability>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/reachability`
-  );
-export const getAnalytics = (projectId: string, websiteId: string, window: Window) =>
-  request<Summary>(
-    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/analytics?window=${window}`
   );
 export const getAnalyticsOverview = (
   projectId: string,

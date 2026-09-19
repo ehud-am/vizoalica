@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vizoalica intro</title>
+    <!--
+      A few seconds of key messages typed out over the product. It is drawn from a clock, so
+      window.renderAt(seconds) always gives the same frame: render-video.ts captures it frame by
+      frame, and opening this file in a browser plays it live. It loads only local files: the
+      official logo and the promo snapshots.
+    -->
+    <style>
+      :root {
+        --ink: #f7f8fa;
+        --graphite: #10141c;
+        --blue: #168bff;
+        --cyan: #12c5e8;
+        --violet: #793dff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #05070b;
+      }
+      #stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        color: var(--ink);
+        background:
+          radial-gradient(
+            900px 500px at var(--glow-x, 20%) 8%,
+            rgb(22 139 255 / 22%),
+            transparent 70%
+          ),
+          radial-gradient(
+            700px 420px at calc(100% - var(--glow-x, 20%)) 100%,
+            rgb(121 61 255 / 20%),
+            transparent 70%
+          ),
+          linear-gradient(180deg, #0d1118, #080a10);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+      }
+      #logo-corner {
+        position: absolute;
+        left: 56px;
+        top: 44px;
+        width: 220px;
+      }
+      #address-corner {
+        position: absolute;
+        right: 56px;
+        top: 56px;
+        color: #8f9bb0;
+        font-size: 20px;
+        letter-spacing: 0.02em;
+      }
+      #message {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 148px;
+        height: 64px;
+        text-align: center;
+        font-size: 44px;
+        line-height: 64px;
+        font-weight: 600;
+        white-space: pre;
+      }
+      #message.command {
+        color: var(--cyan);
+      }
+      .caret {
+        display: inline-block;
+        width: 0.5em;
+        height: 1.05em;
+        margin-left: 4px;
+        vertical-align: -0.16em;
+        background: var(--blue);
+      }
+      .frame {
+        position: absolute;
+        left: 170px;
+        top: 268px;
+        width: 940px;
+        height: 627px;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow:
+          0 30px 80px rgb(0 0 0 / 55%),
+          0 0 0 1px rgb(255 255 255 / 10%);
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+      .frame img {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #closing {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 34px;
+        opacity: 0;
+      }
+      #closing img {
+        width: 520px;
+      }
+      #closing-address {
+        font-size: 46px;
+        font-weight: 600;
+        height: 60px;
+        white-space: pre;
+      }
+      #closing-tagline {
+        color: #8f9bb0;
+        font-size: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <img
+        id="logo-corner"
+        alt=""
+        src="../../../apps/admin-web/public/brand/vizoalica-lockup-dark.svg"
+      />
+      <div id="address-corner">vizoalica.dev</div>
+      <div id="message"></div>
+      <div class="frame" id="frame-0">
+        <img alt="" src="../../../docs/assets/promo-src/01-overview.png" />
+      </div>
+      <div class="frame" id="frame-1">
+        <img alt="" src="../../../docs/assets/promo-src/02-geography.png" />
+      </div>
+      <div class="frame" id="frame-2">
+        <img alt="" src="../../../docs/assets/promo-src/05-install.png" />
+      </div>
+      <div id="closing">
+        <img alt="" src="../../../apps/admin-web/public/brand/vizoalica-lockup-dark.svg" />
+        <div id="closing-address"></div>
+        <div id="closing-tagline">
+          Open-source, self-hosted web analytics on your own Cloudflare account.
+        </div>
+      </div>
+    </div>
+    <script>
+      // The key messages, in order. The last scene is the closing card.
+      const SCENES = [
+        { start: 0.7, end: 3.9, text: 'Privacy-first web analytics.', frame: 0 },
+        { start: 3.9, end: 7.1, text: 'On your own Cloudflare account.', frame: 1 },
+        { start: 7.1, end: 10.3, text: '$ pnpm vizoalica install', frame: 2, command: true }
+      ];
+      const CLOSING = { start: 10.3, end: 13.5, text: 'vizoalica.dev' };
+      const DURATION = CLOSING.end;
+      const TYPE_CPS = 24; // characters typed per second
+      const ERASE_CPS = 80;
+      const ERASE_SECONDS = 0.4;
+
+      const $ = (id) => document.getElementById(id);
+      const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
+      const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
+
+      // Typing has a slight, repeatable rhythm: some keystrokes take a little longer.
+      function typed(text, elapsed) {
+        let count = 0;
+        let clock = 0;
+        while (count < text.length) {
+          clock += (1 + ((count * 7) % 5) * 0.09) / TYPE_CPS;
+          if (clock > elapsed) break;
+          count += 1;
+        }
+        return count;
+      }
+
+      function caretVisible(t, typing) {
+        return typing || Math.floor(t * 2.4) % 2 === 0;
+      }
+
+      function scene(t) {
+        return SCENES.find((item) => t >= item.start && t < item.end);
+      }
+
+      window.renderAt = function renderAt(t) {
+        $('stage').style.setProperty('--glow-x', `${20 + Math.sin(t * 0.35) * 12}%`);
+
+        const closing = t >= CLOSING.start;
+        const intro = clamp(t / 0.6);
+        // The small logo is there through the messages and hands over to the closing card.
+        $('logo-corner').style.opacity = closing ? 0 : ease(intro);
+        $('address-corner').style.opacity = closing ? 0 : ease(intro) * 0.9;
+
+        const active = scene(t);
+        const message = $('message');
+        if (active) {
+          const elapsed = t - active.start - 0.2;
+          const fullLength = active.text.length;
+          const eraseFrom = active.end - ERASE_SECONDS;
+          const count =
+            t >= eraseFrom
+              ? Math.max(0, fullLength - Math.floor((t - eraseFrom) * ERASE_CPS))
+              : typed(active.text, elapsed);
+          const typing = t < eraseFrom ? count < fullLength && elapsed >= 0 : true;
+          const cursor = caretVisible(t, typing)
+            ? '<span class="caret"></span>'
+            : '<span class="caret" style="opacity:0"></span>';
+          message.className = active.command ? 'command' : '';
+          message.innerHTML =
+            active.text.slice(0, count).replace(/&/g, '&amp;').replace(/</g, '&lt;') + cursor;
+        } else {
+          message.innerHTML = '';
+        }
+
+        SCENES.forEach((item, index) => {
+          const frame = $(`frame-${item.frame}`);
+          const local = t - item.start;
+          const fadeIn = ease(local / 0.5);
+          const fadeOut = 1 - clamp((local - (item.end - item.start - 0.4)) / 0.4);
+          const visible = local >= 0 && t < item.end + 0.05;
+          frame.style.opacity = visible ? Math.min(fadeIn, fadeOut) : 0;
+          const slide = (1 - fadeIn) * 36;
+          const zoom = 1 + clamp(local / (item.end - item.start)) * 0.03;
+          frame.style.transform = `translateY(${slide}px) scale(${zoom})`;
+        });
+
+        const card = $('closing');
+        const cardIn = ease((t - CLOSING.start) / 0.6);
+        card.style.opacity = closing ? cardIn : 0;
+        card.style.transform = `scale(${0.96 + cardIn * 0.04})`;
+        if (closing) {
+          const elapsed = t - CLOSING.start - 0.5;
+          const count = typed(CLOSING.text, elapsed);
+          const typing = count < CLOSING.text.length && elapsed >= 0;
+          $('closing-address').innerHTML =
+            CLOSING.text.slice(0, count) +
+            (caretVisible(t, typing)
+              ? '<span class="caret"></span>'
+              : '<span class="caret" style="opacity:0"></span>');
+        }
+      };
+
+      window.VIDEO_DURATION = DURATION;
+      window.renderAt(0);
+
+      // Opened directly in a browser (not by the renderer), play it live and loop.
+      if (!location.search.includes('render')) {
+        const begin = performance.now();
+        const tick = (now) => {
+          window.renderAt(((now - begin) / 1000) % (DURATION + 1));
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    </script>
+  </body>
+</html>

@@ -110,7 +110,7 @@ async function postEvent(env: Env, headers: Record<string, string>) {
       method: 'POST',
       headers: {
         origin: 'https://example.test',
-        authorization: `Bearer ${createSignedDemoToken(claims, 'test-secret')}`,
+        authorization: `Bearer ${createSignedDemoToken(claims, 'test-token-secret-0123456789abcdefgh')}`,
         'x-vizoalica-source': 'public-a',
         'content-type': 'application/cloudevents-batch+json',
         ...headers
@@ -132,9 +132,9 @@ describe('dashboard metadata privacy', () => {
           writes.push({ key, value: String(value) });
         }
       } as R2Bucket,
-      VIZOALICA_TOKEN_SECRET: 'test-secret',
-      VIZOALICA_ADMIN_SECRET: 'admin-secret',
-      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+      VIZOALICA_TOKEN_SECRET: 'test-token-secret-0123456789abcdefgh',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret-0123456789abcdefghijklmn',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret-0123456789abcd'
     };
     const response = await postEvent(env, {
       'user-agent': `Mozilla/5.0 ${RAW_MARKER}`,
@@ -180,9 +180,9 @@ describe('dashboard metadata privacy', () => {
         },
         async delete() {}
       },
-      VIZOALICA_TOKEN_SECRET: 'test-secret',
-      VIZOALICA_ADMIN_SECRET: 'admin-secret',
-      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+      VIZOALICA_TOKEN_SECRET: 'test-token-secret-0123456789abcdefgh',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret-0123456789abcdefghijklmn',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret-0123456789abcd'
     };
     const response = await postEvent(env, { 'user-agent': 'Mozilla/5.0 Chrome/120.0.0.0' });
     expect(response.status).toBe(202);

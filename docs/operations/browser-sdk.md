@@ -11,7 +11,9 @@ serve these files.
 
 ## Choose one installation mode
 
-The console provides exactly two options. Do not enable both on one page.
+The console provides exactly two options, which its Install page presents as **Paste a snippet**
+(static snippet) and **GitHub → Cloudflare Pages** (dynamic configuration). Do not enable both on
+one page.
 
 - **Static snippet** is the compatibility path. It embeds `src`, `data-endpoint`, `data-source`,
   `data-project`, `data-token-url`, and `data-consent` directly in website-specific markup.

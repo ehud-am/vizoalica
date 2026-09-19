@@ -74,7 +74,7 @@ describe('AppFooter on every console view', () => {
   it('renders the versioned footer on Websites too', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Websites' }));
+    await user.click(await screen.findByRole('link', { name: 'Websites' }));
     expect(await screen.findByText(new RegExp(`Version ${rootPackageJson.version}`))).toBeTruthy();
   });
 

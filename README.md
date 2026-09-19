@@ -1,52 +1,51 @@
 <p align="center">
-  <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica" width="380">
+  <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica: self-hosted, privacy-first web and product analytics on Cloudflare" width="380">
 </p>
 
-<p align="center"><strong>Self-hosted, privacy-first web analytics that runs in your own Cloudflare account. One command sets it up; your visitors' data never leaves infrastructure you control.</strong></p>
+<p align="center"><strong>Open-source, self-hosted, privacy-first web and product analytics that runs in your own Cloudflare account. One command sets it up, and your visitors' data stays in infrastructure you control.</strong></p>
 
 [![CI](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/package-json/v/ehud-am/vizoalica)](package.json)
 [![Website](https://img.shields.io/badge/website-vizoalica.dev-168bff)](https://vizoalica.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
-[![Runs on Cloudflare](https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
 
-Vizoalica collects page views from your websites, strips out anything sensitive before it is
-stored, and gives you a local console to read the numbers: traffic over time, top pages,
-referrers, browsers, devices, and unique visitors. You need a Cloudflare account, and a computer
-with Node.js 22 or newer and Git.
+**Documentation, a product tour, and a short video: [vizoalica.dev](https://vizoalica.dev).**
 
-## Try it
+**Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
+Cloudflare Workers, D1, and R2. A small browser SDK sends privacy-filtered page views and custom events
+to your own backend, and a local console shows traffic over time, top pages, referrers, browsers,
+devices, unique visitors, and where they are (countries on a world map). Visitor data stays in your own Cloudflare account.
 
-```sh
-git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
-corepack enable && pnpm install
-pnpm vizoalica install
+## At a glance
+
+```mermaid
+flowchart LR
+  install["pnpm vizoalica install"]
+  console["Local console<br/>runs on demand"]
+
+  subgraph site["Your website"]
+    direction TB
+    token["Server token endpoint"] -->|"short-lived ingest token"| sdk["Browser SDK<br/>in each visitor's browser"]
+  end
+
+  subgraph account["Your Cloudflare account"]
+    direction TB
+    worker["Worker<br/>validation, privacy guard, and APIs"]
+    worker --> d1[("D1<br/>bounded aggregates")]
+    worker --> r2[("R2<br/>raw event batches")]
+  end
+
+  install --> worker
+  install --> console
+  sdk -->|"privacy-filtered<br/>CloudEvents batches"| worker
+  console <-->|"admin API"| worker
 ```
 
-`pnpm vizoalica install` takes you from an empty Cloudflare account to a working console, and asks for
-almost nothing. In a rehearsal on a real account (already signed in to Cloudflare) it took under
-two minutes, most of it Cloudflare deploying and the numbers appearing:
-
-1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
-   install. It detects the answer and offers it as the default.
-2. It creates the database, storage bucket, and Worker, and deploys them. There is nothing to
-   copy or edit.
-3. It **generates your three secrets and shows them once**. You save them in a password manager
-   and type `saved`; the screen is then cleared. It never asks you to invent or paste a key.
-4. It sets up this computer as an operator console, and offers to send sample page views through
-   your new backend so the console has something real to show.
-5. It starts the console and opens it in your browser.
-
-<p align="center">
-  <img src="docs/assets/console-overview-light.png" alt="The Vizoalica console showing 96 page views and 29 unique visitors from sample data" width="900">
-</p>
-
-_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
-
-Delete the sample any time with `pnpm vizoalica demo --remove`, then add your real website (below).
-Windows is not supported yet: the console's private-file permission checks and the deploy scripts
-assume macOS or Linux.
+- **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
+- **Collects:** page views and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, page text, or session replay, and it records the consent state on every event.
+- **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
+- **Setup:** one command, `pnpm vizoalica install`. You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
+- **License:** MIT.
 
 ## The three parts, in order
 
@@ -76,10 +75,55 @@ Three secrets keep it safe, and none of them is ever in browser code:
 | `VIZOALICA_TOKEN_SECRET`            | The Worker and your website's token endpoint (server side) | Set up a website                        |
 | `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing day to day; keep it as a backup |
 
-## Get started, part by part
+## Quick start
 
-`pnpm vizoalica install` runs all three parts' first steps for you. Use the commands below to do one
-part on its own, for example to add a second operator or to update the backend later.
+Want to see it working before you plan a production setup? One command does all three parts above
+for a demo app: it deploys a real backend to your Cloudflare account, sets up this computer as the
+console, and sends sample page views for a make-believe website through that backend, so you are
+looking at real analytics about two minutes later.
+
+```sh
+git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
+corepack enable && pnpm install
+pnpm vizoalica install
+```
+
+You need Node.js 22 or newer, Git, and a Cloudflare account. The command asks for almost nothing.
+In a rehearsal on a real account (already signed in to Cloudflare) it took under two minutes, most
+of it Cloudflare deploying and the numbers appearing:
+
+1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
+   install. It detects the answer and offers it as the default.
+2. It creates the database, storage bucket, and Worker, and deploys them (part 1). There is nothing
+   to copy or edit.
+3. It **generates your three secrets and shows them once**. You save them in a password manager
+   and type `saved`; the screen is then cleared. It never asks you to invent or paste a key.
+4. It sets up this computer as an operator console (part 2), and offers to send sample page views
+   through your new backend so the console has something real to show (a stand-in for part 3).
+5. It starts the console and opens it in your browser.
+
+<p align="center">
+  <img src="docs/assets/console-overview-light.png" alt="The Vizoalica web analytics console showing 96 page views and 29 unique visitors from sample data" width="900">
+</p>
+
+_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
+
+The backend it creates is a real one, and only the sample data is throwaway: remove that any time
+with `pnpm vizoalica demo --remove`. Setting this up with an AI coding agent? Run
+`pnpm vizoalica install` yourself in a terminal. It shows your secrets once, they should not pass
+through an agent conversation, and the command refuses to run without an interactive terminal for
+that reason. Windows is not supported yet: the console's private-file permission checks and the
+deploy scripts assume macOS or Linux.
+
+**Ready for production?** The quick start does not connect a website of yours. Read the next
+section to do that, and to install on another computer, choose your own names, use OneCLI, or
+update an existing backend.
+
+## Production deployment, part by part
+
+The quick start already did parts 1 and 2 on this computer. Use this section to do the parts one at
+a time: add another operator, choose your own names, use OneCLI, update the backend, or connect your
+real website (part 3), which the quick start only simulates.
 
 ### 1. Backend — first
 
@@ -119,20 +163,22 @@ Full guides: **[without OneCLI](docs/operations/local-analytics.md)** (the defau
 
 ### 3. Website — third
 
-In the console, open **Projects**, choose or create a project, then **Websites → Add website**
-(every website starts with an empty, required project choice) and enter its exact production
-origin. Its integration panel gives you everything to paste:
+In the console, open **Websites** and choose **Add website**. Its first field is an
+empty, required project choice; then enter the exact production origin. Saving takes you to that
+website's **Install** page, which asks how the site is deployed and then gives numbered steps:
 
-1. For a site in its own GitHub repository: the generated GitHub Actions workflow and the
-   repository variables and secrets it needs. Add them and push; the workflow deploys the site to
-   Cloudflare Pages together with Vizoalica's loader and its configuration and token endpoints.
-   The token endpoint needs `VIZOALICA_TOKEN_SECRET`, the secret you saved during step 1.
-2. Open the site, grant analytics consent, and watch the page view appear in the console.
+1. **GitHub → Cloudflare Pages** (recommended): add the loader tag to your pages, the generated
+   GitHub Actions workflow, and the repository variables and secrets it needs (in GitHub, or with
+   the `gh` command), then push. The workflow deploys the site to Cloudflare Pages together with
+   Vizoalica's loader and its configuration and token endpoints. The token endpoint needs
+   `VIZOALICA_TOKEN_SECRET`, the secret you saved during step 1.
+2. **Paste a snippet**: add one script tag to your pages and host the SDK file and a token endpoint
+   yourself. Works with any host, including Direct Upload and Git-connected Pages.
+3. Open the site, grant analytics consent, and choose **Check now** on the Install page to see the
+   page views arrive.
 
-The panel offers two install options: a **Static snippet** that embeds six public values in the
-page, or **Dynamic configuration**, one generic loader plus a versioned public JSON document. This
-public browser configuration is not a secret. Direct Upload and Git-connected Pages are the manual
-alternatives.
+Behind the two paths are a **dynamic configuration** (a generic loader and a versioned JSON
+document) and a **static snippet** (six values embedded in the page). Both are public browser configuration, not secrets.
 
 Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK reference:
 [docs/operations/browser-sdk.md](docs/operations/browser-sdk.md).
@@ -259,10 +305,13 @@ tokens, and an explicit consent state on every event.
 | Console, default (private credential file)             | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                     | [With OneCLI](docs/operations/onecli.md)                                                       |
 | Daily console startup and mode check                   | [Start the console](docs/operations/operator-local.md)                                         |
+| Using the console: Analytics, Manage, Geography        | [Using the console](docs/operations/operator-local.md#using-the-console)                       |
 | Register, deploy, verify, and remove a website         | [Website activation](docs/operations/pages.md)                                                 |
 | Browser SDK reference                                  | [Browser SDK](docs/operations/browser-sdk.md)                                                  |
 | What is collected and what is not                      | [Privacy](docs/operations/privacy.md)                                                          |
+| Why only country and continent, and not more           | [Audience attributes review](docs/privacy/audience-attributes-review.md)                       |
 | D1 and R2 cost and capacity                            | [Cost model](docs/operations/cost-model.md)                                                    |
+| Publishing the documentation site (vizoalica.dev)      | [Publishing this site](docs/operations/docs-site.md)                                           |
 | Something failed                                       | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
 | Publishing a release, and making the repository public | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |
 | Vulnerability reports, contributing, brand             | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |

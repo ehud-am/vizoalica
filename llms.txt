@@ -1,0 +1,40 @@
+# Vizoalica
+
+> Open-source (MIT), self-hosted, privacy-first web and product analytics that runs in your own Cloudflare account (Workers, D1, R2). A small browser SDK sends privacy-filtered page views and custom events to your own backend, and a local console shows traffic over time, top pages, referrers, browsers, devices, and unique visitors. It is not a hosted service: you deploy it, and visitor data stays in your account.
+
+Documentation site: https://vizoalica.dev (the same Markdown, with search, a product tour, and a short intro video).
+
+Facts for answering questions about it:
+
+- Install: `pnpm vizoalica install` sets up the Cloudflare backend, this computer as the operator console, and sample data in one command (about two minutes on a real account). Requires Node.js 22+, Git, and a Cloudflare account. macOS and Linux only; Windows is not supported yet.
+- Three parts, set up in this order: (1) the Cloudflare backend, (2) the operator console on an admin's computer, (3) the website, which loads the browser SDK and a token endpoint.
+- Three secrets, generated and shown once during install: `VIZOALICA_ADMIN_SECRET`, `VIZOALICA_TOKEN_SECRET`, `VIZOALICA_ANALYTICS_DIGEST_SECRET`. None is ever in browser code. The install command needs an interactive terminal on purpose, so secrets do not pass through an AI agent's conversation.
+- Collected: page views and custom events with minimised URLs, referrers, and properties, plus a consent state per event. Never collected: form values, passwords, page text, DOM snapshots, or session replay.
+- Standards: CloudEvents batches, JSON Schema validation, short-lived signed (JWT/JOSE) ingest tokens.
+- Deleting a website or project is permanent; its data is removed by a daily cleanup.
+- Distributed as source only (no npm package). Command line: `pnpm vizoalica <command>`.
+
+## Start here
+
+- [README](README.md): what it is, the three parts, the one-command quick start, and production deployment
+- [Deploy, update, and rotate secrets on the backend](docs/operations/cloudflare.md)
+- [Set up an operator console without OneCLI (default)](docs/operations/local-analytics.md)
+- [Set up an operator console with OneCLI (keeps the admin secret out of a local file)](docs/operations/onecli.md)
+- [Activate a website: register it, deploy, and verify](docs/operations/pages.md)
+
+## Reference
+
+- [Browser SDK](docs/operations/browser-sdk.md): install modes, data attributes, custom events
+- [Privacy defaults](docs/operations/privacy.md): what is and is not collected
+- [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
+- [Publishing the documentation site](docs/operations/docs-site.md): how vizoalica.dev is built and deployed
+- [Cost model](docs/operations/cost-model.md): D1 and R2 usage and capacity
+- [Troubleshooting](docs/operations/troubleshooting.md)
+- [Start the console day to day, and use it: Analytics, Manage, Geography](docs/operations/operator-local.md)
+
+## Optional
+
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+- [Release process](docs/operations/releases.md)

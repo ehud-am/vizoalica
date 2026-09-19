@@ -12,6 +12,19 @@ export type Config = {
   configFilePath?: string;
 };
 
+const MIN_SESSION_TTL_MS = 60_000;
+const MAX_SESSION_TTL_MS = 24 * 60 * 60_000;
+
+/** A missing value means 30 minutes; anything else must be a whole number within bounds. */
+function safeSessionTtl(value: string | undefined): number {
+  if (value === undefined || value === '') return 30 * 60_000;
+  const ttl = Number(value);
+  // NaN would otherwise never compare as expired, leaving a session valid forever.
+  if (!Number.isInteger(ttl) || ttl < MIN_SESSION_TTL_MS || ttl > MAX_SESSION_TTL_MS)
+    throw new Error('invalid_session_ttl');
+  return ttl;
+}
+
 function safePort(value: string | undefined): number {
   const port = Number(value ?? 4318);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('invalid_port');
@@ -38,7 +51,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     adminSecret,
     port,
     consoleOrigin,
-    sessionTtlMs: Number(env.VIZOALICA_SESSION_TTL_MS ?? 30 * 60_000)
+    sessionTtlMs: safeSessionTtl(env.VIZOALICA_SESSION_TTL_MS)
   };
 }
 export function loadConfigFile(path: string): Config {

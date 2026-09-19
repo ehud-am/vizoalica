@@ -178,3 +178,7 @@ deploy/cloudflare/deployment-profile.json
 .wrangler/
 examples/cloudflare-pages/wrangler.toml
 examples/cloudflare-pages/public/vizoalica.js
+
+# Generated documentation site
+docs/.vitepress/cache/
+docs/.vitepress/dist/

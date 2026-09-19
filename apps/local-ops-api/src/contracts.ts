@@ -87,14 +87,6 @@ export type AnalyticsSummary = {
 export const isAnalyticsWindow = (value: string | null): value is AnalyticsWindow =>
   value === '24h' || value === '7d' || value === '30d';
 export const isSafeId = (value: string): boolean => /^[A-Za-z0-9_-]{1,128}$/.test(value);
-export const projectNameSchema = { type: 'string', minLength: 1, maxLength: 120 } as const;
-export const allowedOriginsSchema = {
-  type: 'array',
-  minItems: 1,
-  maxItems: 10,
-  uniqueItems: true,
-  items: { type: 'string', format: 'uri' }
-} as const;
 
 export function validName(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length >= 1 && value.length <= 120;

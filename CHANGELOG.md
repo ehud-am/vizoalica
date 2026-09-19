@@ -2,6 +2,112 @@
 
 All notable changes to Vizoalica are documented in this file.
 
+## [Unreleased]
+
+## [0.5.3] - 2026-09-19
+
+### Added
+
+- **Geography.** A new Analytics view shows visitor countries by full name on a world map, a
+  sortable table of every country, and totals by continent. Tor traffic and unknown locations are
+  labelled ("Tor network", "Unknown location") instead of showing `T1` or `XX`. Only country and
+  continent are shown; the [audience attributes review](docs/privacy/audience-attributes-review.md)
+  records why nothing finer is collected. The map is bundled with the console and makes no network
+  requests.
+- **Overview with comparison.** Page views and unique users now show the change against the
+  previous period of equal length, with a small trend.
+- Sources, Pages, Technology, and Traffic quality are separate Analytics views. Long lists have a
+  "Show all" control, and distributions use bars with a table view instead of pie charts.
+- A Manage > Health screen showing every website's status and reachability, with the next step;
+  each website's name links to its own page.
+- **A page for each website.** It shows the website's origins, identifiers with copy controls, live
+  status, and the actions Edit, Install, and View analytics, with enable, disable, and delete
+  apart from the routine ones.
+- **The documentation is now a website.** `docs/` builds into a static site for vizoalica.dev with a
+  home page, a quick start, a product tour, search, and every existing guide in grouped navigation.
+  It loads nothing from another origin, has no tracking, is checked for accessibility (light and
+  dark) and for its security headers, and has a sitemap, `robots.txt`, and an `llms.txt`. Preview it
+  with `pnpm docs:dev`; build it with `pnpm docs:build`.
+- **A pipeline to Cloudflare Pages.** `.github/workflows/docs-site.yml` builds and checks the site on
+  every change to `docs/`, and publishes it from the main branch once the maintainer has done the
+  one-time setup in [Publishing this site](docs/operations/docs-site.md). Until then it only builds
+  and checks. Nothing is deployed or created in Cloudflare by the repository itself.
+- Six product snapshots in `docs/assets/promo-src/` and a 13-second intro video (typed key messages
+  over the console, with the official logo), all generated from fictional demo data by
+  `pnpm promo:snapshots` and `pnpm promo:video`.
+
+- Repository hygiene for going public: a `.gitleaks.toml` for secret scanning, Dependabot for npm
+  and GitHub Actions, a pull-request template, and an issue-template chooser that sends
+  vulnerability reports to private advisories.
+
+### Changed
+
+- **The console is reorganized into Analytics (viewing) and Manage (setup) areas.** Nothing under
+  Analytics can create, change, disable, or delete anything, which prepares the ground for
+  role-based access. The project and website are chosen once, in the shell, and are remembered
+  across screens and reloads.
+- Deleting or disabling a project or website now happens in a "danger zone" with an in-console
+  confirmation that names the target (a project also asks you to type its name), replacing the
+  browser's native dialog.
+- **Websites are now a list, a page per website, and separate add and edit pages.** The Websites
+  screen no longer mixes a list, two forms, and a detail pane. It lists websites as cards, each one
+  a link to that website's page. **Edit** and **Add website** are pages of their own with a back
+  link, field-level validation, Save available only when something changed, and a prompt before
+  leaving with unsaved changes. Adding a website now ends on its Install page.
+- **The Install page is rebuilt.** Instead of a "Static snippet / Dynamic configuration" radio
+  group and one long block of code, it asks how the website is deployed (GitHub → Cloudflare Pages,
+  recommended, or Paste a snippet), then shows numbered steps with one action and at most one code
+  block each. The two ways of adding settings are a toggle inside one step, variables and secrets
+  are named in a small list, the token endpoint requirement is stated, and the generic loader for
+  other hosts is in a disclosure. Each code block has its own copy control that confirms in place.
+  The step list ends with **Check now**, which reads the last 24 hours of page views and, on the
+  GitHub path, whether the configuration file is reachable. The chosen path is remembered per
+  website in the browser.
+- **Installation is no longer a separate item in the Manage navigation** (it asked which website
+  you meant). Manage is Projects, Websites, and Health; installing is done from a website. An old
+  `#/manage/installation` link opens Overview.
+- Filled buttons use a darker blue so their white text meets the 4.5:1 contrast requirement.
+- The Worker's overview response now returns up to 300 countries and up to 100 pages, sources, and
+  user agents (was 10). **Redeploy the Worker to get the complete lists**; an older Worker still
+  works and the console shows its top ten.
+- The console's header no longer has the "Local workspace" indicator. What it explained (the console
+  and its credential-holding service run on your computer; your data may be remote) is in the
+  operator guides.
+- The time range picker's options are ordinary radio buttons with the label after them on one line
+  (the scope bar's label style had been stacking them).
+- On wide screens the Technology view shows two bar lists to a row so their values no longer wrap,
+  and website cards show each website's full origin, with its status beside the name.
+- The README screenshot is regenerated for the current console.
+- The analytics overview reads its fifteen queries in one D1 round trip instead of fifteen.
+- The console asks for the previous period (for the change indicators) only on the Overview, not on
+  every Analytics view.
+- Removed code nothing used: the pre-0.5.3 summary card and its client call, unused icons and
+  exports, and dependencies no package imported (`ajv` from the console service,
+  `@vizoalica/privacy` from the Worker, the MCP SDK, and the Workers test pool).
+
+### Security
+
+- The Worker now refuses to start when the token, admin, or digest secret is shorter than 32
+  characters or contains characters other than printable ASCII (`weak_secret:<NAME>`). Secrets made
+  by `pnpm vizoalica` were already 256-bit; this stops a hand-typed weak one.
+- Ingest tokens must declare `alg: HS256` in their header; anything else is `malformed_token`.
+- Repeated denied admin and MCP requests write at most one audit row per minute per Worker
+  instance, so a flood of bad credentials cannot fill the audit log. Denials are still refused.
+- CORS preflight responses carry `Access-Control-Max-Age: 86400`, so browsers stop repeating them.
+- The local console service prunes expired sessions and keeps at most 32; the session lifetime
+  (`VIZOALICA_SESSION_TTL_MS`, default 30 minutes) is validated and rejected outside 1 minute to 24
+  hours.
+- The reusable deploy workflow passes every input and repository variable through environment
+  variables instead of pasting them into shell scripts, validates them (no whitespace, quotes,
+  backslashes, `$`, backticks, or `..` paths), and pins Wrangler to an exact version.
+
+### Removed
+
+- The Overview "principles" panel and the sidebar privacy note. Their text moved into the help
+  popover under "Local workspace".
+- The separate Installation destination and its Static/Dynamic radio chooser (replaced by the
+  website's Install page).
+
 ## [0.5.2] - 2026-09-18
 
 ### Added

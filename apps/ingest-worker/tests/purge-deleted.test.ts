@@ -240,11 +240,11 @@ describe('POST /v1/admin/purge-deleted', () => {
     const response = await handleAdminRequest(
       new Request('https://worker.test/v1/admin/purge-deleted', {
         method: 'POST',
-        headers: { authorization: 'Bearer admin-secret' },
+        headers: { authorization: 'Bearer admin-secret-0123456789abcdefghijklmn' },
         body: JSON.stringify(body)
       }),
       {
-        adminSecret: 'admin-secret',
+        adminSecret: 'admin-secret-0123456789abcdefghijklmn',
         repositories: {
           saveAdminAudit: async (entry: unknown) => void audits.push(entry)
         } as never,
@@ -281,9 +281,9 @@ describe('daily scheduled purge', () => {
       {
         VIZOALICA_DB: d1(sqlite),
         VIZOALICA_EVENTS: objects,
-        VIZOALICA_TOKEN_SECRET: 'test-secret',
-        VIZOALICA_ADMIN_SECRET: 'admin-secret',
-        VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+        VIZOALICA_TOKEN_SECRET: 'test-token-secret-0123456789abcdefgh',
+        VIZOALICA_ADMIN_SECRET: 'admin-secret-0123456789abcdefghijklmn',
+        VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret-0123456789abcd'
       }
     );
   const purgeAudits = (sqlite: DatabaseSync) =>

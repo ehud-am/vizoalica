@@ -7,7 +7,9 @@ export interface D1Statement {
 
 export interface D1Database {
   prepare(query: string): D1Statement;
-  batch?(statements: D1Statement[]): Promise<Array<{ meta?: { changes?: number } }>>;
+  batch?(
+    statements: D1Statement[]
+  ): Promise<Array<{ results?: unknown[]; meta?: { changes?: number } }>>;
 }
 
 export interface R2Bucket {

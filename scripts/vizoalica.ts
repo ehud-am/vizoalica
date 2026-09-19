@@ -133,7 +133,7 @@ function writePrivateJson(path: string, value: unknown): void {
   renameSync(temporary, target);
 }
 
-export function loadOpsConfig(path = DEFAULT_CONFIG): OpsConfig {
+function loadOpsConfig(path = DEFAULT_CONFIG): OpsConfig {
   const target = assertSafePath(path);
   const mode = statSync(target).mode & 0o777;
   if ((mode & 0o077) !== 0) throw new Error(`Configuration must be private (chmod 600 ${target}).`);

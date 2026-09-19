@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { digest, loadWranglerTarget, readJsonFile, writePrivateJson } from './config.js';
 import type {
   DeploymentPlan,
@@ -10,7 +9,7 @@ import type {
 } from './types.js';
 import { DeploymentFailure } from './types.js';
 
-export function operationsFor(target: WranglerTarget): PlannedOperation[] {
+function operationsFor(target: WranglerTarget): PlannedOperation[] {
   return [
     { id: 'cloudflare.identity.read', resource: 'account', mutation: false, approval: 'none' },
     { id: 'd1.database.read', resource: target.databaseName, mutation: false, approval: 'none' },
@@ -146,8 +145,4 @@ export async function loadReceipt(path: string): Promise<PreflightReceipt> {
 
 export async function saveArtifact(path: string, value: unknown, replace = false): Promise<void> {
   await writePrivateJson(path, value, replace);
-}
-
-export async function digestFile(path: string): Promise<string> {
-  return digest(await readFile(path, 'utf8'));
 }

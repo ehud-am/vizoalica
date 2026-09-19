@@ -81,6 +81,14 @@ client.track('signup_click', {
 
 Client-side filtering is a convenience, not a trust boundary. The ingestion backend also validates privacy defaults before persistence and rejects events that contain sensitive-looking fields or unredacted URL query values.
 
+## Location
+
+Only the visitor's country is recorded, as an aggregate count. The console shows it by full name
+and groups it by continent. Nothing finer (region, city, or language) and nothing about people
+(age, gender, interests) is collected. The
+[audience attributes review](../privacy/audience-attributes-review.md) records the decision for
+each and the conditions under which any of them could be considered later.
+
 ## Deleting data
 
 Deleting a website or project in the console is permanent. Events for it are rejected at once,

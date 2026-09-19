@@ -94,9 +94,9 @@ describe('Cloudflare Worker durable ingestion', () => {
     const env: Env = {
       VIZOALICA_DB: database(queries),
       VIZOALICA_EVENTS: bucket,
-      VIZOALICA_TOKEN_SECRET: 'test-secret',
-      VIZOALICA_ADMIN_SECRET: 'admin-secret',
-      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret'
+      VIZOALICA_TOKEN_SECRET: 'test-token-secret-0123456789abcdefgh',
+      VIZOALICA_ADMIN_SECRET: 'admin-secret-0123456789abcdefghijklmn',
+      VIZOALICA_ANALYTICS_DIGEST_SECRET: 'analytics-digest-secret-0123456789abcd'
     };
     const event = {
       specversion: '1.0',
@@ -122,7 +122,7 @@ describe('Cloudflare Worker durable ingestion', () => {
         method: 'POST',
         headers: {
           origin: 'https://example.test',
-          authorization: `Bearer ${createSignedDemoToken(claims, 'test-secret')}`,
+          authorization: `Bearer ${createSignedDemoToken(claims, 'test-token-secret-0123456789abcdefgh')}`,
           'x-vizoalica-source': 'public-a',
           'content-type': 'application/cloudevents-batch+json'
         },

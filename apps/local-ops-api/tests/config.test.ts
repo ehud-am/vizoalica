@@ -20,6 +20,26 @@ describe('loadConfig', () => {
     ).toBe('http://localhost:8787');
   });
 
+  it('defaults the session lifetime to 30 minutes and accepts a whole number of milliseconds in bounds', () => {
+    expect(loadConfig(validEnv).sessionTtlMs).toBe(30 * 60_000);
+    expect(loadConfig({ ...validEnv, VIZOALICA_SESSION_TTL_MS: '' }).sessionTtlMs).toBe(
+      30 * 60_000
+    );
+    for (const value of ['60000', '1800000', '86400000'])
+      expect(loadConfig({ ...validEnv, VIZOALICA_SESSION_TTL_MS: value }).sessionTtlMs).toBe(
+        Number(value)
+      );
+  });
+
+  it.each(['abc', 'NaN', '-1', '0', '59999', '86400001', '1.5', '1e3x', 'Infinity'])(
+    'rejects the session lifetime %s, so a session can never fail to expire',
+    (value) => {
+      expect(() => loadConfig({ ...validEnv, VIZOALICA_SESSION_TTL_MS: value })).toThrow(
+        'invalid_session_ttl'
+      );
+    }
+  );
+
   it('rejects a console origin that is not loopback', () => {
     expect(() =>
       loadConfig({ ...validEnv, VIZOALICA_CONSOLE_ORIGIN: 'https://evil.test' })

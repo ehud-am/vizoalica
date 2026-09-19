@@ -1,103 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-
-const project = { id: 'project-1', name: 'Developer Tools' };
-const secondProject = { id: 'project-2', name: 'Developer Tools' };
-const website = {
-  id: 'site-1',
-  projectId: project.id,
-  name: 'Docs',
-  publicSourceKey: 'public-key',
-  allowedOrigins: ['https://docs.example.com'],
-  status: 'active'
-};
-
-async function mockConsole(page: Page) {
-  await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const path = url.pathname;
-    let body: unknown = {};
-    if (path === '/api/session') return route.fulfill({ status: 204 });
-    if (path.endsWith('/websites') && request.method() === 'POST') {
-      const projectId = path.split('/')[3]!;
-      const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };
-      return route.fulfill({
-        status: 201,
-        json: {
-          id: 'site-created',
-          projectId,
-          name: input.name,
-          publicSourceKey: 'created-public-key',
-          allowedOrigins: input.allowedOrigins,
-          status: 'active'
-        }
-      });
-    }
-    if (path === '/api/projects') body = [project, secondProject];
-    else if (path === '/api/preferences/theme') body = { theme: null };
-    else if (path.endsWith('/websites')) body = [website];
-    else if (path.endsWith('/snippet'))
-      body = {
-        projectId: project.id,
-        sourceId: website.id,
-        publicSourceKey: 'public-key',
-        allowedOrigins: website.allowedOrigins,
-        tokenIssuer: 'website-owned',
-        html: '<script async src="/vizoalica.js" data-source="public-key"></script>'
-      };
-    else if (path.endsWith('/status'))
-      body = {
-        collection: 'healthy',
-        aggregation: 'available',
-        configuration: 'healthy',
-        dataAccess: 'available'
-      };
-    else if (path.endsWith('/analytics'))
-      body = {
-        scope: {
-          projectId: project.id,
-          sourceId: null,
-          label: 'All websites',
-          identityMode: 'project-supplied'
-        },
-        range: {
-          startUtc: '2026-09-10T00:00:00.000Z',
-          endUtc: '2026-09-11T00:00:00.000Z',
-          interval: 'hour',
-          timezone: 'UTC'
-        },
-        totals: { pageViews: 12840, uniqueUsers: 3941 },
-        trend: [
-          { startUtc: '2026-09-10T00:00:00.000Z', pageViews: 500, uniqueUsers: 210 },
-          { startUtc: '2026-09-10T01:00:00.000Z', pageViews: 740, uniqueUsers: 310 }
-        ],
-        rankings: {
-          pagePaths: {
-            items: [{ label: '/docs/getting-started/a-very-long-route', count: 820 }],
-            otherCount: 20,
-            total: 840
-          },
-          countries: { items: [{ label: 'United States', count: 610 }], otherCount: 0, total: 610 },
-          userAgents: { items: [{ label: 'Chrome', count: 500 }], otherCount: 0, total: 500 },
-          referrers: { items: [{ label: 'Direct', count: 700 }], otherCount: 0, total: 700 }
-        },
-        distributions: {
-          operatingSystems: { items: [{ label: 'macOS', count: 500 }], total: 500 },
-          browsers: { items: [{ label: 'Chrome', count: 500 }], total: 500 },
-          devices: { items: [{ label: 'Desktop', count: 500 }], total: 500 },
-          traffic: { items: [{ label: 'Human', count: 500 }], total: 500 }
-        },
-        availability: { state: 'complete', taxonomyVersions: [1] }
-      };
-    await route.fulfill({ json: body });
-  });
-}
+import { expect, test } from '@playwright/test';
+import { mockConsole, secondProject } from './mock-console.js';
 
 test.beforeEach(async ({ page }) => {
   await mockConsole(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Understand what’s happening.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
 });
 
 for (const [label, width] of [
@@ -136,51 +44,36 @@ test('preserves state across resize and synchronizes the dark lockup', async ({ 
   );
 });
 
-test('navigates Projects with the keyboard and preserves explicit current context', async ({
-  page
-}) => {
-  const projects = page.getByRole('button', { name: 'Projects', exact: true });
+test('navigates Projects with the keyboard and keeps the scope explicit', async ({ page }) => {
+  const projects = page.getByRole('link', { name: 'Projects', exact: true });
   await projects.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
   await expect(projects).toHaveAttribute('aria-current', 'page');
 
-  const selectSecond = page.getByRole('button', {
-    name: 'Select Developer Tools (project-2)'
-  });
-  await selectSecond.focus();
-  await page.keyboard.press('Enter');
-  await expect(selectSecond).toHaveAttribute('aria-pressed', 'true');
-
-  const openWebsites = page.getByRole('button', {
-    name: 'Open websites for Developer Tools (project-2)'
+  const openWebsites = page.getByRole('link', {
+    name: 'Manage websites in Developer Tools (project-2)'
   });
   await openWebsites.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Websites' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Websites', exact: true })).toHaveAttribute(
     'aria-current',
     'page'
   );
-  await expect(page.getByRole('combobox', { name: 'Browsing project' })).toHaveValue('project-2');
-});
-
-test('has no serious axe findings on Projects, Overview, and Websites', async ({ page }) => {
-  for (const name of ['Projects', 'Overview', 'Websites']) {
-    await page.getByRole('button', { name }).click();
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(
-      results.violations.filter((item) => ['critical', 'serious'].includes(item.impact ?? ''))
-    ).toEqual([]);
-  }
+  await expect(page.getByRole('region', { name: 'Scope' }).getByLabel('Project')).toHaveValue(
+    'project-2'
+  );
 });
 
 test('requires project confirmation as the first website creation control', async ({ page }) => {
-  await page.getByRole('button', { name: 'Websites' }).click();
-  await page.getByText('Add a website').click();
+  await page.getByRole('link', { name: 'Websites', exact: true }).click();
+  await page.getByRole('link', { name: /Add website/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Add a website' })).toBeVisible();
   const form = page.getByRole('form', { name: 'Add website' });
   const projectChoice = form.getByRole('combobox', { name: 'Project' });
   await expect(projectChoice).toHaveValue('');
   await expect(projectChoice).toHaveAttribute('required', '');
+  await expect(projectChoice).toBeFocused();
   expect(
     await form.evaluate((element) => element.querySelector('select, input, textarea')?.tagName)
   ).toBe('SELECT');
@@ -188,33 +81,36 @@ test('requires project confirmation as the first website creation control', asyn
   await form.getByRole('textbox', { name: 'Website name' }).fill('Launch');
   await form.getByRole('textbox', { name: 'Allowed origins' }).fill('https://launch.example');
   await form.getByRole('button', { name: 'Add website' }).click();
+  // Creating lands on the new website's Install page, in the chosen project.
+  await expect(page.getByRole('heading', { level: 1, name: /^Install on/ })).toBeVisible();
   await expect(
-    page.getByText(`Website Launch created in project ${secondProject.name} (${secondProject.id}).`)
+    page.getByText(
+      `Website Launch created in project ${secondProject.name} (${secondProject.id}).`,
+      {
+        exact: false
+      }
+    )
   ).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Browsing project' })).toHaveValue(
-    secondProject.id
-  );
 });
 
-test('recovers from an empty project list with a keyboard-accessible Projects action', async ({
+test('recovers from an empty project list with a keyboard-accessible Create a project action', async ({
   page
 }) => {
   await page.route('http://127.0.0.1:4173/api/projects', (route) => route.fulfill({ json: [] }));
   await page.reload();
-  await page.getByRole('button', { name: 'Websites' }).click();
-  const recovery = page.getByRole('button', { name: 'Go to Projects' });
+  const recovery = page.getByRole('link', { name: 'Create a project' });
   await recovery.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
   await expect(
-    page.getByText('Create a project before organizing websites or viewing analytics.')
+    page.getByText('Create a project before adding websites or viewing analytics.')
   ).toBeVisible();
 });
 
 test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom', async ({
   page
 }) => {
-  await page.getByRole('button', { name: 'Projects', exact: true }).click();
+  await page.getByRole('link', { name: 'Projects', exact: true }).click();
   await page.setViewportSize({ width: 320, height: 720 });
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '200%';
@@ -223,7 +119,7 @@ test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom',
   await footer.scrollIntoViewIfNeeded();
   const footerBox = await footer.boundingBox();
   const lastActionBox = await page
-    .getByRole('button', { name: /Open websites for Developer Tools \(project-2\)/ })
+    .getByRole('button', { name: 'Delete project Developer Tools (project-2)' })
     .boundingBox();
   expect(footerBox).toBeTruthy();
   expect(lastActionBox).toBeTruthy();
@@ -248,14 +144,63 @@ test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom',
   );
 });
 
-test('opens and closes the Local workspace boundary explanation by keyboard', async ({ page }) => {
-  const trigger = page.getByRole('button', { name: 'Local workspace' });
-  await trigger.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('region', { name: 'Local workspace explanation' })).toContainText(
-    'loopback service'
-  );
-  await page.keyboard.press('Escape');
-  await expect(trigger).toBeFocused();
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+test('the console has no Local workspace indicator', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Local workspace' })).toHaveCount(0);
+  await expect(page.getByText('Local workspace')).toHaveCount(0);
+});
+
+test('time range options are ordinary radio buttons with the label after them on one line', async ({
+  page
+}) => {
+  await page.getByRole('button', { name: /^Last/ }).click();
+  const options = page.locator('.time-range-presets label');
+  await expect(options).toHaveCount(6);
+  for (let index = 0; index < 6; index += 1) {
+    const label = options.nth(index);
+    const radio = await label.locator('input[type="radio"]').boundingBox();
+    const text = await label.evaluate((element) => {
+      const range = document.createRange();
+      const node = Array.from(element.childNodes).find(
+        (child) => child.nodeType === Node.TEXT_NODE
+      )!;
+      range.selectNodeContents(node);
+      const box = range.getBoundingClientRect();
+      return { left: box.left, top: box.top, height: box.height };
+    });
+    expect(radio).toBeTruthy();
+    // Same line: their vertical centres agree, and the text starts to the right of the radio.
+    expect(Math.abs(radio!.y + radio!.height / 2 - (text.top + text.height / 2))).toBeLessThan(4);
+    expect(text.left).toBeGreaterThan(radio!.x + radio!.width);
+  }
+});
+
+test('has no serious axe findings on any screen, in light and dark', async ({ page }) => {
+  const screens: Array<[string, string]> = [
+    ['analytics/overview', 'Overview'],
+    ['analytics/pages', 'Pages'],
+    ['analytics/sources', 'Sources'],
+    ['analytics/geography', 'Geography'],
+    ['analytics/technology', 'Technology'],
+    ['analytics/traffic-quality', 'Traffic quality'],
+    ['manage/projects', 'Projects'],
+    ['manage/websites', 'Websites'],
+    ['manage/websites/new', 'Add a website'],
+    ['manage/websites/site-1', 'Docs'],
+    ['manage/websites/site-1/edit', 'Edit Docs'],
+    ['manage/websites/site-1/install', 'Install on Docs'],
+    ['manage/health', 'Health']
+  ];
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const [address, title] of screens) {
+      await page.goto(`/#/${address}`);
+      await expect(page.getByRole('heading', { level: 1, name: new RegExp(title) })).toBeVisible();
+      await expect(page.locator('.skeleton')).toHaveCount(0);
+      const results = await new AxeBuilder({ page }).analyze();
+      expect(
+        results.violations.filter((item) => ['critical', 'serious'].includes(item.impact ?? '')),
+        `${scheme} ${title}`
+      ).toEqual([]);
+    }
+  }
 });

@@ -1,0 +1,17 @@
+# Secret-scanning configuration (https://github.com/gitleaks/gitleaks).
+# Run before a release: gitleaks detect --source . --config .gitleaks.toml
+title = "vizoalica"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed, non-secret content"
+paths = [
+  # The reusable workflow embeds base64 copies of three public example files (see
+  # scripts/generate-deploy-workflow.mjs). They decode byte-for-byte to examples/cloudflare-pages/
+  # sources and contain no credentials; `pnpm run generate:deploy-workflow:check` enforces that.
+  '''\.github/workflows/deploy-vizoalica-pages\.yml''',
+  # Vendored, pre-built third-party and generated output.
+  '''pnpm-lock\.yaml''',
+]

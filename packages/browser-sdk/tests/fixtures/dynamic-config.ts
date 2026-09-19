@@ -15,7 +15,3 @@ export const mismatchedDynamicConfig = {
   ...validDynamicConfig,
   'data-token-url': 'https://other.example/vizoalica/ingest-token'
 };
-export const secretLeakDynamicConfig = {
-  ...validDynamicConfig,
-  VIZOALICA_TOKEN_SECRET: 'must-never-be-returned'
-};

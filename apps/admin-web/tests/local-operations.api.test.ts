@@ -23,8 +23,7 @@ describe('browser local operations client', () => {
     await api.deleteWebsite('p1', 's1');
     await api.getSnippet('p1', 's1');
     await api.getStatus('p1', 's1');
-    await api.getAnalytics('p1', 's1', '30d');
-    expect(fetch).toHaveBeenCalledTimes(10);
+    expect(fetch).toHaveBeenCalledTimes(9);
     expect(fetch.mock.calls.map(([path]) => path).join(' ')).toContain('p%2F1');
     expect(
       fetch.mock.calls.some(

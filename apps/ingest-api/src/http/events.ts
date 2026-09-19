@@ -2,13 +2,6 @@ import type { RequestAnalyticsContext } from '../domain/types.js';
 import type { PipelineDependencies } from '../ingestion/pipeline.js';
 import { ingestBatch } from '../ingestion/pipeline.js';
 
-export async function eventsBatchResponse(
-  request: Request,
-  dependencies: PipelineDependencies
-): Promise<Response> {
-  return eventsBatchResponseForBody(request, await request.text(), dependencies);
-}
-
 export async function eventsBatchResponseForBody(
   request: Request,
   body: string,

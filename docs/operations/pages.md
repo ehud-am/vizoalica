@@ -29,7 +29,7 @@ while the website collects events.
 | `VIZOALICA_TOKEN_SECRET`        | Customer-approved secret manager; same value as the Worker  |
 | Analytics project ID            | Create or select in the local console                       |
 | Website/source ID               | Created by the local console; not the public source key     |
-| Public source key               | Website integration panel in the local console              |
+| Public source key               | The website's page or Install page in the local console     |
 | Exact production origin(s)      | Website hosting settings, with scheme and no trailing slash |
 | Website folder and asset output | Website build configuration                                 |
 | Deployment path                 | GitHub Actions, existing Git integration, or Direct Upload  |
@@ -60,9 +60,9 @@ Open the configured local console. Select **Projects**, create or explicitly sel
 boundary, open **Websites**, then choose **Add website**. Its first field is an empty required
 project dropdown; confirm the project even when the surrounding view already shows it. Enter a
 clear display name and the exact production origin,
-including `https://` and without a trailing slash. Save the website and open its integration panel.
-Copy the generated project ID, website/source ID, and public source key; these are three different
-non-secret values. Start with the default low quota and seven-day retention.
+including `https://` and without a trailing slash. Save the website; the console opens its
+**Install** page. The website's own page lists the generated project ID, website/source ID, and
+public source key, each with a copy control; these are three different non-secret values. Start with the default low quota and seven-day retention.
 
 **Check:** the new website belongs to the intended customer project, lists only its real allowed
 origin(s), and has its own source ID and public key.
@@ -85,15 +85,15 @@ Both paths end at [Verify website activation](#verify-website-activation).
 A push to the website's repository deploys it automatically, with no per-deploy manual steps and
 no analytics values ever committed to the website's source.
 
-1. **Open the website's integration panel** in the console (created in step 1) and choose
-   **Dynamic configuration**.
-2. **Copy the generated guidance**: the panel shows the exact GitHub repository variables and
+1. **Open the website's Install page** in the console (from the website's page, choose **Install**)
+   and choose **GitHub → Cloudflare Pages**, the recommended path (it uses dynamic configuration).
+2. **Copy the generated guidance**: the page shows the exact GitHub repository variables and
    secrets to add, a ready-to-paste starter workflow file, and the equivalent `gh` CLI commands.
    Add the variables/secrets to the website's repository (GitHub → Settings → Secrets and
    variables → Actions), and the two account-specific values (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`)
    plus a Cloudflare API token scoped to **Cloudflare Pages: Edit only** (create it without any
    Client IP Address Filtering restriction — a CI runner has no fixed IP).
-3. **Add the workflow file** shown in the panel to `.github/workflows/` in the website's repo, and
+3. **Add the workflow file** shown on the page to `.github/workflows/` in the website's repo, and
    push. The workflow deploys the site, vendors the Vizoalica configuration and token-issuing
    Functions, and wires the analytics configuration into the Cloudflare Pages environment — all
    from repository variables/secrets, never from committed source.
@@ -322,8 +322,8 @@ visitor data.
 
 ## Add the integration to your own pages
 
-Choose exactly one option in the local console after hosting the SDK and token Function. The static
-option is the existing complete website-specific snippet. Dynamic configuration keeps the generic
+Choose exactly one path on the website's Install page after hosting the SDK and token Function.
+**Paste a snippet** (the static option) is the existing complete website-specific snippet. Dynamic configuration keeps the generic
 loader unchanged while the hosting adapter supplies the six public values. It
 uses the first configured website origin for `src` and your configured Worker for `data-endpoint`.
 For several allowed origins, hosting at the same `/vizoalica.js` path lets you use a relative `src`.

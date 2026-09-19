@@ -2,9 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "composite": true, "noEmit": true, "lib": ["ES2022", "WebWorker"] },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "references": [
-    { "path": "../ingest-api" },
-    { "path": "../../packages/event-contracts" },
-    { "path": "../../packages/privacy" }
-  ]
+  "references": [{ "path": "../ingest-api" }, { "path": "../../packages/event-contracts" }]
 }

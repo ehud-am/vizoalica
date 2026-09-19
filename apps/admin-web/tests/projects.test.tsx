@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
-import { consoleProjects, duplicateNameProject, primaryProject } from './fixtures/console.js';
+import {
+  consoleProjects,
+  duplicateNameProject,
+  makeOverview,
+  primaryProject
+} from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
   listProjects: vi.fn(),
   createProject: vi.fn(),
+  deleteProject: vi.fn(),
   listWebsites: vi.fn(),
   getAnalyticsOverview: vi.fn(),
   getThemePreference: vi.fn(),
@@ -18,39 +24,13 @@ const api = vi.hoisted(() => ({
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
 beforeEach(() => {
+  window.location.hash = '#/manage/projects';
   api.bootstrapSession.mockResolvedValue(undefined);
   api.listProjects.mockResolvedValue(consoleProjects);
   api.createProject.mockResolvedValue({ id: 'project-3', name: 'Marketing', websiteCount: 0 });
+  api.deleteProject.mockResolvedValue({ status: 'deleted', audit: 'recorded' });
   api.listWebsites.mockResolvedValue([]);
-  api.getAnalyticsOverview.mockResolvedValue({
-    scope: {
-      projectId: primaryProject.id,
-      sourceId: null,
-      label: 'All websites',
-      identityMode: 'project-supplied'
-    },
-    range: {
-      startUtc: '2026-01-01T00:00:00.000Z',
-      endUtc: '2026-01-02T00:00:00.000Z',
-      interval: 'hour',
-      timezone: 'UTC'
-    },
-    totals: { pageViews: 0, uniqueUsers: 0 },
-    trend: [],
-    rankings: {
-      pagePaths: { items: [], otherCount: 0, total: 0 },
-      countries: { items: [], otherCount: 0, total: 0 },
-      userAgents: { items: [], otherCount: 0, total: 0 },
-      referrers: { items: [], otherCount: 0, total: 0 }
-    },
-    distributions: {
-      operatingSystems: { items: [], total: 0 },
-      browsers: { items: [], total: 0 },
-      devices: { items: [], total: 0 },
-      traffic: { items: [], total: 0 }
-    },
-    availability: { state: 'complete', taxonomyVersions: [1] }
-  });
+  api.getAnalyticsOverview.mockResolvedValue(makeOverview());
   api.getThemePreference.mockResolvedValue({ theme: null });
   api.putThemePreference.mockResolvedValue({ theme: 'light' });
 });
@@ -60,55 +40,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('Projects destination', () => {
-  it('is primary navigation and identifies duplicate project names by stable ID', async () => {
-    const user = userEvent.setup();
+const scopeProject = () =>
+  (
+    within(screen.getByRole('region', { name: 'Scope' })).getByLabelText(
+      'Project'
+    ) as HTMLSelectElement
+  ).value;
+
+describe('Manage > Projects', () => {
+  it('identifies duplicate project names by stable ID and shows no project picker of its own', async () => {
     render(<App />);
-
-    const projectsNavigation = await screen.findByRole('button', { name: 'Projects' });
-    expect(projectsNavigation.parentElement?.firstElementChild).toBe(projectsNavigation);
-    await user.click(projectsNavigation);
-
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
     expect(screen.getByText(primaryProject.id)).toBeTruthy();
     expect(screen.getByText(duplicateNameProject.id)).toBeTruthy();
     expect(screen.getAllByText('Developer Tools')).toHaveLength(2);
-    expect(projectsNavigation.getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Projects' }).getAttribute('aria-current')).toBe(
+      'page'
+    );
+    // Projects is not scope-bound, so the shell hides the project and website controls.
+    expect(screen.queryByLabelText('Website')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Select / })).toBeNull();
   });
 
-  it('selects a project and opens only that project in downstream destinations', async () => {
+  it('opens a project in Websites or Analytics and makes it the current scope', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Projects' }));
-
     await user.click(
-      screen.getByRole('button', {
-        name: `Select ${duplicateNameProject.name} (${duplicateNameProject.id})`
-      })
-    );
-    expect(
-      screen
-        .getByRole('button', {
-          name: `Select ${duplicateNameProject.name} (${duplicateNameProject.id})`
-        })
-        .getAttribute('aria-pressed')
-    ).toBe('true');
-
-    await user.click(
-      screen.getByRole('button', {
-        name: `Open websites for ${duplicateNameProject.name} (${duplicateNameProject.id})`
+      await screen.findByRole('link', {
+        name: `Manage websites in ${duplicateNameProject.name} (${duplicateNameProject.id})`
       })
     );
     await waitFor(() => expect(api.listWebsites).toHaveBeenCalledWith(duplicateNameProject.id));
-    expect(document.querySelector('main')?.getAttribute('data-view')).toBe('websites');
-    expect(
-      (screen.getByRole('combobox', { name: 'Browsing project' }) as HTMLSelectElement).value
-    ).toBe(duplicateNameProject.id);
+    expect(document.querySelector('main')?.getAttribute('data-route')).toBe('manage/websites');
+    expect(scopeProject()).toBe(duplicateNameProject.id);
 
-    await user.click(screen.getByRole('button', { name: 'Projects' }));
+    await user.click(screen.getByRole('link', { name: 'Projects' }));
     await user.click(
-      screen.getByRole('button', {
-        name: `Open analytics for ${duplicateNameProject.name} (${duplicateNameProject.id})`
+      screen.getByRole('link', {
+        name: `View analytics for ${duplicateNameProject.name} (${duplicateNameProject.id})`
       })
     );
     await waitFor(() =>
@@ -120,26 +89,102 @@ describe('Projects destination', () => {
         expect.any(AbortSignal)
       )
     );
-    expect(document.querySelector('main')?.getAttribute('data-view')).toBe('overview');
+    expect(document.querySelector('main')?.getAttribute('data-route')).toBe('analytics/overview');
   });
 
-  it('creates a project with an inline form and makes it the current context', async () => {
+  it('creates a project with an inline form and makes it the current scope', async () => {
     const user = userEvent.setup();
     const created = { id: 'project-3', name: 'Marketing', websiteCount: 0 };
     api.listProjects
       .mockResolvedValueOnce(consoleProjects)
       .mockResolvedValueOnce([...consoleProjects, created]);
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Projects' }));
-    await user.type(screen.getByRole('textbox', { name: 'Project name' }), created.name);
+    await user.type(await screen.findByRole('textbox', { name: 'Project name' }), created.name);
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
     await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(created.name));
     expect(await screen.findByText(`Project ${created.name} created.`)).toBeTruthy();
-    expect(
-      screen
-        .getByRole('button', { name: `Select ${created.name} (${created.id})` })
-        .getAttribute('aria-pressed')
-    ).toBe('true');
+    await user.click(screen.getByRole('link', { name: 'Websites' }));
+    expect(scopeProject()).toBe(created.id);
+  });
+
+  it('reports a failed create and a failed refresh without changing the list', async () => {
+    const user = userEvent.setup();
+    api.createProject.mockRejectedValueOnce(new Error('offline'));
+    render(<App />);
+    await user.type(await screen.findByRole('textbox', { name: 'Project name' }), 'Marketing');
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText(/The project could not be created/)).toBeTruthy();
+    api.listProjects.mockRejectedValueOnce(new Error('offline'));
+    await user.click(screen.getByRole('button', { name: 'Refresh projects' }));
+    expect(await screen.findByText(/Projects could not be refreshed/)).toBeTruthy();
+    api.listProjects.mockResolvedValueOnce(consoleProjects);
+    await user.click(screen.getByRole('button', { name: 'Refresh projects' }));
+    expect(await screen.findByText('Project list refreshed.')).toBeTruthy();
+  });
+
+  it('reconciles the scope when a refresh drops the current project', async () => {
+    const user = userEvent.setup();
+    api.listProjects
+      .mockResolvedValueOnce(consoleProjects)
+      .mockResolvedValueOnce([duplicateNameProject]);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Refresh projects' }));
+    await screen.findByText('Project list refreshed.');
+    await user.click(screen.getByRole('link', { name: 'Websites' }));
+    expect(scopeProject()).toBe(duplicateNameProject.id);
+    expect(await screen.findByText(/previous project is no longer available/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByText(/previous project is no longer available/)).toBeNull();
+  });
+});
+
+describe('Manage > Projects danger zone', () => {
+  it('deletes a project only after its name is typed, then lists it as deleted', async () => {
+    const user = userEvent.setup();
+    api.listProjects
+      .mockResolvedValueOnce([primaryProject])
+      .mockResolvedValueOnce([{ ...primaryProject, status: 'deleted' as const }]);
+    const nativeConfirm = vi.spyOn(window, 'confirm');
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: /^Delete project/ }));
+    const dialog = screen.getByRole('alertdialog', {
+      name: `Delete project ${primaryProject.name}?`
+    });
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Delete project'
+    }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText(/Type/), 'Developer');
+    expect(confirm.disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText(/Type/), ' Tools');
+    expect(confirm.disabled).toBe(false);
+    await user.click(confirm);
+    await waitFor(() => expect(api.deleteProject).toHaveBeenCalledWith(primaryProject.id));
+    expect(await screen.findByText(/Project Developer Tools deleted/)).toBeTruthy();
+    expect(screen.getByText('Deleted projects (1)')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Delete project/ })).toBeNull();
+    expect(nativeConfirm).not.toHaveBeenCalled();
+  });
+
+  it('does not delete when cancelled, and reports a failed delete', async () => {
+    const user = userEvent.setup();
+    api.listProjects.mockResolvedValue([primaryProject]);
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: /^Delete project/ }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(api.deleteProject).not.toHaveBeenCalled();
+
+    api.deleteProject.mockRejectedValueOnce(new Error('offline'));
+    await user.click(screen.getByRole('button', { name: /^Delete project/ }));
+    await user.type(screen.getByLabelText(/Type/), primaryProject.name);
+    await user.click(screen.getByRole('button', { name: 'Delete project' }));
+    expect(await screen.findByText(/The project could not be deleted/)).toBeTruthy();
+  });
+
+  it('shows an empty state when there are no projects', async () => {
+    api.listProjects.mockResolvedValue([]);
+    render(<App />);
+    expect(await screen.findByText('No projects yet')).toBeTruthy();
   });
 });

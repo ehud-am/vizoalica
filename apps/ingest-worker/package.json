@@ -7,7 +7,6 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@vizoalica/event-contracts": "workspace:*",
-    "@vizoalica/privacy": "workspace:*"
+    "@vizoalica/event-contracts": "workspace:*"
   }
 }

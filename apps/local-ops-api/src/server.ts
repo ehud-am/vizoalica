@@ -18,6 +18,8 @@ import {
 } from './routes/websites.js';
 
 const MAX_BODY_BYTES = 32_768;
+// One console needs one session; the cap only stops an unbounded pile if something keeps asking.
+const MAX_SESSIONS = 32;
 
 async function requestJson(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -82,8 +84,12 @@ export function createLocalServer(config: Config) {
       return send(response, 403, { error: 'origin_not_allowed' });
 
     if (request.method === 'POST' && url.pathname === '/api/session') {
+      const now = Date.now();
+      for (const [key, expiresAt] of sessions) if (expiresAt <= now) sessions.delete(key);
+      // Map keeps insertion order, so the oldest session is dropped first.
+      while (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
       const token = randomBytes(32).toString('base64url');
-      sessions.set(token, Date.now() + config.sessionTtlMs);
+      sessions.set(token, now + config.sessionTtlMs);
       return send(response, 204, undefined, {
         'set-cookie': `vizoalica_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(config.sessionTtlMs / 1000)}`
       });
