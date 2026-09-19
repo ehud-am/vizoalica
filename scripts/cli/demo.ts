@@ -104,7 +104,7 @@ export function signIngestToken(
 ): string {
   const iat = Math.floor(claims.now.getTime() / 1000);
   const body = {
-    iss: 'vizoalica-ops-demo',
+    iss: 'vizoalica-cli-demo',
     aud: 'vizoalica-ingest',
     sub: `source/${claims.sourceId}`,
     project_id: claims.projectId,
@@ -159,7 +159,7 @@ export async function addDemoData(
   const now = options.now ?? (() => new Date());
   if (activeDemos(await admin<Project[]>(ctx, options, 'GET', '/v1/admin/projects')).length > 0)
     throw new OpsError(
-      'Sample data already exists. Run "pnpm ops demo --remove" first if you want a fresh set.'
+      'Sample data already exists. Run "pnpm vizoalica demo --remove" first if you want a fresh set.'
     );
 
   step(ctx, 'Creating a sample project and website…');
@@ -210,7 +210,7 @@ export async function addDemoData(
       throw new OpsError(
         response.status === 401
           ? 'The Worker rejected the sample events (401). The token secret you gave does not match VIZOALICA_TOKEN_SECRET.'
-          : `The Worker rejected the sample events: ${reason}. Remove the partial sample with "pnpm ops demo --remove".`
+          : `The Worker rejected the sample events: ${reason}. Remove the partial sample with "pnpm vizoalica demo --remove".`
       );
     }
     sent += batch.events.length;

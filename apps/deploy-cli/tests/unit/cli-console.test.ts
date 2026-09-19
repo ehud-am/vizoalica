@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica-ops.js';
+import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica.js';
 
 const workerUrl = 'https://analytics.example.workers.dev';
 
@@ -36,7 +36,7 @@ function fakeSpawn() {
   };
 }
 
-describe('pnpm ops console', () => {
+describe('pnpm vizoalica console', () => {
   const directory = mkdtempSync(join(tmpdir(), 'vizoalica-console-'));
   const ops = {
     version: 1,

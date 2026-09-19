@@ -13,21 +13,21 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { formatReport, purgeDeleted } from './purge-deleted.js';
-import { DEFAULT_NAMES } from './ops/backend.js';
-import { setUpBackend } from './ops/backend.js';
-import { connectConsole } from './ops/connect.js';
-import { type Ctx, OpsError } from './ops/context.js';
-import { addDemoData, removeDemoData } from './ops/demo.js';
-import { install } from './ops/install.js';
-import { rotateSecrets } from './ops/rotate.js';
-import { parseSecretKind } from './ops/secrets.js';
+import { DEFAULT_NAMES } from './cli/backend.js';
+import { setUpBackend } from './cli/backend.js';
+import { connectConsole } from './cli/connect.js';
+import { type Ctx, OpsError } from './cli/context.js';
+import { addDemoData, removeDemoData } from './cli/demo.js';
+import { install } from './cli/install.js';
+import { rotateSecrets } from './cli/rotate.js';
+import { parseSecretKind } from './cli/secrets.js';
 import {
   buildRunner,
   clearScreen,
   openBrowser,
   terminalPrompter,
   wranglerRunner
-} from './ops/terminal.js';
+} from './cli/terminal.js';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 
@@ -72,7 +72,7 @@ export function parseOptions(argv: readonly string[]): { command: string; option
     if (!item?.startsWith('--')) throw new Error(`Unexpected argument: ${item ?? ''}`);
     const key = item.slice(2);
     if (!key || FORBIDDEN.test(key))
-      throw new Error('Secret values are never accepted by pnpm ops.');
+      throw new Error('Secret values are never accepted by pnpm vizoalica.');
     const next = rest[index + 1];
     if (next && !next.startsWith('--')) {
       options[key] = next;
@@ -138,7 +138,7 @@ export function loadOpsConfig(path = DEFAULT_CONFIG): OpsConfig {
   if ((mode & 0o077) !== 0) throw new Error(`Configuration must be private (chmod 600 ${target}).`);
   const value = JSON.parse(readFileSync(target, 'utf8')) as OpsConfig;
   if (value.version !== 1 || !value.onecli?.project || !value.onecli.agent)
-    throw new Error('Ops configuration is incomplete; run pnpm ops setup.');
+    throw new Error('Ops configuration is incomplete; run pnpm vizoalica setup.');
   normalizeWorkerUrl(value.workerUrl);
   parseGateway(value.onecli.gateway);
   return value;
@@ -200,7 +200,9 @@ function resolveClientConfig(options: Options): { client: ClientConfig; ops?: Op
   if (client.mode === 'OneCLI') {
     if (!ops && existsSync(opsPath)) ops = loadOpsConfig(opsPath);
     if (!ops)
-      throw new Error('OneCLI settings are missing; run pnpm ops setup or pass --config <path>.');
+      throw new Error(
+        'OneCLI settings are missing; run pnpm vizoalica setup or pass --config <path>.'
+      );
     if (ops.workerUrl !== client.workerUrl)
       throw new Error('The OneCLI and client configurations name different Workers.');
   }
@@ -241,7 +243,7 @@ async function askYesNo(
 
 function setupHelp(): string {
   return [
-    'pnpm ops setup needs:',
+    'pnpm vizoalica setup needs:',
     '  --worker-url  Cloudflare dashboard → Workers & Pages → ingestion Worker → workers.dev URL',
     '  --project     OneCLI dashboard → project slug',
     '  --agent       OneCLI dashboard → dedicated console agent identifier',
@@ -355,7 +357,7 @@ async function setup(options: Options, dependencies: Dependencies): Promise<void
         '  Value: raw VIZOALICA_ADMIN_SECRET, without the word Bearer',
         `  Attach it only to agent: ${value.onecli.agent}`,
         '',
-        'Next: pnpm ops doctor, pnpm ops verify, then pnpm ops console'
+        'Next: pnpm vizoalica doctor, pnpm vizoalica verify, then pnpm vizoalica console'
       ].join('\n') + '\n'
     );
   } finally {
@@ -413,10 +415,10 @@ async function doctor(options: Options, dependencies: Dependencies): Promise<voi
   for (const [label, ok] of checks) stdout.write(`${ok ? '✓' : '✗'} ${label}\n`);
   if (checks.some(([, ok]) => !ok)) {
     stdout.write(
-      '\nFix failed checks, then rerun pnpm ops doctor. No secret values were inspected.\n'
+      '\nFix failed checks, then rerun pnpm vizoalica doctor. No secret values were inspected.\n'
     );
     process.exitCode = 1;
-  } else stdout.write('\nReady. Run: pnpm ops console\n');
+  } else stdout.write('\nReady. Run: pnpm vizoalica console\n');
 }
 
 export function consoleArguments(config: OpsConfig): string[] {
@@ -557,7 +559,7 @@ async function backendCommand(options: Options, dependencies: Dependencies): Pro
   ctx.out(`\nWorker: ${result.workerUrl}`);
   ctx.out(
     result.firstRun
-      ? 'Next: pnpm ops connect   (set up this computer as an operator console)'
+      ? 'Next: pnpm vizoalica connect   (set up this computer as an operator console)'
       : 'Updated.'
   );
 }
@@ -569,7 +571,7 @@ async function connectCommand(options: Options, dependencies: Dependencies): Pro
     configPath: localConfigPath(options),
     ...(workerUrl ? { workerUrl } : {})
   });
-  ctx.out('Next: pnpm ops console');
+  ctx.out('Next: pnpm vizoalica console');
 }
 
 async function demoCommand(options: Options, dependencies: Dependencies): Promise<void> {
@@ -583,7 +585,9 @@ async function demoCommand(options: Options, dependencies: Dependencies): Promis
     'Paste the token secret (VIZOALICA_TOKEN_SECRET) — nothing is shown as you type: '
   );
   await addDemoData(ctx, { ...admin, tokenSecret });
-  ctx.out('Next: pnpm ops console   (remove the sample later with: pnpm ops demo --remove)');
+  ctx.out(
+    'Next: pnpm vizoalica console   (remove the sample later with: pnpm vizoalica demo --remove)'
+  );
 }
 
 async function rotateCommand(
@@ -592,7 +596,7 @@ async function rotateCommand(
   dependencies: Dependencies
 ): Promise<void> {
   const parsed = parseSecretKind(kind);
-  if (!parsed) throw new OpsError('Usage: pnpm ops rotate <admin|token|digest|all>');
+  if (!parsed) throw new OpsError('Usage: pnpm vizoalica rotate <admin|token|digest|all>');
   await rotateSecrets(guidedContext(dependencies), {
     kind: parsed,
     localConfigPath: localConfigPath(options)
@@ -609,7 +613,9 @@ async function installCommand(options: Options, dependencies: Dependencies): Pro
     await runConsole({ ...options, open: true }, dependencies);
   else
     ctx.out(
-      result.connected ? 'Start it any time with: pnpm ops console' : 'Next: pnpm ops connect'
+      result.connected
+        ? 'Start it any time with: pnpm vizoalica console'
+        : 'Next: pnpm vizoalica connect'
     );
 }
 
@@ -645,7 +651,7 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       `Credential mode: ${client.mode}`,
       `Worker hostname: ${new URL(client.workerUrl).hostname}`,
       `Config file: ${client.path} (${client.permissions})`,
-      'Expected startup: pnpm ops console',
+      'Expected startup: pnpm vizoalica console',
       `Port 4318 occupied: ${apiPort ? 'yes' : 'no'}`,
       `Port 5173 occupied: ${webPort ? 'yes' : 'no'}`,
       `API running through OneCLI: ${throughOneCli ? 'yes' : 'no'}`,
@@ -704,7 +710,8 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
 }
 
 export function pagesDeployArguments(config: OpsConfig): string[] {
-  if (!config.pages) throw new Error('Pages settings are missing; rerun pnpm ops setup with them.');
+  if (!config.pages)
+    throw new Error('Pages settings are missing; rerun pnpm vizoalica setup with them.');
   return [
     'exec',
     'wrangler',
@@ -722,7 +729,8 @@ export function pagesDeployArguments(config: OpsConfig): string[] {
 
 async function deployPages(options: Options, dependencies: Dependencies): Promise<void> {
   const config = loadOpsConfig(text(options, 'config'));
-  if (!config.pages) throw new Error('Pages settings are missing; rerun pnpm ops setup with them.');
+  if (!config.pages)
+    throw new Error('Pages settings are missing; rerun pnpm vizoalica setup with them.');
   const assets = resolvePagesAssets(config.pages.siteDir, config.pages.assetsDir);
   if (!existsSync(assets)) throw new Error(`Pages asset directory does not exist: ${assets}`);
   if (!existsSync(join(config.pages.siteDir, 'functions')))
@@ -771,29 +779,41 @@ async function deployPages(options: Options, dependencies: Dependencies): Promis
 }
 
 export function help(): string {
+  const rows = (entries: Array<[string, string]>): string[] => {
+    const width = Math.max(...entries.map(([command]) => command.length));
+    return entries.map(
+      ([command, description]) => `  pnpm vizoalica ${command.padEnd(width)}  ${description}`
+    );
+  };
   return [
     'Vizoalica operations',
     '',
     'Get going',
-    '  pnpm ops install        First-time setup, start to finish: backend, this computer, sample data',
-    '  pnpm ops backend        Install or update the Cloudflare backend (asks first install or update)',
-    '  pnpm ops connect        Set up this computer as an operator console for an existing backend',
-    '  pnpm ops console        Start the private API and the web console (alias: run)',
-    '  pnpm ops demo           Add sample data (--remove deletes it)',
+    ...rows([
+      ['install', 'First-time setup, start to finish: backend, this computer, sample data'],
+      ['backend', 'Install or update the Cloudflare backend (asks first install or update)'],
+      ['connect', 'Set up this computer as an operator console for an existing backend'],
+      ['console', 'Start the private API and the web console (alias: run)'],
+      ['demo', 'Add sample data (--remove deletes it)']
+    ]),
     '',
     'Look after it',
-    '  pnpm ops rotate <admin|token|digest|all>   Replace a secret and show the new value once',
-    '  pnpm ops purge-deleted  Dry-run; add --apply to permanently remove deleted websites/projects',
-    '  pnpm ops status         Report the credential mode, ports, and access checks',
-    '  pnpm ops verify         Verify authenticated project access',
-    '  pnpm ops deploy-pages   Deploy a Direct Upload site with native Wrangler, then verify it',
+    ...rows([
+      ['rotate <admin|token|digest|all>', 'Replace a secret and show the new value once'],
+      ['purge-deleted', 'Dry-run; add --apply to permanently remove deleted websites/projects'],
+      ['status', 'Report the credential mode, ports, and access checks'],
+      ['verify', 'Verify authenticated project access'],
+      ['deploy-pages', 'Deploy a Direct Upload site with native Wrangler, then verify it']
+    ]),
     '',
     'OneCLI (optional, keeps the administrator secret out of a local file)',
-    '  pnpm ops setup          Save the non-secret OneCLI settings',
-    '  pnpm ops doctor         Check OneCLI, the host gateway, client config, and Worker health',
+    ...rows([
+      ['setup', 'Save the non-secret OneCLI settings'],
+      ['doctor', 'Check OneCLI, the host gateway, client config, and Worker health']
+    ]),
     '',
     'Secrets are never accepted as arguments. Use --config <path> for another non-secret config,',
-    '--console-config <path> for another private console file, and pnpm ops show for parameter sources.'
+    '--console-config <path> for another private console file, and "pnpm vizoalica show" for parameter sources.'
   ].join('\n');
 }
 
@@ -802,8 +822,8 @@ function show(): string {
     'Three lanes; never mix their credentials:',
     '',
     '1. Worker + D1 + R2 → pnpm deploy:* (native Wrangler by default; approval-gated OneCLI profile optional)',
-    '2. Website on Pages → pnpm ops deploy-pages (native Wrangler; never inside onecli run)',
-    '3. Local console → pnpm ops console (OneCLI injects only the Worker administrator header)',
+    '2. Website on Pages → pnpm vizoalica deploy-pages (native Wrangler; never inside onecli run)',
+    '3. Local console → pnpm vizoalica console (OneCLI injects only the Worker administrator header)',
     '',
     setupHelp(),
     '',
@@ -849,10 +869,14 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);
 }
 
-const isEntryPoint = process.argv[1]?.endsWith('/scripts/vizoalica-ops.ts');
-if (isEntryPoint) {
-  run(process.argv.slice(2)).catch((error: unknown) => {
+/** Runs the command line and turns any failure into a plain message and a non-zero exit code. */
+export async function main(argv: readonly string[]): Promise<void> {
+  try {
+    await run(argv);
+  } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : 'Operation failed.'}\n`);
     process.exitCode = 1;
-  });
+  }
 }
+
+if (process.argv[1]?.endsWith('/scripts/vizoalica.ts')) await main(process.argv.slice(2));

@@ -6,7 +6,7 @@ describe('access state UI', () => {
     const html = renderToStaticMarkup(<AccessState state="denied" onRetry={() => undefined} />);
     expect(html).toContain('Authorization required');
     expect(html).toContain('Worker rejected');
-    expect(html).toContain('pnpm ops status');
+    expect(html).toContain('pnpm vizoalica status');
     expect(html).not.toMatch(/credential[^.]*[:=]/i);
   });
 

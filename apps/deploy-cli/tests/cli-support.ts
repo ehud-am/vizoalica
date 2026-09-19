@@ -1,8 +1,8 @@
 import { copyFileSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Ctx } from '../../../scripts/ops/context.js';
-import type { Prompter, Run, RunOptions, RunResult } from '../../../scripts/ops/terminal.js';
+import type { Ctx } from '../../../scripts/cli/context.js';
+import type { Prompter, Run, RunOptions, RunResult } from '../../../scripts/cli/terminal.js';
 
 export type Call = { args: string[]; options: RunOptions };
 type Reply = Partial<RunResult> | ((call: Call) => Partial<RunResult>);
@@ -86,7 +86,7 @@ export function fakeCtx(overrides: Partial<Ctx> & { cwd: string }) {
 
 /** A temp checkout containing the real example config. */
 export function tempCheckout(): string {
-  const cwd = mkdtempSync(join(tmpdir(), 'vizoalica-ops-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'vizoalica-cli-'));
   mkdirSync(join(cwd, 'deploy', 'cloudflare'), { recursive: true });
   copyFileSync(
     join(process.cwd(), 'deploy/cloudflare/wrangler.example.toml'),

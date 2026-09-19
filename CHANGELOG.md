@@ -6,14 +6,14 @@ All notable changes to Vizoalica are documented in this file.
 
 ### Added
 
-- `pnpm ops purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
+- `pnpm vizoalica purge-deleted` (dry run) and `--apply` permanently remove every trace of soft-deleted
   websites and projects: raw event batches in R2 and all D1 rows, including audit entries and the
   project rows. Backed by `POST /v1/admin/purge-deleted`, which requires an explicit `dryRun`.
-- **Guided setup.** `pnpm ops install` takes an empty Cloudflare account to a connected console with
+- **Guided setup.** `pnpm vizoalica install` takes an empty Cloudflare account to a connected console with
   sample data: it creates the D1 database and R2 bucket, writes the production Wrangler config from
   the example, deploys, generates the three secrets, shows them once (then clears the screen), saves
   the administrator secret for this computer, and sends signed sample events through the real
-  ingestion path. `pnpm ops backend` installs or updates (it detects which and asks), `connect` sets
+  ingestion path. `pnpm vizoalica backend` installs or updates (it detects which and asks), `connect` sets
   up another operator computer, `demo` adds or removes the sample, and `rotate` replaces one or all
   secrets after explaining what each rotation breaks. Secrets travel to Wrangler over stdin only and
   are never arguments; a first install never adopts an existing database and, on failure, offers to
@@ -21,20 +21,29 @@ All notable changes to Vizoalica are documented in this file.
 - The README now opens with a logo, badges, a one-command path, and a screenshot, then explains the
   three parts in deployment order (backend, console, website). `scripts/capture-console-screenshot.ts`
   regenerates the screenshots from the demo's own events.
-- `pnpm ops console` starts the private API and the web console together in either credential
-  mode (with a local secret file, or through OneCLI). `pnpm ops run` remains as an alias.
+- `pnpm vizoalica console` starts the private API and the web console together in either credential
+  mode (with a local secret file, or through OneCLI). `pnpm vizoalica run` remains as an alias.
 - The daily Cron run now performs the same purge, so deleting a website or project is permanent
   within a day.
+
+### Changed (breaking for the unreleased `pnpm ops` commands)
+
+- **The command line is now `vizoalica`, not `ops`:** `pnpm vizoalica install`, `backend`, `connect`,
+  `console`, `demo`, `rotate`, `purge-deleted`, and the rest. `pnpm ops` no longer exists. The package
+  declares a `vizoalica` bin, so `pnpm link --global` makes `vizoalica <command>` work from any
+  directory; it always operates on the checkout it was linked from. Your existing OneCLI settings
+  file (`~/.config/vizoalica/ops.json`) keeps its name and keeps working. The OneCLI guide moved to
+  `docs/operations/onecli.md`.
 
 ### Fixed
 
 - `pnpm build` failed on a fresh clone (`TS6305` in `local-ops-api`): the per-package `tsc -p` build
   does not build referenced projects, and the failure was hidden wherever an earlier `tsc -b` had
   left `dist` behind, including CI, which type-checked before it built. The root build now runs
-  `tsc -b` first, and CI builds on a clean tree. Found by rehearsing `pnpm ops install` on a real
+  `tsc -b` first, and CI builds on a clean tree. Found by rehearsing `pnpm vizoalica install` on a real
   account from a fresh worktree.
-- `pnpm ops console` now says so when the console ports are already in use, instead of failing with
-  a raw `EADDRINUSE` trace. `pnpm ops install` ends with a recap of the Worker address.
+- `pnpm vizoalica console` now says so when the console ports are already in use, instead of failing with
+  a raw `EADDRINUSE` trace. `pnpm vizoalica install` ends with a recap of the Worker address.
 
 ### Changed
 

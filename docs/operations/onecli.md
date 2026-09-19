@@ -6,8 +6,8 @@ will not manage the administrator credential. Do not combine the two methods.
 ## Returning operator: start here
 
 If this machine is already configured with OneCLI, use the one-terminal commands in
-[Start the local operator console](operator-local.md): run `pnpm ops verify`, then
-`pnpm ops console`. Keep that terminal open and press Ctrl+C once to stop both processes. Never
+[Start the local operator console](operator-local.md): run `pnpm vizoalica verify`, then
+`pnpm vizoalica console`. Keep that terminal open and press Ctrl+C once to stop both processes. Never
 start `pnpm local-ops-api:dev` directly when the file contains `onecli-managed`, and do not switch
 modes merely by changing the startup command.
 
@@ -35,7 +35,7 @@ stores only the literal placeholder `onecli-managed`. The browser talks only to 
 Missing OneCLI access must fail closed; never copy the credential into local configuration.
 
 > **Important:** If `local-operations.json` contains `onecli-managed`, the API must be launched
-> with `pnpm ops console`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
+> with `pnpm vizoalica console`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
 > in HTTP 401. The API refuses this direct launch when it can identify the placeholder.
 
 ## 1. Verify the handoff and checkout
@@ -58,7 +58,7 @@ git rev-parse HEAD
 corepack enable
 corepack prepare pnpm@9.15.4 --activate
 pnpm install --frozen-lockfile
-pnpm ops show
+pnpm vizoalica show
 ```
 
 The printed commit must exactly match the handoff.
@@ -100,10 +100,10 @@ environment's administrator card, no Cloudflare deployment connection, and no un
 ## 4. Configure, check, and verify
 
 ```sh
-pnpm ops setup
-pnpm ops doctor
-pnpm ops verify
-pnpm ops status
+pnpm vizoalica setup
+pnpm vizoalica doctor
+pnpm vizoalica verify
+pnpm vizoalica status
 ```
 
 Setup writes private coordinates and the non-secret placeholder. If the existing client
@@ -115,7 +115,7 @@ HTTP 200, a JSON array, and the selected OneCLI agent without printing a credent
 Then start the local console:
 
 ```sh
-pnpm ops console
+pnpm vizoalica console
 ```
 
 Open `http://127.0.0.1:5173`, or the URL Vite prints if that port was busy. Do not expose either
@@ -126,7 +126,7 @@ holds the injected credential. The selected analytics backend and stored data ca
 
 ## Verify the operator setup
 
-Complete this positive–negative–positive test with the same `pnpm ops verify` request:
+Complete this positive–negative–positive test with the same `pnpm vizoalica verify` request:
 
 1. With the grant attached, verify succeeds.
 2. Detach the administrator grant from the operator agent.
@@ -165,7 +165,7 @@ The operator can now [activate a website](pages.md).
 
 ## Revoke access
 
-Stop `pnpm ops console`, detach or revoke the operator agent, and move only this machine's two
+Stop `pnpm vizoalica console`, detach or revoke the operator agent, and move only this machine's two
 Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
 evidence. If exposure is possible, rotate the administrator secret and update every remaining
 operator. Revocation does not affect the backend, analytics data, websites, or other operators.

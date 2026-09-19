@@ -10,9 +10,9 @@ import {
   buildDemoBatches,
   removeDemoData,
   signIngestToken
-} from '../../../../scripts/ops/demo.js';
-import { generateSecret } from '../../../../scripts/ops/secrets.js';
-import { WORKER_URL, fakeCtx } from '../ops-support.js';
+} from '../../../../scripts/cli/demo.js';
+import { generateSecret } from '../../../../scripts/cli/secrets.js';
+import { WORKER_URL, fakeCtx } from '../cli-support.js';
 
 const tokenSecret = generateSecret();
 const adminSecret = generateSecret();

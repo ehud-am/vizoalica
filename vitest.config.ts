@@ -27,10 +27,10 @@ export default defineConfig({
         'packages/**/src/**/*.ts',
         'examples/cloudflare-pages/functions/**/*.ts',
         'scripts/verify-website.ts',
-        'scripts/ops/**/*.ts'
+        'scripts/cli/**/*.ts'
       ],
       // The terminal layer only wraps a real TTY and child processes; everything it feeds is tested.
-      exclude: ['**/src/main.tsx', '**/src/cli.ts', 'scripts/ops/terminal.ts'],
+      exclude: ['**/src/main.tsx', '**/src/cli.ts', 'scripts/cli/terminal.ts'],
       thresholds: { lines: 90, branches: 90 }
     }
   }

@@ -2,10 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_NAMES } from '../../../../scripts/ops/backend.js';
-import { install } from '../../../../scripts/ops/install.js';
-import { rotateSecrets } from '../../../../scripts/ops/rotate.js';
-import { generateSecret } from '../../../../scripts/ops/secrets.js';
+import { DEFAULT_NAMES } from '../../../../scripts/cli/backend.js';
+import { install } from '../../../../scripts/cli/install.js';
+import { rotateSecrets } from '../../../../scripts/cli/rotate.js';
+import { generateSecret } from '../../../../scripts/cli/secrets.js';
 import {
   D1_LIST,
   DEPLOY_OUT,
@@ -16,7 +16,7 @@ import {
   fakePrompt,
   fakeRun,
   tempCheckout
-} from '../ops-support.js';
+} from '../cli-support.js';
 
 const localPath = () =>
   join(mkdtempSync(join(tmpdir(), 'vizoalica-rotate-')), 'cfg', 'local-operations.json');
@@ -69,7 +69,7 @@ describe('rotating secrets', () => {
     const { ctx } = fakeCtx({ cwd: tempCheckout(), run: fakeRun({}).run });
     await expect(
       rotateSecrets(ctx, { kind: 'admin', localConfigPath: localPath() })
-    ).rejects.toThrow(/pnpm ops backend/);
+    ).rejects.toThrow(/pnpm vizoalica backend/);
   });
 
   it('rotates the admin secret on the Worker and on this computer, verifying before it writes', async () => {
@@ -143,7 +143,7 @@ describe('rotating secrets', () => {
         }),
         /OneCLI/
       ],
-      [undefined, /pnpm ops connect/]
+      [undefined, /pnpm vizoalica connect/]
     ] as const) {
       const cwd = tempCheckout();
       withProductionConfig(cwd);

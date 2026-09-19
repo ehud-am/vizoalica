@@ -3,8 +3,8 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { run } from '../../../../scripts/vizoalica-ops.js';
-import { generateSecret } from '../../../../scripts/ops/secrets.js';
+import { run } from '../../../../scripts/vizoalica.js';
+import { generateSecret } from '../../../../scripts/cli/secrets.js';
 import {
   D1_LIST,
   DEPLOY_OUT,
@@ -15,7 +15,7 @@ import {
   fakePrompt,
   fakeRun,
   tempCheckout
-} from '../ops-support.js';
+} from '../cli-support.js';
 
 const consoleConfig = (secret: string) => {
   const path = join(mkdtempSync(join(tmpdir(), 'vizoalica-cli-')), 'cfg', 'local-operations.json');
@@ -55,11 +55,13 @@ describe('guided commands need an interactive terminal', () => {
   );
 });
 
-describe('pnpm ops rotate', () => {
+describe('pnpm vizoalica rotate', () => {
   it.each([[[]], [['bogus']], [['--console-config', '/x']]])(
     'shows usage for %j',
     async (extra) => {
-      await expect(run(['rotate', ...extra], deps())).rejects.toThrow(/Usage: pnpm ops rotate/);
+      await expect(run(['rotate', ...extra], deps())).rejects.toThrow(
+        /Usage: pnpm vizoalica rotate/
+      );
     }
   );
 
@@ -82,7 +84,7 @@ describe('pnpm ops rotate', () => {
   });
 });
 
-describe('pnpm ops backend', () => {
+describe('pnpm vizoalica backend', () => {
   const empty = () => ({
     whoami: { stdout: WHOAMI },
     'd1 list': [{ stdout: '[]' }, { stdout: D1_LIST.replace('vizoalica-config', 'my-db') }],
@@ -117,7 +119,7 @@ describe('pnpm ops backend', () => {
     );
     expect(wrangler.has('d1 create my-db')).toBe(true);
     expect(wrangler.has('r2 bucket create my-bucket')).toBe(true);
-    expect(output()).toContain('Next: pnpm ops connect');
+    expect(output()).toContain('Next: pnpm vizoalica connect');
   });
 
   it('--update on an account with nothing installed explains itself', async () => {
@@ -160,7 +162,7 @@ describe('pnpm ops backend', () => {
   });
 });
 
-describe('pnpm ops connect and demo', () => {
+describe('pnpm vizoalica connect and demo', () => {
   const okWorker = (secret: string) =>
     (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -186,7 +188,7 @@ describe('pnpm ops connect and demo', () => {
       ['connect', '--worker-url', WORKER_URL, '--console-config', path],
       deps(() => ctx)
     );
-    expect(output()).toContain('Next: pnpm ops console');
+    expect(output()).toContain('Next: pnpm vizoalica console');
   });
 
   it('demo --remove uses the saved secret and never asks for the token secret', async () => {
@@ -214,7 +216,7 @@ describe('pnpm ops connect and demo', () => {
   });
 });
 
-describe('pnpm ops install', () => {
+describe('pnpm vizoalica install', () => {
   it('offers to start the console, and starts it (opening the browser) when accepted', async () => {
     const secret = generateSecret();
     const path = consoleConfig(secret);
@@ -288,6 +290,6 @@ describe('pnpm ops install', () => {
       deps(() => ctx)
     );
     expect(spawns).toHaveLength(0);
-    expect(output()).toContain('pnpm ops console');
+    expect(output()).toContain('pnpm vizoalica console');
   });
 });

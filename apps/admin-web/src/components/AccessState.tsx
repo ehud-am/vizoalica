@@ -27,7 +27,7 @@ export function AccessState({
         {denied
           ? sessionExpired
             ? 'Your browser session expired. Reconnect to create a new private local session.'
-            : 'The Worker rejected the configured administrator credential. Check pnpm ops status, then repair the credential or restart in its configured mode.'
+            : 'The Worker rejected the configured administrator credential. Check pnpm vizoalica status, then repair the credential or restart in its configured mode.'
           : 'The local API or remote data plane could not be reached. Your website collection is unaffected.'}
       </p>
       <button className="primary" onClick={onRetry}>

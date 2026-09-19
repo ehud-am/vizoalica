@@ -362,7 +362,9 @@ describe('interactive console', () => {
     api.getAnalyticsOverview.mockRejectedValueOnce(new ApiError('access_revoked', 401));
     render(<App />);
     expect(
-      await screen.findByText('The Worker rejected the configured credential. Run pnpm ops status.')
+      await screen.findByText(
+        'The Worker rejected the configured credential. Run pnpm vizoalica status.'
+      )
     ).toBeTruthy();
     cleanup();
     api.getAnalyticsOverview.mockRejectedValueOnce(new Error('offline'));

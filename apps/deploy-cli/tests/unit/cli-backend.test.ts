@@ -11,7 +11,7 @@ import {
   readConfigNames,
   renderProductionConfig,
   setUpBackend
-} from '../../../../scripts/ops/backend.js';
+} from '../../../../scripts/cli/backend.js';
 import {
   ACCOUNT_ID,
   D1_LIST,
@@ -25,7 +25,7 @@ import {
   fakeRun,
   tempCheckout,
   workerFetch
-} from '../ops-support.js';
+} from '../cli-support.js';
 
 const options = { ...DEFAULT_NAMES };
 const secretNames = [

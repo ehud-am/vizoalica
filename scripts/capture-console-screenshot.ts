@@ -1,5 +1,5 @@
 /**
- * Renders the console with the analytics that `pnpm ops demo` produces and saves README screenshots.
+ * Renders the console with the analytics that `pnpm vizoalica demo` produces and saves README screenshots.
  * The numbers are computed from the demo's real events using the Worker's own classifier; only the
  * network is mocked. Run: node --import tsx scripts/capture-console-screenshot.ts
  */
@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { classifyRequest } from '../apps/ingest-worker/src/analytics/classifier.js';
-import { DEMO_ORIGIN, DEMO_PROJECT, buildDemoBatches } from './ops/demo.js';
+import { DEMO_ORIGIN, DEMO_PROJECT, buildDemoBatches } from './cli/demo.js';
 
 const require = createRequire(new URL('../apps/admin-web/package.json', import.meta.url));
 const { chromium } = require('@playwright/test') as typeof import('@playwright/test');

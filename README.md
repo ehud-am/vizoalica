@@ -26,10 +26,10 @@ with Node.js 22 or newer and Git.
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
 corepack enable && pnpm install
-pnpm ops install
+pnpm vizoalica install
 ```
 
-`pnpm ops install` takes you from an empty Cloudflare account to a working console, and asks for
+`pnpm vizoalica install` takes you from an empty Cloudflare account to a working console, and asks for
 almost nothing. In a rehearsal on a real account (already signed in to Cloudflare) it took under
 two minutes, most of it Cloudflare deploying and the numbers appearing:
 
@@ -49,10 +49,10 @@ two minutes, most of it Cloudflare deploying and the numbers appearing:
     <img src="docs/assets/console-overview-light.png" alt="The Vizoalica console showing 96 page views and 29 unique visitors from sample data" width="900">
   </picture>
   <br>
-  <sub>The console after <code>pnpm ops install</code>, showing the sample data it sent through your own backend.</sub>
+  <sub>The console after <code>pnpm vizoalica install</code>, showing the sample data it sent through your own backend.</sub>
 </p>
 
-Delete the sample any time with `pnpm ops demo --remove`, then add your real website (below).
+Delete the sample any time with `pnpm vizoalica demo --remove`, then add your real website (below).
 Windows is not supported yet: the console's private-file permission checks and the deploy scripts
 assume macOS or Linux.
 
@@ -72,8 +72,8 @@ something the previous one produces.
 
 | Order | Part        | Runs on                                | What it does                                                                                              | Set up with                              |
 | ----- | ----------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 1     | **Backend** | Your Cloudflare account                | Receives signed event batches, filters them, and stores raw events (R2) and bounded aggregates (D1).      | `pnpm ops backend` (or `install`)        |
-| 2     | **Console** | An operator's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.       | `pnpm ops connect` (or `install`)        |
+| 1     | **Backend** | Your Cloudflare account                | Receives signed event batches, filters them, and stores raw events (R2) and bounded aggregates (D1).      | `pnpm vizoalica backend` (or `install`)  |
+| 2     | **Console** | An operator's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.       | `pnpm vizoalica connect` (or `install`)  |
 | 3     | **Website** | Wherever your site is hosted           | Loads the browser SDK and a small token endpoint that lets visitors' browsers send events to the backend. | The console's website panel (see step 3) |
 
 Three secrets keep it safe, and none of them is ever in browser code:
@@ -86,13 +86,13 @@ Three secrets keep it safe, and none of them is ever in browser code:
 
 ## Get started, part by part
 
-`pnpm ops install` runs all three parts' first steps for you. Use the commands below to do one
+`pnpm vizoalica install` runs all three parts' first steps for you. Use the commands below to do one
 part on its own, for example to add a second operator or to update the backend later.
 
 ### 1. Backend — first
 
 ```sh
-pnpm ops backend
+pnpm vizoalica backend
 ```
 
 Asks **first install or update?** and does the right thing. A first install creates everything and
@@ -105,12 +105,12 @@ Full guide: **[docs/operations/cloudflare.md](docs/operations/cloudflare.md)**.
 ### 2. Console — second
 
 Run this on every computer that should administer Vizoalica. The first one is set up by
-`pnpm ops install`; for any other, check out the repository, run `corepack enable && pnpm install`,
+`pnpm vizoalica install`; for any other, check out the repository, run `corepack enable && pnpm install`,
 and then:
 
 ```sh
-pnpm ops connect        # asks for the Worker address and the administrator secret (hidden)
-pnpm ops console        # starts the console; open http://127.0.0.1:5173
+pnpm vizoalica connect        # asks for the Worker address and the administrator secret (hidden)
+pnpm vizoalica console        # starts the console; open http://127.0.0.1:5173
 ```
 
 `connect` checks the secret against your Worker before it writes anything, then saves it in a
@@ -119,10 +119,10 @@ private file (`0600`, outside the repository).
 > **OneCLI is supported and is the more secure option.** With [OneCLI](https://onecli.sh) the
 > administrator secret is held by a gateway and injected into requests to your Worker, so it is
 > never written to a file on the operator's computer. It takes a few more setup steps and is not
-> the default. `pnpm ops console` starts the console the same way in either mode.
+> the default. `pnpm vizoalica console` starts the console the same way in either mode.
 
 Full guides: **[without OneCLI](docs/operations/local-analytics.md)** (the default) or
-**[with OneCLI](docs/operations/ops-cli.md)**. Returning operators:
+**[with OneCLI](docs/operations/onecli.md)**. Returning operators:
 [Start the local operator console](docs/operations/operator-local.md).
 
 ### 3. Website — third
@@ -149,21 +149,24 @@ If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and r
 
 ## Keep it running
 
-`pnpm ops` is the operator's single entry point. It never accepts a secret as an argument.
+`pnpm vizoalica` is the operator's single entry point. It never accepts a secret as an argument.
 
-| Command                                       | What it does                                                                     |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| `pnpm ops install`                            | First-time setup, start to finish: backend, this computer, sample data, console. |
-| `pnpm ops backend`                            | Install or update the Cloudflare backend.                                        |
-| `pnpm ops connect`                            | Set up this computer as an operator console.                                     |
-| `pnpm ops console`                            | Start the private local API and the web console (`run` is an alias).             |
-| `pnpm ops demo`                               | Add sample data; `--remove` deletes it permanently.                              |
-| `pnpm ops rotate <admin\|token\|digest\|all>` | Replace a secret, show the new value once, and update this computer.             |
-| `pnpm ops purge-deleted`                      | Dry-run; add `--apply` to permanently remove deleted websites and projects.      |
-| `pnpm ops status` / `verify`                  | Show the credential mode and access checks, or just verify authenticated access. |
-| `pnpm ops setup` / `doctor`                   | OneCLI mode: save its non-secret settings, and check its prerequisites.          |
-| `pnpm ops deploy-pages`                       | Upload a Pages site with native Wrangler, then verify it.                        |
-| `pnpm ops help` / `pnpm ops show`             | List the commands, or where each parameter comes from.                           |
+| Command                                             | What it does                                                                     |
+| --------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `pnpm vizoalica install`                            | First-time setup, start to finish: backend, this computer, sample data, console. |
+| `pnpm vizoalica backend`                            | Install or update the Cloudflare backend.                                        |
+| `pnpm vizoalica connect`                            | Set up this computer as an operator console.                                     |
+| `pnpm vizoalica console`                            | Start the private local API and the web console (`run` is an alias).             |
+| `pnpm vizoalica demo`                               | Add sample data; `--remove` deletes it permanently.                              |
+| `pnpm vizoalica rotate <admin\|token\|digest\|all>` | Replace a secret, show the new value once, and update this computer.             |
+| `pnpm vizoalica purge-deleted`                      | Dry-run; add `--apply` to permanently remove deleted websites and projects.      |
+| `pnpm vizoalica status` / `verify`                  | Show the credential mode and access checks, or just verify authenticated access. |
+| `pnpm vizoalica setup` / `doctor`                   | OneCLI mode: save its non-secret settings, and check its prerequisites.          |
+| `pnpm vizoalica deploy-pages`                       | Upload a Pages site with native Wrangler, then verify it.                        |
+| `pnpm vizoalica help` / `pnpm vizoalica show`       | List the commands, or where each parameter comes from.                           |
+
+To run it from any directory, link it once from the checkout with `pnpm link --global`; then
+`vizoalica <command>` works everywhere (its messages still print the `pnpm vizoalica` form).
 
 Rotating a secret explains what it will break before it changes anything: the admin secret cuts
 off every other console, the token secret rejects every website's events until updated, and the
@@ -186,11 +189,11 @@ pnpm build                                    # compiles every workspace package
 pnpm browser-sdk:build                        # script-tag bundles for a website (optional)
 ```
 
-`pnpm ops install` and `pnpm ops backend` run `pnpm build` for you.
+`pnpm vizoalica install` and `pnpm vizoalica backend` run `pnpm build` for you.
 
 - **Backend:** Wrangler bundles the Worker from source when you deploy, so there is nothing to
   publish by hand.
-- **Console:** `pnpm ops console` runs it from the checkout. Nothing is installed system-wide.
+- **Console:** `pnpm vizoalica console` runs it from the checkout. Nothing is installed system-wide.
 - **Website:** `pnpm browser-sdk:build` writes `packages/browser-sdk/dist/vizoalica.js` and
   `vizoalica-loader.js`, standalone bundles your site hosts itself.
 
@@ -262,7 +265,7 @@ tokens, and an explicit consent state on every event.
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | Deploy, update, rotate, and maintain the backend       | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
 | Console, default (private credential file)             | [Without OneCLI](docs/operations/local-analytics.md)                                           |
-| Console, OneCLI-managed credential                     | [With OneCLI](docs/operations/ops-cli.md)                                                      |
+| Console, OneCLI-managed credential                     | [With OneCLI](docs/operations/onecli.md)                                                       |
 | Daily console startup and mode check                   | [Start the console](docs/operations/operator-local.md)                                         |
 | Register, deploy, verify, and remove a website         | [Website activation](docs/operations/pages.md)                                                 |
 | Browser SDK reference                                  | [Browser SDK](docs/operations/browser-sdk.md)                                                  |

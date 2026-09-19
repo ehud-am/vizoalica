@@ -6,7 +6,7 @@ import {
   generateSecrets,
   isValidSecret,
   parseSecretKind
-} from '../../../../scripts/ops/secrets.js';
+} from '../../../../scripts/cli/secrets.js';
 
 describe('generated secrets', () => {
   it('are 256 random bits as 43 base64url characters and never repeat', () => {

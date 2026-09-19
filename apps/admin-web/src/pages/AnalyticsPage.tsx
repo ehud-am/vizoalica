@@ -73,7 +73,7 @@ export function AnalyticsPage({
           reason instanceof ApiError && reason.status === 401
             ? reason.code === 'session_expired'
               ? 'Your browser session expired. Reconnect to the local workspace.'
-              : 'The Worker rejected the configured credential. Run pnpm ops status.'
+              : 'The Worker rejected the configured credential. Run pnpm vizoalica status.'
             : 'Analytics are unavailable. No stale results are shown.'
         );
       })

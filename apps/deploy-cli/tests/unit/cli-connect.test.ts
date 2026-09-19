@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { connectConsole } from '../../../../scripts/ops/connect.js';
-import { generateSecret } from '../../../../scripts/ops/secrets.js';
-import { WORKER_URL, fakeCtx, fakePrompt, workerFetch } from '../ops-support.js';
+import { connectConsole } from '../../../../scripts/cli/connect.js';
+import { generateSecret } from '../../../../scripts/cli/secrets.js';
+import { WORKER_URL, fakeCtx, fakePrompt, workerFetch } from '../cli-support.js';
 
 const target = () =>
   join(mkdtempSync(join(tmpdir(), 'vizoalica-connect-')), 'cfg', 'local-operations.json');

@@ -8,7 +8,7 @@ import { SECRETS, SECRET_KINDS, type SecretKind, generateSecrets } from './secre
 const IMPACT: Record<SecretKind, string[]> = {
   admin: [
     'Every operator console stops working until it is given the new secret.',
-    'This computer is updated for you; other computers run "pnpm ops connect".',
+    'This computer is updated for you; other computers run "pnpm vizoalica connect".',
     'A OneCLI-managed console needs its credential card updated in OneCLI.'
   ],
   token: [
@@ -29,7 +29,7 @@ export async function rotateSecrets(ctx: Ctx, options: RotateOptions): Promise<v
   const configPath = join(ctx.cwd, 'deploy', 'cloudflare', 'wrangler.production.toml');
   if (!existsSync(configPath))
     throw new OpsError(
-      'This checkout has no deploy/cloudflare/wrangler.production.toml, so it does not know which Worker to change.\nRun "pnpm ops backend" here first; it rebuilds that file from your existing install.'
+      'This checkout has no deploy/cloudflare/wrangler.production.toml, so it does not know which Worker to change.\nRun "pnpm vizoalica backend" here first; it rebuilds that file from your existing install.'
     );
   const kinds = options.kind === 'all' ? SECRET_KINDS : [options.kind];
 
@@ -62,7 +62,7 @@ export async function rotateSecrets(ctx: Ctx, options: RotateOptions): Promise<v
       : undefined;
     if (!local?.VIZOALICA_REMOTE_URL) {
       ctx.out(
-        'This computer has no console configured. On each operator computer run "pnpm ops connect".'
+        'This computer has no console configured. On each operator computer run "pnpm vizoalica connect".'
       );
     } else if (local.VIZOALICA_ADMIN_SECRET === 'onecli-managed') {
       ctx.out(

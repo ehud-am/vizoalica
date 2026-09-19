@@ -13,7 +13,7 @@ Worker build to an installation that already has data, use
 
 This guide does not configure an operator machine or connect a website. Its final handoff supplies
 the inputs for [operator setup without OneCLI](local-analytics.md),
-[operator setup with OneCLI](ops-cli.md), and [website activation](pages.md).
+[operator setup with OneCLI](onecli.md), and [website activation](pages.md).
 
 ## Automated install (recommended)
 
@@ -21,13 +21,13 @@ From a checkout of this repository (see [Build from source](../../README.md#buil
 one command does the whole first install and the first console setup:
 
 ```sh
-pnpm ops install
+pnpm vizoalica install
 ```
 
 Or, for the backend alone (for example when another person will set up the console):
 
 ```sh
-pnpm ops backend
+pnpm vizoalica backend
 ```
 
 What it does, in order:
@@ -44,7 +44,7 @@ What it does, in order:
    standard input, never as a command argument or a file. It never asks you to invent or paste a key.
 5. Checks the Worker's `/healthz`, and prints its address.
 
-`pnpm ops install` then continues: it offers to set up this computer as an operator console (using
+`pnpm vizoalica install` then continues: it offers to set up this computer as an operator console (using
 the administrator secret it just generated, so you paste nothing), to send sample data through the
 new backend, and to start the console.
 
@@ -334,8 +334,8 @@ rejected immediately, and the next daily run removes all its data. The purge wri
 entry that names nothing it removed. To purge now instead of waiting:
 
 ```sh
-pnpm ops purge-deleted           # dry run: prints what would be removed, deletes nothing
-pnpm ops purge-deleted --apply   # permanent; repeats until the Worker reports it finished
+pnpm vizoalica purge-deleted           # dry run: prints what would be removed, deletes nothing
+pnpm vizoalica purge-deleted --apply   # permanent; repeats until the Worker reports it finished
 ```
 
 The dry run needs a Worker that includes the purge endpoint (`POST /v1/admin/purge-deleted`);
@@ -416,7 +416,7 @@ administrator credential:
 
 - [Direct local credential](local-analytics.md), once for an operator who manages it in a private
   local file; or
-- [OneCLI-managed credential](ops-cli.md), once for an operator whose organization injects it
+- [OneCLI-managed credential](onecli.md), once for an operator whose organization injects it
   through OneCLI.
 
 After one operator is verified, [activate a website](pages.md) once for each website.
@@ -427,7 +427,7 @@ The quick way, from an approved checkout:
 
 ```sh
 git fetch --tags && git checkout YOUR_APPROVED_TAG_OR_COMMIT
-pnpm ops backend --update
+pnpm vizoalica backend --update
 ```
 
 It builds, deploys, keeps your data and secrets, and checks health. If this checkout has no
@@ -446,7 +446,7 @@ pnpm build
 pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml
 export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
 pnpm deploy:verify
-pnpm ops verify
+pnpm vizoalica verify
 ```
 
 Worker secrets, D1 data, and R2 objects are untouched by `wrangler deploy`, so there is nothing to
@@ -462,7 +462,7 @@ re-enter. Before you run it:
   change, obtain the owner's explicit approval to use native Wrangler for this update; do not
   work around the check.
 
-**Check:** `pnpm deploy:verify` reports `/healthz` returned `"ok":true`, and `pnpm ops verify`
+**Check:** `pnpm deploy:verify` reports `/healthz` returned `"ok":true`, and `pnpm vizoalica verify`
 still reports authenticated access. Then run a website's accepted-event check from
 [website activation](pages.md#verify-website-activation) if the release touched ingestion.
 
@@ -505,17 +505,17 @@ operator machine.
 ## Rotate a secret
 
 ```sh
-pnpm ops rotate admin     # or: token | digest | all
+pnpm vizoalica rotate admin     # or: token | digest | all
 ```
 
 It shows what the rotation will break, asks before changing anything, generates a new value,
 stores it on the Worker, shows it once, and updates what it can:
 
-| Secret   | What changes                                                                                                                                                                                 |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `pnpm ops connect`; a OneCLI console needs its credential card updated. |
-| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                       |
-| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                     |
+| Secret   | What changes                                                                                                                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `pnpm vizoalica connect`; a OneCLI console needs its credential card updated. |
+| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                             |
+| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                           |
 
 Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`.
 If a secret may have been exposed, rotate it at once; see the recovery notes below.
@@ -532,10 +532,10 @@ If a secret may have been exposed, rotate it at once; see the recovery notes bel
   receipt before retrying.
 - **Unhealthy Worker:** use Cloudflare deployment history only when the selected Worker version is
   compatible with the fresh baseline. Never change D1 schema as an improvised recovery step.
-- **Suspected signing-secret exposure:** pause collection, run `pnpm ops rotate token`, update every
+- **Suspected signing-secret exposure:** pause collection, run `pnpm vizoalica rotate token`, update every
   connected website, verify a new accepted event, then resume.
-- **Suspected administrator-secret exposure:** run `pnpm ops rotate admin` and update every other
-  operator (`pnpm ops connect`). Revoke affected OneCLI agents or remove affected direct local files.
+- **Suspected administrator-secret exposure:** run `pnpm vizoalica rotate admin` and update every other
+  operator (`pnpm vizoalica connect`). Revoke affected OneCLI agents or remove affected direct local files.
 - **Removal:** teardown is a separate destructive customer-owner decision. First revoke access and
   export anything the owner is required to retain; then obtain distinct approval for the exact
   Worker, D1 database, and R2 bucket. Backend automation never deletes them.
