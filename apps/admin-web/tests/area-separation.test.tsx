@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
 import { CAPABILITIES, capabilityById } from '../src/capabilities.js';
-import { ROUTES, routeArea, type RoutePath } from '../src/router.js';
+import { NAV_ROUTES, ROUTES, routeArea, type RoutePath } from '../src/router.js';
 import { makeOverview, primaryIntegration } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
@@ -79,7 +78,16 @@ afterEach(() => {
 });
 
 const analyticsRoutes = ROUTES.filter((route) => route.area === 'analytics');
-const manageRoutes = ROUTES.filter((route) => route.area === 'manage');
+// Every Manage page, with a real website id where the address needs one.
+const manageAddresses = [
+  'manage/projects',
+  'manage/websites',
+  'manage/websites/new',
+  'manage/websites/s1',
+  'manage/websites/s1/edit',
+  'manage/websites/s1/install',
+  'manage/health'
+];
 
 describe('view and manage separation', () => {
   it.each(analyticsRoutes.map((route) => [route.path]))(
@@ -93,7 +101,7 @@ describe('view and manage separation', () => {
         expect(document.querySelector('.dashboard-card:not(.skeleton)')).toBeTruthy()
       );
       expect(document.querySelectorAll('[data-capability]')).toHaveLength(0);
-      const buttons = Array.from(document.querySelectorAll('main button')).map(
+      const buttons = Array.from(document.querySelectorAll('main button:not([role="tab"])')).map(
         (button) => button.textContent ?? ''
       );
       expect(buttons.filter((text) => /create|add|save|delete|disable|enable/i.test(text))).toEqual(
@@ -110,32 +118,47 @@ describe('view and manage separation', () => {
     expect(groups.map((group) => group.getAttribute('data-area'))).toEqual(['analytics', 'manage']);
     for (const group of groups) {
       const area = group.getAttribute('data-area');
-      const expected = ROUTES.filter((route) => route.area === area).map((route) => route.label);
+      const expected = NAV_ROUTES.filter((route) => route.area === area).map(
+        (route) => route.label
+      );
       expect(Array.from(group.querySelectorAll('a')).map((link) => link.textContent)).toEqual(
         expected
       );
     }
   });
 
-  it.each(manageRoutes.map((route) => [route.path]))(
+  // How many state-changing controls each Manage page is expected to have, so the check below can
+  // not pass by finding none.
+  const expectedMutations: Record<string, number> = {
+    'manage/projects': 2,
+    'manage/websites': 0,
+    'manage/websites/new': 1,
+    'manage/websites/s1': 2,
+    'manage/websites/s1/edit': 1,
+    'manage/websites/s1/install': 0,
+    'manage/health': 0
+  };
+
+  it.each(manageAddresses.map((address) => [address]))(
     '%s marks every mutating control with a manage capability',
     async (path) => {
       window.location.hash = `#/${path}`;
-      const user = userEvent.setup();
       render(<App />);
-      await screen.findByRole('heading', { level: 1 });
-      if (path === 'manage/websites')
-        await user.click(await screen.findByRole('button', { name: /Docs/ }));
-      await waitFor(() => expect(document.querySelector('main')).toBeTruthy());
-      const mutating = Array.from(document.querySelectorAll('main button')).filter((button) =>
-        /create|add|save|delete|disable|enable/i.test(button.textContent ?? '')
-      );
+      // The page marks itself once loaded; the connecting screen has a heading of its own.
+      await waitFor(() => expect(document.querySelector('main [data-page]')).toBeTruthy());
+      const mutating = Array.from(
+        document.querySelectorAll('main button:not([role="tab"])')
+      ).filter((button) => /create|add|save|delete|disable|enable/i.test(button.textContent ?? ''));
+      expect(mutating.length, path).toBeGreaterThanOrEqual(expectedMutations[path]!);
       for (const button of mutating) {
         const capability = capabilityById(button.getAttribute('data-capability') ?? '');
         expect(capability, button.textContent ?? '').toBeTruthy();
         expect(capability?.area).toBe('manage');
         expect(capability?.class).not.toBe('view');
       }
+      // Pages that only show things carry no capability tags at all.
+      if (expectedMutations[path] === 0)
+        expect(document.querySelectorAll('main [data-capability]')).toHaveLength(0);
     }
   );
 

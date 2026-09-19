@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
-import { ROUTES } from '../src/router.js';
+import { ROUTES, scopeControls } from '../src/router.js';
 import { makeOverview, primaryIntegration } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
@@ -57,15 +57,27 @@ afterEach(() => {
 
 const scopeBar = () => screen.findByRole('region', { name: 'Scope' });
 
+const concrete = ROUTES.map((route) => ({
+  address: route.path.replace(':id', 's1'),
+  controls: scopeControls(route.path)
+}));
+
 describe('single scope control', () => {
-  it.each(ROUTES.filter((route) => route.path !== 'manage/projects').map((route) => [route.path]))(
-    '%s shows exactly one project and one website control, both in the shell',
-    async (path) => {
-      window.location.hash = `#/${path}`;
+  it.each(concrete.map((route) => [route.address, route.controls]))(
+    '%s shows scope controls in the shell only as its route declares (%s)',
+    async (address, controls) => {
+      window.location.hash = `#/${address}`;
       render(<App />);
-      const bar = await scopeBar();
-      expect(within(bar).getAllByLabelText('Project')).toHaveLength(1);
-      expect(within(bar).getAllByLabelText('Website')).toHaveLength(1);
+      await screen.findByRole('heading', { level: 1 });
+      const bar = screen.queryByRole('region', { name: 'Scope' });
+      if (controls === 'none') expect(bar).toBeNull();
+      else {
+        const shell = bar!;
+        expect(within(shell).getAllByLabelText('Project')).toHaveLength(1);
+        expect(within(shell).queryAllByLabelText('Website')).toHaveLength(
+          controls === 'project-website' ? 1 : 0
+        );
+      }
       // Outside the shell there is at most the add-website form's explicit project field.
       const outside = Array.from(document.querySelectorAll('main select')).filter(
         (select) => !select.closest('form[aria-label="Add website"]')
@@ -77,7 +89,7 @@ describe('single scope control', () => {
   it('hides the project controls on Projects and the time range outside Analytics', async () => {
     window.location.hash = '#/manage/projects';
     render(<App />);
-    await screen.findByRole('heading', { name: 'Projects' });
+    await screen.findByRole('heading', { level: 1, name: 'Projects' });
     expect(screen.queryByRole('region', { name: 'Scope' })).toBeNull();
     window.location.hash = '#/manage/websites';
     const bar = await scopeBar();
@@ -137,14 +149,14 @@ describe('single scope control', () => {
     expect(await screen.findByText(/Your previous project is no longer available/)).toBeTruthy();
   });
 
-  it('offers a path to create a project from every scope-bound screen when none exists', async () => {
+  it('offers a path to create a project from every screen that needs one when none exists', async () => {
     api.listProjects.mockResolvedValue([]);
-    for (const route of ROUTES.filter((item) => item.path !== 'manage/projects')) {
-      window.location.hash = `#/${route.path}`;
+    for (const route of concrete.filter((item) => item.address !== 'manage/projects')) {
+      window.location.hash = `#/${route.address}`;
       render(<App />);
       const link = await screen.findByRole('link', { name: 'Create a project' });
       expect(link.getAttribute('href')).toBe('#/manage/projects');
-      expect(screen.getByText('No project yet')).toBeTruthy();
+      if (route.controls !== 'none') expect(screen.getByText('No project yet')).toBeTruthy();
       cleanup();
     }
   });
@@ -156,14 +168,33 @@ describe('single scope control', () => {
     expect(overview.getAttribute('aria-current')).toBe('page');
   });
 
-  it('offers a link to set up a website when installing with no website in scope', async () => {
-    window.location.hash = '#/manage/installation';
+  it('reaches installation from a website: list, website page, Install', async () => {
+    window.location.hash = '#/manage/websites';
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Set up Blog' }));
-    expect(await screen.findByText(/Add the snippet or public configuration to Blog/)).toBeTruthy();
-    expect((within(await scopeBar()).getByLabelText('Website') as HTMLSelectElement).value).toBe(
-      's2'
-    );
+    await user.click(await screen.findByRole('link', { name: /Blog/ }));
+    await user.click(await screen.findByRole('link', { name: 'Install' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Install on Blog' })).toBeTruthy();
+    // There is no top-level Installation destination.
+    expect(screen.queryByRole('link', { name: 'Installation' })).toBeNull();
+  });
+
+  it('sends the no-page-views hint to the selected website’s Install page, or to the list', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const hint = await screen.findByText(/No page views in this range yet/);
+    expect(
+      within(hint.closest('p')!)
+        .getByRole('link', { name: 'check the installation' })
+        .getAttribute('href')
+    ).toBe('#/manage/websites');
+    await within(await scopeBar()).findByRole('option', { name: 'Docs' });
+    await user.selectOptions(within(await scopeBar()).getByLabelText('Website'), 's1');
+    const forSite = await screen.findByText(/No page views from Docs in this range yet/);
+    expect(
+      within(forSite.closest('p')!)
+        .getByRole('link', { name: 'check the installation' })
+        .getAttribute('href')
+    ).toBe('#/manage/websites/s1/install');
   });
 });

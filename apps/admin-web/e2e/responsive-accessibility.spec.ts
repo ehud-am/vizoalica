@@ -67,10 +67,13 @@ test('navigates Projects with the keyboard and keeps the scope explicit', async 
 
 test('requires project confirmation as the first website creation control', async ({ page }) => {
   await page.getByRole('link', { name: 'Websites', exact: true }).click();
+  await page.getByRole('link', { name: /Add website/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Add a website' })).toBeVisible();
   const form = page.getByRole('form', { name: 'Add website' });
   const projectChoice = form.getByRole('combobox', { name: 'Project' });
   await expect(projectChoice).toHaveValue('');
   await expect(projectChoice).toHaveAttribute('required', '');
+  await expect(projectChoice).toBeFocused();
   expect(
     await form.evaluate((element) => element.querySelector('select, input, textarea')?.tagName)
   ).toBe('SELECT');
@@ -78,12 +81,16 @@ test('requires project confirmation as the first website creation control', asyn
   await form.getByRole('textbox', { name: 'Website name' }).fill('Launch');
   await form.getByRole('textbox', { name: 'Allowed origins' }).fill('https://launch.example');
   await form.getByRole('button', { name: 'Add website' }).click();
+  // Creating lands on the new website's Install page, in the chosen project.
+  await expect(page.getByRole('heading', { level: 1, name: /^Install on/ })).toBeVisible();
   await expect(
-    page.getByText(`Website Launch created in project ${secondProject.name} (${secondProject.id}).`)
+    page.getByText(
+      `Website Launch created in project ${secondProject.name} (${secondProject.id}).`,
+      {
+        exact: false
+      }
+    )
   ).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Scope' }).getByLabel('Project')).toHaveValue(
-    secondProject.id
-  );
 });
 
 test('recovers from an empty project list with a keyboard-accessible Create a project action', async ({
@@ -150,27 +157,31 @@ test('opens and closes the Local workspace boundary explanation by keyboard', as
 });
 
 test('has no serious axe findings on any screen, in light and dark', async ({ page }) => {
+  const screens: Array<[string, string]> = [
+    ['analytics/overview', 'Overview'],
+    ['analytics/pages', 'Pages'],
+    ['analytics/sources', 'Sources'],
+    ['analytics/geography', 'Geography'],
+    ['analytics/technology', 'Technology'],
+    ['analytics/traffic-quality', 'Traffic quality'],
+    ['manage/projects', 'Projects'],
+    ['manage/websites', 'Websites'],
+    ['manage/websites/new', 'Add a website'],
+    ['manage/websites/site-1', 'Docs'],
+    ['manage/websites/site-1/edit', 'Edit Docs'],
+    ['manage/websites/site-1/install', 'Install on Docs'],
+    ['manage/health', 'Health']
+  ];
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    for (const name of [
-      'Overview',
-      'Pages',
-      'Sources',
-      'Geography',
-      'Technology',
-      'Traffic quality',
-      'Projects',
-      'Websites',
-      'Installation',
-      'Health'
-    ]) {
-      await page.getByRole('link', { name, exact: true }).click();
-      await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    for (const [address, title] of screens) {
+      await page.goto(`/#/${address}`);
+      await expect(page.getByRole('heading', { level: 1, name: new RegExp(title) })).toBeVisible();
       await expect(page.locator('.skeleton')).toHaveCount(0);
       const results = await new AxeBuilder({ page }).analyze();
       expect(
         results.violations.filter((item) => ['critical', 'serious'].includes(item.impact ?? '')),
-        `${scheme} ${name}`
+        `${scheme} ${title}`
       ).toEqual([]);
     }
   }

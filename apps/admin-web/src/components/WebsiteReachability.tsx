@@ -11,12 +11,24 @@ function errorLabel(error: string | null): string {
   return ERROR_LABELS[error] ?? `the configuration endpoint responded with an error (${error})`;
 }
 
-export function WebsiteReachability({ reachability }: { reachability: Reachability }) {
+export function WebsiteReachability({
+  reachability,
+  bare = false
+}: {
+  reachability: Reachability;
+  bare?: boolean;
+}) {
   const checkedAt = new Date(reachability.configEndpointCheckedAt);
   return (
-    <section className="detail-card">
-      <p className="eyebrow">Live check</p>
-      <h2 className="icon-heading">Website reachability</h2>
+    <section className={bare ? 'status-block' : 'detail-card'}>
+      {bare ? (
+        <h3 className="sub-heading">Website reachability</h3>
+      ) : (
+        <>
+          <p className="eyebrow">Live check</p>
+          <h2 className="icon-heading">Website reachability</h2>
+        </>
+      )}
       <p role="status">
         <span
           className={`health-dot ${reachability.configEndpointReachable ? 'healthy' : 'attention'}`}

@@ -73,8 +73,16 @@ export function AnalyticsView({
                   ? `No page views from ${scope.website.name} in this range yet. `
                   : 'No page views in this range yet. '}
                 If you have just installed the snippet,{' '}
-                <a href={hrefFor('manage/installation')}>check the installation</a> and{' '}
-                <a href={hrefFor('manage/health')}>website health</a>.
+                <a
+                  href={
+                    scope.website
+                      ? hrefFor('manage/websites/:id/install', scope.website.id)
+                      : hrefFor('manage/websites')
+                  }
+                >
+                  check the installation
+                </a>{' '}
+                and <a href={hrefFor('manage/health')}>website health</a>.
               </p>
             )}
           </div>

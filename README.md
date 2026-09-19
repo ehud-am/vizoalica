@@ -161,20 +161,22 @@ Full guides: **[without OneCLI](docs/operations/local-analytics.md)** (the defau
 
 ### 3. Website — third
 
-In the console, open **Projects**, choose or create a project, then **Websites → Add website**
-(every website starts with an empty, required project choice) and enter its exact production
-origin. Its integration panel gives you everything to paste:
+In the console, open **Websites** and choose **Add website**. Its first field is an
+empty, required project choice; then enter the exact production origin. Saving takes you to that
+website's **Install** page, which asks how the site is deployed and then gives numbered steps:
 
-1. For a site in its own GitHub repository: the generated GitHub Actions workflow and the
-   repository variables and secrets it needs. Add them and push; the workflow deploys the site to
-   Cloudflare Pages together with Vizoalica's loader and its configuration and token endpoints.
-   The token endpoint needs `VIZOALICA_TOKEN_SECRET`, the secret you saved during step 1.
-2. Open the site, grant analytics consent, and watch the page view appear in the console.
+1. **GitHub → Cloudflare Pages** (recommended): add the loader tag to your pages, the generated
+   GitHub Actions workflow, and the repository variables and secrets it needs (in GitHub, or with
+   the `gh` command), then push. The workflow deploys the site to Cloudflare Pages together with
+   Vizoalica's loader and its configuration and token endpoints. The token endpoint needs
+   `VIZOALICA_TOKEN_SECRET`, the secret you saved during step 1.
+2. **Paste a snippet**: add one script tag to your pages and host the SDK file and a token endpoint
+   yourself. Works with any host, including Direct Upload and Git-connected Pages.
+3. Open the site, grant analytics consent, and choose **Check now** on the Install page to see the
+   page views arrive.
 
-The panel offers two install options: a **Static snippet** that embeds six public values in the
-page, or **Dynamic configuration**, one generic loader plus a versioned public JSON document. This
-public browser configuration is not a secret. Direct Upload and Git-connected Pages are the manual
-alternatives.
+Behind the two paths are a **dynamic configuration** (a generic loader and a versioned JSON
+document) and a **static snippet** (six values embedded in the page). Both are public browser configuration, not secrets.
 
 Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK reference:
 [docs/operations/browser-sdk.md](docs/operations/browser-sdk.md).

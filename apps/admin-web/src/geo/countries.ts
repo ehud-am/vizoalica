@@ -2,13 +2,7 @@
 // Country reference data: code, ISO numeric code, common English name, continent.
 
 export type Continent =
-  | 'Africa'
-  | 'Antarctica'
-  | 'Asia'
-  | 'Europe'
-  | 'North America'
-  | 'Oceania'
-  | 'South America';
+  'Africa' | 'Antarctica' | 'Asia' | 'Europe' | 'North America' | 'Oceania' | 'South America';
 
 export interface CountryRecord {
   code: string;
@@ -19,1515 +13,1515 @@ export interface CountryRecord {
 
 export const COUNTRIES: readonly CountryRecord[] = [
   {
-    "code": "AC",
-    "numeric": "",
-    "name": "Ascension Island",
-    "continent": "Africa"
+    code: 'AC',
+    numeric: '',
+    name: 'Ascension Island',
+    continent: 'Africa'
   },
   {
-    "code": "AD",
-    "numeric": "020",
-    "name": "Andorra",
-    "continent": "Europe"
+    code: 'AD',
+    numeric: '020',
+    name: 'Andorra',
+    continent: 'Europe'
   },
   {
-    "code": "AE",
-    "numeric": "784",
-    "name": "United Arab Emirates",
-    "continent": "Asia"
+    code: 'AE',
+    numeric: '784',
+    name: 'United Arab Emirates',
+    continent: 'Asia'
   },
   {
-    "code": "AF",
-    "numeric": "004",
-    "name": "Afghanistan",
-    "continent": "Asia"
+    code: 'AF',
+    numeric: '004',
+    name: 'Afghanistan',
+    continent: 'Asia'
   },
   {
-    "code": "AG",
-    "numeric": "028",
-    "name": "Antigua and Barbuda",
-    "continent": "North America"
+    code: 'AG',
+    numeric: '028',
+    name: 'Antigua and Barbuda',
+    continent: 'North America'
   },
   {
-    "code": "AI",
-    "numeric": "660",
-    "name": "Anguilla",
-    "continent": "North America"
+    code: 'AI',
+    numeric: '660',
+    name: 'Anguilla',
+    continent: 'North America'
   },
   {
-    "code": "AL",
-    "numeric": "008",
-    "name": "Albania",
-    "continent": "Europe"
+    code: 'AL',
+    numeric: '008',
+    name: 'Albania',
+    continent: 'Europe'
   },
   {
-    "code": "AM",
-    "numeric": "051",
-    "name": "Armenia",
-    "continent": "Asia"
+    code: 'AM',
+    numeric: '051',
+    name: 'Armenia',
+    continent: 'Asia'
   },
   {
-    "code": "AO",
-    "numeric": "024",
-    "name": "Angola",
-    "continent": "Africa"
+    code: 'AO',
+    numeric: '024',
+    name: 'Angola',
+    continent: 'Africa'
   },
   {
-    "code": "AQ",
-    "numeric": "010",
-    "name": "Antarctica",
-    "continent": "Antarctica"
+    code: 'AQ',
+    numeric: '010',
+    name: 'Antarctica',
+    continent: 'Antarctica'
   },
   {
-    "code": "AR",
-    "numeric": "032",
-    "name": "Argentina",
-    "continent": "South America"
+    code: 'AR',
+    numeric: '032',
+    name: 'Argentina',
+    continent: 'South America'
   },
   {
-    "code": "AS",
-    "numeric": "016",
-    "name": "American Samoa",
-    "continent": "Oceania"
+    code: 'AS',
+    numeric: '016',
+    name: 'American Samoa',
+    continent: 'Oceania'
   },
   {
-    "code": "AT",
-    "numeric": "040",
-    "name": "Austria",
-    "continent": "Europe"
+    code: 'AT',
+    numeric: '040',
+    name: 'Austria',
+    continent: 'Europe'
   },
   {
-    "code": "AU",
-    "numeric": "036",
-    "name": "Australia",
-    "continent": "Oceania"
+    code: 'AU',
+    numeric: '036',
+    name: 'Australia',
+    continent: 'Oceania'
   },
   {
-    "code": "AW",
-    "numeric": "533",
-    "name": "Aruba",
-    "continent": "North America"
+    code: 'AW',
+    numeric: '533',
+    name: 'Aruba',
+    continent: 'North America'
   },
   {
-    "code": "AX",
-    "numeric": "248",
-    "name": "Aland",
-    "continent": "Europe"
+    code: 'AX',
+    numeric: '248',
+    name: 'Aland',
+    continent: 'Europe'
   },
   {
-    "code": "AZ",
-    "numeric": "031",
-    "name": "Azerbaijan",
-    "continent": "Asia"
+    code: 'AZ',
+    numeric: '031',
+    name: 'Azerbaijan',
+    continent: 'Asia'
   },
   {
-    "code": "BA",
-    "numeric": "070",
-    "name": "Bosnia and Herzegovina",
-    "continent": "Europe"
+    code: 'BA',
+    numeric: '070',
+    name: 'Bosnia and Herzegovina',
+    continent: 'Europe'
   },
   {
-    "code": "BB",
-    "numeric": "052",
-    "name": "Barbados",
-    "continent": "North America"
+    code: 'BB',
+    numeric: '052',
+    name: 'Barbados',
+    continent: 'North America'
   },
   {
-    "code": "BD",
-    "numeric": "050",
-    "name": "Bangladesh",
-    "continent": "Asia"
+    code: 'BD',
+    numeric: '050',
+    name: 'Bangladesh',
+    continent: 'Asia'
   },
   {
-    "code": "BE",
-    "numeric": "056",
-    "name": "Belgium",
-    "continent": "Europe"
+    code: 'BE',
+    numeric: '056',
+    name: 'Belgium',
+    continent: 'Europe'
   },
   {
-    "code": "BF",
-    "numeric": "854",
-    "name": "Burkina Faso",
-    "continent": "Africa"
+    code: 'BF',
+    numeric: '854',
+    name: 'Burkina Faso',
+    continent: 'Africa'
   },
   {
-    "code": "BG",
-    "numeric": "100",
-    "name": "Bulgaria",
-    "continent": "Europe"
+    code: 'BG',
+    numeric: '100',
+    name: 'Bulgaria',
+    continent: 'Europe'
   },
   {
-    "code": "BH",
-    "numeric": "048",
-    "name": "Bahrain",
-    "continent": "Asia"
+    code: 'BH',
+    numeric: '048',
+    name: 'Bahrain',
+    continent: 'Asia'
   },
   {
-    "code": "BI",
-    "numeric": "108",
-    "name": "Burundi",
-    "continent": "Africa"
+    code: 'BI',
+    numeric: '108',
+    name: 'Burundi',
+    continent: 'Africa'
   },
   {
-    "code": "BJ",
-    "numeric": "204",
-    "name": "Benin",
-    "continent": "Africa"
+    code: 'BJ',
+    numeric: '204',
+    name: 'Benin',
+    continent: 'Africa'
   },
   {
-    "code": "BL",
-    "numeric": "652",
-    "name": "Saint Barthelemy",
-    "continent": "North America"
+    code: 'BL',
+    numeric: '652',
+    name: 'Saint Barthelemy',
+    continent: 'North America'
   },
   {
-    "code": "BM",
-    "numeric": "060",
-    "name": "Bermuda",
-    "continent": "North America"
+    code: 'BM',
+    numeric: '060',
+    name: 'Bermuda',
+    continent: 'North America'
   },
   {
-    "code": "BN",
-    "numeric": "096",
-    "name": "Brunei",
-    "continent": "Asia"
+    code: 'BN',
+    numeric: '096',
+    name: 'Brunei',
+    continent: 'Asia'
   },
   {
-    "code": "BO",
-    "numeric": "068",
-    "name": "Bolivia",
-    "continent": "South America"
+    code: 'BO',
+    numeric: '068',
+    name: 'Bolivia',
+    continent: 'South America'
   },
   {
-    "code": "BQ",
-    "numeric": "535",
-    "name": "Bonaire",
-    "continent": "North America"
+    code: 'BQ',
+    numeric: '535',
+    name: 'Bonaire',
+    continent: 'North America'
   },
   {
-    "code": "BR",
-    "numeric": "076",
-    "name": "Brazil",
-    "continent": "South America"
+    code: 'BR',
+    numeric: '076',
+    name: 'Brazil',
+    continent: 'South America'
   },
   {
-    "code": "BS",
-    "numeric": "044",
-    "name": "Bahamas",
-    "continent": "North America"
+    code: 'BS',
+    numeric: '044',
+    name: 'Bahamas',
+    continent: 'North America'
   },
   {
-    "code": "BT",
-    "numeric": "064",
-    "name": "Bhutan",
-    "continent": "Asia"
+    code: 'BT',
+    numeric: '064',
+    name: 'Bhutan',
+    continent: 'Asia'
   },
   {
-    "code": "BV",
-    "numeric": "074",
-    "name": "Bouvet Island",
-    "continent": "Antarctica"
+    code: 'BV',
+    numeric: '074',
+    name: 'Bouvet Island',
+    continent: 'Antarctica'
   },
   {
-    "code": "BW",
-    "numeric": "072",
-    "name": "Botswana",
-    "continent": "Africa"
+    code: 'BW',
+    numeric: '072',
+    name: 'Botswana',
+    continent: 'Africa'
   },
   {
-    "code": "BY",
-    "numeric": "112",
-    "name": "Belarus",
-    "continent": "Europe"
+    code: 'BY',
+    numeric: '112',
+    name: 'Belarus',
+    continent: 'Europe'
   },
   {
-    "code": "BZ",
-    "numeric": "084",
-    "name": "Belize",
-    "continent": "North America"
+    code: 'BZ',
+    numeric: '084',
+    name: 'Belize',
+    continent: 'North America'
   },
   {
-    "code": "CA",
-    "numeric": "124",
-    "name": "Canada",
-    "continent": "North America"
+    code: 'CA',
+    numeric: '124',
+    name: 'Canada',
+    continent: 'North America'
   },
   {
-    "code": "CC",
-    "numeric": "166",
-    "name": "Cocos (Keeling) Islands",
-    "continent": "Asia"
+    code: 'CC',
+    numeric: '166',
+    name: 'Cocos (Keeling) Islands',
+    continent: 'Asia'
   },
   {
-    "code": "CD",
-    "numeric": "180",
-    "name": "Democratic Republic of the Congo",
-    "continent": "Africa"
+    code: 'CD',
+    numeric: '180',
+    name: 'Democratic Republic of the Congo',
+    continent: 'Africa'
   },
   {
-    "code": "CF",
-    "numeric": "140",
-    "name": "Central African Republic",
-    "continent": "Africa"
+    code: 'CF',
+    numeric: '140',
+    name: 'Central African Republic',
+    continent: 'Africa'
   },
   {
-    "code": "CG",
-    "numeric": "178",
-    "name": "Republic of the Congo",
-    "continent": "Africa"
+    code: 'CG',
+    numeric: '178',
+    name: 'Republic of the Congo',
+    continent: 'Africa'
   },
   {
-    "code": "CH",
-    "numeric": "756",
-    "name": "Switzerland",
-    "continent": "Europe"
+    code: 'CH',
+    numeric: '756',
+    name: 'Switzerland',
+    continent: 'Europe'
   },
   {
-    "code": "CI",
-    "numeric": "384",
-    "name": "Ivory Coast",
-    "continent": "Africa"
+    code: 'CI',
+    numeric: '384',
+    name: 'Ivory Coast',
+    continent: 'Africa'
   },
   {
-    "code": "CK",
-    "numeric": "184",
-    "name": "Cook Islands",
-    "continent": "Oceania"
+    code: 'CK',
+    numeric: '184',
+    name: 'Cook Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "CL",
-    "numeric": "152",
-    "name": "Chile",
-    "continent": "South America"
+    code: 'CL',
+    numeric: '152',
+    name: 'Chile',
+    continent: 'South America'
   },
   {
-    "code": "CM",
-    "numeric": "120",
-    "name": "Cameroon",
-    "continent": "Africa"
+    code: 'CM',
+    numeric: '120',
+    name: 'Cameroon',
+    continent: 'Africa'
   },
   {
-    "code": "CN",
-    "numeric": "156",
-    "name": "China",
-    "continent": "Asia"
+    code: 'CN',
+    numeric: '156',
+    name: 'China',
+    continent: 'Asia'
   },
   {
-    "code": "CO",
-    "numeric": "170",
-    "name": "Colombia",
-    "continent": "South America"
+    code: 'CO',
+    numeric: '170',
+    name: 'Colombia',
+    continent: 'South America'
   },
   {
-    "code": "CR",
-    "numeric": "188",
-    "name": "Costa Rica",
-    "continent": "North America"
+    code: 'CR',
+    numeric: '188',
+    name: 'Costa Rica',
+    continent: 'North America'
   },
   {
-    "code": "CU",
-    "numeric": "192",
-    "name": "Cuba",
-    "continent": "North America"
+    code: 'CU',
+    numeric: '192',
+    name: 'Cuba',
+    continent: 'North America'
   },
   {
-    "code": "CV",
-    "numeric": "132",
-    "name": "Cabo Verde",
-    "continent": "Africa"
+    code: 'CV',
+    numeric: '132',
+    name: 'Cabo Verde',
+    continent: 'Africa'
   },
   {
-    "code": "CW",
-    "numeric": "531",
-    "name": "Curacao",
-    "continent": "North America"
+    code: 'CW',
+    numeric: '531',
+    name: 'Curacao',
+    continent: 'North America'
   },
   {
-    "code": "CX",
-    "numeric": "162",
-    "name": "Christmas Island",
-    "continent": "Asia"
+    code: 'CX',
+    numeric: '162',
+    name: 'Christmas Island',
+    continent: 'Asia'
   },
   {
-    "code": "CY",
-    "numeric": "196",
-    "name": "Cyprus",
-    "continent": "Europe"
+    code: 'CY',
+    numeric: '196',
+    name: 'Cyprus',
+    continent: 'Europe'
   },
   {
-    "code": "CZ",
-    "numeric": "203",
-    "name": "Czechia",
-    "continent": "Europe"
+    code: 'CZ',
+    numeric: '203',
+    name: 'Czechia',
+    continent: 'Europe'
   },
   {
-    "code": "DE",
-    "numeric": "276",
-    "name": "Germany",
-    "continent": "Europe"
+    code: 'DE',
+    numeric: '276',
+    name: 'Germany',
+    continent: 'Europe'
   },
   {
-    "code": "DJ",
-    "numeric": "262",
-    "name": "Djibouti",
-    "continent": "Africa"
+    code: 'DJ',
+    numeric: '262',
+    name: 'Djibouti',
+    continent: 'Africa'
   },
   {
-    "code": "DK",
-    "numeric": "208",
-    "name": "Denmark",
-    "continent": "Europe"
+    code: 'DK',
+    numeric: '208',
+    name: 'Denmark',
+    continent: 'Europe'
   },
   {
-    "code": "DM",
-    "numeric": "212",
-    "name": "Dominica",
-    "continent": "North America"
+    code: 'DM',
+    numeric: '212',
+    name: 'Dominica',
+    continent: 'North America'
   },
   {
-    "code": "DO",
-    "numeric": "214",
-    "name": "Dominican Republic",
-    "continent": "North America"
+    code: 'DO',
+    numeric: '214',
+    name: 'Dominican Republic',
+    continent: 'North America'
   },
   {
-    "code": "DZ",
-    "numeric": "012",
-    "name": "Algeria",
-    "continent": "Africa"
+    code: 'DZ',
+    numeric: '012',
+    name: 'Algeria',
+    continent: 'Africa'
   },
   {
-    "code": "EC",
-    "numeric": "218",
-    "name": "Ecuador",
-    "continent": "South America"
+    code: 'EC',
+    numeric: '218',
+    name: 'Ecuador',
+    continent: 'South America'
   },
   {
-    "code": "EE",
-    "numeric": "233",
-    "name": "Estonia",
-    "continent": "Europe"
+    code: 'EE',
+    numeric: '233',
+    name: 'Estonia',
+    continent: 'Europe'
   },
   {
-    "code": "EG",
-    "numeric": "818",
-    "name": "Egypt",
-    "continent": "Africa"
+    code: 'EG',
+    numeric: '818',
+    name: 'Egypt',
+    continent: 'Africa'
   },
   {
-    "code": "EH",
-    "numeric": "732",
-    "name": "Western Sahara",
-    "continent": "Africa"
+    code: 'EH',
+    numeric: '732',
+    name: 'Western Sahara',
+    continent: 'Africa'
   },
   {
-    "code": "ER",
-    "numeric": "232",
-    "name": "Eritrea",
-    "continent": "Africa"
+    code: 'ER',
+    numeric: '232',
+    name: 'Eritrea',
+    continent: 'Africa'
   },
   {
-    "code": "ES",
-    "numeric": "724",
-    "name": "Spain",
-    "continent": "Europe"
+    code: 'ES',
+    numeric: '724',
+    name: 'Spain',
+    continent: 'Europe'
   },
   {
-    "code": "ET",
-    "numeric": "231",
-    "name": "Ethiopia",
-    "continent": "Africa"
+    code: 'ET',
+    numeric: '231',
+    name: 'Ethiopia',
+    continent: 'Africa'
   },
   {
-    "code": "FI",
-    "numeric": "246",
-    "name": "Finland",
-    "continent": "Europe"
+    code: 'FI',
+    numeric: '246',
+    name: 'Finland',
+    continent: 'Europe'
   },
   {
-    "code": "FJ",
-    "numeric": "242",
-    "name": "Fiji",
-    "continent": "Oceania"
+    code: 'FJ',
+    numeric: '242',
+    name: 'Fiji',
+    continent: 'Oceania'
   },
   {
-    "code": "FK",
-    "numeric": "238",
-    "name": "Falkland Islands",
-    "continent": "South America"
+    code: 'FK',
+    numeric: '238',
+    name: 'Falkland Islands',
+    continent: 'South America'
   },
   {
-    "code": "FM",
-    "numeric": "583",
-    "name": "Micronesia",
-    "continent": "Oceania"
+    code: 'FM',
+    numeric: '583',
+    name: 'Micronesia',
+    continent: 'Oceania'
   },
   {
-    "code": "FO",
-    "numeric": "234",
-    "name": "Faroe Islands",
-    "continent": "Europe"
+    code: 'FO',
+    numeric: '234',
+    name: 'Faroe Islands',
+    continent: 'Europe'
   },
   {
-    "code": "FR",
-    "numeric": "250",
-    "name": "France",
-    "continent": "Europe"
+    code: 'FR',
+    numeric: '250',
+    name: 'France',
+    continent: 'Europe'
   },
   {
-    "code": "GA",
-    "numeric": "266",
-    "name": "Gabon",
-    "continent": "Africa"
+    code: 'GA',
+    numeric: '266',
+    name: 'Gabon',
+    continent: 'Africa'
   },
   {
-    "code": "GB",
-    "numeric": "826",
-    "name": "United Kingdom",
-    "continent": "Europe"
+    code: 'GB',
+    numeric: '826',
+    name: 'United Kingdom',
+    continent: 'Europe'
   },
   {
-    "code": "GD",
-    "numeric": "308",
-    "name": "Grenada",
-    "continent": "North America"
+    code: 'GD',
+    numeric: '308',
+    name: 'Grenada',
+    continent: 'North America'
   },
   {
-    "code": "GE",
-    "numeric": "268",
-    "name": "Georgia",
-    "continent": "Asia"
+    code: 'GE',
+    numeric: '268',
+    name: 'Georgia',
+    continent: 'Asia'
   },
   {
-    "code": "GF",
-    "numeric": "254",
-    "name": "French Guiana",
-    "continent": "South America"
+    code: 'GF',
+    numeric: '254',
+    name: 'French Guiana',
+    continent: 'South America'
   },
   {
-    "code": "GG",
-    "numeric": "831",
-    "name": "Guernsey",
-    "continent": "Europe"
+    code: 'GG',
+    numeric: '831',
+    name: 'Guernsey',
+    continent: 'Europe'
   },
   {
-    "code": "GH",
-    "numeric": "288",
-    "name": "Ghana",
-    "continent": "Africa"
+    code: 'GH',
+    numeric: '288',
+    name: 'Ghana',
+    continent: 'Africa'
   },
   {
-    "code": "GI",
-    "numeric": "292",
-    "name": "Gibraltar",
-    "continent": "Europe"
+    code: 'GI',
+    numeric: '292',
+    name: 'Gibraltar',
+    continent: 'Europe'
   },
   {
-    "code": "GL",
-    "numeric": "304",
-    "name": "Greenland",
-    "continent": "North America"
+    code: 'GL',
+    numeric: '304',
+    name: 'Greenland',
+    continent: 'North America'
   },
   {
-    "code": "GM",
-    "numeric": "270",
-    "name": "Gambia",
-    "continent": "Africa"
+    code: 'GM',
+    numeric: '270',
+    name: 'Gambia',
+    continent: 'Africa'
   },
   {
-    "code": "GN",
-    "numeric": "324",
-    "name": "Guinea",
-    "continent": "Africa"
+    code: 'GN',
+    numeric: '324',
+    name: 'Guinea',
+    continent: 'Africa'
   },
   {
-    "code": "GP",
-    "numeric": "312",
-    "name": "Guadeloupe",
-    "continent": "North America"
+    code: 'GP',
+    numeric: '312',
+    name: 'Guadeloupe',
+    continent: 'North America'
   },
   {
-    "code": "GQ",
-    "numeric": "226",
-    "name": "Equatorial Guinea",
-    "continent": "Africa"
+    code: 'GQ',
+    numeric: '226',
+    name: 'Equatorial Guinea',
+    continent: 'Africa'
   },
   {
-    "code": "GR",
-    "numeric": "300",
-    "name": "Greece",
-    "continent": "Europe"
+    code: 'GR',
+    numeric: '300',
+    name: 'Greece',
+    continent: 'Europe'
   },
   {
-    "code": "GS",
-    "numeric": "239",
-    "name": "South Georgia and the South Sandwich Islands",
-    "continent": "Antarctica"
+    code: 'GS',
+    numeric: '239',
+    name: 'South Georgia and the South Sandwich Islands',
+    continent: 'Antarctica'
   },
   {
-    "code": "GT",
-    "numeric": "320",
-    "name": "Guatemala",
-    "continent": "North America"
+    code: 'GT',
+    numeric: '320',
+    name: 'Guatemala',
+    continent: 'North America'
   },
   {
-    "code": "GU",
-    "numeric": "316",
-    "name": "Guam",
-    "continent": "Oceania"
+    code: 'GU',
+    numeric: '316',
+    name: 'Guam',
+    continent: 'Oceania'
   },
   {
-    "code": "GW",
-    "numeric": "624",
-    "name": "Guinea-Bissau",
-    "continent": "Africa"
+    code: 'GW',
+    numeric: '624',
+    name: 'Guinea-Bissau',
+    continent: 'Africa'
   },
   {
-    "code": "GY",
-    "numeric": "328",
-    "name": "Guyana",
-    "continent": "South America"
+    code: 'GY',
+    numeric: '328',
+    name: 'Guyana',
+    continent: 'South America'
   },
   {
-    "code": "HK",
-    "numeric": "344",
-    "name": "Hong Kong",
-    "continent": "Asia"
+    code: 'HK',
+    numeric: '344',
+    name: 'Hong Kong',
+    continent: 'Asia'
   },
   {
-    "code": "HM",
-    "numeric": "334",
-    "name": "Heard Island and McDonald Islands",
-    "continent": "Antarctica"
+    code: 'HM',
+    numeric: '334',
+    name: 'Heard Island and McDonald Islands',
+    continent: 'Antarctica'
   },
   {
-    "code": "HN",
-    "numeric": "340",
-    "name": "Honduras",
-    "continent": "North America"
+    code: 'HN',
+    numeric: '340',
+    name: 'Honduras',
+    continent: 'North America'
   },
   {
-    "code": "HR",
-    "numeric": "191",
-    "name": "Croatia",
-    "continent": "Europe"
+    code: 'HR',
+    numeric: '191',
+    name: 'Croatia',
+    continent: 'Europe'
   },
   {
-    "code": "HT",
-    "numeric": "332",
-    "name": "Haiti",
-    "continent": "North America"
+    code: 'HT',
+    numeric: '332',
+    name: 'Haiti',
+    continent: 'North America'
   },
   {
-    "code": "HU",
-    "numeric": "348",
-    "name": "Hungary",
-    "continent": "Europe"
+    code: 'HU',
+    numeric: '348',
+    name: 'Hungary',
+    continent: 'Europe'
   },
   {
-    "code": "ID",
-    "numeric": "360",
-    "name": "Indonesia",
-    "continent": "Asia"
+    code: 'ID',
+    numeric: '360',
+    name: 'Indonesia',
+    continent: 'Asia'
   },
   {
-    "code": "IE",
-    "numeric": "372",
-    "name": "Ireland",
-    "continent": "Europe"
+    code: 'IE',
+    numeric: '372',
+    name: 'Ireland',
+    continent: 'Europe'
   },
   {
-    "code": "IL",
-    "numeric": "376",
-    "name": "Israel",
-    "continent": "Asia"
+    code: 'IL',
+    numeric: '376',
+    name: 'Israel',
+    continent: 'Asia'
   },
   {
-    "code": "IM",
-    "numeric": "833",
-    "name": "Isle of Man",
-    "continent": "Europe"
+    code: 'IM',
+    numeric: '833',
+    name: 'Isle of Man',
+    continent: 'Europe'
   },
   {
-    "code": "IN",
-    "numeric": "356",
-    "name": "India",
-    "continent": "Asia"
+    code: 'IN',
+    numeric: '356',
+    name: 'India',
+    continent: 'Asia'
   },
   {
-    "code": "IO",
-    "numeric": "086",
-    "name": "British Indian Ocean Territory",
-    "continent": "Asia"
+    code: 'IO',
+    numeric: '086',
+    name: 'British Indian Ocean Territory',
+    continent: 'Asia'
   },
   {
-    "code": "IQ",
-    "numeric": "368",
-    "name": "Iraq",
-    "continent": "Asia"
+    code: 'IQ',
+    numeric: '368',
+    name: 'Iraq',
+    continent: 'Asia'
   },
   {
-    "code": "IR",
-    "numeric": "364",
-    "name": "Iran",
-    "continent": "Asia"
+    code: 'IR',
+    numeric: '364',
+    name: 'Iran',
+    continent: 'Asia'
   },
   {
-    "code": "IS",
-    "numeric": "352",
-    "name": "Iceland",
-    "continent": "Europe"
+    code: 'IS',
+    numeric: '352',
+    name: 'Iceland',
+    continent: 'Europe'
   },
   {
-    "code": "IT",
-    "numeric": "380",
-    "name": "Italy",
-    "continent": "Europe"
+    code: 'IT',
+    numeric: '380',
+    name: 'Italy',
+    continent: 'Europe'
   },
   {
-    "code": "JE",
-    "numeric": "832",
-    "name": "Jersey",
-    "continent": "Europe"
+    code: 'JE',
+    numeric: '832',
+    name: 'Jersey',
+    continent: 'Europe'
   },
   {
-    "code": "JM",
-    "numeric": "388",
-    "name": "Jamaica",
-    "continent": "North America"
+    code: 'JM',
+    numeric: '388',
+    name: 'Jamaica',
+    continent: 'North America'
   },
   {
-    "code": "JO",
-    "numeric": "400",
-    "name": "Jordan",
-    "continent": "Asia"
+    code: 'JO',
+    numeric: '400',
+    name: 'Jordan',
+    continent: 'Asia'
   },
   {
-    "code": "JP",
-    "numeric": "392",
-    "name": "Japan",
-    "continent": "Asia"
+    code: 'JP',
+    numeric: '392',
+    name: 'Japan',
+    continent: 'Asia'
   },
   {
-    "code": "KE",
-    "numeric": "404",
-    "name": "Kenya",
-    "continent": "Africa"
+    code: 'KE',
+    numeric: '404',
+    name: 'Kenya',
+    continent: 'Africa'
   },
   {
-    "code": "KG",
-    "numeric": "417",
-    "name": "Kyrgyzstan",
-    "continent": "Asia"
+    code: 'KG',
+    numeric: '417',
+    name: 'Kyrgyzstan',
+    continent: 'Asia'
   },
   {
-    "code": "KH",
-    "numeric": "116",
-    "name": "Cambodia",
-    "continent": "Asia"
+    code: 'KH',
+    numeric: '116',
+    name: 'Cambodia',
+    continent: 'Asia'
   },
   {
-    "code": "KI",
-    "numeric": "296",
-    "name": "Kiribati",
-    "continent": "Oceania"
+    code: 'KI',
+    numeric: '296',
+    name: 'Kiribati',
+    continent: 'Oceania'
   },
   {
-    "code": "KM",
-    "numeric": "174",
-    "name": "Comoros",
-    "continent": "Africa"
+    code: 'KM',
+    numeric: '174',
+    name: 'Comoros',
+    continent: 'Africa'
   },
   {
-    "code": "KN",
-    "numeric": "659",
-    "name": "Saint Kitts and Nevis",
-    "continent": "North America"
+    code: 'KN',
+    numeric: '659',
+    name: 'Saint Kitts and Nevis',
+    continent: 'North America'
   },
   {
-    "code": "KP",
-    "numeric": "408",
-    "name": "North Korea",
-    "continent": "Asia"
+    code: 'KP',
+    numeric: '408',
+    name: 'North Korea',
+    continent: 'Asia'
   },
   {
-    "code": "KR",
-    "numeric": "410",
-    "name": "South Korea",
-    "continent": "Asia"
+    code: 'KR',
+    numeric: '410',
+    name: 'South Korea',
+    continent: 'Asia'
   },
   {
-    "code": "KW",
-    "numeric": "414",
-    "name": "Kuwait",
-    "continent": "Asia"
+    code: 'KW',
+    numeric: '414',
+    name: 'Kuwait',
+    continent: 'Asia'
   },
   {
-    "code": "KY",
-    "numeric": "136",
-    "name": "Cayman Islands",
-    "continent": "North America"
+    code: 'KY',
+    numeric: '136',
+    name: 'Cayman Islands',
+    continent: 'North America'
   },
   {
-    "code": "KZ",
-    "numeric": "398",
-    "name": "Kazakhstan",
-    "continent": "Asia"
+    code: 'KZ',
+    numeric: '398',
+    name: 'Kazakhstan',
+    continent: 'Asia'
   },
   {
-    "code": "LA",
-    "numeric": "418",
-    "name": "Laos",
-    "continent": "Asia"
+    code: 'LA',
+    numeric: '418',
+    name: 'Laos',
+    continent: 'Asia'
   },
   {
-    "code": "LB",
-    "numeric": "422",
-    "name": "Lebanon",
-    "continent": "Asia"
+    code: 'LB',
+    numeric: '422',
+    name: 'Lebanon',
+    continent: 'Asia'
   },
   {
-    "code": "LC",
-    "numeric": "662",
-    "name": "Saint Lucia",
-    "continent": "North America"
+    code: 'LC',
+    numeric: '662',
+    name: 'Saint Lucia',
+    continent: 'North America'
   },
   {
-    "code": "LI",
-    "numeric": "438",
-    "name": "Liechtenstein",
-    "continent": "Europe"
+    code: 'LI',
+    numeric: '438',
+    name: 'Liechtenstein',
+    continent: 'Europe'
   },
   {
-    "code": "LK",
-    "numeric": "144",
-    "name": "Sri Lanka",
-    "continent": "Asia"
+    code: 'LK',
+    numeric: '144',
+    name: 'Sri Lanka',
+    continent: 'Asia'
   },
   {
-    "code": "LR",
-    "numeric": "430",
-    "name": "Liberia",
-    "continent": "Africa"
+    code: 'LR',
+    numeric: '430',
+    name: 'Liberia',
+    continent: 'Africa'
   },
   {
-    "code": "LS",
-    "numeric": "426",
-    "name": "Lesotho",
-    "continent": "Africa"
+    code: 'LS',
+    numeric: '426',
+    name: 'Lesotho',
+    continent: 'Africa'
   },
   {
-    "code": "LT",
-    "numeric": "440",
-    "name": "Lithuania",
-    "continent": "Europe"
+    code: 'LT',
+    numeric: '440',
+    name: 'Lithuania',
+    continent: 'Europe'
   },
   {
-    "code": "LU",
-    "numeric": "442",
-    "name": "Luxembourg",
-    "continent": "Europe"
+    code: 'LU',
+    numeric: '442',
+    name: 'Luxembourg',
+    continent: 'Europe'
   },
   {
-    "code": "LV",
-    "numeric": "428",
-    "name": "Latvia",
-    "continent": "Europe"
+    code: 'LV',
+    numeric: '428',
+    name: 'Latvia',
+    continent: 'Europe'
   },
   {
-    "code": "LY",
-    "numeric": "434",
-    "name": "Libya",
-    "continent": "Africa"
+    code: 'LY',
+    numeric: '434',
+    name: 'Libya',
+    continent: 'Africa'
   },
   {
-    "code": "MA",
-    "numeric": "504",
-    "name": "Morocco",
-    "continent": "Africa"
+    code: 'MA',
+    numeric: '504',
+    name: 'Morocco',
+    continent: 'Africa'
   },
   {
-    "code": "MC",
-    "numeric": "492",
-    "name": "Monaco",
-    "continent": "Europe"
+    code: 'MC',
+    numeric: '492',
+    name: 'Monaco',
+    continent: 'Europe'
   },
   {
-    "code": "MD",
-    "numeric": "498",
-    "name": "Moldova",
-    "continent": "Europe"
+    code: 'MD',
+    numeric: '498',
+    name: 'Moldova',
+    continent: 'Europe'
   },
   {
-    "code": "ME",
-    "numeric": "499",
-    "name": "Montenegro",
-    "continent": "Europe"
+    code: 'ME',
+    numeric: '499',
+    name: 'Montenegro',
+    continent: 'Europe'
   },
   {
-    "code": "MF",
-    "numeric": "663",
-    "name": "Saint Martin",
-    "continent": "North America"
+    code: 'MF',
+    numeric: '663',
+    name: 'Saint Martin',
+    continent: 'North America'
   },
   {
-    "code": "MG",
-    "numeric": "450",
-    "name": "Madagascar",
-    "continent": "Africa"
+    code: 'MG',
+    numeric: '450',
+    name: 'Madagascar',
+    continent: 'Africa'
   },
   {
-    "code": "MH",
-    "numeric": "584",
-    "name": "Marshall Islands",
-    "continent": "Oceania"
+    code: 'MH',
+    numeric: '584',
+    name: 'Marshall Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "MK",
-    "numeric": "807",
-    "name": "North Macedonia",
-    "continent": "Europe"
+    code: 'MK',
+    numeric: '807',
+    name: 'North Macedonia',
+    continent: 'Europe'
   },
   {
-    "code": "ML",
-    "numeric": "466",
-    "name": "Mali",
-    "continent": "Africa"
+    code: 'ML',
+    numeric: '466',
+    name: 'Mali',
+    continent: 'Africa'
   },
   {
-    "code": "MM",
-    "numeric": "104",
-    "name": "Myanmar",
-    "continent": "Asia"
+    code: 'MM',
+    numeric: '104',
+    name: 'Myanmar',
+    continent: 'Asia'
   },
   {
-    "code": "MN",
-    "numeric": "496",
-    "name": "Mongolia",
-    "continent": "Asia"
+    code: 'MN',
+    numeric: '496',
+    name: 'Mongolia',
+    continent: 'Asia'
   },
   {
-    "code": "MO",
-    "numeric": "446",
-    "name": "Macao",
-    "continent": "Asia"
+    code: 'MO',
+    numeric: '446',
+    name: 'Macao',
+    continent: 'Asia'
   },
   {
-    "code": "MP",
-    "numeric": "580",
-    "name": "Northern Mariana Islands",
-    "continent": "Oceania"
+    code: 'MP',
+    numeric: '580',
+    name: 'Northern Mariana Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "MQ",
-    "numeric": "474",
-    "name": "Martinique",
-    "continent": "North America"
+    code: 'MQ',
+    numeric: '474',
+    name: 'Martinique',
+    continent: 'North America'
   },
   {
-    "code": "MR",
-    "numeric": "478",
-    "name": "Mauritania",
-    "continent": "Africa"
+    code: 'MR',
+    numeric: '478',
+    name: 'Mauritania',
+    continent: 'Africa'
   },
   {
-    "code": "MS",
-    "numeric": "500",
-    "name": "Montserrat",
-    "continent": "North America"
+    code: 'MS',
+    numeric: '500',
+    name: 'Montserrat',
+    continent: 'North America'
   },
   {
-    "code": "MT",
-    "numeric": "470",
-    "name": "Malta",
-    "continent": "Europe"
+    code: 'MT',
+    numeric: '470',
+    name: 'Malta',
+    continent: 'Europe'
   },
   {
-    "code": "MU",
-    "numeric": "480",
-    "name": "Mauritius",
-    "continent": "Africa"
+    code: 'MU',
+    numeric: '480',
+    name: 'Mauritius',
+    continent: 'Africa'
   },
   {
-    "code": "MV",
-    "numeric": "462",
-    "name": "Maldives",
-    "continent": "Asia"
+    code: 'MV',
+    numeric: '462',
+    name: 'Maldives',
+    continent: 'Asia'
   },
   {
-    "code": "MW",
-    "numeric": "454",
-    "name": "Malawi",
-    "continent": "Africa"
+    code: 'MW',
+    numeric: '454',
+    name: 'Malawi',
+    continent: 'Africa'
   },
   {
-    "code": "MX",
-    "numeric": "484",
-    "name": "Mexico",
-    "continent": "North America"
+    code: 'MX',
+    numeric: '484',
+    name: 'Mexico',
+    continent: 'North America'
   },
   {
-    "code": "MY",
-    "numeric": "458",
-    "name": "Malaysia",
-    "continent": "Asia"
+    code: 'MY',
+    numeric: '458',
+    name: 'Malaysia',
+    continent: 'Asia'
   },
   {
-    "code": "MZ",
-    "numeric": "508",
-    "name": "Mozambique",
-    "continent": "Africa"
+    code: 'MZ',
+    numeric: '508',
+    name: 'Mozambique',
+    continent: 'Africa'
   },
   {
-    "code": "NA",
-    "numeric": "516",
-    "name": "Namibia",
-    "continent": "Africa"
+    code: 'NA',
+    numeric: '516',
+    name: 'Namibia',
+    continent: 'Africa'
   },
   {
-    "code": "NC",
-    "numeric": "540",
-    "name": "New Caledonia",
-    "continent": "Oceania"
+    code: 'NC',
+    numeric: '540',
+    name: 'New Caledonia',
+    continent: 'Oceania'
   },
   {
-    "code": "NE",
-    "numeric": "562",
-    "name": "Niger",
-    "continent": "Africa"
+    code: 'NE',
+    numeric: '562',
+    name: 'Niger',
+    continent: 'Africa'
   },
   {
-    "code": "NF",
-    "numeric": "574",
-    "name": "Norfolk Island",
-    "continent": "Oceania"
+    code: 'NF',
+    numeric: '574',
+    name: 'Norfolk Island',
+    continent: 'Oceania'
   },
   {
-    "code": "NG",
-    "numeric": "566",
-    "name": "Nigeria",
-    "continent": "Africa"
+    code: 'NG',
+    numeric: '566',
+    name: 'Nigeria',
+    continent: 'Africa'
   },
   {
-    "code": "NI",
-    "numeric": "558",
-    "name": "Nicaragua",
-    "continent": "North America"
+    code: 'NI',
+    numeric: '558',
+    name: 'Nicaragua',
+    continent: 'North America'
   },
   {
-    "code": "NL",
-    "numeric": "528",
-    "name": "Netherlands",
-    "continent": "Europe"
+    code: 'NL',
+    numeric: '528',
+    name: 'Netherlands',
+    continent: 'Europe'
   },
   {
-    "code": "NO",
-    "numeric": "578",
-    "name": "Norway",
-    "continent": "Europe"
+    code: 'NO',
+    numeric: '578',
+    name: 'Norway',
+    continent: 'Europe'
   },
   {
-    "code": "NP",
-    "numeric": "524",
-    "name": "Nepal",
-    "continent": "Asia"
+    code: 'NP',
+    numeric: '524',
+    name: 'Nepal',
+    continent: 'Asia'
   },
   {
-    "code": "NR",
-    "numeric": "520",
-    "name": "Nauru",
-    "continent": "Oceania"
+    code: 'NR',
+    numeric: '520',
+    name: 'Nauru',
+    continent: 'Oceania'
   },
   {
-    "code": "NU",
-    "numeric": "570",
-    "name": "Niue",
-    "continent": "Oceania"
+    code: 'NU',
+    numeric: '570',
+    name: 'Niue',
+    continent: 'Oceania'
   },
   {
-    "code": "NZ",
-    "numeric": "554",
-    "name": "New Zealand",
-    "continent": "Oceania"
+    code: 'NZ',
+    numeric: '554',
+    name: 'New Zealand',
+    continent: 'Oceania'
   },
   {
-    "code": "OM",
-    "numeric": "512",
-    "name": "Oman",
-    "continent": "Asia"
+    code: 'OM',
+    numeric: '512',
+    name: 'Oman',
+    continent: 'Asia'
   },
   {
-    "code": "PA",
-    "numeric": "591",
-    "name": "Panama",
-    "continent": "North America"
+    code: 'PA',
+    numeric: '591',
+    name: 'Panama',
+    continent: 'North America'
   },
   {
-    "code": "PE",
-    "numeric": "604",
-    "name": "Peru",
-    "continent": "South America"
+    code: 'PE',
+    numeric: '604',
+    name: 'Peru',
+    continent: 'South America'
   },
   {
-    "code": "PF",
-    "numeric": "258",
-    "name": "French Polynesia",
-    "continent": "Oceania"
+    code: 'PF',
+    numeric: '258',
+    name: 'French Polynesia',
+    continent: 'Oceania'
   },
   {
-    "code": "PG",
-    "numeric": "598",
-    "name": "Papua New Guinea",
-    "continent": "Oceania"
+    code: 'PG',
+    numeric: '598',
+    name: 'Papua New Guinea',
+    continent: 'Oceania'
   },
   {
-    "code": "PH",
-    "numeric": "608",
-    "name": "Philippines",
-    "continent": "Asia"
+    code: 'PH',
+    numeric: '608',
+    name: 'Philippines',
+    continent: 'Asia'
   },
   {
-    "code": "PK",
-    "numeric": "586",
-    "name": "Pakistan",
-    "continent": "Asia"
+    code: 'PK',
+    numeric: '586',
+    name: 'Pakistan',
+    continent: 'Asia'
   },
   {
-    "code": "PL",
-    "numeric": "616",
-    "name": "Poland",
-    "continent": "Europe"
+    code: 'PL',
+    numeric: '616',
+    name: 'Poland',
+    continent: 'Europe'
   },
   {
-    "code": "PM",
-    "numeric": "666",
-    "name": "Saint Pierre and Miquelon",
-    "continent": "North America"
+    code: 'PM',
+    numeric: '666',
+    name: 'Saint Pierre and Miquelon',
+    continent: 'North America'
   },
   {
-    "code": "PN",
-    "numeric": "612",
-    "name": "Pitcairn Islands",
-    "continent": "Oceania"
+    code: 'PN',
+    numeric: '612',
+    name: 'Pitcairn Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "PR",
-    "numeric": "630",
-    "name": "Puerto Rico",
-    "continent": "North America"
+    code: 'PR',
+    numeric: '630',
+    name: 'Puerto Rico',
+    continent: 'North America'
   },
   {
-    "code": "PS",
-    "numeric": "275",
-    "name": "Palestine",
-    "continent": "Asia"
+    code: 'PS',
+    numeric: '275',
+    name: 'Palestine',
+    continent: 'Asia'
   },
   {
-    "code": "PT",
-    "numeric": "620",
-    "name": "Portugal",
-    "continent": "Europe"
+    code: 'PT',
+    numeric: '620',
+    name: 'Portugal',
+    continent: 'Europe'
   },
   {
-    "code": "PW",
-    "numeric": "585",
-    "name": "Palau",
-    "continent": "Oceania"
+    code: 'PW',
+    numeric: '585',
+    name: 'Palau',
+    continent: 'Oceania'
   },
   {
-    "code": "PY",
-    "numeric": "600",
-    "name": "Paraguay",
-    "continent": "South America"
+    code: 'PY',
+    numeric: '600',
+    name: 'Paraguay',
+    continent: 'South America'
   },
   {
-    "code": "QA",
-    "numeric": "634",
-    "name": "Qatar",
-    "continent": "Asia"
+    code: 'QA',
+    numeric: '634',
+    name: 'Qatar',
+    continent: 'Asia'
   },
   {
-    "code": "RE",
-    "numeric": "638",
-    "name": "Reunion",
-    "continent": "Africa"
+    code: 'RE',
+    numeric: '638',
+    name: 'Reunion',
+    continent: 'Africa'
   },
   {
-    "code": "RO",
-    "numeric": "642",
-    "name": "Romania",
-    "continent": "Europe"
+    code: 'RO',
+    numeric: '642',
+    name: 'Romania',
+    continent: 'Europe'
   },
   {
-    "code": "RS",
-    "numeric": "688",
-    "name": "Serbia",
-    "continent": "Europe"
+    code: 'RS',
+    numeric: '688',
+    name: 'Serbia',
+    continent: 'Europe'
   },
   {
-    "code": "RU",
-    "numeric": "643",
-    "name": "Russia",
-    "continent": "Asia"
+    code: 'RU',
+    numeric: '643',
+    name: 'Russia',
+    continent: 'Asia'
   },
   {
-    "code": "RW",
-    "numeric": "646",
-    "name": "Rwanda",
-    "continent": "Africa"
+    code: 'RW',
+    numeric: '646',
+    name: 'Rwanda',
+    continent: 'Africa'
   },
   {
-    "code": "SA",
-    "numeric": "682",
-    "name": "Saudi Arabia",
-    "continent": "Asia"
+    code: 'SA',
+    numeric: '682',
+    name: 'Saudi Arabia',
+    continent: 'Asia'
   },
   {
-    "code": "SB",
-    "numeric": "090",
-    "name": "Solomon Islands",
-    "continent": "Oceania"
+    code: 'SB',
+    numeric: '090',
+    name: 'Solomon Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "SC",
-    "numeric": "690",
-    "name": "Seychelles",
-    "continent": "Africa"
+    code: 'SC',
+    numeric: '690',
+    name: 'Seychelles',
+    continent: 'Africa'
   },
   {
-    "code": "SD",
-    "numeric": "729",
-    "name": "Sudan",
-    "continent": "Africa"
+    code: 'SD',
+    numeric: '729',
+    name: 'Sudan',
+    continent: 'Africa'
   },
   {
-    "code": "SE",
-    "numeric": "752",
-    "name": "Sweden",
-    "continent": "Europe"
+    code: 'SE',
+    numeric: '752',
+    name: 'Sweden',
+    continent: 'Europe'
   },
   {
-    "code": "SG",
-    "numeric": "702",
-    "name": "Singapore",
-    "continent": "Asia"
+    code: 'SG',
+    numeric: '702',
+    name: 'Singapore',
+    continent: 'Asia'
   },
   {
-    "code": "SH",
-    "numeric": "654",
-    "name": "Saint Helena",
-    "continent": "Africa"
+    code: 'SH',
+    numeric: '654',
+    name: 'Saint Helena',
+    continent: 'Africa'
   },
   {
-    "code": "SI",
-    "numeric": "705",
-    "name": "Slovenia",
-    "continent": "Europe"
+    code: 'SI',
+    numeric: '705',
+    name: 'Slovenia',
+    continent: 'Europe'
   },
   {
-    "code": "SJ",
-    "numeric": "744",
-    "name": "Svalbard and Jan Mayen",
-    "continent": "Europe"
+    code: 'SJ',
+    numeric: '744',
+    name: 'Svalbard and Jan Mayen',
+    continent: 'Europe'
   },
   {
-    "code": "SK",
-    "numeric": "703",
-    "name": "Slovakia",
-    "continent": "Europe"
+    code: 'SK',
+    numeric: '703',
+    name: 'Slovakia',
+    continent: 'Europe'
   },
   {
-    "code": "SL",
-    "numeric": "694",
-    "name": "Sierra Leone",
-    "continent": "Africa"
+    code: 'SL',
+    numeric: '694',
+    name: 'Sierra Leone',
+    continent: 'Africa'
   },
   {
-    "code": "SM",
-    "numeric": "674",
-    "name": "San Marino",
-    "continent": "Europe"
+    code: 'SM',
+    numeric: '674',
+    name: 'San Marino',
+    continent: 'Europe'
   },
   {
-    "code": "SN",
-    "numeric": "686",
-    "name": "Senegal",
-    "continent": "Africa"
+    code: 'SN',
+    numeric: '686',
+    name: 'Senegal',
+    continent: 'Africa'
   },
   {
-    "code": "SO",
-    "numeric": "706",
-    "name": "Somalia",
-    "continent": "Africa"
+    code: 'SO',
+    numeric: '706',
+    name: 'Somalia',
+    continent: 'Africa'
   },
   {
-    "code": "SR",
-    "numeric": "740",
-    "name": "Suriname",
-    "continent": "South America"
+    code: 'SR',
+    numeric: '740',
+    name: 'Suriname',
+    continent: 'South America'
   },
   {
-    "code": "SS",
-    "numeric": "728",
-    "name": "South Sudan",
-    "continent": "Africa"
+    code: 'SS',
+    numeric: '728',
+    name: 'South Sudan',
+    continent: 'Africa'
   },
   {
-    "code": "ST",
-    "numeric": "678",
-    "name": "Sao Tome and Principe",
-    "continent": "Africa"
+    code: 'ST',
+    numeric: '678',
+    name: 'Sao Tome and Principe',
+    continent: 'Africa'
   },
   {
-    "code": "SV",
-    "numeric": "222",
-    "name": "El Salvador",
-    "continent": "North America"
+    code: 'SV',
+    numeric: '222',
+    name: 'El Salvador',
+    continent: 'North America'
   },
   {
-    "code": "SX",
-    "numeric": "534",
-    "name": "Sint Maarten",
-    "continent": "North America"
+    code: 'SX',
+    numeric: '534',
+    name: 'Sint Maarten',
+    continent: 'North America'
   },
   {
-    "code": "SY",
-    "numeric": "760",
-    "name": "Syria",
-    "continent": "Asia"
+    code: 'SY',
+    numeric: '760',
+    name: 'Syria',
+    continent: 'Asia'
   },
   {
-    "code": "SZ",
-    "numeric": "748",
-    "name": "Eswatini",
-    "continent": "Africa"
+    code: 'SZ',
+    numeric: '748',
+    name: 'Eswatini',
+    continent: 'Africa'
   },
   {
-    "code": "TA",
-    "numeric": "",
-    "name": "Tristan da Cunha",
-    "continent": "Africa"
+    code: 'TA',
+    numeric: '',
+    name: 'Tristan da Cunha',
+    continent: 'Africa'
   },
   {
-    "code": "TC",
-    "numeric": "796",
-    "name": "Turks and Caicos Islands",
-    "continent": "North America"
+    code: 'TC',
+    numeric: '796',
+    name: 'Turks and Caicos Islands',
+    continent: 'North America'
   },
   {
-    "code": "TD",
-    "numeric": "148",
-    "name": "Chad",
-    "continent": "Africa"
+    code: 'TD',
+    numeric: '148',
+    name: 'Chad',
+    continent: 'Africa'
   },
   {
-    "code": "TF",
-    "numeric": "260",
-    "name": "French Southern Territories",
-    "continent": "Antarctica"
+    code: 'TF',
+    numeric: '260',
+    name: 'French Southern Territories',
+    continent: 'Antarctica'
   },
   {
-    "code": "TG",
-    "numeric": "768",
-    "name": "Togo",
-    "continent": "Africa"
+    code: 'TG',
+    numeric: '768',
+    name: 'Togo',
+    continent: 'Africa'
   },
   {
-    "code": "TH",
-    "numeric": "764",
-    "name": "Thailand",
-    "continent": "Asia"
+    code: 'TH',
+    numeric: '764',
+    name: 'Thailand',
+    continent: 'Asia'
   },
   {
-    "code": "TJ",
-    "numeric": "762",
-    "name": "Tajikistan",
-    "continent": "Asia"
+    code: 'TJ',
+    numeric: '762',
+    name: 'Tajikistan',
+    continent: 'Asia'
   },
   {
-    "code": "TK",
-    "numeric": "772",
-    "name": "Tokelau",
-    "continent": "Oceania"
+    code: 'TK',
+    numeric: '772',
+    name: 'Tokelau',
+    continent: 'Oceania'
   },
   {
-    "code": "TL",
-    "numeric": "626",
-    "name": "East Timor",
-    "continent": "Oceania"
+    code: 'TL',
+    numeric: '626',
+    name: 'East Timor',
+    continent: 'Oceania'
   },
   {
-    "code": "TM",
-    "numeric": "795",
-    "name": "Turkmenistan",
-    "continent": "Asia"
+    code: 'TM',
+    numeric: '795',
+    name: 'Turkmenistan',
+    continent: 'Asia'
   },
   {
-    "code": "TN",
-    "numeric": "788",
-    "name": "Tunisia",
-    "continent": "Africa"
+    code: 'TN',
+    numeric: '788',
+    name: 'Tunisia',
+    continent: 'Africa'
   },
   {
-    "code": "TO",
-    "numeric": "776",
-    "name": "Tonga",
-    "continent": "Oceania"
+    code: 'TO',
+    numeric: '776',
+    name: 'Tonga',
+    continent: 'Oceania'
   },
   {
-    "code": "TR",
-    "numeric": "792",
-    "name": "Türkiye",
-    "continent": "Asia"
+    code: 'TR',
+    numeric: '792',
+    name: 'Türkiye',
+    continent: 'Asia'
   },
   {
-    "code": "TT",
-    "numeric": "780",
-    "name": "Trinidad and Tobago",
-    "continent": "North America"
+    code: 'TT',
+    numeric: '780',
+    name: 'Trinidad and Tobago',
+    continent: 'North America'
   },
   {
-    "code": "TV",
-    "numeric": "798",
-    "name": "Tuvalu",
-    "continent": "Oceania"
+    code: 'TV',
+    numeric: '798',
+    name: 'Tuvalu',
+    continent: 'Oceania'
   },
   {
-    "code": "TW",
-    "numeric": "158",
-    "name": "Taiwan",
-    "continent": "Asia"
+    code: 'TW',
+    numeric: '158',
+    name: 'Taiwan',
+    continent: 'Asia'
   },
   {
-    "code": "TZ",
-    "numeric": "834",
-    "name": "Tanzania",
-    "continent": "Africa"
+    code: 'TZ',
+    numeric: '834',
+    name: 'Tanzania',
+    continent: 'Africa'
   },
   {
-    "code": "UA",
-    "numeric": "804",
-    "name": "Ukraine",
-    "continent": "Europe"
+    code: 'UA',
+    numeric: '804',
+    name: 'Ukraine',
+    continent: 'Europe'
   },
   {
-    "code": "UG",
-    "numeric": "800",
-    "name": "Uganda",
-    "continent": "Africa"
+    code: 'UG',
+    numeric: '800',
+    name: 'Uganda',
+    continent: 'Africa'
   },
   {
-    "code": "UM",
-    "numeric": "581",
-    "name": "U.S. Minor Outlying Islands",
-    "continent": "Oceania"
+    code: 'UM',
+    numeric: '581',
+    name: 'U.S. Minor Outlying Islands',
+    continent: 'Oceania'
   },
   {
-    "code": "US",
-    "numeric": "840",
-    "name": "United States",
-    "continent": "North America"
+    code: 'US',
+    numeric: '840',
+    name: 'United States',
+    continent: 'North America'
   },
   {
-    "code": "UY",
-    "numeric": "858",
-    "name": "Uruguay",
-    "continent": "South America"
+    code: 'UY',
+    numeric: '858',
+    name: 'Uruguay',
+    continent: 'South America'
   },
   {
-    "code": "UZ",
-    "numeric": "860",
-    "name": "Uzbekistan",
-    "continent": "Asia"
+    code: 'UZ',
+    numeric: '860',
+    name: 'Uzbekistan',
+    continent: 'Asia'
   },
   {
-    "code": "VA",
-    "numeric": "336",
-    "name": "Vatican City",
-    "continent": "Europe"
+    code: 'VA',
+    numeric: '336',
+    name: 'Vatican City',
+    continent: 'Europe'
   },
   {
-    "code": "VC",
-    "numeric": "670",
-    "name": "Saint Vincent and the Grenadines",
-    "continent": "North America"
+    code: 'VC',
+    numeric: '670',
+    name: 'Saint Vincent and the Grenadines',
+    continent: 'North America'
   },
   {
-    "code": "VE",
-    "numeric": "862",
-    "name": "Venezuela",
-    "continent": "South America"
+    code: 'VE',
+    numeric: '862',
+    name: 'Venezuela',
+    continent: 'South America'
   },
   {
-    "code": "VG",
-    "numeric": "092",
-    "name": "British Virgin Islands",
-    "continent": "North America"
+    code: 'VG',
+    numeric: '092',
+    name: 'British Virgin Islands',
+    continent: 'North America'
   },
   {
-    "code": "VI",
-    "numeric": "850",
-    "name": "U.S. Virgin Islands",
-    "continent": "North America"
+    code: 'VI',
+    numeric: '850',
+    name: 'U.S. Virgin Islands',
+    continent: 'North America'
   },
   {
-    "code": "VN",
-    "numeric": "704",
-    "name": "Vietnam",
-    "continent": "Asia"
+    code: 'VN',
+    numeric: '704',
+    name: 'Vietnam',
+    continent: 'Asia'
   },
   {
-    "code": "VU",
-    "numeric": "548",
-    "name": "Vanuatu",
-    "continent": "Oceania"
+    code: 'VU',
+    numeric: '548',
+    name: 'Vanuatu',
+    continent: 'Oceania'
   },
   {
-    "code": "WF",
-    "numeric": "876",
-    "name": "Wallis and Futuna",
-    "continent": "Oceania"
+    code: 'WF',
+    numeric: '876',
+    name: 'Wallis and Futuna',
+    continent: 'Oceania'
   },
   {
-    "code": "WS",
-    "numeric": "882",
-    "name": "Samoa",
-    "continent": "Oceania"
+    code: 'WS',
+    numeric: '882',
+    name: 'Samoa',
+    continent: 'Oceania'
   },
   {
-    "code": "XK",
-    "numeric": "983",
-    "name": "Kosovo",
-    "continent": "Europe"
+    code: 'XK',
+    numeric: '983',
+    name: 'Kosovo',
+    continent: 'Europe'
   },
   {
-    "code": "YE",
-    "numeric": "887",
-    "name": "Yemen",
-    "continent": "Asia"
+    code: 'YE',
+    numeric: '887',
+    name: 'Yemen',
+    continent: 'Asia'
   },
   {
-    "code": "YT",
-    "numeric": "175",
-    "name": "Mayotte",
-    "continent": "Africa"
+    code: 'YT',
+    numeric: '175',
+    name: 'Mayotte',
+    continent: 'Africa'
   },
   {
-    "code": "ZA",
-    "numeric": "710",
-    "name": "South Africa",
-    "continent": "Africa"
+    code: 'ZA',
+    numeric: '710',
+    name: 'South Africa',
+    continent: 'Africa'
   },
   {
-    "code": "ZM",
-    "numeric": "894",
-    "name": "Zambia",
-    "continent": "Africa"
+    code: 'ZM',
+    numeric: '894',
+    name: 'Zambia',
+    continent: 'Africa'
   },
   {
-    "code": "ZW",
-    "numeric": "716",
-    "name": "Zimbabwe",
-    "continent": "Africa"
+    code: 'ZW',
+    numeric: '716',
+    name: 'Zimbabwe',
+    continent: 'Africa'
   }
 ];

@@ -82,12 +82,17 @@ function overview(startUtc: string, endUtc: string) {
   };
 }
 
+const staticSnippet =
+  '<script async src="/vizoalica.js" data-source="public-key" data-project="project-1"></script>';
+
 export interface MockOptions {
   projects?: unknown[];
 }
 
 /** Answers every console API call locally; nothing reaches a real backend. */
 export async function mockConsole(page: Page, options: MockOptions = {}) {
+  // Websites created during a test are listed afterwards, so create-then-open flows work.
+  const created: Array<Record<string, unknown>> = [];
   await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -97,24 +102,24 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;
       const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };
-      return route.fulfill({
-        status: 201,
-        json: {
-          id: 'site-created',
-          projectId,
-          name: input.name,
-          publicSourceKey: 'created-public-key',
-          allowedOrigins: input.allowedOrigins,
-          status: 'active'
-        }
-      });
+      const record = {
+        id: 'site-created',
+        projectId,
+        name: input.name,
+        publicSourceKey: 'created-public-key',
+        allowedOrigins: input.allowedOrigins,
+        status: 'active'
+      };
+      created.push(record);
+      return route.fulfill({ status: 201, json: record });
     }
     if (request.method() === 'DELETE')
       return route.fulfill({ json: { status: 'deleted', audit: 'recorded' } });
     if (request.method() === 'PATCH') return route.fulfill({ json: website });
     if (path === '/api/projects') body = options.projects ?? [project, secondProject];
     else if (path === '/api/preferences/theme') body = { theme: null };
-    else if (path.endsWith('/websites')) body = [website];
+    else if (path.endsWith('/websites'))
+      body = [website, ...created.filter((item) => item.projectId === path.split('/')[3])];
     else if (path.endsWith('/snippet'))
       body = {
         projectId: project.id,
@@ -122,7 +127,50 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
         publicSourceKey: 'public-key',
         allowedOrigins: website.allowedOrigins,
         tokenIssuer: 'website-owned',
-        html: '<script async src="/vizoalica.js" data-source="public-key"></script>'
+        html: staticSnippet,
+        modes: [
+          { id: 'static', snippet: staticSnippet },
+          {
+            id: 'dynamic',
+            snippet: '<script async src="/vizoalica-loader.js"></script>',
+            configUrl: '/vizoalica/config.json',
+            config: {
+              version: 1,
+              src: 'https://docs.example.com/vizoalica.js',
+              'data-endpoint': 'https://worker.test/v1/events:batch',
+              'data-source': 'public-key',
+              'data-project': project.id,
+              'data-token-url': '/vizoalica/ingest-token',
+              'data-consent': 'unknown'
+            },
+            cloudflare: {
+              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3',
+              repoVariables: {
+                VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
+                VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
+                VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key',
+                VIZOALICA_PROJECT_ID: project.id,
+                VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+                VIZOALICA_CONSENT: 'unknown',
+                VIZOALICA_SOURCE_ID: website.id,
+                VIZOALICA_SITE_ORIGINS: 'https://docs.example.com'
+              },
+              accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
+              repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
+              starterWorkflowYaml:
+                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+              setupCommands: [
+                'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
+                'gh secret set CF_API_TOKEN'
+              ],
+              warnings: [
+                'The listed repository variables are public browser configuration, not secrets.',
+                'Enable only one installation mode so Vizoalica initializes once.'
+              ]
+            }
+          }
+        ],
+        privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true }
       };
     else if (path.endsWith('/status'))
       body = {

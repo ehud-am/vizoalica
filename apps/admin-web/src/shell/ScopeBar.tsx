@@ -5,7 +5,15 @@ import { useScope } from '../scope/ScopeProvider.js';
  * The single place to choose the project and website (and, for analytics, the time range).
  * Screens read the scope; they never render their own project picker.
  */
-export function ScopeBar({ showProject, showRange }: { showProject: boolean; showRange: boolean }) {
+export function ScopeBar({
+  showProject,
+  showWebsite,
+  showRange
+}: {
+  showProject: boolean;
+  showWebsite: boolean;
+  showRange: boolean;
+}) {
   const scope = useScope();
   if (!showProject && !showRange && !scope.notice) return null;
   return (
@@ -30,23 +38,25 @@ export function ScopeBar({ showProject, showRange }: { showProject: boolean; sho
                   ))}
                 </select>
               </label>
-              <label>
-                Website
-                <select
-                  aria-label="Website"
-                  value={scope.websiteId}
-                  onChange={(event) => scope.selectWebsite(event.target.value)}
-                >
-                  <option value="">All websites</option>
-                  {scope.websites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.status === 'disabled'
-                        ? `${site.name} (history only, disabled)`
-                        : site.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {showWebsite && (
+                <label>
+                  Website
+                  <select
+                    aria-label="Website"
+                    value={scope.websiteId}
+                    onChange={(event) => scope.selectWebsite(event.target.value)}
+                  >
+                    <option value="">All websites</option>
+                    {scope.websites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.status === 'disabled'
+                          ? `${site.name} (history only, disabled)`
+                          : site.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </>
           ))}
         {showRange && showProject && scope.activeProjects.length > 0 && (

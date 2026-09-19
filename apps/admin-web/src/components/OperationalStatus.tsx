@@ -1,6 +1,6 @@
 import type { Status } from '../api/local-operations.js';
 import { CheckCircleIcon } from './Icons.js';
-export function OperationalStatus({ status }: { status: Status }) {
+export function OperationalStatus({ status, bare = false }: { status: Status; bare?: boolean }) {
   const rows = [
     ['Collection', status.collection],
     ['Aggregation', status.aggregation],
@@ -8,12 +8,18 @@ export function OperationalStatus({ status }: { status: Status }) {
     ['Data access', status.dataAccess]
   ];
   return (
-    <section className="detail-card">
-      <p className="eyebrow">Live checks</p>
-      <h2 className="icon-heading">
-        <CheckCircleIcon size={20} />
-        Operational status
-      </h2>
+    <section className={bare ? 'status-block' : 'detail-card'}>
+      {bare ? (
+        <h3 className="sub-heading">Operational status</h3>
+      ) : (
+        <>
+          <p className="eyebrow">Live checks</p>
+          <h2 className="icon-heading">
+            <CheckCircleIcon size={20} />
+            Operational status
+          </h2>
+        </>
+      )}
       <dl className="health-grid">
         {rows.map(([label, value]) => (
           <div key={label}>

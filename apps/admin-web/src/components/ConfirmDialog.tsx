@@ -10,6 +10,7 @@ const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [href], select
 export function ConfirmDialog({
   title,
   confirmLabel,
+  cancelLabel = 'Cancel',
   requireText,
   busy = false,
   onConfirm,
@@ -18,6 +19,7 @@ export function ConfirmDialog({
 }: {
   title: string;
   confirmLabel: string;
+  cancelLabel?: string;
   requireText?: string;
   busy?: boolean;
   onConfirm: () => void;
@@ -89,7 +91,7 @@ export function ConfirmDialog({
         )}
         <div className="dialog-actions">
           <button ref={cancel} type="button" className="secondary" onClick={onCancel}>
-            Cancel
+            {cancelLabel}
           </button>
           <button
             type="button"

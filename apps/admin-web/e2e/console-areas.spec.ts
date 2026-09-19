@@ -24,7 +24,6 @@ test('groups navigation into Analytics and Manage', async ({ page }) => {
   await expect(nav.locator('[data-area="manage"] a')).toHaveText([
     'Projects',
     'Websites',
-    'Installation',
     'Health'
   ]);
 });
@@ -100,8 +99,8 @@ test('Geography fits at phone width and passes axe in both themes', async ({ pag
 test('deleting a website is a keyboard-only, named confirmation that returns focus', async ({
   page
 }) => {
-  await page.getByRole('link', { name: 'Websites', exact: true }).click();
-  await page.getByRole('button', { name: /Docs/ }).click();
+  await page.goto('/#/manage/websites/site-1');
+  await expect(page.getByRole('heading', { level: 1, name: /Docs/ })).toBeVisible();
   const trigger = page.getByRole('button', { name: 'Delete website…' });
   await trigger.focus();
   await page.keyboard.press('Enter');
@@ -115,6 +114,7 @@ test('deleting a website is a keyboard-only, named confirmation that returns foc
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Website Docs deleted/)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Websites' })).toBeVisible();
 });
 
 test('never contacts anything outside the local console', async ({ page }) => {
@@ -124,9 +124,19 @@ test('never contacts anything outside the local console', async ({ page }) => {
     if (!url.startsWith(origin) && !url.startsWith('data:') && !url.startsWith('blob:'))
       outside.push(url);
   });
-  for (const name of ['Overview', 'Geography', 'Technology', 'Websites', 'Health']) {
-    await page.getByRole('link', { name, exact: true }).click();
-    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  for (const address of [
+    'analytics/overview',
+    'analytics/geography',
+    'analytics/technology',
+    'manage/websites',
+    'manage/websites/site-1',
+    'manage/websites/site-1/edit',
+    'manage/websites/site-1/install',
+    'manage/health'
+  ]) {
+    await page.goto(`/#/${address}`);
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+    await expect(page.locator('.skeleton')).toHaveCount(0);
   }
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

@@ -38,8 +38,15 @@ The console has two areas, shown as two groups in the left navigation.
 
 - **Analytics** is for reading. It contains Overview, Pages, Sources, Geography, Technology, and
   Traffic quality, and nothing in it can change or delete anything.
-- **Manage** is for setting up. It contains Projects, Websites, Installation, and Health.
-  Deleting or disabling something lives in a separate danger zone and asks you to confirm by name.
+- **Manage** is for setting up. It contains Projects, Websites, and Health. Deleting or disabling
+  something lives in a separate danger zone and asks you to confirm by name.
+
+**Websites** is a list of cards, one per website. Open a card to reach that website's own page:
+its origins, identifiers, status, and the actions **Edit**, **Install**, and **View analytics**,
+with enable, disable, and delete kept apart in a danger zone. **Edit** and **Add website** are
+pages of their own with a back link, and they ask before you leave with unsaved changes.
+**Install** asks how the website is deployed (GitHub → Cloudflare Pages, or paste a snippet),
+lists the steps, and ends with **Check now**, which reads the last 24 hours of page views.
 
 The project and website you are looking at are chosen once, in the bar under the header. That
 choice, and the time range, follow you between screens and are remembered when you reload.

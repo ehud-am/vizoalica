@@ -70,6 +70,8 @@ export interface ScopeValue {
   /** Websites of the current project that are not deleted. */
   websites: Website[];
   websitesError: boolean;
+  /** True until a website list has loaded for the current project. */
+  websitesLoading: boolean;
   range: AppliedRange;
   /** Set when a remembered or current scope had to fall back; explains what changed. */
   notice: string;
@@ -118,6 +120,9 @@ export function ScopeProvider({
   const [websiteId, setWebsiteId] = useState('');
   const [websites, setWebsites] = useState<Website[]>([]);
   const [websitesError, setWebsitesError] = useState(false);
+  // The project the current `websites` belong to. Loading is derived from it, so a page never
+  // sees an empty list for a project that has not loaded yet.
+  const [loadedFor, setLoadedFor] = useState('');
   const [range, setRangeState] = useState<AppliedRange>(() => savedRange(saved.current));
   // Remembered website, applied once when the first website list for the remembered project loads.
   const pendingWebsite = useRef(
@@ -138,6 +143,7 @@ export function ScopeProvider({
       .then((items) => {
         if (cancelled) return;
         setWebsites(items);
+        setLoadedFor(projectId);
         const wanted = pendingWebsite.current;
         pendingWebsite.current = undefined;
         if (wanted) {
@@ -195,6 +201,7 @@ export function ScopeProvider({
     if (!projectId) return [];
     const items = await loadWebsites(projectId);
     setWebsites(items);
+    setLoadedFor(projectId);
     setWebsitesError(false);
     setWebsiteId((current) =>
       current && !items.some((item) => item.id === current) ? '' : current
@@ -212,6 +219,7 @@ export function ScopeProvider({
       website: websites.find((website) => website.id === websiteId),
       websites,
       websitesError,
+      websitesLoading: !!projectId && loadedFor !== projectId && !websitesError,
       range,
       notice,
       setProjects,
@@ -227,6 +235,7 @@ export function ScopeProvider({
       websiteId,
       websites,
       websitesError,
+      loadedFor,
       range,
       notice,
       setProjects,

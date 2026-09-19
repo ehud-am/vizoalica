@@ -15,17 +15,21 @@ import {
 } from './analytics/ListPages.js';
 import { OverviewPage } from './analytics/OverviewPage.js';
 import { HealthPage } from './manage/HealthPage.js';
-import { InstallationPage } from './manage/InstallationPage.js';
+import { InstallPage } from './manage/InstallPage.js';
 import { ProjectsPage } from './manage/ProjectsPage.js';
+import { WebsiteAddPage } from './manage/WebsiteAddPage.js';
+import { WebsiteEditPage } from './manage/WebsiteEditPage.js';
+import { WebsitePage } from './manage/WebsitePage.js';
 import { WebsitesPage } from './manage/WebsitesPage.js';
-import { hrefFor, routeArea, useRoute, type RoutePath } from './router.js';
+import { hrefFor, routeArea, scopeControls, showsRange, useRoute, type Route } from './router.js';
 import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
+import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
 import { useTheme } from './theme.js';
 
-function AnalyticsRoute({ route }: { route: RoutePath }) {
-  switch (route) {
+function AnalyticsRoute({ route }: { route: Route }) {
+  switch (route.path) {
     case 'analytics/pages':
       return <PagesPage />;
     case 'analytics/sources':
@@ -41,12 +45,19 @@ function AnalyticsRoute({ route }: { route: RoutePath }) {
   }
 }
 
-function ManageRoute({ route }: { route: RoutePath }) {
-  switch (route) {
+function ManageRoute({ route }: { route: Route }) {
+  const websiteId = route.websiteId ?? '';
+  switch (route.path) {
     case 'manage/websites':
       return <WebsitesPage />;
-    case 'manage/installation':
-      return <InstallationPage />;
+    case 'manage/websites/new':
+      return <WebsiteAddPage />;
+    case 'manage/websites/:id':
+      return <WebsitePage websiteId={websiteId} />;
+    case 'manage/websites/:id/edit':
+      return <WebsiteEditPage websiteId={websiteId} />;
+    case 'manage/websites/:id/install':
+      return <InstallPage websiteId={websiteId} />;
     case 'manage/health':
       return <HealthPage />;
     default:
@@ -54,27 +65,34 @@ function ManageRoute({ route }: { route: RoutePath }) {
   }
 }
 
-function Console({ route }: { route: RoutePath }) {
-  const area = routeArea(route);
+function Console({ route }: { route: Route }) {
+  const area = routeArea(route.path);
+  const controls = scopeControls(route.path);
   return (
-    <div className="workspace">
-      <aside className="sidebar">
-        <AreaNav route={route} />
-      </aside>
-      <div className="content-column">
-        <ScopeBar showProject={route !== 'manage/projects'} showRange={area === 'analytics'} />
-        <main id="main" tabIndex={-1} data-area={area} data-route={route}>
-          {area === 'analytics' ? (
-            <AnalyticsProvider>
-              <AnalyticsRoute route={route} />
-            </AnalyticsProvider>
-          ) : (
-            <ManageRoute route={route} />
-          )}
-        </main>
-        <AppFooter />
+    <FlashProvider routeKey={`${route.path}|${route.websiteId ?? ''}`}>
+      <div className="workspace">
+        <aside className="sidebar">
+          <AreaNav route={route} />
+        </aside>
+        <div className="content-column">
+          <ScopeBar
+            showProject={controls !== 'none'}
+            showWebsite={controls === 'project-website'}
+            showRange={showsRange(route.path)}
+          />
+          <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>
+            {area === 'analytics' ? (
+              <AnalyticsProvider>
+                <AnalyticsRoute route={route} />
+              </AnalyticsProvider>
+            ) : (
+              <ManageRoute route={route} />
+            )}
+          </main>
+          <AppFooter />
+        </div>
       </div>
-    </div>
+    </FlashProvider>
   );
 }
 

@@ -1,12 +1,16 @@
-import { ROUTES, hrefFor, type RouteArea, type RoutePath } from '../router.js';
+import { NAV_ROUTES, hrefFor, navKey, type Route, type RouteArea } from '../router.js';
 
 const GROUPS: Array<{ area: RouteArea; label: string }> = [
   { area: 'analytics', label: 'Analytics' },
   { area: 'manage', label: 'Manage' }
 ];
 
-/** Primary navigation: reports (view) and configuration (manage) are separate, labelled groups. */
-export function AreaNav({ route }: { route: RoutePath }) {
+/**
+ * Primary navigation: reports (view) and configuration (manage) are separate, labelled groups.
+ * Pages inside a section (a website's page, its edit form) keep the section marked as current.
+ */
+export function AreaNav({ route }: { route: Route }) {
+  const section = navKey(route.path);
   return (
     <nav aria-label="Primary navigation" className="area-nav">
       {GROUPS.map((group) => (
@@ -15,12 +19,15 @@ export function AreaNav({ route }: { route: RoutePath }) {
             {group.label}
           </p>
           <ul aria-labelledby={`nav-${group.area}`}>
-            {ROUTES.filter((item) => item.area === group.area).map((item) => (
+            {NAV_ROUTES.filter((item) => item.area === group.area).map((item) => (
               <li key={item.path}>
                 <a
-                  className={item.path === route ? 'nav-item active' : 'nav-item'}
+                  className={item.path === section ? 'nav-item active' : 'nav-item'}
                   href={hrefFor(item.path)}
-                  aria-current={item.path === route ? 'page' : undefined}
+                  // "page" only for the page itself; "true" marks the section around a deeper page.
+                  aria-current={
+                    item.path === route.path ? 'page' : item.path === section ? 'true' : undefined
+                  }
                 >
                   {item.label}
                 </a>

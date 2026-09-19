@@ -93,7 +93,9 @@ export function HealthPage() {
               <li key={site.id}>
                 <section className="panel" aria-labelledby={`health-${site.id}`}>
                   <div className="card-heading">
-                    <h2 id={`health-${site.id}`}>{site.name}</h2>
+                    <h2 id={`health-${site.id}`}>
+                      <a href={hrefFor('manage/websites/:id', site.id)}>{site.name}</a>
+                    </h2>
                     <span className={`status ${site.status}`}>{site.status}</span>
                   </div>
                   {!value ? (
