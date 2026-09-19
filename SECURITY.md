@@ -17,8 +17,9 @@ have explicit permission to assess.
 
 ## Supported versions
 
-Security fixes target the latest published release. Self-hosting operators should upgrade to the
-latest release and apply every migration listed in its deployment guide. Older releases may receive
+Security fixes target the latest published release. Self-hosting operators should update to the
+latest release using the update procedure in the [backend guide](docs/operations/cloudflare.md#update-an-existing-backend)
+and follow any upgrade notes in its changelog entry. Older releases may receive
 a fix only when maintainers explicitly announce one.
 
 ## Credential response

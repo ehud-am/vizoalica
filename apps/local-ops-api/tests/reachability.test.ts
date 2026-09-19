@@ -52,4 +52,18 @@ describe('config-endpoint reachability check', () => {
     expect(result.configEndpointReachable).toBe(false);
     expect(result.configEndpointError).toBe('invalid_origin');
   });
+
+  it('refuses to buffer an oversized response body', async () => {
+    const result = await checkReachability(
+      'https://site.test',
+      fakeFetch(new Response(JSON.stringify({ version: 1, src: 'x'.repeat(20_000) })))
+    );
+    expect(result.configEndpointReachable).toBe(false);
+    expect(result.configEndpointError).toBe('malformed_response');
+  });
+
+  it('reports a non-JSON body as malformed', async () => {
+    const result = await checkReachability('https://site.test', fakeFetch(new Response('<html>')));
+    expect(result.configEndpointError).toBe('malformed_response');
+  });
 });

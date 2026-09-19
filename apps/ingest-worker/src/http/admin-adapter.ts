@@ -1,12 +1,17 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
+import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
 import {
   AnalyticsRangeError,
   parseAnalyticsRange
 } from '../../../ingest-api/src/analytics/range.js';
 
-type Dependencies = { repositories: AdminRepository; adminSecret: string };
+type Dependencies = {
+  repositories: AdminRepository;
+  adminSecret: string;
+  purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
+};
 
 const safePolicy = (id: string): QuotaPolicy => ({
   id,
@@ -83,6 +88,20 @@ export async function handleAdminRequest(
       projectId: project.id
     });
     return Response.json(project, { status: 201 });
+  }
+  if (request.method === 'POST' && url.pathname === '/v1/admin/purge-deleted') {
+    if (!dependencies.purgeDeleted) return Response.json({ error: 'not_found' }, { status: 404 });
+    const body = (await request.json().catch(() => undefined)) as { dryRun?: unknown } | undefined;
+    // Irreversible, so the caller must say which mode it wants rather than default into deleting.
+    if (!body || typeof body.dryRun !== 'boolean') return invalid();
+    const summary = await dependencies.purgeDeleted(body.dryRun);
+    // Deliberately carries no project or website id: the purge must leave no trace of them.
+    await dependencies.repositories.saveAdminAudit({
+      operation: 'purge_deleted',
+      outcome: 'allowed',
+      reasonCode: summary.dryRun ? 'dry_run' : summary.complete ? 'purged' : 'partial'
+    });
+    return Response.json(summary);
   }
   const projectItem = /^\/v1\/admin\/projects\/([^/]+)$/.exec(url.pathname);
   if (projectItem && request.method === 'DELETE') {

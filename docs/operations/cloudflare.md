@@ -4,10 +4,12 @@ Run this guide **once per customer environment**. It creates and verifies the sh
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
 
-This release supports **fresh deployments only**. Backend deployment does not preserve, adopt, or
-modify an existing Vizoalica schema. The preflight stops if the selected D1 database contains a
-Vizoalica table or migration record. Select a new empty database; do not delete or alter the
-existing one.
+This release supports **fresh deployments only**. The install commands (`pnpm deploy:check` and
+`pnpm deploy:apply`) do not preserve, adopt, or modify an existing Vizoalica schema: the preflight
+stops if the selected D1 database contains a Vizoalica table or migration record. For a first
+install, select a new empty database; do not delete or alter an existing one. To ship a newer
+Worker build to an installation that already has data, use
+[Update an existing backend](#update-an-existing-backend) instead.
 
 This guide does not configure an operator machine or connect a website. Its final handoff supplies
 the inputs for [operator setup without OneCLI](local-analytics.md),
@@ -54,7 +56,7 @@ guides are each a single further command sequence, not a repeat of this one.
 ## Prerequisites
 
 - Node.js 22 or newer and Corepack.
-- A reviewed Vizoalica 0.5.1 checkout.
+- A reviewed Vizoalica 0.5.2 checkout.
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
   within an included allowance.
@@ -75,7 +77,7 @@ Record these non-secret choices before starting:
 | Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
 | D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
 | R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
-| Release                    | `v0.5.1`            | Use one reviewed checkout for setup and later operators |
+| Release                    | `v0.5.2`            | Use one reviewed checkout for setup and later operators |
 
 Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
@@ -256,12 +258,62 @@ the initial installation. D1's source retention value does not delete R2 objects
 Workers, D1, R2, and Pages pricing before relying on included allowances, enable available account
 usage alerts, and keep new website quotas small until traffic is understood.
 
-The deployed cron trigger deletes dashboard rollups older than the 32-day aggregate boundary in
-bounded batches. A source quota limits accepted events, not every incoming request or the total
-account bill.
+The deployed cron trigger runs daily at 03:17 UTC and does two jobs:
+
+- It deletes dashboard rollups, ingestion decisions, and quota windows older than the 32-day
+  aggregate boundary, in bounded batches, repeating until each table is drained, up to 200
+  batches per table per run.
+- It permanently purges everything belonging to websites and projects that operators deleted:
+  their raw event batches in R2, and their rows in D1 including audit entries and the project and
+  website records themselves. See [Deleted websites and projects](#deleted-websites-and-projects).
+
+A source quota limits accepted events, not every incoming request or the total account bill.
 
 **Check:** the R2 lifecycle rule targets only this environment's event prefix and account alerts go
 to the intended customer owner.
+
+### Deleted websites and projects
+
+Deleting a website or project in the console is **terminal and permanent**. New events are
+rejected immediately, and the next daily run removes all its data. The purge writes one audit
+entry that names nothing it removed. To purge now instead of waiting:
+
+```sh
+pnpm ops purge-deleted           # dry run: prints what would be removed, deletes nothing
+pnpm ops purge-deleted --apply   # permanent; repeats until the Worker reports it finished
+```
+
+The dry run needs a Worker that includes the purge endpoint (`POST /v1/admin/purge-deleted`);
+an older Worker answers 404, so [update the backend](#update-an-existing-backend) first. Each
+run is bounded, so a large purge may take several passes; the command handles that. One table,
+`dashboard_seen_events`, has no website column, so a deleted website's rows there are not
+removed by the purge; the 32-day cleanup expires them.
+
+### Ingest rate limiting (recommended for public websites)
+
+Requests without a valid signed token are rejected before any database read, so anonymous traffic
+costs Worker CPU only. Per-source quotas cap _accepted_ events but do not throttle a single client
+that repeatedly sends valid-looking requests. To add an edge throttle, uncomment the
+`[[ratelimits]]` block in your `wrangler.production.toml` (it is present, commented out, in
+`wrangler.example.toml`) and [update the backend](#update-an-existing-backend):
+
+```toml
+[[ratelimits]]
+name = "VIZOALICA_INGEST_LIMITER"
+namespace_id = "1001"
+[ratelimits.simple]
+limit = 120
+period = 60
+```
+
+The Worker then allows at most `limit` ingest requests per `period` seconds for each client
+address, across all sources, and answers `429 rate_limited` with `Retry-After: 60` beyond it.
+The default of 120 per minute is far above a real visitor's page-view rate but shared office or
+mobile-carrier addresses can send many visitors' events, so raise it before lowering it. The
+binding uses the Worker's own Cloudflare account permissions; it needs no zone access. If the
+limiter is unavailable the Worker fails open and the source quotas still apply. Zone-level rules
+(Cloudflare WAF rate limiting, Bot Fight Mode) remain an optional additional layer for operators
+who serve the Worker from their own domain.
 
 ## Verify deployment health
 
@@ -293,7 +345,7 @@ Deployment: Cloudflare backend
 Customer/environment: <label>
 Release commit: <exact commit>
 Worker script name: <name>
-Worker origin: https://<worker>.<account-subdomain>.workers.dev
+Worker origin: https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
 Cloudflare account: <label and safely abbreviated ID>
 Deployment/version ID: <identifier printed by deployment>
 D1 database name: <name>
@@ -314,11 +366,47 @@ administrator credential:
 
 After one operator is verified, [activate a website](pages.md) once for each website.
 
+## Update an existing backend
+
+`pnpm deploy:check` and `pnpm deploy:apply` are **first-install** commands. Both refuse a D1
+database that already contains Vizoalica tables, so they cannot ship a newer Worker build, a
+changed Wrangler setting such as the rate limiter, or a new secret onto a running installation.
+Use native Wrangler for that, from an approved checkout:
+
+```sh
+git fetch --tags && git checkout YOUR_APPROVED_TAG_OR_COMMIT
+pnpm install --frozen-lockfile
+pnpm build
+pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml
+export VIZOALICA_WORKER_URL="https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev"
+pnpm deploy:verify
+pnpm ops verify
+```
+
+Worker secrets, D1 data, and R2 objects are untouched by `wrangler deploy`, so there is nothing to
+re-enter. Before you run it:
+
+- Read the release notes and [changelog](../../CHANGELOG.md). This is safe only when the release
+  leaves the D1 schema unchanged. There is no automated migration: if a release changes the
+  schema, its upgrade notes say so, and the alternative is a fresh install on a new empty database.
+- Use the same Cloudflare account and `wrangler.production.toml` that created the backend, and
+  check `pnpm exec wrangler whoami` first.
+- The [approval-gated profile](#optional-approval-gated-deployment-profile) below does not support
+  updates: its apply step stops on a non-empty database. If policy requires that lane for every
+  change, obtain the owner's explicit approval to use native Wrangler for this update; do not
+  work around the check.
+
+**Check:** `pnpm deploy:verify` reports `/healthz` returned `"ok":true`, and `pnpm ops verify`
+still reports authenticated access. Then run a website's accepted-event check from
+[website activation](pages.md#verify-website-activation) if the release touched ingestion.
+
 ## Optional approval-gated deployment profile
 
-Use this alternative only when policy requires explicit Cloudflare provider isolation. Initial D1
-and R2 resource creation still requires a separately approved owner action. Configure a private
-profile outside the repository, then follow this exact sequence:
+Use this alternative only when policy requires explicit Cloudflare provider isolation, and only
+for a **first install**: it cannot update an existing backend (see
+[above](#update-an-existing-backend)). Initial D1 and R2 resource creation still requires a
+separately approved owner action. Configure a private profile outside the repository, then follow
+this exact sequence:
 
 ```sh
 pnpm deploy:configure -- \
@@ -340,7 +428,7 @@ approval. Only after the customer approves that exact plan ID:
 
 ```sh
 pnpm deploy:apply -- --profile /private/path/vizoalica-profile.json --plan /private/path/plan.json --receipt /private/path/receipt.json --approve EXACT_PLAN_ID
-pnpm deploy:verify -- --profile /private/path/vizoalica-profile.json --worker-url https://YOUR_WORKER.workers.dev --plan /private/path/plan.json
+pnpm deploy:verify -- --profile /private/path/vizoalica-profile.json --worker-url https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev --plan /private/path/plan.json
 pnpm deploy:status -- --profile /private/path/vizoalica-profile.json --plan-id EXACT_PLAN_ID
 ```
 
@@ -353,6 +441,8 @@ operator machine.
 - **Existing schema detected:** stop. Select a new empty D1 database. This release provides no
   preservation path for that data.
 - **Wrong account or resource:** stop, correct the private configuration, and rerun preflight.
+- **Update needed on an existing backend:** use [Update an existing backend](#update-an-existing-backend);
+  do not rerun `deploy:apply`.
 - **Interrupted apply:** inspect D1 migration state and Worker deployment history. Do not assume a
   local timeout means the remote action failed. For a profile deployment, create a new plan and
   receipt before retrying.

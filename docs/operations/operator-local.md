@@ -1,62 +1,42 @@
 # Start the local operator console
 
-Returning operators should start here. Use the mode that created
-`~/.config/vizoalica/local-operations.json`; do not choose a mode based only on which command is
-more convenient.
+Returning operators start here. One command starts the console in either credential mode:
 
-| Mode           | Local file contains       | Correct startup                       | Never run                         |
-| -------------- | ------------------------- | ------------------------------------- | --------------------------------- |
-| Without OneCLI | Real administrator secret | API and web commands in two terminals | `pnpm ops run`                    |
-| With OneCLI    | Literal `onecli-managed`  | `pnpm ops run` in one terminal        | `pnpm local-ops-api:dev` directly |
+```sh
+cd /path/to/reviewed/vizoalica
+pnpm ops console
+```
 
-> **OneCLI configuration:** If `local-operations.json` contains `onecli-managed`, the API must be
-> launched with `pnpm ops run`. Starting `pnpm local-ops-api:dev` directly sends the placeholder
-> and results in HTTP 401. The API also refuses this direct launch when it can identify the
-> placeholder configuration.
+It reads `~/.config/vizoalica/local-operations.json` to decide how to start the private API, then
+starts the web console beside it. Open `http://127.0.0.1:5173` (or the URL Vite prints). Keep the
+terminal open and press Ctrl+C once to stop both processes. Keep only one console instance
+running. `pnpm ops run` is an alias for the same command.
+
+| Mode           | The local file contains   | What `pnpm ops console` does                                        |
+| -------------- | ------------------------- | ------------------------------------------------------------------- |
+| Without OneCLI | Real administrator secret | Starts the API with that file, then the web console                 |
+| With OneCLI    | Literal `onecli-managed`  | Starts the API inside `onecli run` so OneCLI injects the credential |
+
+Never start the API yourself with `pnpm local-ops-api:dev` when the file contains
+`onecli-managed`: it would send the placeholder and get HTTP 401, and the API refuses that launch
+when it can identify the placeholder.
 
 ## Check the mode and status
-
-From the reviewed Vizoalica checkout, run:
 
 ```sh
 pnpm ops status
 ```
 
-This reports the credential mode, Worker hostname, configuration path and permissions, expected
-startup command, whether ports 4318 and 5173 are occupied, whether the API appears to be running
-through OneCLI, and public-health and authenticated-access results. It does not print the
-configuration or credential. Keep only one console instance running.
-
-## Without OneCLI
-
-```sh
-cd /path/to/reviewed/vizoalica
-
-# Terminal 1
-pnpm local-ops-api:dev serve "$HOME/.config/vizoalica/local-operations.json"
-
-# Terminal 2
-pnpm admin-web:dev
-```
-
-Keep both terminals open. Press Ctrl+C in both terminals to stop the console. For one-time setup,
-credential replacement, or removal, use [setup without OneCLI](local-analytics.md).
-
-## With OneCLI
-
-```sh
-cd /path/to/reviewed/vizoalica
-pnpm ops verify
-pnpm ops run
-```
-
-Keep the wrapper terminal open. Press Ctrl+C once there to stop both processes. For one-time
-setup, OneCLI grant changes, or revocation, use [setup with OneCLI](ops-cli.md).
+This reports the credential mode, Worker hostname, configuration path and permissions, whether
+ports 4318 and 5173 are occupied, whether the API appears to be running through OneCLI, and the
+public-health and authenticated-access results. It never prints the configuration or a credential.
+`pnpm ops verify` runs only the authenticated check.
 
 ## Never switch modes casually
 
 Do not switch modes merely by changing the startup command or editing the JSON file. Intentionally
-recreate the configuration through the setup procedure for the new mode, using its explicit
-replacement option where documented. Then restart with the same mode that created it.
+recreate the configuration with the setup guide for the new mode
+([without OneCLI](local-analytics.md), [with OneCLI](ops-cli.md)), using its explicit replacement
+option where documented. Then start with `pnpm ops console` as usual.
 
 See [troubleshooting](troubleshooting.md) when status or startup fails.

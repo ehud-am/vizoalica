@@ -10,5 +10,6 @@ yarn.lock
 pnpm-lock.yaml
 examples/cloudflare-pages/public/vizoalica-loader.js
 .agents/
+.claude/
 .specify/
 specs/

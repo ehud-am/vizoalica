@@ -5,6 +5,7 @@ import {
   pagesDeployArguments,
   parseGateway,
   parseOptions,
+  purgeArguments,
   verifyArguments,
   validateConsoleConfig,
   type OpsConfig
@@ -24,7 +25,7 @@ const config: OpsConfig = {
     project: 'vizoalica-site',
     branch: 'main',
     assetsDir: '.',
-    origin: 'https://vizoalica-site.pages.dev',
+    origin: 'https://example-site.pages.dev',
     analyticsProjectId: 'project-id',
     sourceId: 'source-id'
   }
@@ -87,6 +88,13 @@ describe('operations CLI safety', () => {
       'scripts/verify-operator-access.ts',
       'https://analytics.example.workers.dev'
     ]);
+  });
+
+  it('purges soft-deleted data through OneCLI, deleting only when --apply is passed', () => {
+    const tail = ['scripts/purge-deleted.ts', 'https://analytics.example.workers.dev'];
+    expect(purgeArguments(config, false).slice(-3)).toEqual(['tsx', ...tail]);
+    expect(purgeArguments(config, true).slice(-4)).toEqual(['tsx', ...tail, '--apply']);
+    expect(purgeArguments(config, false).slice(0, 8)).toEqual(verifyArguments(config).slice(0, 8));
   });
 
   it('keeps Pages uploads on native Wrangler', () => {

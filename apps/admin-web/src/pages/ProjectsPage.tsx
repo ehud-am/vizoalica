@@ -69,7 +69,7 @@ export function ProjectsPage({
   async function removeProject(project: Project) {
     if (
       !window.confirm(
-        `Soft-delete project ${project.name} and all its websites? Historic analytics and audit evidence will be kept.`
+        `Delete project ${project.name} and all its websites? This is permanent: their data, analytics and audit entries are removed within a day.`
       )
     )
       return;
@@ -80,7 +80,7 @@ export function ProjectsPage({
       await deleteProject(project.id);
       await refresh();
       setMessage(
-        `Project ${project.name} deleted. Historic analytics and audit evidence were preserved.`
+        `Project ${project.name} deleted. Its data will be permanently removed within a day.`
       );
     } catch {
       setError('The project could not be deleted. Check the current project list and try again.');

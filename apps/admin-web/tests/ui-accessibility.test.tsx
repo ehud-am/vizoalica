@@ -134,7 +134,7 @@ describe('document-level security headers', () => {
 
   it('declares a restrictive Content-Security-Policy via meta tag', () => {
     // A meta tag, not a server header or a Pages _headers file, because this console is always
-    // served by `vite dev`/`vite preview` per docs/operations/local-analytics.md - there is no
+    // served by `vite dev`/`vite preview` per docs/operations/operator-local.md - there is no
     // Cloudflare Pages (or other) hosting layer that would read a _headers file for it.
     expect(indexHtml).toMatch(/http-equiv="Content-Security-Policy"/);
     expect(indexHtml).toContain("default-src 'self'");

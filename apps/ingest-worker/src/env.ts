@@ -16,6 +16,17 @@ export interface R2Bucket {
     value: string,
     options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }
   ): Promise<unknown>;
+  list(options: {
+    prefix?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
+  delete(keys: string | string[]): Promise<void>;
+}
+
+/** Cloudflare Workers Rate Limiting binding; see docs/operations/cloudflare.md. */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 export interface Env {
@@ -26,4 +37,5 @@ export interface Env {
   VIZOALICA_ANALYTICS_DIGEST_SECRET: string;
   VIZOALICA_DEMO_MODE?: string;
   VIZOALICA_MAX_REQUEST_BYTES?: string;
+  VIZOALICA_INGEST_LIMITER?: RateLimiter;
 }

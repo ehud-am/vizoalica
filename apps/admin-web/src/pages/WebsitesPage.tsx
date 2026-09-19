@@ -112,12 +112,12 @@ export function WebsitesPage({
     if (
       !selected ||
       !window.confirm(
-        `Soft-delete ${selected.name}? Historic analytics and audit evidence will be kept.`
+        `Delete ${selected.name}? This is permanent: its data, analytics and audit entries are removed within a day.`
       )
     )
       return;
     await deleteWebsite(projectId, selected.id);
-    setMessage('Website deleted. Historic analytics and audit evidence were preserved.');
+    setMessage('Website deleted. Its data will be permanently removed within a day.');
     await refresh();
   }
   return (
@@ -204,7 +204,7 @@ export function WebsitesPage({
                           disabled={selected.status === 'deleted'}
                           onClick={() => void safely(remove)}
                         >
-                          Soft delete
+                          Delete
                         </button>
                       </div>
                     </section>

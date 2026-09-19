@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     // machine, and therefore to the config file itself.
     if (config.adminSecret === 'onecli-managed' && process.env.VIZOALICA_ONECLI_WRAPPED !== '1')
       throw new Error(
-        'onecli_placeholder_requires_wrapper: start this configuration with pnpm ops run'
+        'onecli_placeholder_requires_wrapper: start this configuration with pnpm ops console'
       );
     createLocalServer(config).listen(config.port, '127.0.0.1', () =>
       console.log(`Vizoalica local API listening on http://127.0.0.1:${config.port}`)

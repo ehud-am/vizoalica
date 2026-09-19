@@ -1,43 +1,11 @@
 # Activate a website
 
-Run this guide **once per website**. It registers one website, installs the browser bundle and trusted
-server-side token Function, deploys them using the website's real hosting mode, and proves that a
-consented event reaches Vizoalica without making the host website depend on analytics availability.
+Run this guide **once per website**. It registers one website, installs the browser SDK and a
+trusted server-side token Function, deploys them, and proves that a consented event reaches
+Vizoalica without making the website depend on analytics availability.
 
-Repeat the complete activation with a separate registration and completion record for every
+Repeat the complete activation, with a separate registration and completion record, for every
 additional website. Do not redeploy the backend or repeat workstation setup for each site.
-
-## Recommended: deploy via GitHub Actions CI/CD
-
-For a website whose source lives in its own GitHub repository, this is the primary, recommended
-path — a customer pushes a change and the deployment happens automatically, with no per-deploy
-manual steps and no analytics values ever committed to the website's source.
-
-1. **Create the website in the console** (same as step 1 below): Projects → select/create a
-   project → Websites → Add website → enter the exact production origin(s). Open its integration
-   panel and choose **Dynamic configuration**.
-2. **Copy the generated guidance**: the panel shows the exact GitHub repository variables and
-   secrets to add, a ready-to-paste starter workflow file, and the equivalent `gh` CLI commands.
-   Add the variables/secrets to the website's repository (GitHub → Settings → Secrets and
-   variables → Actions), and the two account-specific values (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`)
-   plus a Cloudflare API token scoped to **Cloudflare Pages: Edit only** (create it without any
-   Client IP Address Filtering restriction — a CI runner has no fixed IP).
-3. **Add the workflow file** shown in the panel to `.github/workflows/` in the website's repo, and
-   push. The workflow deploys the site, vendors the Vizoalica configuration and token-issuing
-   Functions, and wires the analytics configuration into the Cloudflare Pages environment — all
-   from repository variables/secrets, never from committed source.
-4. **Verify** using the [verification steps](#verify-website-activation) below against the
-   deployed URL, and check the website's page in the console shows **Website reachable**.
-
-See the [deploy workflow contract](../../specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md)
-for the full technical contract, including the caveat that a **public** website repository cannot
-call a reusable workflow hosted in a private repository — vendor the workflow's steps directly
-into the website's own repo instead in that case (see the contract for the exact reason).
-
-The rest of this guide documents the manual alternative (Direct Upload or an existing Git-connected
-Pages project) for a website not using GitHub Actions, or for the static integration path.
-
-## Manual alternative: Direct Upload, Git-connected Pages, or the static snippet
 
 ## Prerequisites
 
@@ -46,7 +14,9 @@ Pages project) for a website not using GitHub Actions, or for the static integra
   [without OneCLI](local-analytics.md) or [with OneCLI](ops-cli.md).
 - Control of the production website, its build/deployment settings, and its consent integration.
 - Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by the backend.
-- Cloudflare-native login for Direct Upload, or a working production Git integration.
+- For the GitHub Actions path: the website's GitHub repository, and a Cloudflare API token scoped
+  to **Cloudflare Pages: Edit** only. For the manual path: Cloudflare-native login for Direct
+  Upload, or a working production Git integration.
 
 The Pages Function runs in the hosted website environment, so the operator machine can be off
 while the website collects events.
@@ -62,12 +32,17 @@ while the website collects events.
 | Public source key               | Website integration panel in the local console              |
 | Exact production origin(s)      | Website hosting settings, with scheme and no trailing slash |
 | Website folder and asset output | Website build configuration                                 |
-| Deployment mode                 | Existing Git integration or Direct Upload                   |
+| Deployment path                 | GitHub Actions, existing Git integration, or Direct Upload  |
 
 ## Security boundary
 
 Project IDs, source IDs, public source keys, Worker origins, and website origins are non-secret.
 The token-signing secret belongs only on the Worker and the website's trusted server-side Function.
+`VIZOALICA_TOKEN_SECRET` is one backend-wide secret shared by every website on the same backend, so
+a leak from any one website lets an attacker mint tokens for any of them. Treat it like the
+administrator secret, and follow "Suspected signing-secret exposure" in [the backend
+guide](cloudflare.md) to rotate the Worker and every website together. Per-website signing secrets
+are a planned design change, not part of this release.
 The administrator secret and Cloudflare deployment credential never belong in website assets.
 
 A public token issuer is not visitor authentication: non-browser callers can forge origin headers.
@@ -75,11 +50,11 @@ Keep ingestion quotas enabled and retain existing application authentication for
 Only load analytics after the site's consent system grants analytics consent. The consent attribute
 records the state; it is not itself a consent gate.
 
-Use a normal terminal with Cloudflare-native login for this recipe. OneCLI can still hold the local
-console credential. Some OneCLI proxy configurations overwrite Wrangler's temporary Pages upload
+For the manual path, use a normal terminal with Cloudflare-native login. OneCLI can still hold the
+local console credential. Some OneCLI proxy configurations overwrite Wrangler's temporary Pages upload
 authorization; see [the known limitation](troubleshooting.md#onecli-and-pages-uploads).
 
-## 1. Create the website ID in the console
+## 1. Create the website in the console
 
 Open the configured local console. Select **Projects**, create or explicitly select the ownership
 boundary, open **Websites**, then choose **Add website**. Its first field is an empty required
@@ -92,14 +67,53 @@ non-secret values. Start with the default low quota and seven-day retention.
 **Check:** the new website belongs to the intended customer project, lists only its real allowed
 origin(s), and has its own source ID and public key.
 
-## 2. Prepare the website project
+## 2. Choose a deployment path
+
+| Path                                                             | Use it when                                                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [A. GitHub Actions](#path-a-github-actions-recommended)          | The website's source is in its own GitHub repository. **Recommended.**         |
+| [B. Manual](#path-b-manual-direct-upload-or-git-connected-pages) | Direct Upload, an existing Git-connected Pages project, or the static snippet. |
+
+Both paths end at [Verify website activation](#verify-website-activation).
+
+## Path A: GitHub Actions (recommended)
+
+A push to the website's repository deploys it automatically, with no per-deploy manual steps and
+no analytics values ever committed to the website's source.
+
+1. **Open the website's integration panel** in the console (created in step 1) and choose
+   **Dynamic configuration**.
+2. **Copy the generated guidance**: the panel shows the exact GitHub repository variables and
+   secrets to add, a ready-to-paste starter workflow file, and the equivalent `gh` CLI commands.
+   Add the variables/secrets to the website's repository (GitHub → Settings → Secrets and
+   variables → Actions), and the two account-specific values (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`)
+   plus a Cloudflare API token scoped to **Cloudflare Pages: Edit only** (create it without any
+   Client IP Address Filtering restriction — a CI runner has no fixed IP).
+3. **Add the workflow file** shown in the panel to `.github/workflows/` in the website's repo, and
+   push. The workflow deploys the site, vendors the Vizoalica configuration and token-issuing
+   Functions, and wires the analytics configuration into the Cloudflare Pages environment — all
+   from repository variables/secrets, never from committed source.
+4. **Verify** with [Verify website activation](#verify-website-activation) against the deployed
+   URL, and check the website's page in the console shows **Website reachable**.
+
+See the [deploy workflow contract](../../specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md)
+for the full technical contract, including the caveat that a **public** website repository cannot
+call a reusable workflow hosted in a private repository — vendor the workflow's steps directly
+into the website's own repo instead in that case (see the contract for the exact reason).
+
+## Path B: manual (Direct Upload or Git-connected Pages)
+
+For a website not using GitHub Actions, or for the static snippet. Each step is run from your
+Vizoalica checkout unless it says otherwise.
+
+### B1. Prepare the website project
 
 From your Vizoalica checkout, choose an unused Pages project name and a private working copy for
 the example. Replace the two paths/names below. The name determines your `pages.dev` origin.
 
 ```sh
 export VIZOALICA_SITE_DIR="$HOME/vizoalica-demo"
-export VIZOALICA_PAGES_PROJECT="YOUR_UNIQUE_PAGES_PROJECT"
+export VIZOALICA_PAGES_PROJECT="YOUR_PAGES_PROJECT"
 mkdir -p "$VIZOALICA_SITE_DIR"
 cp -R examples/cloudflare-pages/. "$VIZOALICA_SITE_DIR/"
 cp "$VIZOALICA_SITE_DIR/wrangler.example.toml" "$VIZOALICA_SITE_DIR/wrangler.toml"
@@ -111,9 +125,9 @@ Do not overwrite an existing site's files; merge the Function and SDK into its o
 explained below.
 
 **Check:** the Pages project exists in the intended Cloudflare account. Record the exact origin
-shown in the dashboard, normally `https://YOUR_UNIQUE_PAGES_PROJECT.pages.dev`.
+shown in the dashboard, normally `https://YOUR_PAGES_PROJECT.pages.dev`.
 
-## 3. Fill in the public configuration
+### B2. Fill in the public configuration
 
 Edit the working copy's `wrangler.toml`:
 
@@ -136,7 +150,7 @@ ending in `/v1/events:batch`. The demo serves its SDK at `/vizoalica.js`.
 **Check:** no `REPLACE_…` values remain in `wrangler.toml` or `public/index.html`. Do not put a
 secret in either file. The source ID is **not** necessarily the public source key.
 
-## 4. Build and copy the browser SDK
+### B3. Build and copy the browser SDK
 
 Run from the Vizoalica checkout:
 
@@ -178,7 +192,7 @@ missing configuration, foreign provenance and requests on unconfigured preview d
 The shared signing secret stays on trusted servers. Use the site's existing session authentication
 as an additional requirement if the site is private.
 
-### Review sequence for dynamic Cloudflare configuration
+#### Review sequence for dynamic Cloudflare configuration
 
 Keep this order and stop before deployment until the account, Pages project, environment,
 production branch, site directory, output directory, public-variable block, Function, loader, and
@@ -195,7 +209,7 @@ pnpm exec wrangler pages deployment list --project-name "$VIZOALICA_PAGES_PROJEC
 pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
 ```
 
-## 5. Save the same signing secret on Pages
+### B4. Save the same signing secret on Pages
 
 Paste **the same `VIZOALICA_TOKEN_SECRET` value used by the ingestion Worker** into the hidden prompt:
 
@@ -205,12 +219,12 @@ pnpm exec wrangler pages secret list --project-name "$VIZOALICA_PAGES_PROJECT" -
 ```
 
 **Check:** the name exists on both the Worker and Pages project. Secret listing cannot prove their
-values match; the browser's accepted event in step 6 does. Do not create a second signing value
+values match; the browser's accepted event in Verify website activation does. Do not create a second signing value
 for Pages. The administrator secret and Cloudflare deployment token never go on this website.
 For an existing project with separate preview/production settings, confirm the secret and variables
 in the **Production** environment in the dashboard, then redeploy for changes to take effect.
 
-## 6. Deploy the website and Function together
+### B5. Deploy the website and Function together
 
 For this Direct Upload example, run from the Vizoalica checkout:
 
@@ -219,7 +233,7 @@ pnpm exec wrangler pages deploy public --cwd "$VIZOALICA_SITE_DIR" --project-nam
 ```
 
 **Check:** the deployment output says the Functions were compiled/uploaded, as well as the assets.
-Verify the stable production origin from step 2. The unique preview URL printed for a deployment
+Verify the stable production origin from B1. The unique preview URL printed for a deployment
 is not automatically an allowed analytics origin.
 
 `--cwd` is essential: Wrangler must start in the website project to discover its `functions/`
@@ -228,7 +242,7 @@ without the Function. `functions/` belongs beside `public/`, **not inside it**. 
 flags follow Cloudflare's [Function setup](https://developers.cloudflare.com/pages/functions/get-started/)
 and [Pages command reference](https://developers.cloudflare.com/workers/wrangler/commands/pages/).
 
-### Existing website: Git-connected or Direct Upload?
+#### Existing website: Git-connected or Direct Upload?
 
 In Cloudflare **Workers & Pages → your Pages project**, inspect the connected repository and build
 settings, production branch, and latest deployment commit. A Git-connected project has a repository
@@ -272,7 +286,8 @@ structure and claims, **not the signature**: only the Worker's accepted event pr
 deployed signing secrets agree. An HTTP 200 alone is insufficient; Pages may return fallback HTML
 for either missing path.
 
-Now open the website and select **Allow analytics**. In the browser Network panel, confirm the
+Now open the website and grant analytics consent (the demo page has an **Allow analytics**
+button). In the browser Network panel, confirm the
 batch request to the Worker returns **202**, then refresh the local console's `24h` view. In a
 fresh test source, one visit produces one page view and one privacy-safe unique user. See
 [privacy operations](privacy.md) for the data boundary. The demo makes the choice per visit;
@@ -329,9 +344,9 @@ deployed output, and verify again before resuming collection.
 
 ## Rotate or remove
 
-For same-release website changes, rebuild/copy the SDK, deploy the Function with the website, and
-rerun all website verification. This release does not provide an existing-backend schema upgrade
-path.
+For a website change, rebuild and copy the SDK, deploy the Function with the website, and rerun
+all website verification. Updating the backend itself is a separate operation; see
+[Update an existing backend](cloudflare.md#update-an-existing-backend).
 
 For signing-key rotation, pause collection across every connected website, replace the secret on
 the Worker and every trusted token issuer, redeploy, verify a new token and accepted event, then
@@ -339,6 +354,12 @@ resume. This single-key example has no overlapping-key rotation; old tokens fail
 key changes. Keep preview sources and secrets separate from production.
 
 To stop one website, disable its source in the console and remove the SDK load from the site's
-shared layout. Confirm new events are rejected while the website remains usable. Delete is a
-terminal soft deletion that retains aggregate history and audit evidence. It does not remove the
-backend, another website registration, or an operator workstation.
+shared layout. Confirm new events are rejected while the website remains usable. Delete is
+terminal and permanent: new events are rejected at once, and the daily Cron run then removes the
+website's raw event batches in R2 and every D1 row for it, including audit entries. Deleting a
+project does the same for the project and all its websites. It does not remove the backend,
+another website registration, or an operator workstation.
+
+To purge immediately instead of waiting for the Cron run, use `pnpm ops purge-deleted` to list
+what would go, then `pnpm ops purge-deleted --apply`. Each run is bounded and resumes on the next,
+so a large purge can take more than one run. A purge is audited without naming what it removed.

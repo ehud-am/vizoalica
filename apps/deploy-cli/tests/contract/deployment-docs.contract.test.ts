@@ -11,17 +11,33 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('makes README the authoritative three-step deployment selector', async () => {
+  it('makes README describe the three parts and a get-started path for each', async () => {
     const readme = await text('README.md');
-    expect(readme).toContain('Deploying Vizoalica has three main steps');
+    for (const heading of [
+      '## The three parts',
+      '## Get started',
+      '### 1. Backend',
+      '### 2. Console',
+      '### 3. Website',
+      '## Build from source'
+    ])
+      expect(readme).toContain(heading);
+    // Each part ends by pointing at its full guide.
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/ops-cli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    expect(readme).toMatch(/once per customer/i);
+    expect(readme).toMatch(/once per environment/i);
     expect(readme).toMatch(/once per operator/i);
     expect(readme).toMatch(/once per website/i);
-    expect(readme).toMatch(/fresh deployments only/i);
+    expect(readme).toMatch(/fresh install only/i);
+    // The default console setup is the private file; OneCLI is supported but opt-in.
+    expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
+    expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
+    expect(readme).toContain('pnpm ops console');
+    // Get started must come after the overview and before building from source.
+    expect(readme.indexOf('## The three parts')).toBeLessThan(readme.indexOf('## Get started'));
+    expect(readme.indexOf('## Get started')).toBeLessThan(readme.indexOf('## Build from source'));
   });
 
   it('defines a complete fresh customer-backend journey', async () => {
@@ -41,6 +57,44 @@ describe('deployment documentation contract', () => {
     expect(guide).toContain('SELECT name FROM d1_migrations ORDER BY id;');
     expect(guide).toMatch(/second reports only unapplied migration files/i);
     expect(guide).toMatch(/health route does not access D1/i);
+  });
+
+  it('separates first install from updating a running backend', async () => {
+    const guide = await text('docs/operations/cloudflare.md');
+    expect(guide).toContain('## Update an existing backend');
+    expect(guide).toContain(
+      'pnpm exec wrangler deploy --config deploy/cloudflare/wrangler.production.toml'
+    );
+    expect(guide).toMatch(/first-install\*{0,2} commands/i);
+    expect(guide).toContain('### Deleted websites and projects');
+    expect(guide).toContain('pnpm ops purge-deleted --apply');
+    // `deploy:apply` refuses a non-empty database, so no doc may tell operators to use it to update.
+    expect(guide).not.toMatch(/redeploy with `pnpm deploy:apply`/);
+  });
+
+  it('starts the console with one command in both credential modes', async () => {
+    for (const path of [
+      'docs/operations/local-analytics.md',
+      'docs/operations/ops-cli.md',
+      'docs/operations/operator-local.md',
+      'docs/operations/troubleshooting.md'
+    ])
+      expect(await text(path), path).not.toMatch(/pnpm ops run\b(?!` is an alias)/);
+    expect(await text('docs/operations/local-analytics.md')).toContain('pnpm ops console');
+    expect(await text('docs/operations/ops-cli.md')).toContain('pnpm ops console');
+  });
+
+  it('uses one placeholder shape for the Worker origin', async () => {
+    for (const path of [
+      'README.md',
+      'docs/operations/cloudflare.md',
+      'docs/operations/local-analytics.md',
+      'docs/operations/ops-cli.md',
+      'docs/operations/pages.md'
+    ])
+      expect(await text(path), path).not.toMatch(
+        /<worker>\.|YOUR_ACCOUNT_SUBDOMAIN|https:\/\/YOUR_WORKER\.workers\.dev/
+      );
   });
 
   it('explains how to recover an unusable Wrangler login', async () => {
@@ -70,8 +124,8 @@ describe('deployment documentation contract', () => {
     expect(guide).toMatch(/\| Without OneCLI\s+\| Real administrator secret/);
     expect(guide).toMatch(/\| With OneCLI\s+\| Literal `onecli-managed`/);
     expect(guide).toContain('pnpm ops status');
-    expect(guide).toContain('pnpm ops run');
-    expect(guide).toContain('pnpm local-ops-api:dev serve');
+    expect(guide).toContain('pnpm ops console');
+    expect(guide).toMatch(/never start the API yourself with `pnpm local-ops-api:dev`/i);
     expect(guide).toMatch(/do not switch modes merely by changing the startup command/i);
   });
 

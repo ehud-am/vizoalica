@@ -119,7 +119,7 @@ describe('interactive console', () => {
     expect(await screen.findByText('12')).toBeTruthy();
   });
 
-  it('creates, edits, disables, and soft-deletes websites with recovery messaging', async () => {
+  it('creates, edits, disables, and deletes websites with permanence messaging', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Websites' }));
@@ -142,7 +142,7 @@ describe('interactive console', () => {
     await waitFor(() => expect(api.updateWebsite).toHaveBeenCalled());
     await user.click(screen.getByRole('button', { name: 'Disable' }));
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    await user.click(screen.getByRole('button', { name: 'Soft delete' }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(api.deleteWebsite).toHaveBeenCalledWith('p1', 's1'));
     api.updateWebsite.mockRejectedValueOnce(new Error('offline'));
     await user.click(screen.getByRole('button', { name: 'Disable' }));

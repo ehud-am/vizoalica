@@ -4,6 +4,7 @@ import type { Env } from './env.js';
 import { workerLogger } from './observability.js';
 import { createWorkerTokenVerifier } from './auth/token-verifier.js';
 import { D1Repositories } from './storage/d1-repositories.js';
+import { purgeDeleted } from './storage/purge-deleted.js';
 import { R2EventBatchRepository } from './storage/r2-event-batches.js';
 import { handleWorkerRequest } from './http/worker-adapter.js';
 
@@ -47,10 +48,13 @@ export default {
         tokenSecret: env.VIZOALICA_TOKEN_SECRET,
         adminSecret: env.VIZOALICA_ADMIN_SECRET,
         adminRepositories: repositories,
+        purgeDeleted: (dryRun) =>
+          purgeDeleted({ repositories: configuration, bucket: env.VIZOALICA_EVENTS, dryRun }),
         verifyAuthorization: createWorkerTokenVerifier(env.VIZOALICA_TOKEN_SECRET),
         allowUnsignedDemo: config.allowUnsignedDemo,
         metrics: new InMemoryMetricsSink(),
-        logger: workerLogger
+        logger: workerLogger,
+        ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes
     );
@@ -64,6 +68,19 @@ export default {
     const before = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
     before.setUTCSeconds(0, 0);
     await repositories.deleteExpiredDashboardData(before.toISOString());
+    // Deletion is terminal, so whatever operators deleted is physically removed on the next run.
+    // A run that hits its operation budget resumes on the next one.
+    const purged = await purgeDeleted({
+      repositories,
+      bucket: env.VIZOALICA_EVENTS,
+      dryRun: false
+    });
+    if (purged.objects + Object.values(purged.rows).reduce((sum, count) => sum + count, 0) > 0)
+      await repositories.saveAdminAudit({
+        operation: 'purge_deleted',
+        outcome: 'allowed',
+        reasonCode: purged.complete ? 'purged' : 'partial'
+      });
     void config;
   }
 };

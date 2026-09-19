@@ -3,8 +3,10 @@ import { healthResponse } from '../../../ingest-api/src/http/health.js';
 import type { PipelineDependencies } from '../../../ingest-api/src/ingestion/pipeline.js';
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import { handleAdminRequest } from './admin-adapter.js';
+import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { handleMcpRequest } from './mcp-adapter.js';
 import { classifyRequest } from '../analytics/classifier.js';
+import type { RateLimiter } from '../env.js';
 
 async function readBoundedBody(request: Request, maxBytes: number): Promise<string | undefined> {
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
@@ -43,11 +45,26 @@ function withCors(request: Request, response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
+// Throttles per client address before any body read or D1 access. The key deliberately excludes
+// the caller-supplied source header: varying it would otherwise mint a fresh bucket per request.
+// Fails open: a limiter outage must not drop legitimate analytics, and per-source quotas still
+// apply.
+async function withinRateLimit(request: Request, limiter: RateLimiter): Promise<boolean> {
+  const client = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  try {
+    return (await limiter.limit({ key: client })).success;
+  } catch {
+    return true;
+  }
+}
+
 export async function handleWorkerRequest(
   request: Request,
   dependencies: PipelineDependencies & {
     adminSecret?: string;
     adminRepositories?: AdminRepository;
+    purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
+    rateLimiter?: RateLimiter;
   },
   maxRequestBytes: number
 ): Promise<Response> {
@@ -61,7 +78,8 @@ export async function handleWorkerRequest(
     if (mcpResponse) return mcpResponse;
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,
-      repositories: dependencies.adminRepositories
+      repositories: dependencies.adminRepositories,
+      ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {})
     });
     if (adminResponse) return adminResponse;
   }
@@ -70,6 +88,11 @@ export async function handleWorkerRequest(
     return withCors(request, new Response(null, { status: 204 }));
   if (request.method !== 'POST' || url.pathname !== '/v1/events:batch')
     return withCors(request, Response.json({ error: 'not_found' }, { status: 404 }));
+  if (dependencies.rateLimiter && !(await withinRateLimit(request, dependencies.rateLimiter)))
+    return withCors(
+      request,
+      Response.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': '60' } })
+    );
   const body = await readBoundedBody(request, maxRequestBytes);
   if (body === undefined)
     return withCors(request, Response.json({ error: 'request_too_large' }, { status: 413 }));

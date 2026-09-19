@@ -93,24 +93,81 @@ finding is about.
 - Flagged as a design item for a future release: move to per-source signing secrets once the
   console has session/credential-reveal UX to support it safely.
 
-### 6. No application- or edge-level rate limiting beyond per-project quotas (Medium — accepted, deferred to Phase 4)
+### 6. No application- or edge-level rate limiting beyond per-project quotas (Medium — mitigated, opt-in)
 
 **Finding**: `reserveQuota`'s per-second/per-day event-count checks are per-project accounting
-limits, not abuse-resistant rate limiting — there is no IP- or client-based throttle anywhere in
-`apps/ingest-worker`/`apps/ingest-api`, and no Cloudflare Rate Limiting Rule is configured in this
-repository (that's a zone-level Cloudflare feature, not something expressible in `wrangler.toml`).
-Cloudflare's baseline DDoS protection is always active regardless, but a targeted, moderate-volume
-abuse pattern against one project's ingest endpoint is not specifically throttled beyond its own
-quota.
+limits, not abuse-resistant rate limiting — there was no IP- or client-based throttle anywhere in
+`apps/ingest-worker`/`apps/ingest-api`. Cloudflare's baseline DDoS protection is always active
+regardless, but moderate-volume abuse against one source's ingest endpoint was not throttled
+beyond its own quota.
 
-**Why not fixed this iteration**: adding an actual Cloudflare Rate Limiting Rule requires
-zone-level Cloudflare API access this session's credentials do not have (confirmed: DNS/zone
-write actions were blocked during the Phase 1 domain cutover work), and is explicitly slated as
-Phase 4 (Cloudflare-deployment-expert review, spec FR-011) work, which is the right place for it —
-that phase already needs to touch Cloudflare-account-level configuration for the CI/CD workflow's
-API token scope.
+**Resolution (Phase 4)**: the original assumption that a rate limit needed zone-level access was
+wrong for this mechanism. The Workers Rate Limiting binding is declared in `wrangler.toml` and
+uses only Worker-level permissions. The Worker now consults an optional
+`VIZOALICA_INGEST_LIMITER` binding, keyed by `cf-connecting-ip` alone, before reading the
+request body or touching D1, and answers `429 rate_limited` with `Retry-After`. It fails open if
+the limiter errors. The block ships commented out in `wrangler.example.toml`, so existing
+deployments are unchanged until an operator opts in (`docs/operations/cloudflare.md`, "Ingest
+rate limiting"). The key excludes the caller-supplied `x-vizoalica-source` header on purpose: an earlier
+draft included it, and code review showed a caller could vary it to get a fresh bucket per
+request. Verified with `wrangler deploy --dry-run` (binding accepted) and unit tests for deny,
+key shape, header-variation, and fail-open. Off by default: enabling it is an operator decision
+with a traffic-tuning component.
 
-**Carried forward to Phase 4** with this finding attached as its starting scope item.
+**Residual risk**: opt-in means an operator who does not enable it has the prior posture. Zone-level
+WAF rules and bot controls need zone access this session did not have and stay documented as an
+optional layer. Accepted (Medium).
+
+### 7. Unauthenticated ingest requests cost D1 reads (Medium — fixed)
+
+**Finding**: `ingestBatch` verified the token but then ran `authorizeSource` (source and project
+D1 lookups) even when the token was missing or invalid, only rejecting afterwards. Anyone could
+drive database reads at no authentication cost.
+
+**Fix**: `apps/ingest-api/src/ingestion/pipeline.ts` returns 401 immediately when the token is
+missing or invalid and the unsigned-demo bypass is off (finding 4 shows it cannot apply to a
+production project). New tests assert zero source lookups for these requests and that the bypass
+path still reaches the lookup. Side effect: an unknown source key with no token now reports 401
+rather than 403, which also stops the endpoint from confirming which source keys exist.
+
+### 8. Retention cleanup could not keep up, and two tables were never pruned (Medium — fixed)
+
+**Finding**: found in the platform review. The daily job deleted at most 1,000 rows per table, so a
+busy source grew D1 without bound; `ingestion_decisions` and `quota_windows` were never deleted.
+Unbounded growth is a cost and availability risk (D1 has a per-database size limit). Fixed by
+draining in repeated batches with a per-run cap and pruning the two operational tables; see
+`docs/operations/cost-model.md`.
+
+### 9. Console reachability check fetches an operator-supplied origin (Low — fixed)
+
+**Finding**: the reachability route added in Phase 1 fetches `<allowed origin>/vizoalica/config.json`
+from the operator's machine. It sends no credentials, refuses redirects, and has a 5 second
+timeout, but read the whole body.
+
+**Fix**: the body is now capped at 16 KiB and anything larger reports `malformed_response`. The
+origin comes from an authenticated administrator's own website configuration, and only a coarse
+status (never the body) is returned to the browser, so this is not an exploitable server-side
+request forgery path; it is a resource-exhaustion hardening.
+
+### 10. OneCLI trust boundary (reviewed — sound, one documentation clarification)
+
+**Reviewed**: `scripts/vizoalica-ops.ts`, `apps/local-ops-api/src/cli.ts`, `docs/operations/ops-cli.md`.
+
+- The admin secret never appears in local configuration in OneCLI mode: only the literal
+  `onecli-managed` placeholder, which `configure` refuses to accept as a real credential.
+- `pnpm ops` accepts no secret arguments, and OneCLI receives project, agent, and gateway values
+  only. Verification runs through `onecli run` against the exact Worker host.
+- The `VIZOALICA_ONECLI_WRAPPED=1` check is a wrong-command guard, not a boundary; the source
+  comment already says so and the threat model agrees (anyone who can set it has local shell
+  access, and so has the config file). No change needed.
+- The reachability call in finding 9 is made by the local API, which may run inside `onecli run`.
+  It targets the customer's website and not the Worker host. Per the operator guide, OneCLI injects
+  the credential only into HTTPS requests to the exact Worker host, so the admin credential is not
+  attached to it even if the request is routed through the gateway. This relies on OneCLI's host
+  scoping (documented, not re-tested here) and the fetch itself sends no `Authorization` header.
+
+**Residual**: OneCLI's own gateway and card scoping are outside this repository. The operator guide
+already requires a dedicated agent with only this environment's card. Nothing to fix.
 
 ## Reviewed and found already sound (no change)
 

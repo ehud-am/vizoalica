@@ -84,7 +84,11 @@ describe('Cloudflare Worker durable ingestion', () => {
             ? { key, value, metadata: options.customMetadata }
             : { key, value }
         );
-      }
+      },
+      async list() {
+        return { objects: [], truncated: false };
+      },
+      async delete() {}
     };
     const queries: string[] = [];
     const env: Env = {

@@ -21,21 +21,19 @@ pnpm coverage
 pnpm audit --audit-level high
 ```
 
-Before a private repository becomes public, also scan both reachable history and the exact
-publishable working tree with a current secret scanner, review image/document metadata, and confirm
-that operator-owned `.env`, Wrangler production, deployment-profile, audit, receipt, and local
-console files remain ignored and untracked. Enable GitHub secret scanning and push protection when
-visibility changes. Use the [public repository checklist](public-release.md) for the owner-controlled
-GitHub settings that remain outside the source release.
+Before a private repository becomes public, work through the
+[public repository checklist](public-release.md): it covers secret scanning of history and the
+publishable tree, ignored operator files, and the owner-controlled GitHub settings that remain
+outside the source release.
 
-Document the release version, commit SHA, compatibility changes, and whether the release supports
-fresh deployments, forward data migrations, or both. A
-self-hosting operator decides whether and when to use the release.
+Document the release version, commit SHA, compatibility changes, and whether the release changes the
+D1 schema. A self-hosting operator decides whether and when to use the release.
 
 ## Operator deployment
 
-An operator deploys a selected release from their own checkout and Cloudflare account. The
-supported commands are described in [the Cloudflare operations guide](./cloudflare.md).
+An operator deploys a selected release from their own checkout and Cloudflare account: a first
+install with `pnpm deploy:apply`, or an update of a running backend with `wrangler deploy`. Both
+are described in [the Cloudflare operations guide](./cloudflare.md).
 
 There is no automatic deployment of the backend (Worker/D1/R2) on push, merge, tag creation, or
 GitHub Release publication — that stays a deliberate, approval-gated operator action.
@@ -46,18 +44,20 @@ A connected **website**, however, can deploy automatically on push once configur
 That automation is scoped to the website's own Cloudflare Pages project and repository — it never
 touches the backend.
 
-## Release 0.5.1 deployment boundary
+## Deployment boundary of the 0.5 line
 
-Version 0.5.1 supports **fresh deployments only**. A new installation applies the single complete
-`0001_initial.sql` baseline to a new empty D1 database. In-place upgrades, data preservation,
-backfills, and schema rollback are not supported in this release. The backend preflight rejects
-existing or ambiguous Vizoalica schema state without changing it.
+The 0.5 releases support **fresh installs only**: a new installation applies the single complete
+`0001_initial.sql` baseline to a new empty D1 database, and the install preflight rejects existing
+or ambiguous Vizoalica schema state without changing it. There is no automated upgrade,
+data-preserving migration, backfill, or schema rollback.
 
-The release uses three deployment steps: deploy the backend, configure each operator using one of
-the two credential methods, and activate each website. It does not deploy an operator's Cloudflare
-resources or alter credentials merely because a source release, tag, or GitHub Release is
-published.
+Shipping a newer Worker build to an installation that already has data is supported when the
+release leaves the schema unchanged; see
+[Update an existing backend](cloudflare.md#update-an-existing-backend). When a release does change
+the schema, its [changelog](../../CHANGELOG.md) entry has upgrade notes and a fresh install on a new
+empty database is the supported alternative.
 
-[Local validation evidence](../../specs/010-project-first-console/qa-report.md) distinguishes
-automated checks from human visual and assistive-technology review. A version bump in the checkout
-is not a published Git tag or GitHub Release.
+A source release, tag, or GitHub Release never deploys an operator's Cloudflare resources or
+alters credentials. [Local validation evidence](../../specs/010-project-first-console/qa-report.md)
+distinguishes automated checks from human visual and assistive-technology review. A version bump
+in the checkout is not a published Git tag or GitHub Release.
