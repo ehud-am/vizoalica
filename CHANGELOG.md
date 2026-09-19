@@ -16,7 +16,11 @@ All notable changes to Vizoalica are documented in this file.
   previous period of equal length, with a small trend.
 - Sources, Pages, Technology, and Traffic quality are separate Analytics views. Long lists have a
   "Show all" control, and distributions use bars with a table view instead of pie charts.
-- A Manage > Health screen showing every website's status and reachability, with the next step.
+- A Manage > Health screen showing every website's status and reachability, with the next step;
+  each website's name links to its own page.
+- **A page for each website.** It shows the website's origins, identifiers with copy controls, live
+  status, and the actions Edit, Install, and View analytics, with enable, disable, and delete
+  apart from the routine ones.
 
 ### Changed
 
@@ -27,6 +31,24 @@ All notable changes to Vizoalica are documented in this file.
 - Deleting or disabling a project or website now happens in a "danger zone" with an in-console
   confirmation that names the target (a project also asks you to type its name), replacing the
   browser's native dialog.
+- **Websites are now a list, a page per website, and separate add and edit pages.** The Websites
+  screen no longer mixes a list, two forms, and a detail pane. It lists websites as cards, each one
+  a link to that website's page. **Edit** and **Add website** are pages of their own with a back
+  link, field-level validation, Save available only when something changed, and a prompt before
+  leaving with unsaved changes. Adding a website now ends on its Install page.
+- **The Install page is rebuilt.** Instead of a "Static snippet / Dynamic configuration" radio
+  group and one long block of code, it asks how the website is deployed (GitHub → Cloudflare Pages,
+  recommended, or Paste a snippet), then shows numbered steps with one action and at most one code
+  block each. The two ways of adding settings are a toggle inside one step, variables and secrets
+  are named in a small list, the token endpoint requirement is stated, and the generic loader for
+  other hosts is in a disclosure. Each code block has its own copy control that confirms in place.
+  The step list ends with **Check now**, which reads the last 24 hours of page views and, on the
+  GitHub path, whether the configuration file is reachable. The chosen path is remembered per
+  website in the browser.
+- **Installation is no longer a separate item in the Manage navigation** (it asked which website
+  you meant). Manage is Projects, Websites, and Health; installing is done from a website. An old
+  `#/manage/installation` link opens Overview.
+- Filled buttons use a darker blue so their white text meets the 4.5:1 contrast requirement.
 - The Worker's overview response now returns up to 300 countries and up to 100 pages, sources, and
   user agents (was 10). **Redeploy the Worker to get the complete lists**; an older Worker still
   works and the console shows its top ten.
@@ -35,6 +57,8 @@ All notable changes to Vizoalica are documented in this file.
 
 - The Overview "principles" panel and the sidebar privacy note. Their text moved into the help
   popover under "Local workspace".
+- The separate Installation destination and its Static/Dynamic radio chooser (replaced by the
+  website's Install page).
 
 ## [0.5.2] - 2026-09-18
 
