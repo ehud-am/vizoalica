@@ -1,0 +1,105 @@
+name: Docs site on GitHub Pages
+
+# Builds a copy of the documentation site (docs/) that is served from this repository's GitHub Pages
+# address (https://ehud-am.github.io/vizoalica/), so the project is listed there as well as at
+# vizoalica.dev. The copy is the same content, built to live under /vizoalica/, with no analytics
+# and no consent prompt. Every page names vizoalica.dev as its canonical address. It publishes from
+# the main branch once the one-time setup in docs/operations/docs-site.md has been done; until then
+# the publish job is skipped, not failed. This workflow is separate from docs-site.yml on purpose:
+# that one holds the Cloudflare token and can never write to the repository's Pages.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'llms.txt'
+      - 'apps/admin-web/public/brand/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/docs-github-pages.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'llms.txt'
+      - 'apps/admin-web/public/brand/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/docs-github-pages.yml'
+  workflow_dispatch:
+
+# The build reads the repository and nothing else. Only the publish job is given more, and only what
+# GitHub Pages needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-github-pages-${{ github.ref }}
+  # A newer pull request run replaces an older one, but a publish in progress is never cut short.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build the GitHub Pages copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # A project site is served under the repository's name.
+      DOCS_BASE: /${{ github.event.repository.name }}/
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      - name: Install the site's locked dependencies
+        run: pnpm install --frozen-lockfile --filter @vizoalica/docs
+
+      # No analytics variables are given, so the copy has no consent prompt and loads no script
+      # beyond the site's own.
+      - name: Build the site under its path
+        run: pnpm docs:build
+
+      - name: Check that every link, image, and video resolves under the path
+        run: node docs/scripts/check-base.mjs "$DOCS_BASE"
+
+      - name: Package the site for GitHub Pages
+        if: >-
+          github.event_name != 'pull_request' &&
+          github.ref == 'refs/heads/main' &&
+          vars.VIZOALICA_GITHUB_PAGES == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs/.vitepress/dist
+
+      - name: Say whether publishing is set up
+        if: github.event_name != 'pull_request' && vars.VIZOALICA_GITHUB_PAGES != 'true'
+        run: echo "::notice title=GitHub Pages copy not published::The copy built and passed its checks, but publishing is not set up. Follow docs/operations/docs-site.md."
+
+  publish:
+    name: Publish to GitHub Pages
+    needs: build
+    # Only from the main branch of this repository, never for a pull request (so never for a fork),
+    # and only once the maintainer has turned it on.
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      vars.VIZOALICA_GITHUB_PAGES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

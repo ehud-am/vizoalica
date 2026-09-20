@@ -58,12 +58,14 @@ writeFileSync(
 
 writeFileSync(join(DIST, 'llms.txt'), toSiteLlms(readFileSync(ROOT_LLMS, 'utf8')));
 
+// The GitHub Pages copy (built with DOCS_BASE) has no sitemap: see the site config.
+const onRoot = !process.env.DOCS_BASE || process.env.DOCS_BASE === '/';
 for (const required of [
   'index.html',
   '404.html',
   '_headers',
   'robots.txt',
-  'sitemap.xml',
+  ...(onRoot ? ['sitemap.xml'] : []),
   'llms.txt',
   'og.jpg',
   'media/vizoalica-intro.mp4'

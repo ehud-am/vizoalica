@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { withBase } from 'vitepress';
 
 const video = ref<HTMLVideoElement>();
 
@@ -19,13 +20,14 @@ onMounted(() => {
       muted
       playsinline
       preload="metadata"
-      poster="/media/vizoalica-intro-poster.jpg"
+      :poster="withBase('/media/vizoalica-intro-poster.jpg')"
       aria-label="Vizoalica in 13 seconds: key messages typed over the console"
     >
-      <source src="/media/vizoalica-intro.webm" type="video/webm" />
-      <source src="/media/vizoalica-intro.mp4" type="video/mp4" />
+      <source :src="withBase('/media/vizoalica-intro.webm')" type="video/webm" />
+      <source :src="withBase('/media/vizoalica-intro.mp4')" type="video/mp4" />
       <p>
-        Your browser cannot play this video. <a href="/media/vizoalica-intro.mp4">Download it</a>.
+        Your browser cannot play this video.
+        <a :href="withBase('/media/vizoalica-intro.mp4')">Download it</a>.
       </p>
     </video>
     <figcaption>

@@ -4,6 +4,17 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Get involved.** A community page on vizoalica.dev, a "Get involved" section in the README, and a
+  rewritten contributing guide invite ideas, questions, bug reports, and contributions, with GitHub
+  Discussions and Issues as the place for them. Issue forms for bugs, feature requests, and
+  documentation problems, a code of conduct, and a support guide.
+- **A copy of the documentation site on GitHub Pages** (`https://ehud-am.github.io/vizoalica/`),
+  built from the same files, with every page naming vizoalica.dev as its canonical address. It has
+  its own workflow, with no secrets, and is off until the maintainer turns it on
+  ([Publishing this site](docs/operations/docs-site.md#a-copy-on-github-pages)).
+
 ## [0.5.3] - 2026-09-19
 
 ### Added

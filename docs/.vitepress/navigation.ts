@@ -42,6 +42,7 @@ export const sidebar: NavGroup[] = [
   {
     text: 'Project',
     items: [
+      { text: 'Get involved', link: '/community' },
       { text: 'Self-hosted releases', link: '/operations/releases' },
       { text: 'Public repository readiness', link: '/operations/public-release' },
       { text: 'Publishing this site', link: '/operations/docs-site' },
@@ -67,6 +68,7 @@ export const nav = [
   { text: 'Tour', link: '/tour' },
   { text: 'Docs', link: '/operations/cloudflare' },
   { text: 'Privacy', link: '/operations/privacy' },
+  { text: 'Get involved', link: '/community' },
   { text: 'Releases', link: '/releases/v0.5.3' }
 ];
 

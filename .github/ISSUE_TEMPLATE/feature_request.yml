@@ -1,0 +1,40 @@
+name: Feature request
+description: A specific change that would make Vizoalica more useful. For a rough idea, start a Discussion instead.
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vizoalica aims to stay **privacy-minimal, self-hostable, and easy to audit**. A request that fits those goals is much easier to accept. Not sure it does, or still forming the idea? Start in [Discussions](https://github.com/ehud-am/vizoalica/discussions/categories/ideas) and turn it into an issue together.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem or the job, before the solution. Who is it for?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today, or what else did you consider?
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy and cost
+      description: Would this collect anything new about visitors, or use more of the Cloudflare account (D1 rows, R2 storage, Worker requests)?
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to build it?
+      options:
+        - 'Yes, I would like to send a pull request'
+        - 'Yes, with some guidance'
+        - 'No, I am suggesting it'
+    validations:
+      required: true

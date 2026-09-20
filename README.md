@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/website-vizoalica.dev-168bff)](https://vizoalica.dev)
+[![Discussions](https://img.shields.io/badge/discussions-join%20in-8250df)](https://github.com/ehud-am/vizoalica/discussions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
 
@@ -297,6 +298,21 @@ Open standards in use: [CloudEvents](https://cloudevents.io/) envelopes and batc
 [JSON Schema](https://json-schema.org/) validation, short-lived JWT/JOSE-compatible ingest
 tokens, and an explicit consent state on every event.
 
+## Get involved
+
+Vizoalica is built in the open, and it gets better when the people who run it help shape it. You
+do not need to write code.
+
+- **Share an idea, or ask a question:** [start a discussion](https://github.com/ehud-am/vizoalica/discussions). What would make Vizoalica more useful to you?
+- **Something broke or was confusing:** [open an issue](https://github.com/ehud-am/vizoalica/issues/new/choose). A bug report, a docs problem, or a specific request.
+- **Show how you run it:** post in [Show and tell](https://github.com/ehud-am/vizoalica/discussions/categories/show-and-tell).
+- **Help build it:** pick a [`good first issue`](https://github.com/ehud-am/vizoalica/labels/good%20first%20issue) or a [`help wanted`](https://github.com/ehud-am/vizoalica/labels/help%20wanted) issue, or fix a page with the **Edit this page on GitHub** link on [vizoalica.dev](https://vizoalica.dev/community).
+
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose a bigger change and what the project
+holds to (privacy-minimal, self-hosted, easy to audit). Everyone taking part follows the
+[code of conduct](CODE_OF_CONDUCT.md), and [SUPPORT.md](SUPPORT.md) says where each kind of question
+goes.
+
 ## Documentation
 
 | Topic                                                  | Guide                                                                                          |
@@ -314,6 +330,7 @@ tokens, and an explicit consent state on every event.
 | Publishing the documentation site (vizoalica.dev)      | [Publishing this site](docs/operations/docs-site.md)                                           |
 | Something failed                                       | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
 | Publishing a release, and making the repository public | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |
+| Getting involved, and where to ask                     | [Get involved](docs/community.md), [Support](SUPPORT.md)                                       |
 | Vulnerability reports, contributing, brand             | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |
 
 Vizoalica is released under the [MIT License](LICENSE).

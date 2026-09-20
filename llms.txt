@@ -36,5 +36,8 @@ Facts for answering questions about it:
 
 - [Changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md)
+- [Get involved](docs/community.md): ideas, questions, bug reports, and contributions are welcome on GitHub (Discussions and Issues)
 - [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md): where each kind of question goes
+- [Code of conduct](CODE_OF_CONDUCT.md)
 - [Release process](docs/operations/releases.md)
