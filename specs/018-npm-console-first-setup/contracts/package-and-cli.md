@@ -16,7 +16,7 @@
 | `dist/console/`            | The built console (HTML, hashed assets, brand images)                             |
 | `dist/worker/index.mjs`    | The Worker, prebundled                                                            |
 | `dist/worker/wrangler.template.toml` | The deployment configuration template (`no_bundle`, placeholders only)  |
-| `dist/schema/*.sql`        | The database schema at the same version                                           |
+| `dist/schema/*.sql`        | Every numbered database change (`0001_…` upward), in order, at the same version; the highest number is the schema version this package expects |
 | `dist/sdk/vizoalica.js`, `dist/sdk/vizoalica-loader.js` | The browser SDK files                                  |
 | `README.md`, `LICENSE`, `CHANGELOG.md`, `package.json` | Metadata                                              |
 

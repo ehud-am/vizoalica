@@ -21,11 +21,16 @@ The approach, with rationale in [research.md](./research.md):
 - **First run and journey.** The console asks at most three questions, derives the four setup stages from the
   live backend, and shows any control that cannot work yet as unavailable with a reason and a next step, sending
   nothing. (R10, R11)
-- **Roles enforced by the backend.** A new `access_keys` table and a route allowlist give analysts and website
-  owners read-only, scoped keys; the console builds each role's experience from what `whoami` reports.
-  (R4, R5, R6)
+- **Three roles, enforced by the backend.** Admin does everything; an analyst reads analytics and configuration and
+  changes nothing; a website owner also manages projects and websites within a scope but cannot change the
+  backend. A new `access_keys` table (role and scope) and a per-role route allowlist enforce this; the console
+  builds each role's experience from what `whoami` reports. (R4, R5, R6, R23)
 - **Deploy from the console.** A step engine (plan, approve, run, resume, cleanup, secrets shown once) drives a
   pinned Wrangler fetched on demand, replacing `vizoalica install`. (R7, R8, R9, R13)
+- **Versions and updates.** The database gets numbered, additive, forward-only migrations and the Worker and
+  database report their versions. The console shows the three versions to every role and lets an admin update the
+  database and then the Worker with a plan, a backup, and verification. This **ends the fresh-install-only
+  rule** that has applied since 0.5. (R21, R22)
 - **Footer.** Brand, tagline, two link columns, and a bottom line, on every screen. (R15)
 
 ### Delivery in two releases (recommended)
@@ -35,21 +40,26 @@ The request is larger than a patch. The tasks are ordered so the first slice is 
 - **0.6.3**: footer, npm package, console-first start, first run, journey and availability, connect to an
   existing backend, existing setups recognized. **No backend or schema change.** `vizoalica install` still
   works, so there is never a period without an easy way to deploy.
-- **0.6.4**: read-only keys and roles, console deployment and the backend screen, retiring `install`, and the
-  npm publish workflow going live. This one changes the schema, so it is fresh-install-only, and the
-  maintainer's database gets the `CREATE TABLE` by hand (as for actions).
+- **0.6.4**: migrations and version reporting, access keys and the three roles, console deployment and
+  updates, the backend screen, retiring `install`, and the npm publish workflow going live. This one changes the
+  schema through the **first numbered migration** (`0002`), which the console itself applies to the maintainer's
+  database (with a backup first), so no by-hand SQL is needed.
 
 ### Decisions for owner review
 
 1. **Release split** as above; shipping everything at once is possible but a bigger, riskier patch (R18).
 2. **Wrangler is fetched on demand and pinned**, not bundled, so the install stays small for analysts and
    owners; the cost is a first-deploy download and reliance on npm at that moment (R7).
-3. **Read-only keys live in D1**, per key, scoped to a project or website, revocable (R5). A schema addition.
-4. **Website owners also get a read-only key** (limited to their website), so the "has data arrived" check
-   works without an unauthenticated endpoint; the shared token-signing secret remains a known limit (R6).
-5. **The root package is renamed `vizoalica-workspace`** so the published package can be named `vizoalica`;
+3. **Access keys live in D1**, per key, with a role (analyst or owner) and a scope (everything, one project, or one
+   website), revocable (R5). A schema addition, delivered as migration `0002`.
+4. **Website owners manage projects and websites** (including deleting them) within their scope, and can never
+   change the backend. Deleting is part of managing here; say so if you want owners kept from deleting (R6, R23).
+   The shared token-signing secret remains a known limit.
+5. **Schema changes become updatable** and additive within a release line, so a failed Worker step leaves the old
+   Worker working; the oldest updatable schema is the 0.5.2 one (R21).
+6. **The root package is renamed `vizoalica-workspace`** so the published package can be named `vizoalica`;
    contributors' `pnpm vizoalica` script is unchanged (R1).
-6. **Publishing is the owner's first action**: npm account, two-factor authentication, name claim; the
+7. **Publishing is the owner's first action**: npm account, two-factor authentication, name claim; the
    workflow is skipped until `VIZOALICA_NPM_PUBLISH` is set (R14).
 
 ## Technical Context
@@ -60,7 +70,7 @@ The request is larger than a patch. The tasks are ordered so the first slice is 
 Vitest and Playwright with axe (tests). New at run time for the package: none. New at deploy time only: a
 pinned Wrangler fetched through `npm exec`. New workspace packages: `apps/cli`, `packages/ops-core`.
 
-**Storage**: Cloudflare D1: one new table `access_keys` in the `0001_initial.sql` baseline. Local files under
+**Storage**: Cloudflare D1: migration `0002_access_keys.sql` adds `access_keys` (with role and scope) and an `actor` column on the audit table, and adopts the action tables; applied versions are read from `d1_migrations`. Local files under
 `~/.config/vizoalica/` (existing connection file, mode 0600; new `deployments/` run records without secrets).
 
 **Testing**: Vitest 4 (unit, contract, integration; jsdom for console; real SQLite for the Worker; a fake
@@ -74,11 +84,11 @@ backend); modern browsers (the console).
 
 **Performance Goals**: Install to running console in under two minutes (SC-001); console start under five
 seconds; deploy from the console under ten minutes on a real account (SC-002, dominated by Cloudflare);
-reader requests cost one extra indexed D1 read for the key lookup.
+key-holder requests cost one extra indexed D1 read for the key lookup.
 
 **Constraints**: The console makes no request about the user (no telemetry, no update check); no secret in the
-tarball, logs, run records, or screens after one view; the listener is loopback only; a reader key can never
-write; the tarball is an allowlist; existing setups (file and OneCLI modes) keep working; the maintainer's
+tarball, logs, run records, or screens after one view; the listener is loopback only; an analyst key can never
+write and an owner key can never touch the backend; the tarball is an allowlist; existing setups (file and OneCLI modes) keep working; the maintainer's
 0.6.2 backend keeps working with the new console.
 
 **Scale/Scope**: About 25 source files changed and 40 added across the console, local service, Worker, CLI, and
@@ -93,12 +103,12 @@ CI, plus about 15 documentation files. Up to 200 active access keys per backend.
 | **I. Privacy-minimal analytics** | Pass | No new visitor data. The console makes no request about the user (FR-010). Keys are stored as hashes; secrets are shown once and never logged. |
 | **II. Security, privacy, abuse resistance** | Pass, with new negative tests | A new credential type: 256-bit secrets, hashed at rest, looked up by id, compared in constant time, scoped on every route, revocable, audited. An authorization matrix test covers every admin route with every principal. Static serving refuses traversal and non-GET; strict CSP; loopback only; deployment inputs validated; Wrangler spawned without a shell (R17). |
 | **III. Open source, portable interoperability** | Pass | Standard npm distribution with provenance and an allowlisted tarball; MIT; contracts documented. No provider-specific behavior added. |
-| **IV. Minimal infrastructure, AI-assisted deployment** | Pass, one point to watch | No new service. The console deploy shows a reviewable plan, needs approval, is resumable, produces an auditable record, requests only the sign-in it needs (and accepts a least-privilege API token), and verifies the result. The approval-gated agent lane (`deploy:plan/apply`) is untouched, so agent-operable deployment remains. Retiring `install` only in the slice that ships console deployment. |
+| **IV. Minimal infrastructure, AI-assisted deployment** | Pass, two points to watch | No new service. The console deploy shows a reviewable plan, needs approval, is resumable, produces an auditable record, requests only the sign-in it needs (and accepts a least-privilege API token), and verifies the result. The approval-gated agent lane (`deploy:plan/apply`) is untouched, so agent-operable deployment remains. Retiring `install` only in the slice that ships console deployment. Updates follow the same rules (plan, approval, backup, ordered and additive steps, verification, record), and a rollback is restoring the backup or redeploying the previous Worker, which works against the newer additive schema. |
 | **V. Human-readable, AI-ready engineering** | Pass | Small modules (connection store, setup state, static server, deploy engine, key auth, availability); shared helpers move to `packages/ops-core` instead of being copied; contracts precede code. |
 | **Accessible product experience** | Pass, verified by tests | First run, journey, deploy wizard, keys, and footer get axe scans in both themes, keyboard-only flows, announced state changes, and reasons that never rely on color. Manual assistive-technology pass remains an open item, as for 0.6.0. |
 | **SDK never blocks the host** | Pass | The SDK is unchanged. |
-| **Filtering and limits before persistence; bounded reads** | Pass | Reader routes are the existing bounded reports; key lookup is a primary-key read. |
-| **Versioned contracts, additive history** | Pass | New routes only; existing routes unchanged for the operator. |
+| **Filtering and limits before persistence; bounded reads** | Pass | Key-holder routes are the existing bounded reports; key lookup is a primary-key read. |
+| **Versioned contracts, additive history** | Pass | New routes only; existing routes unchanged for the admin. |
 | **Testing and release gates** | Pass | Unit, integration, contract, e2e, negative, and package tests planned; coverage stays above 90%; release-time alignment review, QA report, and go/no-go stay release activities. |
 
 No violations. Complexity Tracking lists the deliberate additions for transparency.
@@ -145,7 +155,8 @@ apps/
 │   ├── server.ts, config.ts, cli.ts     unconfigured start, switchable client, new routes
 │   └── tests/
 ├── ingest-worker/src/
-│   ├── auth/access-keys.ts, auth/principal.ts   (new) key parsing, hashing, resolution
+│   ├── auth/access-keys.ts, auth/principal.ts   (new) key parsing, hashing, role and scope resolution
+│   ├── schema-version.ts                (new) applied and expected schema versions, backend health
 │   ├── http/admin-adapter.ts            whoami, key routes, route allowlist and scope forcing
 │   ├── storage/d1-repositories.ts       key storage methods; purge lists gain the table
 │   ├── version.ts                       (new) build-time version
@@ -169,7 +180,7 @@ scripts/
 └── vizoalica.ts                         install retired (0.6.4); console uses the packaged entry
 
 deploy/cloudflare/
-├── migrations/0001_initial.sql          access_keys table (0.6.4)
+├── migrations/0002_access_keys.sql      (new) access_keys, audit actor column, action tables IF NOT EXISTS
 └── wrangler.example.toml                unchanged (the package template is derived from it)
 
 .github/workflows/ci.yml                 package check on every pull request
@@ -192,16 +203,20 @@ gains a setup layer above them.
 1. Footer.
 2. `apps/cli` package skeleton, build and tarball check, CI job.
 3. Local service: connection store, unconfigured start, static console, `whoami`-tolerant connect, setup state.
-4. Console: setup provider, first run (operator paths that connect), journey, availability gating, settings.
+4. Console: setup provider, first run (admin paths that connect), journey, availability gating, settings.
 5. Existing-setup detection, `console` command in packaged mode (file and OneCLI), documentation for the npm path.
 
 **Slice 2 (0.6.4), schema and Worker change**
 
 6. `packages/ops-core` extraction.
-7. Worker access keys: schema, key auth, `whoami`, routes and matrix, tests, purge lists.
-8. Roles in the console (analyst, owner), keys screen, share, SDK download, compatibility display.
-9. Console deployment: engine, routes, wizard, backend screen (rotate, purge, demo), cleanup and resume.
-10. Retire `install`, publish workflow, documentation sweep, release notes and upgrade notes.
+7. Numbered migrations and version reporting: `0002`, the additive-migration checks, the applied and expected
+   schema versions, `GET /v1/admin/backend`, and `whoami`.
+8. Worker access keys with roles and scopes: key auth, the per-role route matrix (analyst reads, owner writes in
+   scope), audit actor, tests, purge lists.
+9. Roles in the console (analyst, owner), the keys screen, sharing, SDK download, and the versions panel.
+10. Console deployment and updates: the engine (first install and `update-backend` with backup and migrations),
+    routes, the wizard, and the backend screen (rotate, purge, demo).
+11. Retire `install`, publish workflow, documentation sweep, release notes and upgrade notes.
 
 **Polish**: gates, package check, accessibility and usability pass, quickstart, QA report, live rollout for the
 maintainer (Worker redeploy and the table by hand).
@@ -216,3 +231,4 @@ Not violations of the constitution; listed so the added moving parts are explici
 | `packages/ops-core` | The CLI and the console deploy engine need the same parsers, name rules, and secret generation | Copying them would let the two flows drift on security-relevant rules |
 | `access_keys` table and a route allowlist | Roles must be enforced by the backend, with per-person revoke and scope | One shared read secret cannot revoke one person or scope a website owner |
 | Wrangler fetched on demand | Keeps the install small for roles that never deploy | Bundling adds about 140 MB for everyone |
+| Numbered, additive migrations and version reporting | Updating the database from the console needs to know what is applied and what is pending, and a failed Worker step must not break the running backend | Editing one baseline file in place forces a fresh install for every schema change, which is what this feature removes |

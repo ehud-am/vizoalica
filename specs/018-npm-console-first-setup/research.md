@@ -48,7 +48,7 @@ today there is no console at all before a backend exists.
 with whatever the store holds (nothing on first run), exposes `GET /api/setup/state`, and changes its
 Worker client when a connection is verified and saved. The file is the existing
 `~/.config/vizoalica/local-operations.json` (mode 0600, atomic replace), which now holds either
-`VIZOALICA_ADMIN_SECRET` (operator) or `VIZOALICA_READ_KEY` (analyst, owner), never both. OneCLI mode is
+`VIZOALICA_ADMIN_SECRET` (admin) or `VIZOALICA_READ_KEY` (analyst, owner), never both. OneCLI mode is
 unchanged: the placeholder in the file, the wrapper process, no secret on disk.
 
 **Why.** It keeps the file format and permissions checks the maintainer's installation already uses (FR-014).
@@ -56,51 +56,50 @@ unchanged: the placeholder in the file, the wrapper process, no secret on disk.
 ## R4. The backend decides the role, not the person
 
 **Decision.** After any credential is saved, the service calls `GET /v1/admin/whoami` and the response
-(`operator` or `reader`, with scope and Worker version) is the role. The first-run question only chooses
+(`admin`, `analyst`, or `owner`, with scope and Worker version) is the role. The first-run question only chooses
 which credential to ask for; it grants nothing. The console builds its navigation and controls from the
-reported role, so a reader key entered under "operator" simply produces the reader experience, and an
-administrator secret entered under "analyst" is recognized and treated as the operator it is (with a notice).
+reported role, so an analyst key entered under "admin" simply produces the analyst experience, and an
+administrator secret entered under "analyst" is recognized and treated as the admin it is (with a notice).
 
 **Why.** A role chosen by the user would be cosmetic. Deriving it from the credential makes the console
 match what the backend will actually allow (FR-015).
 
-## R5. Read-only access keys stored in D1
+## R5. Access keys with a role and a scope, stored in D1 (revised 2026-09-22)
 
 **Finding.** The Worker compares one bearer token to `VIZOALICA_ADMIN_SECRET` in constant time for every
-`/v1/admin/*` route and for the MCP adapter. There is nothing to scope, list, or revoke.
+`/v1/admin/*` route and for the MCP adapter. There is nothing to scope, list, or revoke, and no way to let
+someone manage websites without also letting them change everything.
 
-**Decision.** A new table `access_keys` (id, label, secret hash, optional project and website scope,
-created and revoked times) and a key format `vzk_<id>_<secret>` with a 256-bit random secret. Only a
-SHA-256 hash of the secret is stored; the id is looked up by primary key and the hash compared in
-constant time. Bearer resolution becomes: the administrator secret first (unchanged path), otherwise a
-key. A **route allowlist** gives keys read access only to: project list, website list and detail, website
-status, snippet, and the analytics overview and actions reports, all forced into the key's scope. Every
-other route (all writes, purge, key management, the MCP adapter) refuses a key with 403. Issuing,
-listing, and revoking keys are administrator-only and audited (no secret values). Deleting a project or
-website removes the keys scoped to it.
+**Decision.** A table `access_keys` (id, label, **role** `analyst` or `owner`, secret hash, optional project and
+website scope, created and revoked times) and a key format `vzk_<id>_<secret>` with a 256-bit random secret.
+Only a SHA-256 hash of the secret is stored; the id is looked up by primary key and the hash compared in
+constant time. Bearer resolution: the administrator secret first (unchanged path, role **admin**), otherwise
+a key (role from the row). A **route allowlist per role** (contract) gives an analyst reads of analytics and
+configuration, and an owner those reads plus writes on projects and websites within scope. Every other route
+(backend-level routes, purge, key management, the MCP adapter) refuses a key with 403. Issuing, listing, and
+revoking keys are admin-only and audited (no secret values). Deleting a project or website removes the keys
+scoped to it.
 
-**Why per-key rather than one shared read secret.** Per-key gives revocation of one person, an audit
-trail, and project or website scope, which the owner role needs. A key is high-entropy, so a fast hash is
-correct and a lookup by id avoids scanning.
+**Scope decides what a holder can create.** Scope everything: projects and websites. Scope one project:
+websites in it, and it can edit, enable, disable, and delete the project and its websites. Scope one website:
+that website only (edit, enable, disable, delete), nothing new.
 
-**Rejected.** A single `VIZOALICA_READ_SECRET` (no per-person revoke, no scope); signed tokens (would
-need a signing secret shared with the reader, the exact problem the owner role must avoid); Cloudflare
-Access in front of the Worker (external product, not portable).
+**Why per-key rather than one shared secret per role.** Per-key gives revocation of one person, an audit trail,
+and scope. A key is high-entropy, so a fast hash is correct and a lookup by id avoids scanning.
 
-**Schema and existing installs.** This is a schema addition to the `0001` baseline, so it follows the 0.5
-and 0.6 fresh-install-only rule, and the maintainer's live database gets the `CREATE TABLE` by hand (as
-for actions). A Worker without the table still serves the administrator as before, and the key routes
-answer `501 access_keys_unavailable` with the fix, instead of failing.
+**Rejected.** Shared read and manage secrets (no per-person revoke, no scope); signed tokens (would need a
+signing secret shared with the holder); Cloudflare Access in front of the Worker (external, not portable).
 
-## R6. The website owner
+## R6. The website owner (revised 2026-09-22)
 
-**Decision.** The owner uses a key scoped to one website (R5), plus the setup details from the operator's
-"Share setup" action: the ingestion address, public source key, project id, allowed origins, consent
-guidance, and installation steps. The console's owner experience shows the website's install guidance,
-status, and the "has data arrived" check, and offers the SDK file, which the package now ships and the
-service serves at `/api/sdk/vizoalica.js` and `/api/sdk/vizoalica-loader.js` (previously built from a
-checkout). The website's token signing secret still reaches the website's token service by the existing
-documented step and is never part of the shared details.
+**Decision.** An owner uses an `owner` key (R5) and the setup details from the admin's "Share setup" action:
+the ingestion address and, for a website, its public source key, project id, allowed origins, consent guidance,
+and installation steps. The owner can create and manage projects and websites within scope, sees the
+installation steps and status, gets the SDK file (which the package now ships and the service serves at
+`/api/sdk/vizoalica.js` and `/api/sdk/vizoalica-loader.js`), and runs the "has data arrived" check. The owner
+cannot change the backend: the Worker, the database, secrets, purging, sample data, and keys are refused by the
+backend. A website the owner creates still needs its token signing secret on its own token service, which the
+admin provides through the existing documented step; the owner never sees it.
 
 **Known limit (carried from the spec).** The signing secret is shared across websites, so whoever holds it
 could mint tokens for another website. Per-website signing keys are a separate specification.
@@ -108,13 +107,13 @@ could mint tokens for another website. Per-website signing keys are a separate s
 ## R7. Wrangler on demand, pinned
 
 **Finding.** Measured in this repository: `wrangler` 15 MB plus its `workerd` binary 127 MB on disk. Only an
-operator deploying needs it; analysts and owners never do.
+admin deploying needs it; analysts and owners never do.
 
-**Decision.** The package does not depend on Wrangler. When an operator first deploys, the service runs
+**Decision.** The package does not depend on Wrangler. When an admin first deploys, the service runs
 `npm exec --yes --package=wrangler@<pinned> -- wrangler …` (npm ships with Node). The version is one
 constant, checked by a test against the version this repository develops with, so upgrades move together.
 `VIZOALICA_WRANGLER` overrides the command (tests, offline machines), and an inherited
-`CLOUDFLARE_API_TOKEN` is passed through, so an operator may use a least-privilege API token instead of the
+`CLOUDFLARE_API_TOKEN` is passed through, so an admin may use a least-privilege API token instead of the
 browser sign-in.
 
 **Why.** The install stays small and fast for everyone, and the heavy download happens once, only for the
@@ -127,7 +126,7 @@ unpinned tool touching the account); vendoring Wrangler (a large, fast-moving ta
 
 **Decision.** The build bundles the Worker with esbuild to `worker/index.mjs`, copies the schema, and
 embeds a Wrangler configuration template with `no_bundle`. At deploy time the service renders the
-configuration into the operator's own directory (`~/.config/vizoalica/deploy/<worker>/`), never into the
+configuration into the admin's own directory (`~/.config/vizoalica/deploy/<worker>/`), never into the
 package directory, and Wrangler deploys the prebundled file. A build test runs `wrangler deploy --dry-run`
 on it, and the Worker's version is baked in for the compatibility check.
 
@@ -161,25 +160,27 @@ to avoid).
 **Decision.** `GET /api/setup/state` returns the four stages (console running, backend connected, website
 configured, data arriving), the connection, the principal, and the backend compatibility, derived from the
 live backend on every call and never stored. Stage three is done when the principal can see at least one
-website; stage four when any visible website reports accepted data. For readers the same derivation runs
+website; stage four when any visible website reports accepted data. For analysts and owners the same derivation runs
 on what their key can see.
 
 ## R11. Availability, not hiding
 
 **Decision.** One function `availability(role, stage, capabilityId)` returns `{ available, reason, next }`.
 Controls that exist but cannot work now render as `aria-disabled` with the reason as description text and a
-link to the next step, and send nothing. Controls a role can never use (for example key management for an
-analyst) are absent, not disabled. The existing capability matrix (`view`, `operate`, `administer`) gains
+link to the next step, and send nothing. On a screen a role can see, a control it cannot use is shown
+unavailable with the role's reason ("Your access is read-only." for an analyst, "Only an admin can change the
+backend." for an owner); screens a role can never use (the deployment wizard, the access keys screen) are absent. The existing capability matrix (`view`, `operate`, `administer`) gains
 the backend actions, and the existing tests that walk every screen for state-changing controls are extended
 to run for each role and stage.
 
-## R12. Compatibility with the maintainer's running backend
+## R12. Versions, and the maintainer's running backend
 
-**Decision.** The console reads the Worker version from `whoami` and compares major and minor: equal is
-compatible, an older backend gets "update the backend" (and, where the release is fresh-install-only, says
-so), a newer backend gets "update the console". A backend that predates `whoami` (404) is treated as an
-older-but-working operator backend (the administrator secret still lists projects), with key management
-unavailable until it is updated. So the live 0.6.2 backend keeps working with the new console.
+**Decision.** The console compares three versions. Console and Worker are compatible when major and minor match
+(equal is compatible; an older Worker gets "update the backend"; a newer one gets "update the console"). The
+database schema must be at least the version the Worker expects. A backend that predates version reporting
+(`404` from the version routes) is treated as an older-but-working admin backend (the administrator secret
+still lists projects), with its versions shown as unknown and the update offered, so the live 0.6.2 backend
+keeps working with the new console and can be updated from it.
 
 ## R13. Retiring `install`, keeping the rest
 
@@ -219,7 +220,7 @@ says Vizoalica is source-only (`llms.txt`) is corrected.
 **Decision.** Static serving: resolve paths against the console directory and reject anything that leaves
 it, reject non-GET methods, no directory listing, `nosniff`, strict CSP (`default-src 'self'`, no inline
 script), loopback `Host` only. Local API: every new route requires the session cookie and the origin
-allowlist; deployment and key routes additionally require the operator principal (checked locally as
+allowlist; deployment and key routes additionally require the admin principal (checked locally as
 defense in depth, and by the Worker as the authority); deployment inputs are validated (resource names,
 account ids); Wrangler is spawned without a shell with argument arrays; logs never include secrets. Worker:
 keys are hashed, compared in constant time, scoped on every route, and each admin route is covered by a
@@ -229,13 +230,14 @@ negative test with a key.
 
 **Decision.** Recommend two releases, because the request is larger than a patch: **0.6.3** (footer, npm
 package, console-first start, first run, journey and availability, connect to an existing backend, existing
-setups recognized; no backend change) and **0.6.4** (read-only keys and roles, console deployment and the
-backend screen, retiring `install`, the publish workflow going live). The task list is ordered so the first
+setups recognized; no backend change) and **0.6.4** (versioned, updatable database and Worker, access keys and
+the three roles, console deployment and updates, the backend screen, retiring `install`, the publish workflow
+going live). The task list is ordered so the first
 slice is complete and shippable on its own.
 
 ## R19. Test strategy
 
-- **Worker**: authorization matrix (every admin route against admin, reader, revoked, and bad keys),
+- **Worker**: authorization matrix (every admin route against admin, analyst, owner, revoked, and bad keys),
   scope forcing, hashing, table-missing behavior, on the real schema through `worker.fetch`.
 - **Local service**: connection store, setup state, connect and disconnect, static serving and traversal,
   deploy engine against a fake Wrangler (steps, resume, existing resources, failure, cleanup, secrets once).
@@ -250,3 +252,64 @@ slice is complete and shippable on its own.
 Per-website signing keys; user accounts and logins; automatic update checks (no telemetry); Windows;
 a non-interactive console-free deploy (the approval-gated lane covers automation); Homebrew or a native
 app; multi-backend switching; changing what the SDK collects.
+
+## R21. Schema versions and migrations (2026-09-22; ends fresh-install-only)
+
+**Finding.** Until now the schema was one file, `0001_initial.sql`, edited in place, and every release that
+touched it required a fresh install (0.5 and 0.6 lines). Wrangler already records applied migrations by name in
+a `d1_migrations` table on any database created with `d1 migrations apply`, which is how every supported
+install path creates it.
+
+**Decision.** Database changes become numbered, forward-only files in `deploy/cloudflare/migrations/`.
+`0001_initial.sql` stays exactly as shipped (it already contains the two action tables from 0.6.0). The next
+change is `0002_access_keys.sql`, which creates `access_keys` and also creates the two action tables with
+`IF NOT EXISTS`, so a database from 0.5.2 (which lacks them) and one where they were added by hand both end
+in the same state as a fresh install. The **applied version** is the highest number in `d1_migrations`,
+read by the Worker; the **expected version** is the highest number in the migrations the Worker was built with,
+baked in at build time. A database with no `d1_migrations` table reports unknown.
+
+**Rules, enforced by tests.** Within a release line every change is additive: only `CREATE TABLE`, `CREATE
+INDEX`, and `ALTER TABLE … ADD COLUMN` (all guarded by `IF NOT EXISTS` where SQLite allows) and `INSERT OR
+IGNORE`; anything with `DROP`, `RENAME`, `DELETE`, or `UPDATE` needs an explicit annotation, a line in the
+release notes, a shown plan, and a confirmed backup. A test applies the migrations to (a) an empty database
+and (b) a fixture of the 0.5.2 schema and asserts identical schemas, and another asserts adoption of a database
+with hand-added objects. The oldest supported starting point is the 0.5.2 schema (databases from 0.5.1 or
+earlier need a fresh install).
+
+**Why additive.** The Worker is deployed after the database, and a failed Worker step must leave the previous
+Worker working against a newer database, so the two never need to change at the same instant.
+
+**Rejected.** A separate `schema_meta` version table (a second source of truth that can disagree with the
+recorded migrations); comparing table lists (cannot tell what is missing or in what order); keeping
+fresh-install-only (blocks upgrades, which the owner wants removed).
+
+## R22. The update flow
+
+**Decision.** An update is a deployment-engine run (R9) with these steps: prepare tool, check sign-in, read
+versions (Worker `GET /v1/admin/backend`), plan, **backup** (`wrangler d1 export --remote` to
+`~/.config/vizoalica/backups/<database>-<timestamp>.sql`, mode 0600, path reported), **migrate** (`wrangler d1
+migrations apply <database> --remote` with the packaged migrations directory in the rendered configuration),
+**deploy Worker** (the prebundled Worker, R8), **verify** (health, both versions now match, administrator
+access), **record**. Only what is behind runs: if the schema is current the migrate step is skipped, and if the
+Worker is current the deploy step is. Migrations apply one at a time, each in a transaction, and the
+`d1_migrations` records make a resumed run skip finished ones. Declining the backup needs an explicit
+confirmation and is recorded; a backup that cannot be taken (for example a database too large to export)
+stops the flow until the admin chooses. The console never downgrades: a newer Worker or schema than the
+package carries is reported and the update is refused. Event collection continues because migrations are
+additive and a Worker deploy switches versions atomically; a rehearsal test posts events in a loop during an
+update and counts them (SC-013).
+
+**Rejected.** Migrating after the Worker (a new Worker could meet a missing table); a downgrade path
+(restoring a backup is the documented rollback); an "update everything" that reruns finished steps.
+
+## R23. Roles and capability classes (2026-09-22)
+
+**Decision.** Three roles named admin, analyst, and website owner; the role is what the backend reports for the
+credential (R4). Capability classes become `view` (analytics and configuration reads), `operate` (creating and
+managing projects and websites, including enabling, disabling, and deleting them), and `backend` (deploying and
+updating the Worker and database, secrets, purging, sample data, and access keys). The existing
+`administer` class is renamed `backend`, and `delete-website` and `delete-project` move to `operate`. The
+analyst holds `view`; the owner holds `view` and `operate` within scope; the admin holds all three. Connecting
+to a backend is not a capability: every role does it on first run with its own credential. New Worker routes:
+`GET /v1/admin/backend` (versions and health, readable by every role) beside `whoami`. The MCP adapter and
+every backend-level route are admin-only.

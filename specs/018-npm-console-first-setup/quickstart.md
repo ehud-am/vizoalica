@@ -66,9 +66,12 @@ pnpm vitest run apps/ingest-worker -t "access key"
 ```
 
 **Expect:** for every admin route the matrix in [contracts/worker-access-keys.md](./contracts/worker-access-keys.md)
-holds with an administrator secret, an active key, a revoked key, a key for another project or website, and a
-malformed key; reader reads succeed only inside scope; every write is refused; stored keys are hashes; a
-Worker without the table still serves the administrator.
+holds for an administrator secret, an analyst key, owner keys with each scope (everything, one project, one
+website), a revoked key, a key for another project or website, and a malformed key. Analysts read analytics and
+configuration and change nothing; owners manage projects and websites only inside scope (creating projects only with
+scope everything, websites only with scope everything or that project) and are refused every backend-level route
+and the automation interface; out-of-scope resources are not found; stored keys are hashes; owner writes are
+audited with the key id; a Worker without the table still serves the administrator.
 
 ## 6. Deploying from the console, against a fake Wrangler (Story 5, SC-002, SC-007)
 
@@ -81,7 +84,23 @@ with what exists; a resumed run repeats nothing; a resource the run did not crea
 needs confirmation and removes only what the run created; secrets are revealed once and then gone; no secret
 is in a log, a run record, or a saved file other than the 0600 connection file.
 
-## 7. Existing setups keep working (Story 8, SC-009)
+## 7. Versions and updates (Story 9, SC-012, SC-013, SC-014)
+
+```sh
+pnpm vitest run apps/ingest-worker apps/local-ops-api apps/cli -t "schema|migration|update"
+pnpm --filter @vizoalica/admin-web test:e2e -- --grep "versions|update"
+```
+
+**Expect:** migrations `0001` to `0002` applied to an empty database and to a fixture of the 0.5.2 schema give
+identical schemas; a database with hand-added tables is adopted; a migration file with a destructive statement
+and no annotation fails the check; the Worker reports its version and the applied and expected schema versions;
+the console shows the three versions with the right status for a current, a one-release-behind, a newer, an
+unknown, and an unsupported backend, to every role; an update run against a fake Wrangler shows the plan first,
+takes the backup before migrating, migrates before deploying the Worker, skips what is current, stops on a failed
+step and resumes without repeating, refuses a downgrade, and records what changed; a probe posting events during
+the update loses none.
+
+## 8. Existing setups keep working (Story 8, SC-009)
 
 ```sh
 pnpm vitest run apps/local-ops-api apps/deploy-cli -t "existing setup|retired"
@@ -90,17 +109,18 @@ pnpm vitest run apps/local-ops-api apps/deploy-cli -t "existing setup|retired"
 **Expect:** a saved file-mode connection and a saved OneCLI-mode connection are recognized with no first-run
 questions; `vizoalica install` deploys nothing, prints where to go, and exits with code 2.
 
-## 8. Rehearsal on a real account (optional, isolated)
+## 9. Rehearsal on a real account (optional, isolated)
 
 In a separate `git worktree`, with scratch names and a scratch Cloudflare account or resources named
 `vizoalica-rehearsal-*`, run the console from the built package, deploy from the console, share a website,
-connect as an analyst on a second `HOME`, and check the refusals. Tear down in the order in
+connect as an analyst and as an owner on a second `HOME`, check the refusals, then install the previous release
+first and update it from the console, watching versions, the backup file, and a loop of test events. Tear down in the order in
 `docs/operations/cloudflare.md`, only names that start with `vizoalica-rehearsal-`. Never point it at the
 production database or the production Wrangler configuration.
 
-## 9. The maintainer's running backend (compatibility, R12)
+## 10. The maintainer's running backend (compatibility, R12, and its first update)
 
 With the console from this release against the existing 0.6.2 backend: it connects with no first-run
-questions, shows the backend as older-but-working, keeps analytics working, and shows key management as
-unavailable with "update the backend" until the Worker is redeployed and the `access_keys` table is added by
-hand.
+questions, shows the backend as older-but-working, keeps analytics working, shows its versions as unknown, and offers the update; running the update from the console
+backs up the database, applies `0002` (adopting the tables that were added by hand), deploys the Worker, and ends
+with matching versions and key management available.

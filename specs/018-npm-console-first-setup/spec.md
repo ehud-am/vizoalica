@@ -8,17 +8,24 @@
 
 **Input**: User description: "let's start to work on the next iteration. this will be another patch release. 1. Let's fix the footer of the console. we want the foot to include a link to vizoalica.dev as well as to the github project.please see the gitlocal.dev footer as example. 2. i want to continue to improve the deployment process. What do you think about install from npm? We probably need to remove the "vizoalica install" command that does everything, it is a bit too much. My thinking the deployment process looks like this: 1. npm install -g vizoalica. 2. run "vizoalica console" if this is first run it will ask you few questions and adjust the flow based on that. We want to get to a running console first, then get to running backend in cloudflare, then get the websites configured, then see results. I should be able to do all from the console. The flow should be very clear about what i can do when, e.g. can't create projects/websites, if i still do not have a backend. Make sure that we still diffrentiate between an operator that can manage the backend, vs. owner of a wesite that needs to configure the website, vs. an analyst that can just see the data"
 
+**Follow-up (2026-09-22)**: "let's add worker and database schema versions and abolity to update those from the console. To clarify the roles, admin - can do everything. analyst - van view the analytics, and see the configuration but change nothing. Website owner - can view analytics, can manager projects and websites, but can not change the backend workers and databases"
+
 ## Who this is for
 
-Three kinds of people use Vizoalica, and this feature keeps them apart.
+Three roles use Vizoalica, and this feature keeps them apart. The backend enforces each one; the console
+only reflects it.
 
-- **Operator**: looks after the backend in a Cloudflare account. Deploys and updates it, creates
-  projects, registers websites, and holds the administrator credential.
-- **Website owner**: owns one website and has to make it send data. Does not touch the backend.
-- **Analyst**: only reads the results. Cannot change anything.
+- **Admin**: looks after the backend in a Cloudflare account and can do everything: deploy and update the
+  Worker and the database, change secrets, issue and revoke access, manage projects and websites, and see all
+  data.
+- **Analyst**: can view the analytics and see the configuration (projects, websites, installation details,
+  health, and the backend's versions), but can change nothing.
+- **Website owner**: can view the analytics and manage projects and websites (create, edit, enable,
+  disable, and delete them, within the scope the admin gave), but cannot change the backend: the Worker, the
+  database, its secrets, or who has access.
 
-One person can be all three (a solo maintainer), but the console treats them as different roles with
-different credentials, so a team can split them.
+One person can be all three (a solo maintainer), but a team can split them, because each role uses a
+different credential.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -58,7 +65,7 @@ links, and the version, and that each link goes to the right place.
 
 ### User Story 2 - Install from npm and Start with One Command (Priority: P1)
 
-As an operator, I install Vizoalica with one command and start the console with one more, without
+As an admin, I install Vizoalica with one command and start the console with one more, without
 cloning a repository, installing a build tool, or knowing how the project is laid out. I run
 `npm install -g vizoalica`, then `vizoalica console`, and a console opens in my browser.
 
@@ -95,7 +102,7 @@ yet.
 ### User Story 3 - The First Run Asks a Few Questions and Adapts (Priority: P1)
 
 As a person running the console for the first time, the console asks me a few plain questions, and the
-rest of what I see follows from my answers. It asks who I am here (operator, website owner, or
+rest of what I see follows from my answers. It asks who I am here (admin, website owner, or
 analyst) and what I already have (a backend already running, or none yet), and it skips anything that
 does not apply. I can change my answers later.
 
@@ -110,14 +117,14 @@ changes it.
 
 1. **Given** no saved settings, **When** the console starts, **Then** it shows a short first-run
    screen (no more than three questions on any path) before anything else.
-2. **Given** I say I am an operator with no backend, **When** I continue, **Then** I am taken to
+2. **Given** I say I am an admin with no backend, **When** I continue, **Then** I am taken to
    deploying a backend (Story 5).
-3. **Given** I say I am an operator with an existing backend, **When** I continue, **Then** I am asked
+3. **Given** I say I am an admin with an existing backend, **When** I continue, **Then** I am asked
    only for what is needed to connect to it, and connect (Story 5).
 4. **Given** I say I am a website owner, **When** I continue, **Then** I am asked for the setup details
-   my operator gave me (Story 6).
+   my admin gave me (Story 6).
 5. **Given** I say I am an analyst, **When** I continue, **Then** I am asked for the read-only access my
-   operator gave me (Story 7).
+   admin gave me (Story 7).
 6. **Given** I am not sure which role I am, **When** I read the first-run screen, **Then** each choice
    states in one sentence what it lets me do and what it does not.
 7. **Given** I have finished the first run, **When** I open the console later, **Then** it does not ask
@@ -165,9 +172,9 @@ journey shows stage one done and stage two next. Repeat at each later stage.
 
 ---
 
-### User Story 5 - The Operator Deploys and Maintains the Backend from the Console (Priority: P2)
+### User Story 5 - The Admin Deploys and Maintains the Backend from the Console (Priority: P2)
 
-As an operator, I deploy the Vizoalica backend into my Cloudflare account from the console, without a
+As an admin, I deploy the Vizoalica backend into my Cloudflare account from the console, without a
 separate command that "does everything". The console shows what it is about to create, asks me to
 approve, does it step by step with visible progress, shows the new secrets once, checks that the
 result works, and connects itself to it. The same place lets me connect to a backend that already
@@ -183,7 +190,7 @@ to an existing backend.
 
 **Acceptance Scenarios**:
 
-1. **Given** I am an operator with no backend, **When** I choose to deploy, **Then** the console first
+1. **Given** I am an admin with no backend, **When** I choose to deploy, **Then** the console first
    checks that I am signed in to Cloudflare, and if not, guides me through signing in and comes back.
 2. **Given** I am signed in, **When** I continue, **Then** the console shows a plan listing every
    resource it will create in my account (names and kinds), what each is for, and the cost model, and
@@ -203,73 +210,83 @@ to an existing backend.
 7. **Given** a connected backend, **When** I open its screen, **Then** I see its address, whether it is
    healthy, its version, and whether it is compatible with this console, with a clear path when it is
    not (for example "update the backend").
-8. **Given** an existing installation that predates a schema change, **When** the console detects it,
-   **Then** it says what the release supports (for example a fresh install) instead of attempting an
-   in-place change it cannot do safely.
-9. **Given** I am an operator, **When** I use the backend screen, **Then** I can rotate a secret,
+8. **Given** an existing backend that is behind this console, **When** the console detects it, **Then** it
+   offers the update in Story 9 instead of asking for a fresh install.
+9. **Given** I am an admin, **When** I use the backend screen, **Then** I can rotate a secret,
    purge deleted websites and projects, and (optionally) add or remove sample data, each with a
    confirmation that names what will happen.
-10. **Given** any operator action that changes the account, **When** it is done, **Then** an
+10. **Given** any admin action that changes the account, **When** it is done, **Then** an
     auditable record of what was done (no secret values) is available.
 
 ---
 
-### User Story 6 - A Website Owner Configures Their Website and Sees It Work (Priority: P2)
+### User Story 6 - A Website Owner Manages Their Projects and Websites (Priority: P2)
 
-As a website owner, I receive setup details from my operator and use the console to configure my
-website: which installation method to use, the exact snippet or configuration, and a check that tells
-me when my website is sending data. I never see or need the administrator credential, and I cannot
-create projects, websites, or secrets.
+As a website owner, I use access my admin gave me to manage projects and websites: add a website to a
+project, configure it, enable or disable it, get its installation steps and the SDK file, and check that
+data has arrived. I can view the analytics. I cannot change the backend, so I never need the administrator
+credential. My access covers everything, one project, or one website, as my admin chose.
 
-**Why this priority**: Website owners are a different person from the operator in a team, and today
-they would need the operator's full credential to see the installation steps.
+**Why this priority**: Website owners are a different person from the admin in a team, and today they would
+need the admin's full credential just to add a website or read its installation steps.
 
-**Independent Test**: As an owner with only the setup details an operator gave, follow the console
-through installing on a sample website until the check reports data, and confirm no backend-managing
-control was ever offered.
+**Independent Test**: As an owner with only an owner key, create or configure a website within scope, follow
+the console through installing it until the check reports data, then try every backend-level operation and
+every out-of-scope operation and confirm each is refused.
 
 **Acceptance Scenarios**:
 
-1. **Given** the operator has registered my website, **When** they share its setup details with me,
-   **Then** the details contain what a website needs (public identifiers, the ingestion address, the
-   allowed origin, consent guidance) and a read-only key limited to that one website, and never the
-   administrator credential.
-2. **Given** I choose the owner role and enter the setup details, **When** the console verifies them,
-   **Then** I see my website's installation steps and its current status.
-3. **Given** the owner role, **When** I use the console, **Then** there is no control to deploy or
-   update a backend, create projects or websites, rotate secrets, or delete anything.
-4. **Given** I have installed the SDK on my website, **When** I run the check, **Then** the console tells
-   me whether data has arrived, and if not, what to look at first.
-5. **Given** the website's setup details change (for example the allowed origin), **When** the operator
-   shares them again, **Then** I can replace them without losing my other settings.
+1. **Given** the admin issues owner access (everything, one project, or one website), **When** I connect
+   with it, **Then** I see the analytics and a Manage area limited to the projects and websites in my scope.
+2. **Given** owner access to everything, **When** I create a project and add a website, **Then** the backend
+   creates them and they appear in my Manage area and in the setup journey.
+3. **Given** owner access limited to one project, **When** I use the console, **Then** I can add and manage
+   websites in that project, and I cannot create projects or see any other project.
+4. **Given** owner access limited to one website, **When** I use the console, **Then** I can edit, enable,
+   disable, and delete that website and see its installation steps, and I cannot add websites or projects.
+5. **Given** the owner role, **When** I look at the backend screen, **Then** I can read its versions and health
+   but every control that would change the Worker, the database, its secrets, sample data, purging, or access
+   is shown unavailable with the reason "Only an admin can change the backend."
+6. **Given** owner access, **When** any operation outside my scope or above my role is attempted directly
+   against the backend, **Then** the backend refuses it and out-of-scope things are reported as not found.
+7. **Given** I have installed the SDK on my website, **When** I run the check, **Then** the console tells me
+   whether data has arrived, and if not, what to look at first.
+8. **Given** a website I created needs its token service to sign visitors' requests, **When** the console
+   shows the next step, **Then** it says the admin provides the signing secret through the documented step;
+   I never see it.
+9. **Given** my access is revoked, **When** I next use the console, **Then** it says so and what to do,
+   without showing stale data.
 
 ---
 
-### User Story 7 - An Analyst Sees the Data and Nothing Else (Priority: P2)
+### User Story 7 - An Analyst Sees the Data and the Configuration, and Changes Nothing (Priority: P2)
 
-As an analyst, I open the console with read-only access my operator gave me and see the analytics for
-the projects I am allowed to see. The console shows the Analytics area only. Nothing I can reach can
-change, create, disable, or delete anything, and the backend itself refuses any attempt.
+As an analyst, I open the console with read-only access my admin gave me and see the analytics, and I can
+also see how things are configured: the projects and websites, their installation details, their health, and
+the backend's versions. Nothing I can reach changes anything, and the backend itself refuses any attempt.
 
-**Why this priority**: The owner wants to be sure that a person who only needs the numbers cannot
-change anything, and that this is enforced, not merely hidden.
+**Why this priority**: The owner wants to be sure that a person who needs to understand the numbers can see
+the setup behind them, and that this cannot change anything, by enforcement and not only by hiding controls.
 
-**Independent Test**: As an analyst, use every analytics screen, then attempt every state-changing
-operation directly against the backend with the analyst credential and confirm each is refused.
+**Independent Test**: As an analyst, use every analytics and configuration screen, then attempt every
+state-changing operation directly against the backend with the analyst credential and confirm each is
+refused.
 
 **Acceptance Scenarios**:
 
-1. **Given** the operator creates read-only access from the console, **When** it is shown, **Then** it
-   is shown once, can be copied, can be revoked, and can be replaced, and it works only for reading
-   analytics.
-2. **Given** I choose the analyst role and enter that access, **When** the console verifies it, **Then**
-   I see the Analytics area for my projects and no Manage area.
-3. **Given** the analyst credential, **When** it is used to try any operation that creates, edits,
-   disables, deletes, or manages secrets, **Then** the backend refuses it and records nothing.
-4. **Given** the operator revokes my access, **When** I next load data, **Then** the console tells me my
-   access was revoked and what to do, instead of showing stale data.
-5. **Given** read-only access, **When** it is inspected, **Then** it cannot be used to obtain the
-   administrator credential or the signing secret.
+1. **Given** the admin issues analyst access from the console, **When** it is shown, **Then** it is shown
+   once, can be copied, can be revoked, and can be replaced, and it works only for reading.
+2. **Given** I choose the analyst role and enter that access, **When** the console verifies it, **Then** I
+   see the Analytics area and read-only configuration screens for projects, websites, health, and the backend.
+3. **Given** the configuration screens, **When** I look at any control that would change something, **Then** it
+   is shown unavailable with the reason "Your access is read-only", and it sends nothing.
+4. **Given** the analyst credential, **When** it is used to try any operation that creates, edits, enables,
+   disables, deletes, updates the backend, or manages secrets or access, **Then** the backend refuses it and
+   records nothing.
+5. **Given** the configuration screens, **When** I read them, **Then** they never show an administrator
+   secret, a signing secret, or any access key.
+6. **Given** the admin revokes my access, **When** I next load data, **Then** the console tells me my access
+   was revoked and what to do, instead of showing stale data.
 
 ---
 
@@ -277,11 +294,11 @@ operation directly against the backend with the analyst credential and confirm e
 
 As an existing user of the checkout-based commands, my setup keeps working, and the documentation
 points to the one new path. The single command that does everything (`vizoalica install`) is removed
-and replaced by the console flow. Lower-level operator commands remain available for scripts and
+and replaced by the console flow. Lower-level admin commands remain available for scripts and
 for people who prefer them, but the documented path is the console.
 
 **Why this priority**: The owner explicitly wants the all-in-one command gone, but the maintainer's
-own running installation and any existing operators must not be broken by the change.
+own running installation and any existing admins must not be broken by the change.
 
 **Independent Test**: With an existing connected setup (either credential mode), install the package and
 run the console; confirm it recognizes the existing setup and goes straight to the analytics. Run
@@ -300,6 +317,54 @@ run the console; confirm it recognizes the existing setup and goes straight to t
    retired command or to clone the repository for a normal install.
 5. **Given** the source checkout, **When** a contributor uses it, **Then** their development workflow
    still works, and the docs say the checkout is for contributors.
+
+---
+
+### User Story 9 - See the Worker and Database Versions and Update Them from the Console (Priority: P2)
+
+As an admin, I can see three versions at a glance: this console, the Worker running in Cloudflare, and the
+database schema, and whether each is up to date. When the Worker or the database is behind what this console
+carries, I update it from the console. It shows what will change, takes a backup first, updates the database
+and then the Worker, checks the result, and reports. Data keeps being collected throughout.
+
+**Why this priority**: Until now a schema change meant a fresh install, which made every release that touched
+the database a reason not to upgrade. Versioned, updatable backends remove that, and they are what makes
+console-driven maintenance safe.
+
+**Independent Test**: With a backend one release behind, open the versions panel, update from the console,
+and confirm the plan was shown first, a backup was taken, the database changed before the Worker, the
+versions now match, no accepted event was lost, and an audit record exists.
+
+**Acceptance Scenarios**:
+
+1. **Given** a connected backend, **When** I open the backend screen, **Then** I see the console version, the
+   Worker version, and the database schema version (and the version this console expects), each with a status:
+   up to date, update available, the console is older (update the console), or unknown.
+2. **Given** any role, **When** I open the backend screen, **Then** I can read the versions and statuses, and
+   only an admin sees update controls that are available.
+3. **Given** an update is available, **When** I choose to update, **Then** the console shows a plan: the Worker
+   version from and to, each pending database change with a plain description and whether it only adds, the
+   backup that will be taken, and the order; nothing changes until I approve.
+4. **Given** I approve, **When** the update runs, **Then** a backup of the database is saved first (and its
+   location shown), then pending database changes are applied in order, then the Worker is updated, then the
+   result is checked (health, versions, administrator access), with each step visible.
+5. **Given** only the Worker or only the database is behind, **When** I update, **Then** only what is behind is
+   changed.
+6. **Given** a step fails, **When** the flow stops, **Then** it says what failed and what was already applied,
+   the backend keeps serving (the previous Worker works with the newer database), and I can resume without
+   repeating finished steps.
+7. **Given** I decline the backup, **When** I confirm that I understand the risk, **Then** the update
+   proceeds and the record says no backup was taken.
+8. **Given** the update is running, **When** visitors' events arrive, **Then** they are accepted and none is
+   lost.
+9. **Given** the backend is newer than this console, **When** I look at it, **Then** the console says to update
+   the console and offers no downgrade.
+10. **Given** a backend older than the oldest version that can be updated in place, **When** I look at it,
+    **Then** the console says so and explains what to do instead of attempting an unsafe change.
+11. **Given** I am not signed in to Cloudflare, **When** I start an update, **Then** the console guides me to
+    sign in first and changes nothing until I have.
+12. **Given** an update finished, **When** I look for a record, **Then** an auditable record (no secret values)
+    lists what was changed, from which versions to which, and the backup location.
 
 ---
 
@@ -332,6 +397,18 @@ run the console; confirm it recognizes the existing setup and goes straight to t
   new role cannot use.
 - **The package is updated while a console is running**: the running console keeps working and says a
   restart picks up the new version.
+- **A database change fails part-way**: each change is applied on its own and recorded, so earlier ones stay
+  applied; the console says which one failed and why, keeps the backend serving, and can retry only the rest.
+- **The backup fails or is too large to take**: the console says so and requires an explicit choice to
+  continue without one; it never continues silently.
+- **Two admins update at the same time**: the second sees that the changes were already applied (or that an
+  update is in progress) and repeats nothing.
+- **A version cannot be determined** (for example a Worker from before versions were reported): it is shown as
+  unknown and treated as behind, so the update is offered.
+- **The database has changes that were added by hand**: the update adopts them safely instead of failing or
+  duplicating them.
+- **A newer console meets an older backend, or the reverse**: the console explains which side to update and
+  never offers a downgrade.
 - **Windows or another unsupported system**: a plain message that says it is unsupported and why.
 
 ## Requirements *(mandatory)*
@@ -367,13 +444,13 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **FR-009**: Updating the package MUST keep saved settings and credentials. The console MUST show its
   own version and the connected backend's version and whether they are compatible.
 - **FR-010**: Nothing in installing or running the console may send information about the user or their
-  data anywhere except to the user's own backend and to Cloudflare when the operator deploys.
+  data anywhere except to the user's own backend and to Cloudflare when the admin deploys.
 
 **First run and roles**
 
 - **FR-011**: On first run (no saved settings) the console MUST show a first-run flow that asks at most
-  three questions on any path: the role (operator, website owner, or analyst) and what the person
-  already has (a backend or none for operators), and only what that path needs to connect.
+  three questions on any path: the role (admin, website owner, or analyst) and what the person
+  already has (a backend or none for admins), and only what that path needs to connect.
 - **FR-012**: Each role choice MUST state in plain words what it allows and what it does not.
 - **FR-013**: The person MUST be able to review and change their role and connection later from a
   settings screen, and the console MUST NOT re-ask the first-run questions once they are answered.
@@ -384,24 +461,26 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 
 **Roles and credentials**
 
-- **FR-016**: The **operator** role MUST have the administrator credential and Cloudflare access, and MUST
-  be the only role that can deploy, update, connect, or configure the backend, rotate secrets, purge
-  deleted data, create projects and websites, edit, disable, or delete them, and issue access for the
-  other roles.
+- **FR-016**: The **admin** role MUST have the administrator credential and Cloudflare access and MUST be
+  able to do everything: deploy, connect, and update the backend (the Worker and the database), rotate
+  secrets, purge deleted data, add and remove sample data, issue and revoke access for the other roles,
+  manage projects and websites, and see all data. It MUST be the only role that can do any of the
+  backend-level operations in this list.
 - **FR-017**: The **analyst** role MUST use a read-only key that the backend accepts only for reading
-  analytics and website information and that it refuses for every other operation. A key MAY be limited to
-  one project or one website. It MUST be issuable, shown once, revocable, and replaceable by the operator
-  from the console, and MUST NOT allow obtaining any other credential.
-- **FR-018**: The **website owner** role MUST work without the administrator credential, from setup details
-  the operator shares (public identifiers, ingestion address, allowed origin, consent guidance, and a
-  read-only key limited to that one website). The console MUST let an owner view installation steps and
-  status for their website, obtain the SDK file, and run the check that data has arrived, and MUST offer
-  no control that creates, edits, or deletes backend resources. The backend MUST refuse the owner's key
-  for any other website and for any change.
-- **FR-019**: The operator MUST be able to produce the website owner's setup details and the analyst's
-  access from the console. Neither MUST ever contain the administrator credential. The website's token
-  signing secret is not part of the setup details either: the operator places it on the website's own
-  token service through the existing documented step (see the known limit in Assumptions).
+  analytics and configuration (projects, websites, installation details, health, and the backend's
+  versions) and refuses for every other operation, including reading any secret or access key.
+- **FR-018**: The **website owner** role MUST use a key that lets it do everything an analyst can read, and
+  also create, edit, enable, disable, and delete projects and websites within the scope of the key. The
+  backend MUST refuse an owner key for every backend-level operation: deploying or updating the Worker or the
+  database, secrets, purging, sample data, access keys, and the automation interface.
+- **FR-019**: A key's scope MUST be everything, one project, or one website, and MUST decide what its holder
+  can create: with everything, projects (and websites); limited to a project, websites in that project only;
+  limited to a website, nothing new. Resources outside the scope MUST be reported as not found. Keys MUST be
+  issuable (with a role and a scope), shown once, listed without secrets, revocable, and replaceable by the
+  admin from the console, and MUST NOT allow obtaining any other credential. The setup details an admin
+  shares MUST never contain the administrator credential or the token signing secret; the admin places the
+  signing secret on the website's own token service through the existing documented step (see the known
+  limit in Assumptions).
 - **FR-020**: A revoked or invalid credential MUST be reported as such, with what to do, and MUST NOT leave
   stale data on screen.
 
@@ -422,11 +501,11 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 
 **Deploying and maintaining the backend from the console**
 
-- **FR-026**: The console MUST let the operator deploy the backend into their Cloudflare account, connect to
+- **FR-026**: The console MUST let the admin deploy the backend into their Cloudflare account, connect to
   an existing backend, update a backend, rotate secrets, purge deleted data, and add or remove sample data.
-- **FR-027**: Before creating anything the console MUST verify the operator is signed in to Cloudflare
+- **FR-027**: Before creating anything the console MUST verify the admin is signed in to Cloudflare
   (guiding sign-in if not), show a plan of every resource it will create with names, purposes, and the
-  cost model, and create nothing until the operator approves.
+  cost model, and create nothing until the admin approves.
 - **FR-028**: The deployment MUST run as visible, ordered steps; a failed step MUST stop the flow with what
   failed, what already exists, and how to continue or clean up. A run MUST be resumable without creating
   duplicates and MUST NOT delete anything silently.
@@ -435,10 +514,10 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **FR-030**: Generated secrets MUST be shown once, be copyable, be stored only in the protected place
   the current credential mode uses, and never appear in logs, screens after the first view, or files
   other people on the computer can read.
-- **FR-031**: The console MUST show the connected backend's address, health, version, and compatibility, and
-  where a release supports only a fresh install it MUST say so instead of attempting an in-place change.
-- **FR-032**: Every operator action that changes the account MUST leave an auditable record without secret
-  values. The flow MUST request only the Cloudflare access it needs and MUST NOT bypass the operator's
+- **FR-031**: The console MUST show the connected backend's address, health, and versions (see the version
+  requirements below) and whether it is compatible with this console, with a clear path when it is not.
+- **FR-032**: Every admin action that changes the account MUST leave an auditable record without secret
+  values. The flow MUST request only the Cloudflare access it needs and MUST NOT bypass the admin's
   approval.
 
 **Retiring the all-in-one command and migration**
@@ -452,42 +531,82 @@ run the console; confirm it recognizes the existing setup and goes straight to t
   contributors, and MUST NOT tell a new user to run the retired command. The statement that Vizoalica is
   distributed as source only MUST be updated.
 - **FR-036**: The console MUST meet WCAG 2.2 AA across the first-run flow, the journey, the deployment
-  flow, and every role's screens, with keyboard operation and status announcements.
+  flow, the update flow, and every role's screens, with keyboard operation and status announcements.
+
+**Versions and updates**
+
+- **FR-037**: The backend MUST report the version of the Worker that is running, the version of the database
+  schema that is applied, and the schema version the running Worker expects. The console MUST show, on the
+  backend screen, its own version, the Worker version, and the database schema version (and the version this
+  console carries), each with a status: up to date, update available, the console is older, or unknown.
+- **FR-038**: Every role MUST be able to read the versions and statuses. Only the admin MUST be able to start
+  an update.
+- **FR-039**: Every database change MUST ship as a numbered, ordered, forward-only change. Applied changes MUST
+  be recorded so the applied version can be read from the database itself. The database MUST be brought from
+  any supported earlier version to the current one by applying the pending changes in order, and the result
+  MUST equal a fresh installation.
+- **FR-040**: Within a release line a database change MUST be additive, so that the previous Worker keeps
+  working against a newer database. A change that is not additive MUST be called out in the release notes,
+  MUST be shown in the update plan, and MUST require a confirmed backup.
+- **FR-041**: The console MUST be able to update the Worker and the database from a connected admin
+  connection through the same plan, approval, ordered steps, and resume rules as a deployment: it shows what
+  will change (the Worker from and to, each pending database change with a plain description and whether it
+  only adds), creates nothing and changes nothing before approval, and changes only what is behind.
+- **FR-042**: Before changing the database an update MUST take a backup and report where it is; skipping it
+  MUST need an explicit confirmation and MUST be recorded. Then it MUST apply pending database changes in
+  order, then update the Worker, then verify health, versions, and administrator access.
+- **FR-043**: An update MUST NOT interrupt event collection: events sent while it runs MUST be accepted, and
+  a failed step MUST leave the backend serving and be resumable without repeating finished steps.
+- **FR-044**: The console MUST NOT downgrade a Worker or a database. For a backend newer than the console it
+  MUST say to update the console, and for one older than the oldest version that can be updated in place it
+  MUST say so and explain what to do instead.
+- **FR-045**: A database that has changes added by hand MUST be adopted safely by an update (no failure, no
+  duplicate objects). An update MUST leave an auditable record of what changed and from which versions to
+  which, without secret values, and MUST be repeatable when a version is unknown.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Role**: operator, website owner, or analyst; determines which screens and actions exist and which
+- **Role**: admin, website owner, or analyst; determines which screens and actions exist and which
   credential the console must hold.
 - **Setup stage**: one of console running, backend connected, website configured, data arriving; derived
   from the state of the backend and its websites, never stored by hand.
 - **Backend connection**: the address of a backend and the credential this computer holds for it (or
   the way it obtains it); has health, version, and compatibility.
-- **Deployment plan and record**: the resources to be created, the operator's approval, the ordered steps and
+- **Deployment plan and record**: the resources to be created, the admin's approval, the ordered steps and
   their outcomes, and the resulting audit entry (no secrets).
-- **Website setup details**: the public values a website owner needs, plus a read-only key limited to
+- **Website setup details**: the public values a website owner needs, plus an access key limited to
   their website; never includes the administrator credential.
-- **Read-only access**: the analyst's credential; issued, shown once, revocable, valid for reading analytics
-  only.
+- **Access key**: the analyst's and owner's credential; carries a role (analyst or owner) and a scope
+  (everything, one project, or one website); issued, shown once, revocable.
+- **Version status**: for the console, the Worker, and the database schema: the current version, the version
+  the console carries, and a status (up to date, update available, console older, unknown).
+- **Database change**: a numbered, ordered, forward-only, additive change with a plain description; applied
+  changes are recorded in the database itself.
+- **Update run**: like a deployment run, with a backup step, the pending database changes, the Worker step,
+  and a verification; resumable; recorded without secrets.
 - **Installation**: the installed package and its version, and the saved settings that survive updates.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: On a clean macOS or Linux machine with only Node.js 22, a new operator goes from the install
+- **SC-001**: On a clean macOS or Linux machine with only Node.js 22, a new admin goes from the install
   command to a running console in the browser in under two minutes, using exactly two commands and no
   repository.
-- **SC-002**: An operator with a Cloudflare account and no backend can go from a running console to a
+- **SC-002**: An admin with a Cloudflare account and no backend can go from a running console to a
   verified, connected backend without leaving the console except to sign in to Cloudflare, in under ten
   minutes, and nothing is created before they approve the plan.
 - **SC-003**: With no backend connected, 100% of controls that would create or change anything are
   unavailable, each with a stated reason and a next step, and none sends a request.
 - **SC-004**: In a test of new users, at least 9 in 10 can say what the next setup step is within ten
   seconds of looking at the console at each of the four stages.
-- **SC-005**: Using the analyst credential, 100% of attempts at every state-changing operation are refused
-  by the backend, and 100% of read-only analytics reads succeed.
-- **SC-006**: A website owner with only the shared setup details can install, check, and see their website's
-  first data without ever being offered a backend-managing control or seeing the administrator credential.
+- **SC-005**: Using an analyst key, 100% of attempts at every state-changing operation are refused by the
+  backend, and 100% of reads of analytics and configuration succeed. Using an owner key, 100% of
+  backend-level operations and of operations outside its scope are refused, and 100% of in-scope project and
+  website operations succeed.
+- **SC-006**: A website owner with only an owner key can create or configure a website within their scope,
+  install it, and see its first data without ever being offered a backend-changing control or seeing the
+  administrator credential.
 - **SC-007**: No secret appears in the installed package, in any log, or in any screen after its single
   display, verified across a full deploy, rotate, and issue-access cycle.
 - **SC-008**: The footer shows the brand, tagline, both link groups, and version on 100% of console
@@ -497,6 +616,13 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **SC-010**: New and changed screens have zero automated accessibility violations at WCAG 2.2 AA and are
   fully operable by keyboard alone.
 - **SC-011**: Repository-wide automated test coverage remains above 90% for lines and branches.
+- **SC-012**: On 100% of tested backends (current, one release behind, and with hand-added changes) the
+  console shows the correct Worker and database versions and statuses to every role.
+- **SC-013**: An admin brings a backend that is one release behind (Worker and database) up to date from the
+  console in under ten minutes, with a backup taken first, no event lost during the update, the database
+  equal to a fresh installation, and an auditable record.
+- **SC-014**: 100% of updates either take a backup before changing the database or record an explicit,
+  confirmed decision not to.
 
 ## Assumptions
 
@@ -513,17 +639,24 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **Roles are credentials, not accounts**: There are no user accounts, sign-ups, or logins. A role is what
   a person's credential allows, held on their own computer. The console adapts to the credential it
   holds and to the role the person chose, and the backend enforces the credential's limits.
-- **Read-only keys are new**: The backend today has one administrator credential and no scoped
-  credentials, so the analyst and website-owner roles need a read-only key the backend enforces. One
-  kind of key serves both: an analyst's key covers everything or one project, and a website owner's key
-  is limited to their one website. This is a database change, so, like the 0.5 and 0.6 lines, it
-  applies to fresh installs and is added by hand to an existing database.
+- **Access keys are new**: The backend today has one administrator credential and no scoped credentials, so
+  the analyst and website-owner roles need keys the backend enforces. One kind of key carries a role (analyst
+  or owner) and a scope (everything, one project, or one website). Deleting is part of managing: an owner can
+  delete the projects and websites in their scope, with the same named confirmations the console already
+  asks for.
+- **Schema changes become updatable (this ends fresh-install-only)**: Database changes become numbered,
+  forward-only, additive changes that the console applies, so the earlier rule that a schema change needs a
+  fresh install no longer applies from this release. The oldest schema that can be updated in place is the
+  one shipped in 0.5.2; older databases need a fresh installation. Changes are additive within a release
+  line (FR-040), so an update is safe to resume and the previous Worker keeps working if a step fails.
+- **Backups**: The default backup is an export of the database saved on the admin's computer in a private
+  location. A database too large to export this way requires the explicit skip in FR-042.
 - **Known limit for website owners**: A website's token service signs with a secret the backend shares
   across websites, so an owner who holds that secret could mint tokens for another website. This feature
   does not change that; per-website signing is a separate, later specification. The owner role therefore
   does not receive the administrator credential, and the documentation states this limit plainly.
-- **Deployment tooling**: The console drives Cloudflare's own command-line tool on the operator's computer
-  and the operator's own Cloudflare sign-in; it does not receive or store Cloudflare account credentials
+- **Deployment tooling**: The console drives Cloudflare's own command-line tool on the admin's computer
+  and the admin's own Cloudflare sign-in; it does not receive or store Cloudflare account credentials
   itself. The tool is fetched when first needed if it is not already present.
 - **Retired command**: `vizoalica install` is retired. Lower-level commands stay for scripts and
   advanced use (the exact list is decided at planning) but are not the documented path. A short
@@ -531,10 +664,10 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **Platforms**: macOS and Linux with Node.js 22 or newer, as today. Windows remains unsupported.
 - **No telemetry**: The console makes no request about the user; it does not check for updates on its own.
   Updating is an explicit npm action.
-- **Compatibility policy**: The package version and the backend version move together. The 0.5 and 0.6
-  lines support fresh installs only for schema changes, and the console reports that state rather than
-  attempting an in-place change.
+- **Compatibility policy**: The package, the Worker, and the database schema each carry a version. The console
+  and the Worker are compatible when their major and minor versions match; the schema must be at least the
+  version the Worker expects. Anything else is reported with which side to update.
 - **Footer content**: Uses only local assets and static links; the documentation link goes to the
   documentation section of the website. An npm link is added once the package is published.
-- **OneCLI mode**: Continues to work exactly as today for operators who use it; the console reads its
+- **OneCLI mode**: Continues to work exactly as today for admins who use it; the console reads its
   existing settings.
