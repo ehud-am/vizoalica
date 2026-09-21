@@ -1,14 +1,13 @@
 import type { ReactNode } from 'react';
 import type { AnalyticsOverview } from '../api/local-operations.js';
-import { NoProject } from '../components/NoProject.js';
 import { hrefFor } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
-import { rangeSummary } from '../time-range.js';
+import { AnalyticsFrame } from './AnalyticsFrame.js';
 import { useAnalytics } from './AnalyticsProvider.js';
 
 /**
- * Common frame of every Analytics view: heading, loading placeholders that keep the layout,
- * an error with retry, the incomplete-range notice, and the first-run hint.
+ * A view of the shared overview: the common frame plus the overview's own notices (a range that
+ * starts before expanded analytics existed, and the first-run hint when there are no page views).
  */
 export function AnalyticsView({
   page,
@@ -25,77 +24,46 @@ export function AnalyticsView({
   const analytics = useAnalytics();
   const { overview } = analytics;
   return (
-    <div className="page dashboard-page" data-page={page}>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">
-            Analytics · {scope.website ? scope.website.name : (scope.project?.name ?? 'No project')}
-          </p>
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        {scope.projectId && (
-          <span className="sr-only" aria-live="polite">
-            {rangeSummary(scope.range)}
-          </span>
-        )}
-      </div>
-
-      {!scope.projectId ? (
-        <NoProject />
-      ) : (
+    <AnalyticsFrame
+      page={page}
+      title={title}
+      description={description}
+      status={analytics.status}
+      error={analytics.error}
+      onRetry={analytics.retry}
+      notices={
         <>
-          <div
-            className="dashboard-status"
-            aria-live="polite"
-            aria-busy={analytics.status === 'loading'}
-          >
-            {analytics.status === 'error' && (
-              <p className="notice error" role="alert">
-                {analytics.error}{' '}
-                <button className="link-button" type="button" onClick={analytics.retry}>
-                  Try again
-                </button>
-              </p>
-            )}
-            {overview?.availability.state === 'incomplete' && (
-              <p className="notice" role="status">
-                This range starts before expanded analytics were available
-                {overview.availability.availableFromUtc
-                  ? ` on ${new Date(overview.availability.availableFromUtc).toLocaleString()}`
-                  : ''}
-                . Available results are shown.
-              </p>
-            )}
-            {overview && overview.totals.pageViews === 0 && (
-              <p className="notice" role="status">
-                {scope.website
-                  ? `No page views from ${scope.website.name} in this range yet. `
-                  : 'No page views in this range yet. '}
-                If you have just installed the snippet,{' '}
-                <a
-                  href={
-                    scope.website
-                      ? hrefFor('manage/websites/:id/install', scope.website.id)
-                      : hrefFor('manage/websites')
-                  }
-                >
-                  check the installation
-                </a>{' '}
-                and <a href={hrefFor('manage/health')}>website health</a>.
-              </p>
-            )}
-          </div>
-          {analytics.status === 'loading' && (
-            <div className="dashboard-grid skeleton-grid" aria-hidden="true">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div key={index} className="dashboard-card skeleton" />
-              ))}
-            </div>
+          {overview?.availability.state === 'incomplete' && (
+            <p className="notice" role="status">
+              This range starts before expanded analytics were available
+              {overview.availability.availableFromUtc
+                ? ` on ${new Date(overview.availability.availableFromUtc).toLocaleString()}`
+                : ''}
+              . Available results are shown.
+            </p>
           )}
-          {overview && analytics.status === 'ready' && children(overview)}
+          {overview && overview.totals.pageViews === 0 && (
+            <p className="notice" role="status">
+              {scope.website
+                ? `No page views from ${scope.website.name} in this range yet. `
+                : 'No page views in this range yet. '}
+              If you have just installed the snippet,{' '}
+              <a
+                href={
+                  scope.website
+                    ? hrefFor('manage/websites/:id/install', scope.website.id)
+                    : hrefFor('manage/websites')
+                }
+              >
+                check the installation
+              </a>{' '}
+              and <a href={hrefFor('manage/health')}>website health</a>.
+            </p>
+          )}
         </>
-      )}
-    </div>
+      }
+    >
+      {overview && children(overview)}
+    </AnalyticsFrame>
   );
 }

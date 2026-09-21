@@ -82,6 +82,99 @@ function overview(startUtc: string, endUtc: string) {
   };
 }
 
+const actionRows = [
+  {
+    page: '/#/pricing',
+    action: 'Start free trial',
+    kind: 'link',
+    destination: 'https://app.example.com/signup',
+    count: 120,
+    visitors: 80,
+    pageViews: 400
+  },
+  {
+    page: '/#/orders/:id',
+    action: 'Download invoice',
+    kind: 'button',
+    count: 80,
+    visitors: 30,
+    pageViews: 40
+  },
+  {
+    page: '/#/pricing',
+    action: 'Contact sales',
+    kind: 'button',
+    count: 40,
+    visitors: 39,
+    pageViews: 400
+  },
+  {
+    page: '/#/orders/:id',
+    action: 'Contact sales',
+    kind: 'button',
+    count: 10,
+    visitors: 9,
+    pageViews: 40
+  }
+];
+
+/** The actions report, narrowed by the same exact-match filters the Worker applies. */
+function actionsReport(url: URL) {
+  const page = url.searchParams.get('page') ?? undefined;
+  const action = url.searchParams.get('action') ?? undefined;
+  const rows = actionRows.filter(
+    (row) => (!page || row.page === page) && (!action || row.action === action)
+  );
+  const totals = new Map<
+    string,
+    { action: string; kind: string; count: number; visitors: number; pages: number }
+  >();
+  for (const row of actionRows.filter((entry) => !action || entry.action === action)) {
+    const current = totals.get(row.action) ?? {
+      action: row.action,
+      kind: row.kind,
+      count: 0,
+      visitors: 0,
+      pages: 0
+    };
+    current.count += row.count;
+    current.visitors += row.visitors;
+    current.pages += 1;
+    totals.set(row.action, current);
+  }
+  const selectedRows = page ? actionRows.filter((row) => row.page === page) : [];
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { actions: rows.reduce((sum, row) => sum + row.count, 0), uniqueUsers: 120 },
+    rows,
+    other: { rows: 0, count: 0 },
+    actions: [...totals.values()].sort((a, b) => b.count - a.count),
+    ...(page
+      ? {
+          selection: {
+            page: {
+              path: page,
+              views: selectedRows[0]?.pageViews ?? 0,
+              actions: selectedRows.reduce((sum, row) => sum + row.count, 0)
+            }
+          }
+        }
+      : {}),
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
 const staticSnippet =
   '<script async src="/vizoalica.js" data-source="public-key" data-project="project-1"></script>';
 
@@ -185,6 +278,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
         configEndpointCheckedAt: '2026-09-10T00:00:00.000Z',
         configEndpointError: null
       };
+    else if (path.endsWith('/analytics/actions')) body = actionsReport(url);
     else if (path.endsWith('/analytics'))
       body = overview(
         url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',

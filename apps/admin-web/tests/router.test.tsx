@@ -108,3 +108,99 @@ describe('router', () => {
     expect(screen.getByTestId('route').textContent).toBe('manage/websites/:id/install|s1');
   });
 });
+
+describe('router: the Actions page', () => {
+  it('is an Analytics navigation item directly after Pages, with project-and-website scope and a range', () => {
+    const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);
+    expect(analytics.indexOf('analytics/actions')).toBe(analytics.indexOf('analytics/pages') + 1);
+    expect(routeLabel('analytics/actions')).toBe('Actions');
+    expect(routeArea('analytics/actions')).toBe('analytics');
+    expect(scopeControls('analytics/actions')).toBe('project-website');
+    expect(showsRange('analytics/actions')).toBe(true);
+    expect(navKey('analytics/actions')).toBe('analytics/actions');
+  });
+
+  it('parses the selection from the address', () => {
+    expect(parseRoute('#/analytics/actions')).toEqual({ path: 'analytics/actions' });
+    expect(parseRoute('#/analytics/actions?page=%2Fpricing&action=Start%20free%20trial')).toEqual({
+      path: 'analytics/actions',
+      params: { page: '/pricing', action: 'Start free trial' }
+    });
+    expect(parseRoute('#/analytics/actions?page=%2F%23%2Forders%2F%3Aid')).toEqual({
+      path: 'analytics/actions',
+      params: { page: '/#/orders/:id' }
+    });
+  });
+
+  it('ignores unknown, empty, malformed, and oversized parameters instead of breaking', () => {
+    expect(parseRoute('#/analytics/actions?other=1&x')).toEqual({ path: 'analytics/actions' });
+    expect(parseRoute('#/analytics/actions?page=&action=')).toEqual({ path: 'analytics/actions' });
+    expect(parseRoute('#/analytics/actions?page=%E0%A4%A')).toEqual({ path: 'analytics/actions' });
+    expect(parseRoute(`#/analytics/actions?action=${'a'.repeat(81)}`)).toEqual({
+      path: 'analytics/actions'
+    });
+    expect(parseRoute(`#/analytics/actions?page=${'a'.repeat(1025)}`)).toEqual({
+      path: 'analytics/actions'
+    });
+    expect(parseRoute('#/analytics/actions?page=%2Fa&page=%2Fb').params).toEqual({ page: '/b' });
+  });
+
+  it('keeps a good parameter when another is bad', () => {
+    expect(parseRoute('#/analytics/actions?page=%E0%A4%A&action=Go')).toEqual({
+      path: 'analytics/actions',
+      params: { action: 'Go' }
+    });
+  });
+
+  it('does not read a query on other routes as a selection, and website routes still parse', () => {
+    expect(parseRoute('#/analytics/pages?page=%2Fx')).toEqual({ path: 'analytics/pages' });
+    expect(parseRoute('#/manage/websites/site-1?x=1')).toEqual({
+      path: 'manage/websites/:id',
+      websiteId: 'site-1'
+    });
+    expect(parseRoute('#/manage/websites/new?page=1')).toEqual({ path: 'manage/websites/new' });
+  });
+
+  it('builds addresses with encoded parameters, and round-trips them', () => {
+    expect(hrefFor('analytics/actions')).toBe('#/analytics/actions');
+    expect(hrefFor('analytics/actions', undefined, {})).toBe('#/analytics/actions');
+    const params = { page: '/#/orders/:id?x=1&y=2', action: 'Start free trial & more' };
+    const href = hrefFor('analytics/actions', undefined, params);
+    expect(href).not.toContain(' ');
+    expect(href.split('?')).toHaveLength(2);
+    expect(parseRoute(href)).toEqual({ path: 'analytics/actions', params });
+    expect(hrefFor('analytics/actions', undefined, { action: 'Go' })).toBe(
+      '#/analytics/actions?action=Go'
+    );
+  });
+
+  it('re-renders when only the selection changes, and not when nothing changed', async () => {
+    let renders = 0;
+    function Probe() {
+      const route = useRoute();
+      renders += 1;
+      return <p data-testid="probe">{JSON.stringify(route.params ?? {})}</p>;
+    }
+    window.location.hash = '#/analytics/actions';
+    render(<Probe />);
+    expect(screen.getByTestId('probe').textContent).toBe('{}');
+    // jsdom delivers hashchange asynchronously.
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+    await act(async () => {
+      navigate('analytics/actions', undefined, { page: '/pricing' });
+      await settle();
+    });
+    expect(screen.getByTestId('probe').textContent).toBe('{"page":"/pricing"}');
+    const after = renders;
+    await act(async () => {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      await settle();
+    });
+    expect(renders).toBe(after);
+    await act(async () => {
+      navigate('analytics/actions', undefined, { page: '/pricing', action: 'Go' });
+      await settle();
+    });
+    expect(screen.getByTestId('probe').textContent).toBe('{"page":"/pricing","action":"Go"}');
+  });
+});

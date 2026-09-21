@@ -64,3 +64,43 @@ describe('browser local operations client', () => {
     });
   });
 });
+
+describe('actions report client', () => {
+  it('requests the report with the scope, range, and selection encoded', async () => {
+    const fetch = vi.fn(async (_path: string) => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    await api.getAnalyticsActions(
+      'p/1',
+      undefined,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z'
+    );
+    await api.getAnalyticsActions(
+      'p1',
+      's/1',
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-02T00:00:00.000Z',
+      { page: '/#/orders/:id', action: 'Start free trial' }
+    );
+    const [first, second] = fetch.mock.calls.map(([path]) => new URL(path, 'http://x'));
+    expect(first!.pathname).toBe('/api/projects/p%2F1/analytics/actions');
+    expect(first!.searchParams.get('start')).toBe('2026-01-01T00:00:00.000Z');
+    expect([...first!.searchParams.keys()].sort()).toEqual(['end', 'start']);
+    expect(second!.searchParams.get('source_id')).toBe('s/1');
+    expect(second!.searchParams.get('page')).toBe('/#/orders/:id');
+    expect(second!.searchParams.get('action')).toBe('Start free trial');
+  });
+
+  it('passes an abort signal through and maps failures like other analytics calls', async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn(
+      async (_path: string, _init?: RequestInit) =>
+        new Response(JSON.stringify({ error: 'access_revoked' }), { status: 401 })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await expect(
+      api.getAnalyticsActions('p1', undefined, 'a', 'b', {}, controller.signal)
+    ).rejects.toMatchObject({ code: 'access_revoked', status: 401 });
+    expect(fetch.mock.calls[0]![1]!.signal).toBe(controller.signal);
+  });
+});

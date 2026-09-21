@@ -92,6 +92,38 @@ export type AnalyticsOverview = {
   };
 };
 
+export type ActionKind = 'button' | 'link' | 'other';
+export type ActionReportRow = {
+  page: string;
+  action: string;
+  kind: ActionKind;
+  /** Links only: origin plus path. */
+  destination?: string;
+  count: number;
+  visitors: number;
+  /** Views of `page` in the same range; 0 when the page has none. */
+  pageViews: number;
+};
+export type ActionTotal = {
+  action: string;
+  kind: ActionKind;
+  count: number;
+  visitors: number;
+  pages: number;
+};
+export type ActionsFilters = { page?: string; action?: string };
+export type ActionsReport = {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsOverview['range'];
+  totals: { actions: number; uniqueUsers: number };
+  rows: ActionReportRow[];
+  /** What lies beyond `rows`; keeps the totals exact. */
+  other: { rows: number; count: number };
+  actions: ActionTotal[];
+  selection?: { page?: { path: string; views: number; actions: number } };
+  availability: AnalyticsOverview['availability'];
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -181,6 +213,24 @@ export const getAnalyticsOverview = (
   if (sourceId) query.set('source_id', sourceId);
   return request<AnalyticsOverview>(
     `/api/projects/${encodeURIComponent(projectId)}/analytics?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export const getAnalyticsActions = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  filters: ActionsFilters = {},
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  if (filters.page) query.set('page', filters.page);
+  if (filters.action) query.set('action', filters.action);
+  return request<ActionsReport>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics/actions?${query.toString()}`,
     signal ? { signal } : undefined
   );
 };

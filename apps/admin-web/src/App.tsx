@@ -4,6 +4,7 @@ import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
+import { ActionsPage } from './analytics/ActionsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
 import { GeographyPage } from './analytics/GeographyPage.js';
 import {
@@ -80,7 +81,10 @@ function Console({ route }: { route: Route }) {
             showRange={showsRange(route.path)}
           />
           <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>
-            {area === 'analytics' ? (
+            {route.path === 'analytics/actions' ? (
+              // Its own data: it never needs the overview, so it does not fetch it.
+              <ActionsPage />
+            ) : area === 'analytics' ? (
               <AnalyticsProvider comparePrevious={route.path === 'analytics/overview'}>
                 <AnalyticsRoute route={route} />
               </AnalyticsProvider>

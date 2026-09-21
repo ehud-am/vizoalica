@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
 import { CAPABILITIES, capabilityById } from '../src/capabilities.js';
 import { NAV_ROUTES, ROUTES, routeArea, type RoutePath } from '../src/router.js';
-import { makeOverview, primaryIntegration } from './fixtures/console.js';
+import { makeActionsReport, makeOverview, primaryIntegration } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
@@ -18,7 +18,8 @@ const api = vi.hoisted(() => ({
   getSnippet: vi.fn(),
   getStatus: vi.fn(),
   getReachability: vi.fn(),
-  getAnalyticsOverview: vi.fn()
+  getAnalyticsOverview: vi.fn(),
+  getAnalyticsActions: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -54,6 +55,7 @@ beforeEach(() => {
     configEndpointCheckedAt: '2026-01-01T00:00:00.000Z',
     configEndpointError: null
   });
+  api.getAnalyticsActions.mockResolvedValue(makeActionsReport());
   api.getAnalyticsOverview.mockResolvedValue(
     makeOverview({
       totals: { pageViews: 10, uniqueUsers: 4 },
@@ -96,7 +98,12 @@ describe('view and manage separation', () => {
       window.location.hash = `#/${path}`;
       render(<App />);
       await screen.findByRole('heading', { level: 1 });
-      await waitFor(() => expect(api.getAnalyticsOverview).toHaveBeenCalled());
+      // Each view loads its own data; the Actions page never needs the overview.
+      await waitFor(() =>
+        expect(
+          api.getAnalyticsOverview.mock.calls.length + api.getAnalyticsActions.mock.calls.length
+        ).toBeGreaterThan(0)
+      );
       await waitFor(() =>
         expect(document.querySelector('.dashboard-card:not(.skeleton)')).toBeTruthy()
       );
