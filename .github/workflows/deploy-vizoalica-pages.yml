@@ -10,7 +10,7 @@ name: Deploy Vizoalica website
 #
 #   jobs:
 #     deploy:
-#       uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.1
+#       uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2
 #       with:
 #         site-directory: docs
 #       secrets: inherit

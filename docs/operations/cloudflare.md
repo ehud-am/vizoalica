@@ -111,7 +111,7 @@ guides are each a single further command sequence, not a repeat of this one.
 ## Prerequisites
 
 - Node.js 22 or newer and Corepack.
-- A reviewed Vizoalica 0.6.1 checkout.
+- A reviewed Vizoalica 0.6.2 checkout.
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
   within an included allowance.
@@ -132,7 +132,7 @@ Record these non-secret choices before starting:
 | Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
 | D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
 | R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
-| Release                    | `v0.6.1`            | Use one reviewed checkout for setup and later operators |
+| Release                    | `v0.6.2`            | Use one reviewed checkout for setup and later operators |
 
 Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
