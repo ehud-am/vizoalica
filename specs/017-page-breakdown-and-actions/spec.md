@@ -123,14 +123,15 @@ contains no control that changes any setting.
    exactly as the other analytics pages do.
 4. **Given** a website with no recorded actions in the chosen range, **When** the owner opens the
    Actions page, **Then** it shows a clear empty state that explains what an action is and that
-   actions appear once visitors use a site running the current snippet, rather than an empty table.
+   actions appear once visitors use a site running the updated SDK, rather than an empty table.
 5. **Given** the same action label appears on several pages, **When** the report is shown,
    **Then** each page's occurrence is a separate row (URL plus action), and a total per action
    across pages is also available.
 6. **Given** traffic identified as bots, **When** the report is shown, **Then** bot activity is
    treated the same way the existing reports treat it.
-7. **Given** a website that has just installed or updated its snippet, **When** a visitor clicks a
-   button, **Then** the action is recorded with no setting changed and no extra step by the owner.
+7. **Given** a website whose owner has installed or updated the SDK file, **When** a visitor clicks
+   a button, **Then** the action is recorded with no setting changed and no extra step beyond the
+   update itself.
 
 ---
 
@@ -227,10 +228,15 @@ appears under the chosen name.
 - **Visitor navigates using back/forward**: each arrival counts as a view of the destination page.
 - **Volume spikes or a script that clicks endlessly**: existing per-source limits apply, and the
   site's normal operation is never blocked or slowed.
-- **Consent required but not granted**: no actions are recorded.
-- **Existing websites**: sites already installed start reporting actions as soon as they run the
-  current snippet, with no owner step; websites on older snippets keep reporting pages as before
-  and report no actions.
+- **Consent denied**: the host site is expected to load the SDK only after consent, as it is for
+  page views today. In addition, when the site tells the SDK that consent is explicitly denied, no
+  actions and no in-page navigation views are recorded.
+- **Existing websites**: each website serves its own copy of the SDK file, so nothing changes for a
+  site until its owner rebuilds and recopies that file as part of a Vizoalica upgrade. Websites on
+  the older file keep reporting pages exactly as before and report no actions.
+- **Newer SDK file with an older backend**: the site's normal operation and its page views must not
+  be lost or stalled because the backend does not yet accept actions; the release notes require the
+  backend to be upgraded before the SDK file.
 
 ## Requirements *(mandatory)*
 
@@ -274,7 +280,7 @@ appears under the chosen name.
 
 - **FR-013**: The system MUST record an action when a visitor activates a button, link, or control
   that behaves as one, by pointer or keyboard. Action collection is always on for every website
-  running the current snippet and has no per-website setting.
+  running the updated SDK file and has no per-website setting.
 - **FR-014**: Each recorded action MUST capture: the page it happened on, the action's name, its
   kind (button, link, or other control), and, for links, the destination's site and path only.
 - **FR-015**: The system MUST NOT record typed text, field values, form content, query values,
@@ -307,7 +313,9 @@ appears under the chosen name.
 - **FR-024**: Site developers MUST be able to exclude a control, or an area of a page, from action
   recording and to give a control an explicit action name, using a documented, simple marking on
   the control.
-- **FR-025**: Action recording MUST respect the visitor's consent state exactly as page views do.
+- **FR-025**: Action recording MUST respect the visitor's consent state as page views do (the
+  consent state travels with every event), and MUST additionally not record actions or in-page
+  navigation views when consent is explicitly denied.
 - **FR-026**: Action data MUST be recorded as a new, versioned kind of event, and events already
   accepted MUST remain valid and unchanged.
 - **FR-027**: Action data MUST be subject to the same retention, project isolation, access
@@ -342,7 +350,7 @@ appears under the chosen name.
 - **SC-003**: Across a documented test corpus of readable, word-based paths and date-shaped paths,
   zero paths are wrongly replaced by `:id`; across a corpus of numeric, UUID, hexadecimal, and
   random-token segments, 100% are replaced.
-- **SC-004**: On a site running the current snippet, 100% of test clicks on buttons and links
+- **SC-004**: On a site running the updated SDK file, 100% of test clicks on buttons and links
   (pointer and keyboard) appear in the Actions report against the correct page with correct
   counts, with no configuration step.
 - **SC-005**: A website owner can find the ten most-used actions on a specific page in under
@@ -368,9 +376,10 @@ appears under the chosen name.
   primary real-world example and a natural acceptance target.
 - **Always-on actions (owner decision)**: There is no owner-level switch and no per-website
   setting for action collection. The only limits are the visitor's consent state and the
-  developer's per-control exclusion. This is a privacy-relevant change of behavior for existing
-  installs, so the privacy review, documentation, and changelog (FR-028) are part of this
-  feature's deliverables rather than follow-up work.
+  developer's per-control exclusion. Collection begins for a website only when its owner deploys
+  the updated SDK file, which is a deliberate upgrade step, but it is still a privacy-relevant
+  change in what the SDK collects, so the privacy review, documentation, and changelog (FR-028)
+  are part of this feature's deliverables rather than follow-up work.
 - **Action definition**: An action is a click or keyboard activation on a button, a link, or a
   control that behaves as one. Hovers, scrolls, form input, and clicks on non-interactive areas
   are not actions. Form submissions are recorded only as the activation of their submit button.
@@ -391,9 +400,11 @@ appears under the chosen name.
   access rules as page views. Role-based access control remains a separate, later specification.
 - **Console structure**: The Actions page is added to the Analytics area only and is view-only,
   consistent with the view/manage separation in the console. Nothing is added to the Manage area.
-- **Compatibility**: Older embedded snippets keep working and keep reporting pages as they do
-  today; the improved page breakdown, identifier grouping, and action collection apply to the
-  updated snippet, which owners receive through the mechanism that already delivers snippet
-  updates, where possible.
+- **Compatibility and rollout**: The SDK file is hosted by each website, so owners adopt the
+  improvements by rebuilding and recopying it during an upgrade (the existing documented step).
+  Older SDK files keep working and keep reporting pages as they do today; identifier grouping is
+  also applied when events are received, so older files benefit from it without an update. The
+  backend must be upgraded before the SDK file. The backend change adds new storage but changes no
+  existing storage.
 - **Sessions and visitors**: "Distinct visitors" uses the same anonymous, consent-aware visitor
   identity that existing reports use; no new visitor identifier is introduced.
