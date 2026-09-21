@@ -4,10 +4,12 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-09-21
+
 ### Changed
 
 - Dependency updates: TypeScript 6, ESLint 10, Vite 8, a group of minor and patch updates (React 19.3,
-  Wrangler 4.133, and others), and a newer actionlint action. TypeScript 6 needed two small settings
+  Wrangler 4.134, and others), and a newer actionlint action. TypeScript 6 needed two small settings
   (`types: ["node"]` in the shared tsconfig, and `--ignoreConfig --types node` for the examples check).
   `@types/node` stays on 22, the oldest supported Node, and Dependabot is told not to propose newer
   major versions.
