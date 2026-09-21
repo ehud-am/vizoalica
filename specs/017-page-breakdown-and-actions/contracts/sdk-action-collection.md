@@ -25,7 +25,7 @@ plain text, images, or empty space, and anything inside an embedded frame from a
 
 | Field              | Value                                                                             |
 | ------------------ | --------------------------------------------------------------------------------- |
-| Page               | The page key ([normalization](./page-path-normalization.md)) and the site's origin |
+| Page               | The page key ([normalization](./page-path-normalization.md)) of the page where the click began (read at pointer down or key press, so a router that navigates first cannot change it), and the site's origin |
 | Name               | See below; at most 80 characters                                                   |
 | Kind               | `button`, `link`, or `other`                                                       |
 | Link destination   | For `http` and `https` links only: origin and page key (path, plus a route-shaped fragment; never a query) |

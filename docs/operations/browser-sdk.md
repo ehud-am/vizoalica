@@ -152,7 +152,8 @@ editable regions, clicks on plain text, images, or empty space, anything inside 
 from another site, the query or fragment of a link, `mailto:` and `tel:` addresses, cookies, and
 positions or element identifiers. There is no session replay or heatmap.
 
-The same control clicked again within 500 ms counts once, and at most 100 actions are recorded per
+An action belongs to the page where the click began: a single-page router that navigates in response
+to the click does not move it to the destination page. The same control clicked again within 500 ms counts once, and at most 100 actions are recorded per
 minute per page load. Actions are sent in their own requests, so a backend that does not yet know
 about them can never delay or lose page views: a batch the backend rejects as invalid or too large
 (HTTP 400 or 413) is dropped rather than retried forever. Upgrade the backend before the SDK file.

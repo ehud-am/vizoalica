@@ -33,6 +33,9 @@ const TYPING_FIELD =
 
 // Double-clicks and held keys should count once; an endless-click script must not flood quotas.
 const DUPLICATE_WINDOW_MS = 500;
+// A click belongs to the page where the interaction began, not the page a router moved to while
+// handling it. The gap between pressing and clicking is normally well under a second.
+const INTERACTION_WINDOW_MS = 5000;
 const MAX_ACTIONS_PER_MINUTE = 100;
 const FALLBACK_NAME: Record<ActionKind, string> = {
   button: 'Unlabeled button',
@@ -103,6 +106,18 @@ export function watchActions(
   const now = options.now ?? (() => Date.now());
   const recent = new Map<string, number>();
   const stamps: number[] = [];
+  let interaction: { page: string; at: number } | undefined;
+
+  // Single-page routers commonly handle a link click in a capture listener on `window`, which runs
+  // before ours and has already changed the address by the time we see the click. The press
+  // (pointer down, or the key that activates a control) always comes first, so the page is read there.
+  const begin = () => {
+    try {
+      interaction = { page: options.currentPage(), at: now() };
+    } catch {
+      interaction = undefined;
+    }
+  };
 
   const handler = (event: Event) => {
     try {
@@ -116,9 +131,14 @@ export function watchActions(
       const kind = kindOf(control);
       const name = nameOf(control, kind);
       const destination = kind === 'link' ? destinationOf(control) : undefined;
-      const page = options.currentPage();
-
       const time = now();
+      const page =
+        interaction && time - interaction.at < INTERACTION_WINDOW_MS
+          ? interaction.page
+          : options.currentPage();
+      // One press produces one click; a later synthetic click must not reuse it.
+      interaction = undefined;
+
       const key = [page, name, kind, destination?.url_origin, destination?.url_path].join('\0');
       const previous = recent.get(key);
       recent.set(key, time);
@@ -137,6 +157,13 @@ export function watchActions(
   };
 
   // Passive and capturing: it observes every click without ever changing or delaying one.
-  doc.addEventListener('click', handler, { capture: true, passive: true });
-  return () => doc.removeEventListener('click', handler, { capture: true });
+  const listen = { capture: true, passive: true } as const;
+  doc.addEventListener('pointerdown', begin, listen);
+  doc.addEventListener('keydown', begin, listen);
+  doc.addEventListener('click', handler, listen);
+  return () => {
+    doc.removeEventListener('pointerdown', begin, { capture: true });
+    doc.removeEventListener('keydown', begin, { capture: true });
+    doc.removeEventListener('click', handler, { capture: true });
+  };
 }

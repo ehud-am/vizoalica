@@ -26,6 +26,7 @@ const pageHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><ti
     <a href="#/orders/8842">Second order</a>
     <button type="button" data-path="/docs">Docs</button>
     <button type="button" data-path="/docs/start">Start</button>
+    <a data-spa href="/spa-target">Router link</a>
   </nav>
   <button type="button" data-vizoalica-action="Buy now">cart</button>
   <button type="button" data-vizoalica-ignore>Delete jane@example.com</button>
@@ -35,6 +36,14 @@ const pageHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><ti
     document.querySelectorAll('button[data-path]').forEach((b) =>
       b.addEventListener('click', () => history.pushState({}, '', b.dataset.path)));
     document.querySelector('a[href^="https://other"]').addEventListener('click', (e) => e.preventDefault());
+    // A single-page router such as VitePress's: it handles link clicks in a capture listener on
+    // window, so it has already navigated by the time a document-level listener sees the click.
+    window.addEventListener('click', (e) => {
+      const link = e.target.closest('a[data-spa]');
+      if (!link) return;
+      e.preventDefault();
+      history.pushState({}, '', link.getAttribute('href'));
+    }, true);
   </script>
 </body></html>`;
 
@@ -69,6 +78,8 @@ test('reports pages and actions from the built bundle in a real browser', async 
   await settle();
   await page.getByRole('button', { name: 'Start' }).click();
   await settle();
+  await page.getByRole('link', { name: 'Router link' }).click();
+  await settle();
   // A real keyboard activation of a named control, then things that must not be recorded.
   await page.getByRole('button', { name: 'cart' }).focus();
   await page.keyboard.press('Enter');
@@ -86,7 +97,15 @@ test('reports pages and actions from the built bundle in a real browser', async 
     .filter((e) => e.type.endsWith('page_view.v1'))
     .map((e) => e.data.page.url_path);
   // Each screen once (the two orders are one page), and back returns to /docs.
-  expect(views).toEqual(['/', '/#/pricing', '/#/orders/:id', '/docs', '/docs/start', '/docs']);
+  expect(views).toEqual([
+    '/',
+    '/#/pricing',
+    '/#/orders/:id',
+    '/docs',
+    '/docs/start',
+    '/spa-target',
+    '/docs/start'
+  ]);
 
   const actions = events.filter((e) => e.type.endsWith('action.v1'));
   const names = actions.map((e) => e.data.action.name);
@@ -96,6 +115,7 @@ test('reports pages and actions from the built bundle in a real browser', async 
     'Second order',
     'Docs',
     'Start',
+    'Router link',
     'Buy now',
     'Elsewhere'
   ]);
@@ -107,6 +127,11 @@ test('reports pages and actions from the built bundle in a real browser', async 
       url_path: '/pricing'
     }
   });
+  // A click belongs to the page it happened on, even when the router navigates first.
+  const pageOf = (name: string) =>
+    actions.find((e) => e.data.action.name === name)!.data.page.url_path;
+  expect(pageOf('Router link')).toBe('/docs/start');
+  expect(pageOf('Buy now')).toBe('/spa-target');
   // Actions travel in their own requests, never mixed with page views.
   expect(
     posts.filter((batch) => new Set(batch.map((e) => e.type.endsWith('action.v1'))).size > 1)

@@ -237,7 +237,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               'data-consent': 'unknown'
             },
             cloudflare: {
-              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.0',
+              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.1',
               repoVariables: {
                 VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
                 VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
@@ -251,7 +251,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
               repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
               starterWorkflowYaml:
-                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.0\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.1\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
               setupCommands: [
                 'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
                 'gh secret set CF_API_TOKEN'

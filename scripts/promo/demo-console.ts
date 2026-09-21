@@ -294,7 +294,7 @@ function integration(site: Site) {
     'data-token-url': '/vizoalica/ingest-token',
     'data-consent': 'unknown'
   };
-  const ref = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.0';
+  const ref = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.1';
   const variables: Record<string, string> = {
     VIZOALICA_SDK_SRC: config.src,
     VIZOALICA_INGEST_ENDPOINT: config['data-endpoint'],

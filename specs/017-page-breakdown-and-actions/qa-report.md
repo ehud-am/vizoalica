@@ -54,6 +54,16 @@ criteria are marked where evidence is partial.
 | SC-008 (zero automated violations; keyboard only)               | axe finds none in either theme; manual screen-reader pass **not done**                                                                                     |
 | SC-009 (data as fresh as page views)                            | Same synchronous write path; verified on real SQL; not yet observed on a real production event (see open items)                                            |
 
+## Addendum: found after release (v0.6.0 to v0.6.1)
+
+| #   | Severity | Finding                                                                                                                                                                                                                                                                                              | Resolution and evidence                                                                                                                                                                                                                                                           |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F11 | High     | **A click on a link was attributed to the page it opened**, on sites whose router handles the click in a capture listener on `window` (VitePress does). It runs before the SDK's `document` listener, so the address had already changed. No test used such a router; the live test on vizoalica.dev after publishing found it. | The SDK reads the page at pointer down or key press and uses it for the click. New unit tests with a router, and the real-browser spec now includes one; **the spec fails without the fix** (`/spa-target` instead of `/docs/start`) and passes with it. Released as v0.6.1. |
+
+The four mis-attributed rows the test visit wrote to production (the only action rows there) were
+deleted by exact predicate. Lesson for the checklist: a real router must be part of any test of
+click attribution, and the first production check belongs before, not after, a release is called done.
+
 ## Live deployment record
 
 - Backend: D1 `vizoalica-config` received the two additive tables (existing rows unchanged: 3 projects,
