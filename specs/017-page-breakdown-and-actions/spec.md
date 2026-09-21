@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-20
 
-**Status**: Draft
+**Status**: Implemented and released as v0.6.0
 
 **Input**: User description: "now that the basics are done, let's start to further enhance the console. First thing, the analytics reports on all urls as "/" and does not show a breakdown. Second, and this is an enhancment, we want to report on actions. An action is something the user clicked, like a button or a link. Let's add another analytics page for actions, it will show a deep report of the URL+actions across the app."
 

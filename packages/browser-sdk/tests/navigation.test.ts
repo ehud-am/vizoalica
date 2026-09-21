@@ -186,4 +186,40 @@ describe('client page views for navigation', () => {
     await on.flush();
     expect(captured.events('com.vizoalica.page_view.v1')).toHaveLength(2);
   });
+
+  it('never lets a frozen history break init: it stays a no-op for navigation', async () => {
+    const captured = captureFetch();
+    Object.defineProperty(history, 'pushState', {
+      value: history.pushState,
+      writable: false,
+      configurable: true
+    });
+    try {
+      let client!: ReturnType<typeof init>;
+      expect(() => {
+        client = init({ endpoint, sourceKey: 'src_1', autoActions: false });
+      }).not.toThrow();
+      stops.push(() => client.stop());
+      await client.flush();
+      // The first page view still goes out; only the navigation observer could not be installed.
+      expect(captured.events('com.vizoalica.page_view.v1')).toHaveLength(1);
+    } finally {
+      delete (history as { pushState?: unknown }).pushState;
+    }
+  });
+
+  it('installs both history wrappers or neither', () => {
+    const originalPush = history.pushState;
+    Object.defineProperty(history, 'replaceState', {
+      value: history.replaceState,
+      writable: false,
+      configurable: true
+    });
+    try {
+      expect(() => watchNavigation(() => {}, currentPageKey)).toThrow();
+      expect(history.pushState).toBe(originalPush);
+    } finally {
+      delete (history as { replaceState?: unknown }).replaceState;
+    }
+  });
 });

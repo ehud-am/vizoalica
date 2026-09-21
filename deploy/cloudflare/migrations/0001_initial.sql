@@ -174,7 +174,9 @@ CREATE TABLE dashboard_minute_actions (
   PRIMARY KEY (project_id, source_id, minute_utc, page_path, action_name, action_kind, destination)
 );
 
--- Distinct visitors per action and minute, kept as keyed digests, never raw identifiers.
+-- Distinct visitors per action and minute, kept as keyed digests, never raw identifiers. The
+-- primary keys serve every read of both action tables, so neither has a secondary index: each one
+-- would add a write to every action.
 CREATE TABLE dashboard_minute_action_visitors (
   project_id TEXT NOT NULL,
   source_id TEXT NOT NULL,
@@ -201,8 +203,3 @@ CREATE INDEX dashboard_minute_visitors_source_range
 CREATE INDEX dashboard_minute_visitors_project_range
   ON dashboard_minute_visitors(project_id, minute_utc, source_id, visitor_digest);
 CREATE INDEX dashboard_seen_events_retention ON dashboard_seen_events(received_at);
--- The counts table's primary key already serves per-website range reads.
-CREATE INDEX dashboard_minute_actions_project_range
-  ON dashboard_minute_actions(project_id, minute_utc, source_id, page_path, action_name);
-CREATE INDEX dashboard_minute_action_visitors_lookup
-  ON dashboard_minute_action_visitors(project_id, source_id, page_path, action_name, minute_utc);

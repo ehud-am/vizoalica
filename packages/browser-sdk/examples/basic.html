@@ -37,7 +37,9 @@
       <!-- An explicit name, and a control that is never recorded. -->
       <button type="button" data-vizoalica-action="Buy now">🛒</button>
       <button type="button" data-vizoalica-ignore>Delete jane@example.com</button>
-      <a href="https://example.com/pricing?utm=demo">External link (only origin and path are kept)</a>
+      <a href="https://example.com/pricing?utm=demo"
+        >External link (only origin and path are kept)</a
+      >
     </p>
 
     <p>
@@ -46,9 +48,11 @@
     </p>
 
     <script>
-      document.querySelectorAll('button[data-path]').forEach((button) =>
-        button.addEventListener('click', () => history.pushState({}, '', button.dataset.path))
-      );
+      document
+        .querySelectorAll('button[data-path]')
+        .forEach((button) =>
+          button.addEventListener('click', () => history.pushState({}, '', button.dataset.path))
+        );
       document.getElementById('signup').addEventListener('click', () => {
         window.vizoalica?.track('signup_click', { properties: { plan: 'demo' } });
       });

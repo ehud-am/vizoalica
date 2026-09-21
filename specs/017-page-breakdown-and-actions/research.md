@@ -222,8 +222,11 @@ batched read (like `getAnalyticsOverview`, one consistent snapshot):
 - `actions`: per-action totals across pages (up to 50), for FR-019.
 - `selection.page` when a page filter is set: that page's views and total actions.
 
-Visitors per row come from a correlated `COUNT(DISTINCT visitor_digest)` over the visitors table for
-only the returned rows; page views come from the existing `page_path` dimension. Ranges stay capped
+Distinct visitors and page views for the returned rows each come from one grouped scan of the range
+(`COUNT(DISTINCT visitor_digest)` over the visitors table, and the existing `page_path` dimension),
+restricted to the rows shown. A first version used per-row correlated lookups; measured on 30 days of
+synthetic traffic (430,000 dimension rows, 260,000 action rows) it took 12.2 s, against 1.3 s for
+grouped scans, because no index leads with the page or action. Ranges stay capped
 at 30 days by the existing range parser.
 
 **Why one endpoint with filters.** Drill-down stays exact (a tail row can still be selected by

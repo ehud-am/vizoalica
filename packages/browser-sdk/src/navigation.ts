@@ -38,8 +38,14 @@ export function watchNavigation(onNavigate: () => void, currentKey: () => string
   const originalReplace = history.replaceState;
   const wrappedPush = wrap(originalPush);
   const wrappedReplace = wrap(originalReplace);
-  history.pushState = wrappedPush;
-  history.replaceState = wrappedReplace;
+  try {
+    history.pushState = wrappedPush;
+    history.replaceState = wrappedReplace;
+  } catch (error) {
+    // All or nothing: never leave one wrapper installed that nothing can remove.
+    if (history.pushState === wrappedPush) history.pushState = originalPush;
+    throw error;
+  }
   scope.addEventListener('popstate', check);
   scope.addEventListener('hashchange', check);
 

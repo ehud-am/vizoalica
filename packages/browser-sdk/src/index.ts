@@ -72,10 +72,18 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
   // The consent state travels on every event. For the richer new data the SDK also stays quiet
   // when consent is explicitly denied.
   if (config.consentState !== 'analytics-denied') {
+    // Installing a listener must never be able to break the host page (a frozen `history`, say).
+    const observe = (start: () => () => void) => {
+      try {
+        watchers.push(start());
+      } catch {
+        // Analytics stays a no-op rather than affecting the page.
+      }
+    };
     if (config.autoNavigation ?? config.autoPageView ?? true)
-      watchers.push(watchNavigation(() => client.page(), currentPageKey));
+      observe(() => watchNavigation(() => client.page(), currentPageKey));
     if (config.autoActions ?? true)
-      watchers.push(
+      observe(() =>
         watchActions(
           (observation) => {
             queue.enqueue(buildActionEvent(config, context, observation));

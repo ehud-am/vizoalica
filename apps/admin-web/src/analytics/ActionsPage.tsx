@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { hrefFor, useRoute, type RouteParams } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
 import { ActionsTable, ActionTotalsTable } from '../components/ActionsTable.js';
@@ -49,6 +50,14 @@ export function ActionsPage() {
   const { params } = useRoute();
   const selection: RouteParams = params ?? {};
   const state = useActionsReport(params);
+  // Choosing a page or action removes the link that had focus. Keep keyboard and screen-reader
+  // users in place by moving focus to the main region, whose content just changed.
+  const selectionKey = `${selection.page ?? ''}\u0000${selection.action ?? ''}`;
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) firstRender.current = false;
+    else document.getElementById('main')?.focus();
+  }, [selectionKey]);
   const { report } = state;
   const selected = Boolean(selection.page || selection.action);
   const page = report?.selection?.page;

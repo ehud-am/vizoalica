@@ -60,9 +60,8 @@ One row per project, website, minute, page, action, kind, and destination.
 | `destination`     | TEXT    | `''` for non-links, otherwise `origin + path`                     |
 | `event_count`     | INTEGER | `>= 0`; incremented by upsert                                     |
 
-Primary key: all columns except `event_count` (it also serves per-website range reads).
-Index: a project-wide variant `(project_id, minute_utc, source_id, page_path, action_name)`, matching the
-existing dashboard tables.
+Primary key: all columns except `event_count`. It serves every read; there is no secondary index, because
+each one would add a write to every action (a query-plan check showed the planner never used them).
 
 ### `dashboard_minute_action_visitors`
 
@@ -74,8 +73,8 @@ Distinct visitors per the same key, for the report's Visitors column.
 | `visitor_digest` | TEXT | Keyed digest (existing `hmacDigest`); never the raw anonymous id            |
 | `identity_kind`  | TEXT | `CHECK` in (`source-local`, `project-supplied`), as for page views          |
 
-Primary key: all columns. `INSERT OR IGNORE`, so a visitor counts once per key per minute.
-Index: `(project_id, source_id, page_path, action_name, minute_utc)` for the correlated distinct count.
+Primary key: all columns. `INSERT OR IGNORE`, so a visitor counts once per key per minute. No secondary
+index: the report counts distinct visitors with one grouped scan of the range, restricted to the rows shown.
 
 ### Existing tables reused, unchanged
 

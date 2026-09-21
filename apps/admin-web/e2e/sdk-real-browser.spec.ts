@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 
@@ -7,10 +7,12 @@ import { expect, test } from '@playwright/test';
  * fragment routes behave as they do for visitors (jsdom only approximates them). Needs
  * `pnpm browser-sdk:build`, which CI runs before the end-to-end tests.
  */
-const bundle = readFileSync(
-  resolve(process.cwd(), '../../packages/browser-sdk/dist/vizoalica.js'),
-  'utf8'
-);
+const bundlePath = resolve(process.cwd(), '../../packages/browser-sdk/dist/vizoalica.js');
+if (!existsSync(bundlePath))
+  throw new Error(
+    'Build the SDK first: pnpm browser-sdk:build (this spec tests the built bundle).'
+  );
+const bundle = readFileSync(bundlePath, 'utf8');
 const ORIGIN = 'http://sdk-test.example';
 const INGEST = 'http://ingest.example/v1/events:batch';
 

@@ -211,21 +211,37 @@ export function actionsReportQueries(db: D1Database, request: ActionsReportReque
       ...rangeValues(),
       ...filterValues
     ),
+    // Everything joined onto the top rows comes from one grouped scan each (page views, distinct
+    // visitors), restricted to the rows shown. Per-row correlated lookups scan the whole range once
+    // per row, because no index leads with the page or action; that took seconds at 30 days.
     q(
       `WITH top AS (
          SELECT page_path, action_name, action_kind, destination, SUM(event_count) AS count
          FROM dashboard_minute_actions WHERE ${rangeSql()}${filterSql}
          GROUP BY page_path, action_name, action_kind, destination
          ORDER BY count DESC, page_path ASC, action_name ASC, action_kind ASC, destination ASC
-         LIMIT ${ACTION_ROW_LIMIT})
+         LIMIT ${ACTION_ROW_LIMIT}),
+       views AS (
+         SELECT d.dimension_value AS page, SUM(d.event_count) AS views
+         FROM dashboard_minute_dimensions d
+         WHERE ${rangeSql('d.')} AND d.dimension_kind = 'page_path'
+           AND d.dimension_value IN (SELECT page_path FROM top)
+         GROUP BY d.dimension_value),
+       people AS (
+         SELECT v.page_path, v.action_name, v.action_kind, v.destination,
+                COUNT(DISTINCT v.visitor_digest) AS visitors
+         FROM dashboard_minute_action_visitors v
+         WHERE ${rangeSql('v.')}
+           AND (v.page_path, v.action_name, v.action_kind, v.destination)
+               IN (SELECT page_path, action_name, action_kind, destination FROM top)
+         GROUP BY v.page_path, v.action_name, v.action_kind, v.destination)
        SELECT t.page_path AS page, t.action_name AS action, t.action_kind AS kind,
               t.destination AS destination, t.count AS count,
-              (SELECT COUNT(DISTINCT v.visitor_digest) FROM dashboard_minute_action_visitors v
-                WHERE ${rangeSql('v.')} AND v.page_path = t.page_path AND v.action_name = t.action_name
-                  AND v.action_kind = t.action_kind AND v.destination = t.destination) AS visitors,
-              (SELECT COALESCE(SUM(d.event_count), 0) FROM dashboard_minute_dimensions d
-                WHERE ${rangeSql('d.')} AND d.dimension_kind = 'page_path' AND d.dimension_value = t.page_path) AS pageViews
+              COALESCE(people.visitors, 0) AS visitors, COALESCE(views.views, 0) AS pageViews
        FROM top t
+       LEFT JOIN views ON views.page = t.page_path
+       LEFT JOIN people ON people.page_path = t.page_path AND people.action_name = t.action_name
+         AND people.action_kind = t.action_kind AND people.destination = t.destination
        ORDER BY t.count DESC, t.page_path ASC, t.action_name ASC, t.action_kind ASC, t.destination ASC`,
       ...rangeValues(),
       ...filterValues,
@@ -238,11 +254,17 @@ export function actionsReportQueries(db: D1Database, request: ActionsReportReque
          FROM dashboard_minute_actions WHERE ${rangeSql()}${actionOnlySql}
          GROUP BY action_name, action_kind
          ORDER BY count DESC, action_name ASC, action_kind ASC
-         LIMIT ${ACTION_TOTAL_LIMIT})
+         LIMIT ${ACTION_TOTAL_LIMIT}),
+       people AS (
+         SELECT v.action_name, v.action_kind, COUNT(DISTINCT v.visitor_digest) AS visitors
+         FROM dashboard_minute_action_visitors v
+         WHERE ${rangeSql('v.')}
+           AND (v.action_name, v.action_kind) IN (SELECT action_name, action_kind FROM a)
+         GROUP BY v.action_name, v.action_kind)
        SELECT a.action_name AS action, a.action_kind AS kind, a.count AS count, a.pages AS pages,
-              (SELECT COUNT(DISTINCT v.visitor_digest) FROM dashboard_minute_action_visitors v
-                WHERE ${rangeSql('v.')} AND v.action_name = a.action_name AND v.action_kind = a.action_kind) AS visitors
-       FROM a ORDER BY a.count DESC, a.action_name ASC, a.action_kind ASC`,
+              COALESCE(people.visitors, 0) AS visitors
+       FROM a LEFT JOIN people ON people.action_name = a.action_name AND people.action_kind = a.action_kind
+       ORDER BY a.count DESC, a.action_name ASC, a.action_kind ASC`,
       ...rangeValues(),
       ...actionOnlyValues,
       ...rangeValues()

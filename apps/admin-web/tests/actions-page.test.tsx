@@ -75,9 +75,8 @@ describe('Actions page', () => {
     expect(second!.textContent).toContain('200%');
     expect(third!.textContent).toContain('10%');
     // A page with no recorded views shows a dash with an accessible explanation.
-    expect(within(fourth!).getByLabelText('No page views recorded for this page').textContent).toBe(
-      '—'
-    );
+    expect(within(fourth!).getByText('No page views recorded for this page')).toBeTruthy();
+    expect(fourth!.textContent).toContain('—');
     expect(other!.textContent).toContain('Other');
     expect(other!.textContent).toContain('3 more page and action pairs');
   });
@@ -251,6 +250,17 @@ describe('Actions page selection', () => {
     await waitFor(() => expect(api.getAnalyticsActions).toHaveBeenCalledTimes(2));
     expect(firstSignal.aborted).toBe(true);
     expect(api.getAnalyticsActions.mock.calls[1]![4]).toEqual({ action: 'Go' });
+  });
+
+  it('moves focus to the main region when the selection changes, but not on first load', async () => {
+    await openPage();
+    const table = await screen.findByRole('region', { name: 'Actions on pages table' });
+    expect(document.activeElement).not.toBe(document.getElementById('main'));
+    const link = within(table).getAllByRole('link', { name: '/pricing' })[0]!;
+    link.focus();
+    await userEvent.click(link);
+    await act(settle);
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById('main')));
   });
 
   it('announces the number of actions shown to assistive technology', async () => {

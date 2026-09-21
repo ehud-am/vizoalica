@@ -65,7 +65,10 @@ export function ActionsTable({
                   {row.pageViews > 0 ? (
                     formatShare(row.count, row.pageViews)
                   ) : (
-                    <span aria-label="No page views recorded for this page">—</span>
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">No page views recorded for this page</span>
+                    </>
                   )}
                 </td>
               </tr>
