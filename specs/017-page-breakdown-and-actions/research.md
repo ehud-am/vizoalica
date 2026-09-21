@@ -184,29 +184,26 @@ only page-view counts).
 **Bounds.** Rows are bounded by accepted events, which quotas already bound; the report returns at
 most 100 grouped rows.
 
-## R10. Migration policy (needs owner attention)
+## R10. Schema policy: fold into the baseline, no migration (owner decision)
 
 **Finding.** The 0.5 line is documented as fresh-install-only with one `0001_initial.sql` baseline
-(`docs/operations/releases.md`, "Deployment boundary of the 0.5 line"), and
-`apps/deploy-cli/src/fresh-schema.ts` rejects a database that already has Vizoalica tables.
+(`docs/operations/releases.md`), and `apps/deploy-cli/src/fresh-schema.ts` rejects a database that
+already has Vizoalica tables.
 
-**Decision.** Ship `deploy/cloudflare/migrations/0002_action_rollups.sql`, purely additive (new tables
-and indexes only, no change to existing tables). Fresh installs are unchanged for the operator,
-because `wrangler d1 migrations apply` applies both files in order. Existing installs upgrade with
-one documented command run before the Worker deploy. The release notes and the "Update an existing
-backend" section gain upgrade notes; the two new tables are added to the fresh-schema inspection
-list so a database already containing them is still recognised.
+**Decision (owner, 2026-09-20).** No migration file. The two new tables and their indexes are added to
+`deploy/cloudflare/migrations/0001_initial.sql`. Fresh installs create them with the rest of the
+schema, and this release is a breaking, fresh-install-only release (version 0.6.0). The two table
+names are added to the fresh-schema inspection list.
 
-**Why.** The alternative is editing `0001` and forcing every existing owner, including the
-maintainer's own backend, to reinstall on an empty database and lose history. An additive migration
-is the smallest change that keeps existing data.
+**Maintainer backend.** The live D1 database predates this change. Recreating it would delete the
+project and website registrations that the deployed websites depend on, so the maintainer's own
+database receives the same two `CREATE TABLE` statements once, by hand, before the Worker is
+deployed. Nothing existing is altered or dropped, and rollback is redeploying the previous Worker
+(the new tables are simply unused).
 
-**Owner decision requested.** This is a deliberate exception to "fresh installs only". If it is not
-accepted, the fallback is to edit `0001` and state the fresh-install requirement in the changelog.
-The rest of the design is unaffected.
+**Ordering constraint.** Schema, then Worker, then website SDK files (R7 protects against skew).
 
-**Ordering constraint.** Migrate, then deploy the Worker, then update website SDK files (spec
-assumption; R7 protects against skew).
+**Rejected.** A `0002` migration (owner declined); editing the live database destructively.
 
 ## R11. The actions report query and response
 

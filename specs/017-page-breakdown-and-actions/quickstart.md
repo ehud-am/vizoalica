@@ -98,11 +98,10 @@ local-ops endpoints reject bad ranges and values with the documented errors.
 Version skew: the SDK test that simulates a backend answering `400` for action batches shows page
 views still delivered, the rejected batch dropped rather than retried, and no growth of the queue.
 
-## 7. Upgrade rehearsal on an existing database (optional, isolated)
+## 7. Schema rehearsal (optional, isolated)
 
-Verifies that `0002_action_rollups.sql` applies to a database that already holds data and that a
-fresh database ends in the same schema. Use scratch names and a separate worktree; never point it at
-the production database or the production Wrangler config.
+Verifies the baseline creates the two action tables on an empty database. Use scratch names and a
+separate worktree; never point it at the production database or the production Wrangler config.
 
 ```sh
 git worktree add --detach ../vizoalica-rehearsal HEAD
@@ -111,6 +110,5 @@ cd ../vizoalica-rehearsal
 pnpm exec wrangler d1 migrations apply vizoalica-rehearsal-config --remote --config <scratch config>
 ```
 
-**Expect:** with `0001` already applied, only `0002` is listed and applied; the two new tables exist;
-existing rows are untouched. Remove the scratch resources afterwards, in the order in
+**Expect:** `0001` applies and both action tables and their indexes exist. Remove the scratch resources afterwards, in the order in
 `docs/operations/cloudflare.md`, and only names that start with `vizoalica-rehearsal-`.

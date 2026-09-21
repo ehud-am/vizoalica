@@ -43,7 +43,7 @@ Schema: [contracts/action-event.v1.schema.json](./contracts/action-event.v1.sche
 - `action.name` is re-redacted and truncated; an empty result is replaced by the kind's fallback.
 - Batches over the existing size, count, and quota limits are rejected before any storage.
 
-## Storage: two additive tables (migration `0002_action_rollups.sql`)
+## Storage: two new tables (added to the `0001_initial.sql` baseline)
 
 ### `dashboard_minute_actions`
 

@@ -30,16 +30,16 @@ The technical approach, with rationale in [research.md](./research.md):
 
 ### Decisions for owner review
 
-1. **Additive migration `0002`** breaks the documented "0.5 line is fresh installs only" rule for one
-   reason: forcing every install, including the maintainer's, onto an empty database would destroy
-   history. Fallback if declined: edit `0001` and state the fresh-install requirement ([R10](./research.md#r10-migration-policy-needs-owner-attention)).
+1. **No migration (owner decision).** The two new tables go into the `0001` baseline, and this is a
+   breaking, fresh-install-only release (0.6.0). The maintainer's live database receives the same two
+   `CREATE TABLE` statements once, by hand, so its registrations are kept ([R10](./research.md#r10-schema-policy-fold-into-the-baseline-no-migration-owner-decision)).
 2. **Digits-only segments are always grouped** (`/page/2` becomes `/page/:id`), and `/orders/2026/12`
    is kept as a date-shaped run ([R3](./research.md#r3-identifier-grouping-rules-and-where-they-run)).
 3. **Rate can exceed 100%.** The "share of page views" is shown as actions per page view, because one
    view can produce several clicks ([R13](./research.md#r13-console-ui)).
 4. **Consent** is stricter for the new data only: no actions or in-page navigation views when consent
    is explicitly denied, while the initial page view keeps today's behavior ([R8](./research.md#r8-consent)).
-5. **Rollout order** is backend (including migration), then website SDK files. The SDK file is
+5. **Rollout order** is backend (with the new schema), then website SDK files. The SDK file is
    self-hosted by each website, so adoption is a deliberate upgrade step.
 
 ## Technical Context
@@ -49,8 +49,7 @@ The technical approach, with rationale in [research.md](./research.md):
 **Primary Dependencies**: Existing only. Ajv 2020 for event schemas; React 19 and Vite 6 for the
 console; esbuild for the SDK bundle; Wrangler 4 for deployment. No new runtime dependency.
 
-**Storage**: Cloudflare D1 (SQLite) for aggregates: two new additive tables in migration
-`0002_action_rollups.sql`; R2 raw batches (unchanged; action events are stored after the privacy
+**Storage**: Cloudflare D1 (SQLite) for aggregates: two new tables in the `0001_initial.sql` baseline; R2 raw batches (unchanged; action events are stored after the privacy
 guard like other events).
 
 **Testing**: Vitest 4 (unit, contract, integration; jsdom for SDK and console), Testing Library,
@@ -83,7 +82,7 @@ per-action totals, 30-day maximum range. Roughly 15 source files changed and 12 
 | **I. Privacy-minimal analytics** | Pass, with deliverables | New fields (action name, kind, link destination, route fragment in `url_path`) each get a documented purpose, retention, access boundary, and review: `docs/privacy/action-collection-review.md` (R16). Labels redacted and truncated; queries, fragments, typed text, `mailto:`/`tel:` never recorded; raw identifiers never stored; reports are aggregates with no visitor identifiers. |
 | **II. Security and abuse resistance** | Pass | New event type is schema-validated with length limits and `additionalProperties: false`; privacy guard re-normalizes before storage; quotas apply before expensive work (unchanged pipeline order); every table and query is keyed by `project_id`; admin endpoint uses existing admin auth; client rate cap and dedup; negative tests listed in R17 (malformed input, oversize, cross-project reads, replay). No secrets added anywhere. |
 | **III. Open source, portable interoperability** | Pass | Public versioned JSON Schema for the action event; CloudEvents envelope; contracts documented in the repository; no provider-specific behavior added. |
-| **IV. Minimal infrastructure, AI-assisted deployment** | Pass, one policy exception flagged | No new service; two additive tables. The deployment skill and installer keep working on fresh installs (`wrangler d1 migrations apply` applies both files). Existing installs need one documented command before the Worker deploy; this departs from the "fresh installs only" policy and is called out for owner decision (R10). |
+| **IV. Minimal infrastructure, AI-assisted deployment** | Pass | No new service; two new tables in the baseline schema. The installer keeps working on fresh installs; the release is fresh-install-only, as the 0.5 line already is (R10). |
 | **V. Human-readable, AI-ready engineering** | Pass | Small single-purpose modules (normalizer, label redaction, action capture, navigation, action rollups, report query, console page); comments only for non-obvious intent (grouping thresholds, why `replaceState` is ignored, why actions have their own batches); contracts precede code; docs updated with behavior. |
 | **Accessible product experience** | Pass, verified by tests | Actions page uses real tables, scroll regions with accessible names, no color-only meaning, keyboard-operable filters; axe scans in both themes plus a manual keyboard check are tasks. |
 | **SDK never blocks the host** | Pass | Passive, capturing, bounded, try/catch listener; `pushState` wrapper defers work and calls the original first; failures swallowed as for page views. |
@@ -176,7 +175,7 @@ apps/
     └── e2e/                             mock-console endpoint; actions flows, keyboard, axe
 
 deploy/cloudflare/migrations/
-└── 0002_action_rollups.sql              (new) two tables and indexes, additive only
+└── 0001_initial.sql                     two tables and indexes added to the baseline
 
 docs/
 ├── privacy/action-collection-review.md  (new) the constitution's review
@@ -196,7 +195,7 @@ on the overview fetch.
 ## Delivery order (input to /speckit-tasks)
 
 1. **Foundation** (blocks all stories): page-key module with fragment handling and label redaction
-   in `packages/privacy`; action schema and type in `packages/event-contracts`; migration `0002`.
+   in `packages/privacy`; action schema and type in `packages/event-contracts`; baseline schema tables.
 2. **Story 1, page breakdown (P1)**: SDK page key and in-page navigation; guard accepts fragment keys;
    Pages and Overview display; sample page.
 3. **Story 2, identifier grouping (P1)**: grouping in the shared function, SDK, and guard; corpus
