@@ -4,6 +4,21 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Dependency updates: TypeScript 6, ESLint 10, Vite 8, a group of minor and patch updates (React 19.3,
+  Wrangler 4.133, and others), and a newer actionlint action. TypeScript 6 needed two small settings
+  (`types: ["node"]` in the shared tsconfig, and `--ignoreConfig --types node` for the examples check).
+  `@types/node` stays on 22, the oldest supported Node, and Dependabot is told not to propose newer
+  major versions.
+
+### Fixed
+
+- Starting the console (or running `pnpm vizoalica verify` or `purge`) through OneCLI no longer prints
+  `UNDICI-EHPA: EnvHttpProxyAgent is experimental` on every start. OneCLI injects proxy settings, which
+  makes Node's built-in fetch switch on that agent and warn; exactly that one warning is now silenced in
+  the processes launched through OneCLI, and your own `NODE_OPTIONS` is kept.
+
 ## [0.6.1] - 2026-09-21
 
 ### Fixed

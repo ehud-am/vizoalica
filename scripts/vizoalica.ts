@@ -422,6 +422,18 @@ async function doctor(options: Options, dependencies: Dependencies): Promise<voi
   } else stdout.write('\nReady. Run: pnpm vizoalica console\n');
 }
 
+/**
+ * Under `onecli run`, proxy settings are injected into the environment and Node's built-in fetch
+ * then prints "UNDICI-EHPA: EnvHttpProxyAgent is experimental" on every start. It is expected here,
+ * so exactly that one warning is silenced in processes launched through OneCLI. Nothing else is.
+ */
+export const SILENCE_ENV_PROXY_WARNING = '--disable-warning=UNDICI-EHPA';
+
+/** The caller's own NODE_OPTIONS, kept, plus the flag above. */
+export function oneCliNodeOptions(existing = process.env.NODE_OPTIONS): string {
+  return [existing, SILENCE_ENV_PROXY_WARNING].filter(Boolean).join(' ');
+}
+
 export function consoleArguments(config: OpsConfig): string[] {
   return [
     'run',
@@ -434,6 +446,7 @@ export function consoleArguments(config: OpsConfig): string[] {
     '--',
     'env',
     'VIZOALICA_ONECLI_WRAPPED=1',
+    `NODE_OPTIONS=${oneCliNodeOptions()}`,
     'pnpm',
     'local-ops-api:dev',
     'serve',
@@ -452,6 +465,7 @@ export function verifyArguments(config: OpsConfig): string[] {
     config.onecli.gateway,
     '--',
     'node',
+    SILENCE_ENV_PROXY_WARNING,
     '--import',
     'tsx',
     'scripts/verify-operator-access.ts',

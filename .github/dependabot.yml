@@ -8,6 +8,12 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # The types must match the oldest Node the project supports (engines: >=22), not the newest,
+      # or code can use APIs that do not exist on the runtime users are told to run. Raise this
+      # deliberately, together with `engines`, CI, and the docs, when the minimum Node changes.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
