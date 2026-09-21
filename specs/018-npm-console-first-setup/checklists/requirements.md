@@ -36,8 +36,8 @@
   named because the owner named them and they are the user-facing interface; no framework, bundler,
   language, or storage technology is specified.
 - **Decisions made by default rather than asked** (see Assumptions), worth confirming before planning:
-  1. **Roles are credentials, enforced by the backend.** The analyst gets a new read-only credential;
-     the website owner gets setup details but no new backend credential. Per-website signing keys, which
+  1. **Roles are credentials, enforced by the backend.** Analysts and website owners get a read-only key
+     (owners' limited to one website), revised at planning time from "no new credential for owners". Per-website signing keys, which
      would remove the known limit for owners, are out of scope.
   2. **The first-run questions are asked in the console**, not in the terminal.
   3. **`vizoalica install` is retired**, lower-level commands stay for scripts, and existing setups (both

@@ -231,8 +231,9 @@ control was ever offered.
 **Acceptance Scenarios**:
 
 1. **Given** the operator has registered my website, **When** they share its setup details with me,
-   **Then** the details contain only what a website needs (public identifiers, the ingestion address,
-   the allowed origin, consent guidance) and never the administrator credential.
+   **Then** the details contain what a website needs (public identifiers, the ingestion address, the
+   allowed origin, consent guidance) and a read-only key limited to that one website, and never the
+   administrator credential.
 2. **Given** I choose the owner role and enter the setup details, **When** the console verifies them,
    **Then** I see my website's installation steps and its current status.
 3. **Given** the owner role, **When** I use the console, **Then** there is no control to deploy or
@@ -387,13 +388,16 @@ run the console; confirm it recognizes the existing setup and goes straight to t
   be the only role that can deploy, update, connect, or configure the backend, rotate secrets, purge
   deleted data, create projects and websites, edit, disable, or delete them, and issue access for the
   other roles.
-- **FR-017**: The **analyst** role MUST use a read-only credential that the backend accepts only for reading
-  analytics and that it refuses for every other operation. It MUST be issuable, shown once, revocable, and
-  replaceable by the operator from the console, and MUST NOT allow obtaining any other credential.
+- **FR-017**: The **analyst** role MUST use a read-only key that the backend accepts only for reading
+  analytics and website information and that it refuses for every other operation. A key MAY be limited to
+  one project or one website. It MUST be issuable, shown once, revocable, and replaceable by the operator
+  from the console, and MUST NOT allow obtaining any other credential.
 - **FR-018**: The **website owner** role MUST work without the administrator credential, from setup details
-  the operator shares (public identifiers, ingestion address, allowed origin, consent guidance). The
-  console MUST let an owner view installation steps and status for their website and run the check, and
-  MUST offer no control that creates, edits, or deletes backend resources.
+  the operator shares (public identifiers, ingestion address, allowed origin, consent guidance, and a
+  read-only key limited to that one website). The console MUST let an owner view installation steps and
+  status for their website, obtain the SDK file, and run the check that data has arrived, and MUST offer
+  no control that creates, edits, or deletes backend resources. The backend MUST refuse the owner's key
+  for any other website and for any change.
 - **FR-019**: The operator MUST be able to produce the website owner's setup details and the analyst's
   access from the console. Neither MUST ever contain the administrator credential. The website's token
   signing secret is not part of the setup details either: the operator places it on the website's own
@@ -460,8 +464,8 @@ run the console; confirm it recognizes the existing setup and goes straight to t
   the way it obtains it); has health, version, and compatibility.
 - **Deployment plan and record**: the resources to be created, the operator's approval, the ordered steps and
   their outcomes, and the resulting audit entry (no secrets).
-- **Website setup details**: the public values a website owner needs; never includes the administrator
-  credential.
+- **Website setup details**: the public values a website owner needs, plus a read-only key limited to
+  their website; never includes the administrator credential.
 - **Read-only access**: the analyst's credential; issued, shown once, revocable, valid for reading analytics
   only.
 - **Installation**: the installed package and its version, and the saved settings that survive updates.
@@ -509,9 +513,11 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 - **Roles are credentials, not accounts**: There are no user accounts, sign-ups, or logins. A role is what
   a person's credential allows, held on their own computer. The console adapts to the credential it
   holds and to the role the person chose, and the backend enforces the credential's limits.
-- **Read-only access is new**: The backend today has one administrator credential and no scoped
-  credentials, so the analyst role needs a read-only credential the backend enforces. The website owner
-  needs no new backend credential in this feature.
+- **Read-only keys are new**: The backend today has one administrator credential and no scoped
+  credentials, so the analyst and website-owner roles need a read-only key the backend enforces. One
+  kind of key serves both: an analyst's key covers everything or one project, and a website owner's key
+  is limited to their one website. This is a database change, so, like the 0.5 and 0.6 lines, it
+  applies to fresh installs and is added by hand to an existing database.
 - **Known limit for website owners**: A website's token service signs with a secret the backend shares
   across websites, so an owner who holds that secret could mint tokens for another website. This feature
   does not change that; per-website signing is a separate, later specification. The owner role therefore
