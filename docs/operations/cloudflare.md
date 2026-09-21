@@ -111,7 +111,7 @@ guides are each a single further command sequence, not a repeat of this one.
 ## Prerequisites
 
 - Node.js 22 or newer and Corepack.
-- A reviewed Vizoalica 0.5.3 checkout.
+- A reviewed Vizoalica 0.6.0 checkout.
 - Access to the intended Cloudflare account with Workers, D1, and R2 available.
 - R2 activated for the account; Cloudflare may request billing information even when usage stays
   within an included allowance.
@@ -132,7 +132,7 @@ Record these non-secret choices before starting:
 | Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
 | D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
 | R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
-| Release                    | `v0.5.3`            | Use one reviewed checkout for setup and later operators |
+| Release                    | `v0.6.0`            | Use one reviewed checkout for setup and later operators |
 
 Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
@@ -433,6 +433,13 @@ pnpm vizoalica backend --update
 It builds, deploys, keeps your data and secrets, and checks health. If this checkout has no
 `wrangler.production.toml` (for example on a second computer), it rebuilds one from your existing
 install.
+
+**Version 0.6 changes the D1 schema** (two new tables for actions in `0001_initial.sql`), so it is a
+fresh-install release: a new installation on a new, empty database is the supported path, and
+`pnpm vizoalica backend --update` cannot add the tables to an existing database. The change only adds
+tables, so someone who accepts that risk can create the two `CREATE TABLE` statements and two
+indexes at the end of `deploy/cloudflare/migrations/0001_initial.sql` in their existing database
+before deploying the Worker; nothing else is altered.
 
 The manual equivalent is below. `pnpm deploy:check` and `pnpm deploy:apply` are **first-install**
 commands: both refuse a D1 database that already contains Vizoalica tables, so they cannot ship a

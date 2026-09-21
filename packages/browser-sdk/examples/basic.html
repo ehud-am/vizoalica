@@ -3,9 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <title>Vizoalica basic SDK example</title>
+    <!--
+      Build the bundle first (pnpm browser-sdk:build), then point data-endpoint at any endpoint you
+      can inspect. Open the browser's Network panel to see the events this page sends:
+        - a page view on load, and one for every screen below (fragment routes and pushState);
+        - an action for every button and link, in its own request, separate from the page views.
+      The bundle is dist/vizoalica.js; data-consent="analytics-granted" records that the visitor agreed.
+    -->
     <script
       async
-      src="../dist/embed.js"
+      src="../dist/vizoalica.js"
       data-endpoint="http://localhost:4318/v1/events:batch"
       data-source="demo_source"
       data-project="demo_project"
@@ -14,8 +21,34 @@
     ></script>
   </head>
   <body>
-    <button id="signup">Track signup click</button>
+    <h1>Five screens, no page loads</h1>
+    <nav aria-label="Screens">
+      <!-- Three screens addressed after #: page keys /#/home, /#/pricing, /#/orders/:id -->
+      <a href="#/home">Home</a>
+      <a href="#/pricing">Pricing</a>
+      <a href="#/orders/8841">Order 8841</a>
+      <a href="#/orders/8842">Order 8842 (same page as 8841: identifiers become :id)</a>
+      <!-- Two screens reached by changing the address in place: /docs and /docs/getting-started -->
+      <button type="button" data-path="/docs">Docs (pushState)</button>
+      <button type="button" data-path="/docs/getting-started">Getting started (pushState)</button>
+    </nav>
+
+    <p>
+      <!-- An explicit name, and a control that is never recorded. -->
+      <button type="button" data-vizoalica-action="Buy now">🛒</button>
+      <button type="button" data-vizoalica-ignore>Delete jane@example.com</button>
+      <a href="https://example.com/pricing?utm=demo">External link (only origin and path are kept)</a>
+    </p>
+
+    <p>
+      <button id="signup" type="button">Track signup click</button>
+      <label>Note (typed text is never recorded) <input type="text" /></label>
+    </p>
+
     <script>
+      document.querySelectorAll('button[data-path]').forEach((button) =>
+        button.addEventListener('click', () => history.pushState({}, '', button.dataset.path))
+      );
       document.getElementById('signup').addEventListener('click', () => {
         window.vizoalica?.track('signup_click', { properties: { plan: 'demo' } });
       });

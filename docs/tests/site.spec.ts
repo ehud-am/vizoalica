@@ -13,7 +13,9 @@ const PAGES = [
   '/operations/privacy',
   '/operations/docs-site',
   '/privacy/audience-attributes-review',
+  '/privacy/action-collection-review',
   '/brand',
+  '/releases/v0.6.0',
   '/releases/v0.5.3',
   '/v0.1.0-architecture-discussion'
 ];

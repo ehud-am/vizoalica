@@ -63,7 +63,7 @@ It creates a real backend in your Cloudflare account, sets up this computer as t
 
 ## Built in the open
 
-Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.5.3).
+Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.6.0).
 
 ## Help shape it
 

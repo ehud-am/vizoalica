@@ -43,7 +43,7 @@ flowchart LR
 ```
 
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
-- **Collects:** page views and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, page text, or session replay, and it records the consent state on every event.
+- **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
 - **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
 - **Setup:** one command, `pnpm vizoalica install`. You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
 - **License:** MIT.

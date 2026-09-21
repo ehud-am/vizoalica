@@ -55,6 +55,23 @@ The last two rows are coalesced across an entire ingested batch (an ingest reque
 multiple events): a batch of 25 page-view events writes roughly `14 × 25 + 2 = 352` rows, not
 `16 × 25 = 400` - the watermark and nonce-clear statements do not scale with batch size.
 
+## Writes per accepted action event
+
+An action (a click on a button or link, version 0.6) writes fewer rows than a page view because it
+has no classification dimensions and touches none of the page-view tables:
+
+| Statement                                                     | Rows written                                  |
+| ------------------------------------------------------------- | --------------------------------------------- |
+| `dashboard_seen_events` insert-or-ignore (idempotency ledger) | 1                                             |
+| `dashboard_minute_actions` upsert                             | 1                                             |
+| `dashboard_minute_action_visitors` insert-or-ignore           | 1                                             |
+| `dashboard_aggregate_watermarks` upsert, nonce-clear update   | coalesced per ingested _batch_, not per event |
+| **Total, single-event batch**                                 | **3 (plus the two per-batch statements)**     |
+
+Actions are bounded by the same per-website event quotas as page views, and the two new tables are
+pruned by the same daily retention job at 32 days, so storage stays bounded. The actions report reads
+at most 100 grouped rows and 50 per-action totals in one batch of statements, whatever the volume.
+
 ## Reads per dashboard request
 
 `getAnalyticsOverview` issues 15 D1 statement executions per request, regardless of range length
@@ -93,7 +110,8 @@ the expected scale and configure Cloudflare usage alerts before increasing sourc
 ## Retention cost
 
 The daily cleanup Cron Trigger deletes rows older than 32 days from `dashboard_minute_totals`,
-`dashboard_minute_dimensions`, `dashboard_minute_visitors`, `dashboard_seen_events`,
+`dashboard_minute_dimensions`, `dashboard_minute_visitors`, `dashboard_minute_actions`,
+`dashboard_minute_action_visitors`, `dashboard_seen_events`,
 `ingestion_decisions`, and `quota_windows`. Each table is deleted in `LIMIT 1000` batches, and the
 job repeats those batches until every table returns a partial batch, up to 200 repeats per run
 (about 200,000 rows per table per run; see `dashboard-retention.test.ts`). Steady-state storage is

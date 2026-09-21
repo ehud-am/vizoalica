@@ -28,7 +28,7 @@ plain text, images, or empty space, and anything inside an embedded frame from a
 | Page               | The page key ([normalization](./page-path-normalization.md)) and the site's origin |
 | Name               | See below; at most 80 characters                                                   |
 | Kind               | `button`, `link`, or `other`                                                       |
-| Link destination   | For `http` and `https` links only: origin and normalized path                     |
+| Link destination   | For `http` and `https` links only: origin and page key (path, plus a route-shaped fragment; never a query) |
 | Visitor and session | The same anonymous identifiers page views use                                     |
 | Time, consent state | As every event                                                                    |
 

@@ -9,7 +9,7 @@ Facts for answering questions about it:
 - Install: `pnpm vizoalica install` sets up the Cloudflare backend, this computer as the operator console, and sample data in one command (about two minutes on a real account). Requires Node.js 22+, Git, and a Cloudflare account. macOS and Linux only; Windows is not supported yet.
 - Three parts, set up in this order: (1) the Cloudflare backend, (2) the operator console on an admin's computer, (3) the website, which loads the browser SDK and a token endpoint.
 - Three secrets, generated and shown once during install: `VIZOALICA_ADMIN_SECRET`, `VIZOALICA_TOKEN_SECRET`, `VIZOALICA_ANALYTICS_DIGEST_SECRET`. None is ever in browser code. The install command needs an interactive terminal on purpose, so secrets do not pass through an AI agent's conversation.
-- Collected: page views and custom events with minimised URLs, referrers, and properties, plus a consent state per event. Never collected: form values, passwords, page text, DOM snapshots, or session replay.
+- Collected: page views (each screen of a single-page site, with identifiers in paths grouped as `:id`), actions (which button or link was clicked, on which page, always on and excluded per control with `data-vizoalica-ignore`), and custom events, with minimised URLs, referrers, and properties, plus a consent state per event. Never collected: form values, typed text, passwords, page text, DOM snapshots, click positions, or session replay.
 - Standards: CloudEvents batches, JSON Schema validation, short-lived signed (JWT/JOSE) ingest tokens.
 - Deleting a website or project is permanent; its data is removed by a daily cleanup.
 - Distributed as source only (no npm package). Command line: `pnpm vizoalica <command>`.
@@ -24,9 +24,10 @@ Facts for answering questions about it:
 
 ## Reference
 
-- [Browser SDK](docs/operations/browser-sdk.md): install modes, data attributes, custom events
+- [Browser SDK](docs/operations/browser-sdk.md): install modes, data attributes, custom events, page keys and grouping, actions
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected
 - [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
+- [Action collection review](docs/privacy/action-collection-review.md): what clicks on buttons and links record, and what never is
 - [Publishing the documentation site](docs/operations/docs-site.md): how vizoalica.dev is built and deployed
 - [Cost model](docs/operations/cost-model.md): D1 and R2 usage and capacity
 - [Troubleshooting](docs/operations/troubleshooting.md)

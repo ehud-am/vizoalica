@@ -4,8 +4,30 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-21
+
+This release also contains everything in 0.5.3 below, which was never published on its own.
+
 ### Added
 
+- **Actions.** A new Analytics view, Actions, shows what visitors click, page by page: each row is a
+  page and an action (a button or link) with its count, distinct visitors, and how often it is used
+  per view of that page. Choose a page or an action to narrow the report; the selection is kept in
+  the address. The SDK records an action for a click or Enter or Space on a button, link, or control
+  that behaves like one. It is always on for a website that runs the new SDK file, and it begins only
+  when that file is deployed. It records a short redacted name (at most 80 characters), the page, the
+  kind, and for links the destination's origin and path, and never anything typed, a field value, a
+  link query, a click position, or a cookie. Developers exclude a control or area with
+  `data-vizoalica-ignore` and name a control with `data-vizoalica-action`. New event type
+  `com.vizoalica.action.v1`, two new tables, and `GET /v1/admin/projects/:id/analytics/actions`. See
+  the [action collection review](docs/privacy/action-collection-review.md).
+- **Identifiers in paths are grouped.** `/orders/8841` and `/orders/8842` are one page,
+  `/orders/:id`. Numbers, UUIDs, long hexadecimal values, ULIDs, random tokens, and email-shaped
+  segments become `:id` in the browser and again at the backend, so the identifier is never stored.
+  Readable slugs, versions, and dates are kept. See
+  [How pages are grouped](docs/operations/browser-sdk.md#how-pages-are-grouped).
+- **In-page navigation.** The SDK reports a page view when a visitor moves to a different page by
+  `pushState`, `replaceState`, back or forward, or a fragment change.
 - **Get involved.** A community page on vizoalica.dev, a "Get involved" section in the README, and a
   rewritten contributing guide invite ideas, questions, bug reports, and contributions, with GitHub
   Discussions and Issues as the place for them. Issue forms for bugs, feature requests, and
@@ -15,7 +37,32 @@ All notable changes to Vizoalica are documented in this file.
   its own workflow, with no secrets, and is off until the maintainer turns it on
   ([Publishing this site](docs/operations/docs-site.md#a-copy-on-github-pages)).
 
+### Changed
+
+- **Every page is reported, not just "/".** A page's path now includes the route after `#` for
+  fragment-routed sites (`/#/pricing`), which used to be dropped so that all screens appeared as
+  `/`. Anchors and sign-in data in a fragment are still never recorded. Pages recorded before this
+  release keep the paths they were recorded with.
+- The SDK sends actions in their own requests, and drops a batch the backend rejects as invalid or
+  too large (HTTP 400 or 413) instead of retrying it forever, which could stall later events.
+- `client.stop()` ends the SDK's observation of navigation and clicks.
+- The generated website-workflow reference points at `v0.6.0`.
+
+### Upgrade notes
+
+- **The D1 schema changed** (two tables for actions in `0001_initial.sql`), so this is a
+  fresh-install release: install it on a new, empty database. `pnpm vizoalica backend --update`
+  cannot add the tables to a running installation.
+- **Backend first, then websites.** An older SDK file keeps working with the new backend. A newer SDK
+  file with an older backend loses no page views, because action requests are separate and a
+  rejected request is dropped.
+- **Actions and route-level pages start when a website's SDK file is updated** (rebuild with
+  `pnpm browser-sdk:build` and copy `vizoalica.js`). Update your privacy notice if it lists what
+  your analytics record.
+
 ## [0.5.3] - 2026-09-19
+
+Not published on its own: included in [0.6.0](#060---2026-09-21).
 
 ### Added
 
