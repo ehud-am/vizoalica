@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   consoleArguments,
+  oneCliNodeOptions,
+  SILENCE_ENV_PROXY_WARNING,
   normalizeWorkerUrl,
   pagesDeployArguments,
   parseGateway,
@@ -65,6 +67,7 @@ describe('operations CLI safety', () => {
       '--',
       'env',
       'VIZOALICA_ONECLI_WRAPPED=1',
+      `NODE_OPTIONS=${oneCliNodeOptions()}`,
       'pnpm',
       'local-ops-api:dev',
       'serve',
@@ -83,6 +86,7 @@ describe('operations CLI safety', () => {
       '127.0.0.1:10255',
       '--',
       'node',
+      SILENCE_ENV_PROXY_WARNING,
       '--import',
       'tsx',
       'scripts/verify-operator-access.ts',
@@ -95,6 +99,16 @@ describe('operations CLI safety', () => {
     expect(purgeArguments(config, false).slice(-3)).toEqual(['tsx', ...tail]);
     expect(purgeArguments(config, true).slice(-4)).toEqual(['tsx', ...tail, '--apply']);
     expect(purgeArguments(config, false).slice(0, 8)).toEqual(verifyArguments(config).slice(0, 8));
+  });
+
+  it('silences only the expected env-proxy warning under OneCLI, keeping any NODE_OPTIONS already set', () => {
+    expect(SILENCE_ENV_PROXY_WARNING).toBe('--disable-warning=UNDICI-EHPA');
+    expect(oneCliNodeOptions(undefined)).toBe('--disable-warning=UNDICI-EHPA');
+    expect(oneCliNodeOptions('')).toBe('--disable-warning=UNDICI-EHPA');
+    expect(oneCliNodeOptions('--max-old-space-size=512')).toBe(
+      '--max-old-space-size=512 --disable-warning=UNDICI-EHPA'
+    );
+    expect(verifyArguments(config)).toContain(SILENCE_ENV_PROXY_WARNING);
   });
 
   it('keeps Pages uploads on native Wrangler', () => {

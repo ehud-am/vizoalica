@@ -4,6 +4,13 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Starting the console (or running `pnpm vizoalica verify` or `purge`) through OneCLI no longer prints
+  `UNDICI-EHPA: EnvHttpProxyAgent is experimental` on every start. OneCLI injects proxy settings, which
+  makes Node's built-in fetch switch on that agent and warn; exactly that one warning is now silenced in
+  the processes launched through OneCLI, and your own `NODE_OPTIONS` is kept.
+
 ## [0.6.1] - 2026-09-21
 
 ### Fixed
