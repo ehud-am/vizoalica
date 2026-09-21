@@ -160,6 +160,36 @@ CREATE TABLE dashboard_aggregate_watermarks (
   PRIMARY KEY (project_id, source_id)
 );
 
+-- What visitors clicked, per minute. `page_path` is a page key (identifiers already replaced by
+-- `:id`); `destination` is '' for anything that is not a link, otherwise origin plus path.
+CREATE TABLE dashboard_minute_actions (
+  project_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  minute_utc TEXT NOT NULL,
+  page_path TEXT NOT NULL,
+  action_name TEXT NOT NULL,
+  action_kind TEXT NOT NULL CHECK (action_kind IN ('button', 'link', 'other')),
+  destination TEXT NOT NULL,
+  event_count INTEGER NOT NULL DEFAULT 0 CHECK (event_count >= 0),
+  PRIMARY KEY (project_id, source_id, minute_utc, page_path, action_name, action_kind, destination)
+);
+
+-- Distinct visitors per action and minute, kept as keyed digests, never raw identifiers. The
+-- primary keys serve every read of both action tables, so neither has a secondary index: each one
+-- would add a write to every action.
+CREATE TABLE dashboard_minute_action_visitors (
+  project_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  minute_utc TEXT NOT NULL,
+  page_path TEXT NOT NULL,
+  action_name TEXT NOT NULL,
+  action_kind TEXT NOT NULL CHECK (action_kind IN ('button', 'link', 'other')),
+  destination TEXT NOT NULL,
+  visitor_digest TEXT NOT NULL,
+  identity_kind TEXT NOT NULL CHECK (identity_kind IN ('source-local', 'project-supplied')),
+  PRIMARY KEY (project_id, source_id, minute_utc, page_path, action_name, action_kind, destination, visitor_digest, identity_kind)
+);
+
 CREATE INDEX dashboard_minute_totals_source_range
   ON dashboard_minute_totals(project_id, source_id, minute_utc);
 CREATE INDEX dashboard_minute_totals_project_range

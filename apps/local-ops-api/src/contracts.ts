@@ -1,4 +1,7 @@
-import type { AnalyticsOverview as WorkerAnalyticsOverview } from '../../ingest-api/src/domain/types.js';
+import type {
+  ActionsReport as WorkerActionsReport,
+  AnalyticsOverview as WorkerAnalyticsOverview
+} from '../../ingest-api/src/domain/types.js';
 
 export type AnalyticsWindow = '24h' | '7d' | '30d';
 export type Availability = 'complete' | 'processing' | 'unavailable';
@@ -128,6 +131,7 @@ export function isDynamicConfigV1(value: unknown): value is DynamicConfigV1 {
 }
 
 export type AnalyticsOverview = WorkerAnalyticsOverview;
+export type ActionsReport = WorkerActionsReport;
 
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };

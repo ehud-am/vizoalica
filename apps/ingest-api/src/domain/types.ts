@@ -113,6 +113,50 @@ export interface AnalyticsOverview {
   };
 }
 
+export type ActionKindName = 'button' | 'link' | 'other';
+
+/** One page-and-action row of the actions report. */
+export interface ActionReportRow {
+  page: string;
+  action: string;
+  kind: ActionKindName;
+  /** Links only: origin plus path, never a query. */
+  destination?: string;
+  count: number;
+  visitors: number;
+  /** Views of `page` in the same range and scope; 0 when the page key has no views. */
+  pageViews: number;
+}
+
+export interface ActionTotal {
+  action: string;
+  kind: ActionKindName;
+  count: number;
+  visitors: number;
+  pages: number;
+}
+
+export interface ActionsFilters {
+  /** Exact page key. */
+  page?: string;
+  /** Exact action name. */
+  action?: string;
+}
+
+export interface ActionsReport {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  totals: { actions: number; uniqueUsers: number };
+  /** At most 100 rows, most used first. */
+  rows: ActionReportRow[];
+  /** What is beyond `rows`, so `sum(rows.count) + other.count` is exactly `totals.actions`. */
+  other: { rows: number; count: number };
+  /** Per-action totals across pages, at most 50. */
+  actions: ActionTotal[];
+  selection?: { page?: { path: string; views: number; actions: number } };
+  availability: AnalyticsOverview['availability'];
+}
+
 export interface SigningKey {
   id: string;
   projectId: string;

@@ -2,11 +2,16 @@ import * as Ajv2020Module from 'ajv/dist/2020.js';
 import * as addFormatsModule from 'ajv-formats';
 import type { ValidateFunction } from 'ajv';
 import cloudEventBatchSchema from '../schemas/cloudevent-batch.schema.json' with { type: 'json' };
+import actionSchema from '../schemas/event-data-action.schema.json' with { type: 'json' };
 import customEventSchema from '../schemas/event-data-custom-event.schema.json' with { type: 'json' };
 import pageViewSchema from '../schemas/event-data-page-view.schema.json' with { type: 'json' };
 import tokenClaimsSchema from '../schemas/token-claims.schema.json' with { type: 'json' };
 
-export const eventTypes = ['com.vizoalica.page_view.v1', 'com.vizoalica.custom_event.v1'] as const;
+export const eventTypes = [
+  'com.vizoalica.page_view.v1',
+  'com.vizoalica.custom_event.v1',
+  'com.vizoalica.action.v1'
+] as const;
 export type VizoalicaEventType = (typeof eventTypes)[number];
 export type TrustLevel = 'signed-session' | 'unsigned-demo';
 export type ConsentState = 'analytics-granted' | 'analytics-denied' | 'unknown';
@@ -40,6 +45,21 @@ export interface PageViewData {
   referrer?: { origin?: string };
 }
 
+export type ActionKind = 'button' | 'link' | 'other';
+
+export interface ActionData {
+  page: { url_origin: string; url_path: string };
+  action: {
+    /** 1 to 80 characters, already redacted. */
+    name: string;
+    kind: ActionKind;
+    /** Links only; origin and page-key path, never a query. */
+    destination?: { url_origin: string; url_path: string };
+  };
+  visitor: { anonymous_id: string };
+  session: { id: string };
+}
+
 export interface CustomEventData {
   name: string;
   properties?: Record<string, string | number | boolean | null>;
@@ -69,6 +89,7 @@ export const schemas = {
   cloudEventBatch: cloudEventBatchSchema,
   pageView: pageViewSchema,
   customEvent: customEventSchema,
+  action: actionSchema,
   tokenClaims: tokenClaimsSchema
 } as const;
 
@@ -80,6 +101,7 @@ export function createValidator() {
   addFormats(ajv);
   ajv.addSchema(pageViewSchema, './event-data-page-view.schema.json');
   ajv.addSchema(customEventSchema, './event-data-custom-event.schema.json');
+  ajv.addSchema(actionSchema, './event-data-action.schema.json');
   ajv.addSchema(tokenClaimsSchema, 'token-claims');
   return ajv;
 }

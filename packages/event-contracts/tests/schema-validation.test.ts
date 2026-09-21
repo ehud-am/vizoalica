@@ -63,3 +63,79 @@ describe('event contracts', () => {
     ).toBe(true);
   });
 });
+
+const actionEvent = {
+  specversion: '1.0',
+  id: 'evt_action_1',
+  type: 'com.vizoalica.action.v1',
+  source: 'https://example.com',
+  time: new Date().toISOString(),
+  datacontenttype: 'application/json',
+  data: {
+    page: { url_origin: 'https://example.com', url_path: '/#/pricing' },
+    action: { name: 'Start free trial', kind: 'link' },
+    visitor: { anonymous_id: 'anon_1' },
+    session: { id: 'sess_1' }
+  }
+};
+
+describe('action event contract', () => {
+  const validate = compileBatchValidator();
+  const withData = (patch: (data: Record<string, any>) => void) => {
+    const copy = JSON.parse(JSON.stringify(actionEvent));
+    patch(copy.data);
+    return copy;
+  };
+
+  it('accepts a valid action event, with and without a link destination', () => {
+    expect(validate([actionEvent])).toBe(true);
+    expect(
+      validate([
+        withData((data) => {
+          data.action.destination = { url_origin: 'https://app.example.com', url_path: '/signup' };
+        })
+      ])
+    ).toBe(true);
+  });
+
+  it('rejects unknown fields, missing fields, bad kinds, and bad names', () => {
+    expect(validate([withData((data) => (data.extra = true))])).toBe(false);
+    expect(validate([withData((data) => (data.action.extra = true))])).toBe(false);
+    expect(validate([withData((data) => delete data.action.kind)])).toBe(false);
+    expect(validate([withData((data) => (data.action.kind = 'menu'))])).toBe(false);
+    expect(validate([withData((data) => (data.action.name = ''))])).toBe(false);
+    expect(validate([withData((data) => (data.action.name = 'x'.repeat(81)))])).toBe(false);
+    expect(validate([withData((data) => delete data.page.url_path)])).toBe(false);
+    expect(validate([withData((data) => delete data.visitor)])).toBe(false);
+    expect(validate([withData((data) => (data.action.destination = { url_path: '/x' }))])).toBe(
+      false
+    );
+  });
+
+  it('keeps existing page-view and custom-event events valid and matches exactly one branch', () => {
+    const custom = {
+      ...pageViewEvent,
+      type: 'com.vizoalica.custom_event.v1',
+      data: {
+        name: 'signup_click',
+        properties: { plan: 'pro' },
+        visitor: { anonymous_id: 'anon_1' },
+        session: { id: 'sess_1' }
+      }
+    };
+    expect(validate([pageViewEvent, custom, actionEvent])).toBe(true);
+    // An action carrying page-view fields, or a page view carrying an action, matches no branch.
+    expect(
+      validate([
+        withData((data) => {
+          data.page.url_query_redacted = false;
+        })
+      ])
+    ).toBe(false);
+    expect(
+      validate([
+        { ...pageViewEvent, data: { ...pageViewEvent.data, action: actionEvent.data.action } }
+      ])
+    ).toBe(false);
+  });
+});

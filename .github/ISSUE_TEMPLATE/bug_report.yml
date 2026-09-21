@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work the way the documentation says it should.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. **Never paste secrets, tokens, admin or ingest credentials, Cloudflare account IDs, raw event payloads, or visitor data.** Replace them with placeholders. If this could be a security problem, do not file it here: use a [private advisory](https://github.com/ehud-am/vizoalica/security/advisories/new).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran or the screens you used, in order.
+      placeholder: |
+        1. pnpm vizoalica install
+        2. …
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part is it?
+      options:
+        - Backend (Worker, D1, R2)
+        - Console
+        - Browser SDK or website activation
+        - Installer or command line
+        - Documentation site
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Vizoalica version
+      description: 'From `package.json` or the release you deployed, for example 0.6.0.'
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Your computer
+      description: 'Operating system, Node.js version, and browser if it matters, for example macOS 15, Node 22.'
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or screenshots
+      description: Paste error text (redacted) as text rather than a picture where you can.
+      render: text

@@ -10,7 +10,9 @@ import type {
   AnalyticsDimensionKind,
   RequestAnalyticsContext,
   RankedResult,
-  DistributionResult
+  DistributionResult,
+  ActionsFilters,
+  ActionsReport
 } from '../../../ingest-api/src/domain/types.js';
 import type {
   IngestionDecisionRepository,
@@ -18,6 +20,13 @@ import type {
   ProjectRepository
 } from '../../../ingest-api/src/storage/repositories.js';
 import type { D1Database } from '../env.js';
+import {
+  ACTION_EVENT_TYPE,
+  actionStatements,
+  actionsReportQueries,
+  expandActionEvent,
+  type ActionItem
+} from './action-rollups.js';
 import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
 import type { QuotaReservation } from '../../../ingest-api/src/storage/repositories.js';
 
@@ -84,6 +93,8 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_totals',
   'dashboard_minute_dimensions',
   'dashboard_minute_visitors',
+  'dashboard_minute_actions',
+  'dashboard_minute_action_visitors',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -251,9 +262,17 @@ export class D1Repositories
       visitorDigest?: string;
       identityKind?: 'source-local' | 'project-supplied';
     }> = [];
+    const actionItems: ActionItem[] = [];
+    const digest = (...parts: string[]) => hmacDigest(this.analyticsDigestSecret, ...parts);
     for (const stored of events) {
       const day = stored.receivedAt.toISOString().slice(0, 10);
       const eventType = stored.event.type;
+      if (eventType === ACTION_EVENT_TYPE) {
+        // Actions have their own aggregates; none of the page-view tables below are touched.
+        const item = await expandActionEvent(stored, digest, context);
+        if (item) actionItems.push(item);
+        continue;
+      }
       const data = stored.event.data as { page?: { url_path?: unknown } };
       const pagePath =
         eventType === 'com.vizoalica.page_view.v1' && typeof data.page?.url_path === 'string'
@@ -340,15 +359,23 @@ export class D1Repositories
         }
       }
     }
-    if (!expanded.length) return;
+    if (!expanded.length && !actionItems.length) return;
 
     const nonce = crypto.randomUUID();
-    const statements = expanded.map(({ event, eventDigest }) =>
+    const seen = [
+      ...expanded.map(({ event, eventDigest }) => ({
+        projectId: event.projectId,
+        eventDigest,
+        receivedAt: event.receivedAt
+      })),
+      ...actionItems
+    ];
+    const statements = seen.map(({ projectId, eventDigest, receivedAt }) =>
       this.db
         .prepare(
           'INSERT OR IGNORE INTO dashboard_seen_events (project_id, event_digest, received_at, request_nonce, digest_version) VALUES (?, ?, ?, ?, 1)'
         )
-        .bind(event.projectId, eventDigest, event.receivedAt.toISOString(), nonce)
+        .bind(projectId, eventDigest, receivedAt.toISOString(), nonce)
     );
     type Group = { projectId: string; sourceId: string; minute: string; eventDigests: string[] };
     const totals = new Map<string, Group>();
@@ -467,14 +494,22 @@ export class D1Repositories
           )
       );
     }
+    statements.push(...actionStatements(this.db, actionItems, nonce));
     const watermarks = new Map<string, { projectId: string; sourceId: string; minute: string }>();
-    for (const item of expanded) {
-      const key = `${item.event.projectId}\0${item.event.sourceId}`;
+    for (const item of [
+      ...expanded.map((entry) => ({
+        projectId: entry.event.projectId,
+        sourceId: entry.event.sourceId,
+        minute: entry.minute
+      })),
+      ...actionItems
+    ]) {
+      const key = `${item.projectId}\0${item.sourceId}`;
       const current = watermarks.get(key);
       if (!current || item.minute > current.minute)
         watermarks.set(key, {
-          projectId: item.event.projectId,
-          sourceId: item.event.sourceId,
+          projectId: item.projectId,
+          sourceId: item.sourceId,
           minute: item.minute
         });
     }
@@ -900,11 +935,40 @@ export class D1Repositories
     };
   }
 
+  async getActionsReport(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters: ActionsFilters = {}
+  ): Promise<ActionsReport | undefined> {
+    const project = await this.findProject(projectId);
+    if (!project) return undefined;
+    const source = sourceId ? await this.getSource(projectId, sourceId) : undefined;
+    if (sourceId && (!source || source.status === 'deleted')) return undefined;
+    const { statements, shape } = actionsReportQueries(this.db, {
+      projectId,
+      sourceId,
+      startUtc,
+      endUtc,
+      filters,
+      scope: {
+        projectId,
+        sourceId: sourceId ?? null,
+        label: source?.name ?? 'All websites',
+        identityMode: 'source-local'
+      }
+    });
+    return shape(await this.readAll(statements));
+  }
+
   async deleteExpiredDashboardData(beforeUtc: string): Promise<void> {
     let pending: Array<[string, string]> = [
       ['dashboard_minute_totals', 'minute_utc'],
       ['dashboard_minute_dimensions', 'minute_utc'],
       ['dashboard_minute_visitors', 'minute_utc'],
+      ['dashboard_minute_actions', 'minute_utc'],
+      ['dashboard_minute_action_visitors', 'minute_utc'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.
       ['ingestion_decisions', 'received_at'],

@@ -49,6 +49,8 @@ describe('dashboard retention cleanup', () => {
       'dashboard_minute_totals',
       'dashboard_minute_dimensions',
       'dashboard_minute_visitors',
+      'dashboard_minute_actions',
+      'dashboard_minute_action_visitors',
       'dashboard_seen_events'
     ];
     for (const table of tables) {

@@ -4,7 +4,11 @@ Vizoalica is designed to collect minimal product analytics data by default.
 
 ## What the browser SDK collects by default
 
-- Page origin and path.
+- Page origin and path, with identifiers such as `/orders/8841` replaced by `:id`, and the route
+  after `#` for fragment-routed sites (for example `/#/pricing`).
+- Actions: which button or link was clicked, on which page. Each records a short name taken from the
+  control's own label (redacted, at most 80 characters), its kind, and, for links, the destination's
+  origin and path. See [what actions record](#actions-clicks-on-buttons-and-links).
 - A boolean indicating whether a query string was present and redacted.
 - Optional page title, capped in length.
 - Anonymous visitor and session identifiers.
@@ -15,9 +19,10 @@ Vizoalica is designed to collect minimal product analytics data by default.
 
 - Raw form input values.
 - Passwords, payment data, access tokens, refresh tokens, API keys, cookies, or authorization headers.
-- Full URL query values.
+- Full URL query values, or address fragments that are not routes (anchors, tokens, sign-in data).
 - Raw page text or DOM snapshots.
-- Session replay, heatmaps, or click recordings.
+- Session replay, heatmaps, or click recordings: actions are counted, with no position, timeline,
+  or replay.
 
 ## URL handling
 
@@ -38,6 +43,28 @@ becomes structured data equivalent to:
 ```
 
 The backend rejects page-view events that appear to contain unredacted query values in the path.
+
+## Actions: clicks on buttons and links
+
+The SDK counts clicks on buttons, links, and controls that behave like them, so the console can show
+which are used. It is always on for a website that runs the current SDK file; there is no setting
+to turn it off, and consent is honored (nothing is recorded when consent is explicitly denied).
+
+Recorded per action: the page, the control's name, its kind, and for `http` and `https` links the
+destination's origin and path. Names come from `data-vizoalica-action`, `aria-label`, the visible
+text, `title`, or an image's `alt`. They are shortened to 80 characters, and email addresses, runs
+of six or more digits, and token-shaped words are replaced by `[email]`, `[number]`, and `[token]`,
+in the browser and again at the backend.
+
+Never recorded: anything typed or the value of any field, text inputs, passwords, payment fields,
+link queries and fragments, `mailto:` and `tel:` addresses, cookies, positions, or element
+identifiers. Site developers exclude a control or an area with `data-vizoalica-ignore`, and name a
+control with `data-vizoalica-action` (see the [Browser SDK](./browser-sdk.md#naming-and-excluding-controls)).
+
+Identifiers in paths are grouped before storage (`/orders/8841` is stored as `/orders/:id`), so
+record identifiers, which can be personal data, are not kept. The
+[action collection review](../privacy/action-collection-review.md) records the purpose, retention,
+and access boundary of each new field. Reports show aggregates only, never a visitor identifier.
 
 ## Custom property rules
 

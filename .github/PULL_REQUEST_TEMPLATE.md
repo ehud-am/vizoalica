@@ -1,6 +1,6 @@
 ## What and why
 
-<!-- What does this change, and why? Link the issue or spec if there is one. -->
+<!-- What does this change, and why? Link the issue or discussion it comes from ("Closes #123"). For a larger change, agree the outline in an issue or Ideas discussion first: see CONTRIBUTING.md. -->
 
 ## Checks
 

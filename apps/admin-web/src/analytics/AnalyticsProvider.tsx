@@ -34,7 +34,8 @@ export function useAnalytics(): AnalyticsValue {
   return value;
 }
 
-function messageFor(reason: unknown): string {
+/** The one wording for a failed analytics request, shared by every Analytics view. */
+export function analyticsErrorMessage(reason: unknown): string {
   if (reason instanceof ApiError && reason.status === 401)
     return reason.code === 'session_expired'
       ? 'Your browser session expired. Reconnect to the local workspace.'
@@ -82,7 +83,7 @@ export function AnalyticsProvider({
       })
       .catch((reason) => {
         if (!controller.signal.aborted)
-          setState({ status: 'error', overview: undefined, error: messageFor(reason) });
+          setState({ status: 'error', overview: undefined, error: analyticsErrorMessage(reason) });
       });
     return () => controller.abort();
   }, [projectId, websiteId, range, attempt]);

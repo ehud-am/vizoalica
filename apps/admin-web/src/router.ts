@@ -37,6 +37,14 @@ export const ROUTES = define([
     range: true
   },
   {
+    path: 'analytics/actions',
+    area: 'analytics',
+    label: 'Actions',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
     path: 'analytics/sources',
     area: 'analytics',
     label: 'Sources',
@@ -138,18 +146,52 @@ export const DEFAULT_ROUTE: RoutePath = 'analytics/overview';
 export interface Route {
   path: RoutePath;
   websiteId?: string;
+  /** Selections carried in the address, only on the Actions page. */
+  params?: RouteParams;
 }
+
+/** The Actions report can be narrowed to a page or to an action; both live in the address. */
+export interface RouteParams {
+  page?: string;
+  action?: string;
+}
+// The Worker refuses longer values, so an address carrying one is treated as carrying none.
+const PARAM_LIMITS = { page: 1024, action: 80 } as const;
 
 /** Routes that appear in the primary navigation, in order. */
 export const NAV_ROUTES = ROUTES.filter((route) => route.nav);
 
 const definition = (path: RoutePath): RouteDef => ROUTES.find((route) => route.path === path)!;
 
+function parseParams(query: string): RouteParams | undefined {
+  const params: RouteParams = {};
+  for (const pair of query.split('&')) {
+    const at = pair.indexOf('=');
+    const name = at < 0 ? pair : pair.slice(0, at);
+    if (name !== 'page' && name !== 'action') continue;
+    try {
+      const value = decodeURIComponent(pair.slice(at + 1));
+      if (value && value.length <= PARAM_LIMITS[name]) params[name] = value;
+    } catch {
+      // A malformed encoding means no selection, never a broken page.
+    }
+  }
+  return params.page || params.action ? params : undefined;
+}
+
 export function parseRoute(hash: string): Route {
-  const address = hash.replace(/^#\/?/, '');
+  const raw = hash.replace(/^#\/?/, '');
+  const queryAt = raw.indexOf('?');
+  const address = queryAt < 0 ? raw : raw.slice(0, queryAt);
   // Fixed addresses win over ones with an id, so "new" can never be read as a website id.
   const fixed = ROUTES.find((route) => route.path === address);
-  if (fixed) return { path: fixed.path };
+  if (fixed) {
+    const params =
+      fixed.path === 'analytics/actions' && queryAt >= 0
+        ? parseParams(raw.slice(queryAt + 1))
+        : undefined;
+    return { path: fixed.path, ...(params ? { params } : {}) };
+  }
   const parts = address.split('/');
   for (const route of ROUTES) {
     const pattern = route.path.split('/');
@@ -175,13 +217,18 @@ export const navKey = (path: RoutePath): RoutePath =>
 export const scopeControls = (path: RoutePath): ScopeControls => definition(path).scope;
 export const showsRange = (path: RoutePath): boolean => definition(path).range;
 
-export function hrefFor(path: RoutePath, websiteId?: string): string {
+export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParams): string {
   if (path.includes(':id') && !websiteId) throw new Error(`${path} needs a website id`);
-  return `#/${websiteId ? path.replace(':id', encodeURIComponent(websiteId)) : path}`;
+  const base = `#/${websiteId ? path.replace(':id', encodeURIComponent(websiteId)) : path}`;
+  const query = [
+    params?.page ? `page=${encodeURIComponent(params.page)}` : '',
+    params?.action ? `action=${encodeURIComponent(params.action)}` : ''
+  ].filter(Boolean);
+  return query.length ? `${base}?${query.join('&')}` : base;
 }
 
-export function navigate(path: RoutePath, websiteId?: string): void {
-  window.location.hash = hrefFor(path, websiteId);
+export function navigate(path: RoutePath, websiteId?: string, params?: RouteParams): void {
+  window.location.hash = hrefFor(path, websiteId, params);
 }
 
 export function useRoute(): Route {
@@ -190,7 +237,12 @@ export function useRoute(): Route {
     const onChange = () => {
       const next = parseRoute(window.location.hash);
       setRoute((current) =>
-        current.path === next.path && current.websiteId === next.websiteId ? current : next
+        current.path === next.path &&
+        current.websiteId === next.websiteId &&
+        current.params?.page === next.params?.page &&
+        current.params?.action === next.params?.action
+          ? current
+          : next
       );
     };
     window.addEventListener('hashchange', onChange);

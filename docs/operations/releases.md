@@ -44,12 +44,13 @@ A connected **website**, however, can deploy automatically on push once configur
 That automation is scoped to the website's own Cloudflare Pages project and repository — it never
 touches the backend.
 
-## Deployment boundary of the 0.5 line
+## Deployment boundary of the 0.5 and 0.6 lines
 
-The 0.5 releases support **fresh installs only**: a new installation applies the single complete
+The 0.5 and 0.6 releases support **fresh installs only**: a new installation applies the single complete
 `0001_initial.sql` baseline to a new empty D1 database, and the install preflight rejects existing
 or ambiguous Vizoalica schema state without changing it. There is no automated upgrade,
-data-preserving migration, backfill, or schema rollback.
+data-preserving migration, backfill, or schema rollback. Version 0.6 changes the schema (it adds two
+tables for actions to the baseline), so a fresh install on a new empty database is its supported path.
 
 Shipping a newer Worker build to an installation that already has data is supported when the
 release leaves the schema unchanged; see

@@ -1,4 +1,5 @@
 import type {
+  ActionsReport,
   AnalyticsOverview,
   Integration,
   Project,
@@ -53,7 +54,7 @@ export const primaryIntegration: Integration = {
         'data-consent': 'unknown'
       },
       cloudflare: {
-        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3',
+        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.0',
         repoVariables: {
           VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
           VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
@@ -67,7 +68,7 @@ export const primaryIntegration: Integration = {
         accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
         repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
         starterWorkflowYaml:
-          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.5.3\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.0\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
         setupCommands: [
           'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
           'gh secret set CF_API_TOKEN'
@@ -107,6 +108,61 @@ export function makeOverview(overrides: Partial<AnalyticsOverview> = {}): Analyt
       devices: { items: [], total: 0 },
       traffic: { items: [], total: 0 }
     },
+    availability: { state: 'complete', taxonomyVersions: [1] },
+    ...overrides
+  };
+}
+
+/** A small actions report: two pages, four actions, one link with a destination. */
+export function makeActionsReport(overrides: Partial<ActionsReport> = {}): ActionsReport {
+  return {
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-02T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { actions: 30, uniqueUsers: 12 },
+    rows: [
+      {
+        page: '/pricing',
+        action: 'Start free trial',
+        kind: 'link',
+        destination: 'https://app.example.com/signup',
+        count: 12,
+        visitors: 8,
+        pageViews: 40
+      },
+      {
+        page: '/#/orders/:id',
+        action: 'Download invoice',
+        kind: 'button',
+        count: 8,
+        visitors: 3,
+        pageViews: 4
+      },
+      {
+        page: '/pricing',
+        action: 'Contact sales',
+        kind: 'button',
+        count: 4,
+        visitors: 4,
+        pageViews: 40
+      },
+      { page: '/legacy', action: 'Go', kind: 'other', count: 2, visitors: 1, pageViews: 0 }
+    ],
+    other: { rows: 3, count: 4 },
+    actions: [
+      { action: 'Start free trial', kind: 'link', count: 12, visitors: 8, pages: 1 },
+      { action: 'Download invoice', kind: 'button', count: 8, visitors: 3, pages: 1 },
+      { action: 'Contact sales', kind: 'button', count: 5, visitors: 5, pages: 2 }
+    ],
     availability: { state: 'complete', taxonomyVersions: [1] },
     ...overrides
   };

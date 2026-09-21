@@ -1,39 +1,11 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import worker from '../src/index.js';
 import { handleAdminRequest } from '../src/http/admin-adapter.js';
-import type { D1Database, D1Statement, R2Bucket } from '../src/env.js';
+import type { R2Bucket } from '../src/env.js';
 import { D1Repositories } from '../src/storage/d1-repositories.js';
 import { purgeDeleted } from '../src/storage/purge-deleted.js';
-
-const schema = readFileSync(
-  join(process.cwd(), 'deploy/cloudflare/migrations/0001_initial.sql'),
-  'utf8'
-);
-
-function d1(sqlite: DatabaseSync): D1Database {
-  const statement = (query: string): D1Statement => {
-    let values: never[] = [];
-    return {
-      bind(...next: unknown[]) {
-        values = next as never[];
-        return this;
-      },
-      async run() {
-        return { meta: { changes: Number(sqlite.prepare(query).run(...values).changes) } };
-      },
-      async all<T>() {
-        return { results: sqlite.prepare(query).all(...values) as T[] };
-      },
-      async first<T>() {
-        return (sqlite.prepare(query).get(...values) ?? null) as T | null;
-      }
-    };
-  };
-  return { prepare: statement };
-}
+import { d1, freshDatabase } from './support/sqlite-d1.js';
 
 function bucket(keys: string[]): R2Bucket & { keys: string[] } {
   return {
@@ -57,6 +29,8 @@ const TABLES = [
   'dashboard_minute_totals',
   'dashboard_minute_dimensions',
   'dashboard_minute_visitors',
+  'dashboard_minute_actions',
+  'dashboard_minute_action_visitors',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -65,8 +39,7 @@ const TABLES = [
 
 /** Live project `live` with sites `keep` and `gone` (deleted); deleted project `dead` with `dead-site`. */
 function seed() {
-  const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(schema);
+  const sqlite = freshDatabase();
   sqlite.exec(`
     INSERT INTO quota_policies VALUES ('q-live',1,1,1,1,1,1,1,7), ('q-dead',1,1,1,1,1,1,1,7),
       ('q-keep',1,1,1,1,1,1,1,7), ('q-gone',1,1,1,1,1,1,1,7), ('q-dead-site',1,1,1,1,1,1,1,7);
@@ -91,6 +64,8 @@ function seed() {
       INSERT INTO dashboard_minute_totals VALUES ('${project}','${source}','m',1);
       INSERT INTO dashboard_minute_dimensions VALUES ('${project}','${source}','m','country','US',1,1);
       INSERT INTO dashboard_minute_visitors VALUES ('${project}','${source}','m','v',1,'source-local');
+      INSERT INTO dashboard_minute_actions VALUES ('${project}','${source}','m','/','Go','button','',1);
+      INSERT INTO dashboard_minute_action_visitors VALUES ('${project}','${source}','m','/','Go','button','','v','source-local');
       INSERT INTO dashboard_aggregate_watermarks VALUES ('${project}','${source}','t','t',1);
       INSERT INTO quota_windows VALUES ('${project}','${source}','day','d',1,1);
       INSERT INTO ingestion_decisions (project_id, source_id, decision, accepted_count, rejected_count, reason_codes_json, received_at) VALUES ('${project}','${source}','accepted',1,0,'[]','t');

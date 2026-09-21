@@ -167,7 +167,10 @@ cp packages/browser-sdk/dist/vizoalica-loader.js "$VIZOALICA_SITE_DIR/public/viz
 **Check:** `public/vizoalica.js` exists in the website copy. This is a standalone IIFE bundle;
 you do not need a JavaScript framework, CDN account, or an extra server. `pnpm build` builds the
 workspace packages; `pnpm browser-sdk:build` is the explicit command for a script-tag bundle.
-Rebuild and recopy it when upgrading Vizoalica.
+Rebuild and recopy it when upgrading Vizoalica. Your website hosts its own copy, so an update reaches
+visitors only when you recopy and deploy it. The 0.6 SDK file reports each page of a single-page
+site, groups identifiers in paths, and records clicks on buttons and links as actions (see the
+[Browser SDK](./browser-sdk.md)); **upgrade the backend first**, then the SDK file.
 
 Your website now has this structure:
 

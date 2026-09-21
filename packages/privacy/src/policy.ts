@@ -35,7 +35,8 @@ export const privacyLimits = {
   maxPropertyNameLength: 64,
   maxPropertyValueLength: 256,
   maxUrlPathLength: 1024,
-  maxTitleLength: 256
+  maxTitleLength: 256,
+  maxActionNameLength: 80
 } as const;
 
 export function isForbiddenPropertyName(name: string): boolean {

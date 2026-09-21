@@ -12,7 +12,11 @@
       "specversion": { "const": "1.0" },
       "id": { "type": "string", "minLength": 8, "maxLength": 128 },
       "type": {
-        "enum": ["com.vizoalica.page_view.v1", "com.vizoalica.custom_event.v1"]
+        "enum": [
+          "com.vizoalica.page_view.v1",
+          "com.vizoalica.custom_event.v1",
+          "com.vizoalica.action.v1"
+        ]
       },
       "source": { "type": "string", "format": "uri", "maxLength": 2048 },
       "subject": { "type": "string", "maxLength": 512 },
@@ -27,7 +31,8 @@
       "data": {
         "oneOf": [
           { "$ref": "./event-data-page-view.schema.json" },
-          { "$ref": "./event-data-custom-event.schema.json" }
+          { "$ref": "./event-data-custom-event.schema.json" },
+          { "$ref": "./event-data-action.schema.json" }
         ]
       }
     },

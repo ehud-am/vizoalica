@@ -36,8 +36,8 @@ public-health and authenticated-access results. It never prints the configuratio
 
 The console has two areas, shown as two groups in the left navigation.
 
-- **Analytics** is for reading. It contains Overview, Pages, Sources, Geography, Technology, and
-  Traffic quality, and nothing in it can change or delete anything.
+- **Analytics** is for reading. It contains Overview, Pages, Actions, Sources, Geography,
+  Technology, and Traffic quality, and nothing in it can change or delete anything.
 - **Manage** is for setting up. It contains Projects, Websites, and Health. Deleting or disabling
   something lives in a separate danger zone and asks you to confirm by name.
 
@@ -56,6 +56,17 @@ totals by continent. Traffic through the Tor network or with no determinable loc
 as such. Only country and continent are shown. See the
 [audience attributes review](../privacy/audience-attributes-review.md) for why nothing finer is
 collected.
+
+**Pages** lists each page of your site with its views. A site that shows different screens without
+loading a new address (fragment routes such as `#/pricing`, or a single-page app) is listed screen by
+screen, and pages that differ only by an identifier are one row (`/orders/:id`).
+
+**Actions** shows what visitors click, page by page: each row is a page and an action (a button or
+link) with how many times it was used, by how many visitors, and how often per view of that page.
+Choose a page to see everything visitors did on it, or an action to see every page it is used on.
+The selection is kept in the address, so you can bookmark it or send it to another console user.
+Actions appear for websites whose SDK file is version 0.6 or later. Nothing on this page changes a
+setting.
 
 The complete country list, and lists of more than ten pages or sources, need the current backend.
 After updating Vizoalica, redeploy the Worker (`pnpm vizoalica backend`). Until then the console

@@ -75,6 +75,50 @@ Because the zone is on Cloudflare, the DNS records and certificates are created 
 to the apex, add a **Redirect Rule** from `www.vizoalica.dev/*` to `https://vizoalica.dev/${1}` (301).
 Certificates can take a few minutes to become active.
 
+## A copy on GitHub Pages
+
+The same site is also published from this repository's GitHub Pages, at
+`https://ehud-am.github.io/vizoalica/`, so the project is listed there as well as at vizoalica.dev.
+It is a copy, not a second site: same pages, built to live under `/vizoalica/`.
+
+[`.github/workflows/docs-github-pages.yml`](https://github.com/ehud-am/vizoalica/blob/main/.github/workflows/docs-github-pages.yml)
+is separate from the Cloudflare workflow on purpose, so the Cloudflare token is never near it and this
+one never has a secret. It builds the copy with `DOCS_BASE=/vizoalica/`, checks that every link, image,
+and video resolves under that path, and publishes from `main`.
+
+How it differs from vizoalica.dev:
+
+- **Every page names vizoalica.dev as its canonical address**, so search engines treat the Cloudflare
+  site as the original and the copy as a mirror. It has no sitemap for the same reason.
+- **No analytics and no consent prompt.** The copy is built without the analytics variables.
+- **No response headers.** GitHub Pages cannot serve the Content-Security-Policy in `_headers`, so
+  the copy is served without it. The pages load nothing from another origin, so nothing is exposed,
+  but the strict policy applies only to vizoalica.dev.
+
+### One-time setup
+
+You need admin access to the repository. Two commands, then a run:
+
+```sh
+gh api -X POST repos/ehud-am/vizoalica/pages -f build_type=workflow
+gh variable set VIZOALICA_GITHUB_PAGES --body true
+```
+
+The first turns on GitHub Pages with **GitHub Actions** as the source, and GitHub creates a
+`github-pages` environment that only the default branch can deploy to. The second is what turns
+publishing on: until it is set, the workflow builds and checks the copy and reports a notice.
+
+Then run **Actions → Docs site on GitHub Pages → Run workflow** on `main`. The address appears in the
+run and under **Settings → Pages**.
+
+Do not set a custom domain on GitHub Pages: `vizoalica.dev` belongs to the Cloudflare project.
+
+### Change or remove it
+
+Editing `docs/` updates both sites from the same commit. To remove the copy, delete the variable
+(`gh variable delete VIZOALICA_GITHUB_PAGES`) and turn Pages off
+(`gh api -X DELETE repos/ehud-am/vizoalica/pages`).
+
 ## Measure the site with Vizoalica (optional)
 
 The site can count its own page views with the Vizoalica you run, after the visitor allows it. This

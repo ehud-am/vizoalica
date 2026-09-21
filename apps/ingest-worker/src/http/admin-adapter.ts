@@ -1,5 +1,10 @@
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
-import type { Project, QuotaPolicy, Source } from '../../../ingest-api/src/domain/types.js';
+import type {
+  ActionsFilters,
+  Project,
+  QuotaPolicy,
+  Source
+} from '../../../ingest-api/src/domain/types.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { hasValidAdminAuthorization } from '../auth/admin-verifier.js';
 import { shouldAuditDenial, type DenialAuditGate } from './denial-audit.js';
@@ -29,6 +34,23 @@ const safePolicy = (id: string): QuotaPolicy => ({
 });
 const unauthorized = () => Response.json({ error: 'unauthorized' }, { status: 401 });
 const invalid = () => Response.json({ error: 'invalid_request' }, { status: 400 });
+
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+
+/** Exact-match filters of the actions report. Anything over the stored limits cannot match. */
+function actionsFilters(url: URL): ActionsFilters | undefined {
+  const filters: ActionsFilters = {};
+  for (const [name, limit] of [
+    ['page', 1024],
+    ['action', 80]
+  ] as const) {
+    const value = url.searchParams.get(name);
+    if (!value) continue;
+    if (value.length > limit || CONTROL_CHARACTERS.test(value)) return undefined;
+    filters[name] = value;
+  }
+  return filters;
+}
 
 function origins(value: unknown): string[] | undefined {
   if (!Array.isArray(value) || value.length === 0 || value.length > 10) return undefined;
@@ -142,6 +164,32 @@ export async function handleAdminRequest(
     );
     return overview
       ? Response.json(overview, { headers: { 'cache-control': 'no-store' } })
+      : Response.json({ error: 'not_found' }, { status: 404 });
+  }
+  const actionsMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics\/actions$/.exec(url.pathname);
+  if (actionsMatch && request.method === 'GET') {
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    const filters = actionsFilters(url);
+    if (!filters) return invalid();
+    const report = await dependencies.repositories.getActionsReport?.(
+      actionsMatch[1]!,
+      url.searchParams.get('source_id') ?? undefined,
+      range.startUtc,
+      range.endUtc,
+      filters
+    );
+    return report
+      ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
       : Response.json({ error: 'not_found' }, { status: 404 });
   }
   const sourceMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(url.pathname);
