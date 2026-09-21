@@ -4,6 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-21
+
+### Fixed
+
+- **Actions are attributed to the page they were clicked on.** In 0.6.0, on a site whose router handles
+  link clicks itself (VitePress and many single-page frameworks do), the router had already navigated
+  when the SDK read the address, so a click on a link was recorded on the page it opened. The SDK now
+  reads the page when the press begins (pointer down, or a key press), before any router acts. Update a
+  website's SDK file to get the fix; no backend change is needed. Page views were not affected.
+
 ## [0.6.0] - 2026-09-21
 
 This release also contains everything in 0.5.3 below, which was never published on its own.

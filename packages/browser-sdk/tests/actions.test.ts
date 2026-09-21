@@ -228,6 +228,86 @@ describe('page attribution', () => {
   });
 });
 
+describe('page attribution with a single-page router', () => {
+  // A router that, like VitePress and many others, handles link clicks in a capture listener on
+  // window, so it navigates before the SDK's own listener sees the click.
+  let routerOff: () => void;
+  const install = () => {
+    const onClick = (event: Event) => {
+      const link = (event.target as Element).closest('a[data-spa]');
+      if (!link) return;
+      event.preventDefault();
+      history.pushState({}, '', link.getAttribute('href')!);
+    };
+    window.addEventListener('click', onClick, true);
+    routerOff = () => window.removeEventListener('click', onClick, true);
+  };
+  const press = (element: Element) =>
+    element.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  const key = (element: Element) =>
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+  afterEach(() => routerOff?.());
+
+  it('attributes a mouse click to the page it happened on, not the page the router opened', () => {
+    setUrl('/tour');
+    mount('<a id="a" data-spa href="/pricing">Pricing</a>');
+    install();
+    watch();
+    press($('#a'));
+    click($('#a'));
+    expect(location.pathname).toBe('/pricing');
+    expect(seen).toEqual([
+      { kind: 'link', name: 'Pricing', page: '/tour', destination: expect.any(Object) }
+    ]);
+  });
+
+  it('does the same for keyboard activation, where the key press comes first', () => {
+    setUrl('/tour');
+    mount('<a id="a" data-spa href="/pricing">Pricing</a>');
+    install();
+    watch();
+    key($('#a'));
+    keyboardActivate($('#a'));
+    expect(seen[0]!.page).toBe('/tour');
+  });
+
+  it('uses the current page for a click with no preceding press, such as a programmatic click', () => {
+    setUrl('/tour');
+    mount('<a id="a" data-spa href="/pricing">Pricing</a>');
+    install();
+    watch();
+    click($('#a'));
+    expect(seen[0]!.page).toBe('/pricing');
+  });
+
+  it('does not reuse a press for a later click, or one that is too old', () => {
+    setUrl('/one');
+    mount('<button id="a">Go</button>');
+    watch();
+    press($('#a'));
+    click($('#a'));
+    setUrl('/two');
+    clock += 1000;
+    click($('#a'));
+    expect(seen.map((action) => action.page)).toEqual(['/one', '/two']);
+    setUrl('/three');
+    press($('#a'));
+    setUrl('/four');
+    clock += 6000;
+    click($('#a'));
+    expect(seen[2]!.page).toBe('/four');
+  });
+
+  it('removes the press listeners when stopped', () => {
+    mount('<button id="a">Go</button>');
+    watch();
+    stops.pop()!();
+    press($('#a'));
+    click($('#a'));
+    expect(seen).toEqual([]);
+  });
+});
+
 describe('duplicate suppression and rate cap', () => {
   it('counts a repeat within 500 ms once, and one after the window again', () => {
     mount('<button id="a">Go</button><button id="b">Other</button>');
