@@ -32,6 +32,7 @@ export default {
       getPageViewCounts: configuration.getPageViewCounts.bind(configuration),
       getAnalyticsSummary: configuration.getAnalyticsSummary.bind(configuration),
       getAnalyticsOverview: configuration.getAnalyticsOverview.bind(configuration),
+      getActionsReport: configuration.getActionsReport.bind(configuration),
       deleteExpiredDashboardData: configuration.deleteExpiredDashboardData.bind(configuration),
       saveAdminAudit: configuration.saveAdminAudit.bind(configuration),
       saveDecision: configuration.saveDecision.bind(configuration),
