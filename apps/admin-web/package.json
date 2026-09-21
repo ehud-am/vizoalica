@@ -15,7 +15,7 @@
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1",
     "typescript": "^6.0.3",
-    "vite": "^6.0.5"
+    "vite": "^8.3.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
