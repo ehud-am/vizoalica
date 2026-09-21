@@ -61,7 +61,7 @@
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
     "vizoalica": "node bin/vizoalica.mjs",
-    "typecheck:examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",
+    "typecheck:examples": "tsc --noEmit --ignoreConfig --types node --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",
     "promo:snapshots": "node --import tsx scripts/promo/capture-snapshots.ts",
     "promo:video": "node --import tsx scripts/promo/render-video.ts",
     "docs:dev": "pnpm --filter @vizoalica/docs site:dev",
@@ -88,7 +88,7 @@
     "prettier": "^3.9.7",
     "topojson-client": "^3.1.0",
     "tsx": "^4.23.13",
-    "typescript": "^5.7.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.11",
     "world-atlas": "^2.0.2",
     "wrangler": "^4.133.0"
