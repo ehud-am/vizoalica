@@ -32,6 +32,7 @@ success criteria SC-001 to SC-003.
 | UUID (any case)                                                  | `3f2b8c1e-5d4a-4a37-9c1b-0e7d2a6f9b10`    | `:id`  |
 | Hexadecimal, 16 or more characters                               | `5f2b8c1e5d4a4a37`                        | `:id`  |
 | 20 or more of `A-Za-z0-9_-` with an uppercase, a lowercase, and a digit | `V1StGXR8_Z5jdHi6B-myT`            | `:id`  |
+| ULID: 26 uppercase Crockford base32 characters including a digit  | `01ARZ3NDEKTSV4RRFFQ69G5FAV`              | `:id`  |
 | Contains `@`                                                     | `jane@example.com`                        | `:id`  |
 
 **Kept as written:** words and readable slugs (`pricing`, `my-first-post`, `blue-widget`),

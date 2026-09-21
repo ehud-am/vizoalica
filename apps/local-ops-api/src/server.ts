@@ -6,7 +6,7 @@ import { readPreferences, writePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
-import { analytics, analyticsOverview } from './routes/analytics.js';
+import { analytics, analyticsActions, analyticsOverview } from './routes/analytics.js';
 import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import { validOrigins } from './contracts.js';
 import {
@@ -133,6 +133,24 @@ export function createLocalServer(config: Config) {
           const body = validateWebsiteBody(await requestJson(request));
           return send(response, 201, await workerJson(client, remotePath, jsonInit('POST', body)));
         }
+      }
+      const actionsMatch = /^\/api\/projects\/([^/]+)\/analytics\/actions$/.exec(url.pathname);
+      if (request.method === 'GET' && actionsMatch) {
+        return send(
+          response,
+          200,
+          await analyticsActions(
+            client,
+            actionsMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? '',
+            {
+              ...(url.searchParams.get('page') ? { page: url.searchParams.get('page')! } : {}),
+              ...(url.searchParams.get('action') ? { action: url.searchParams.get('action')! } : {})
+            }
+          )
+        );
       }
       const overviewMatch = /^\/api\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
       if (request.method === 'GET' && overviewMatch) {

@@ -76,4 +76,4 @@ digits become `[number]`, token-shaped words become `[token]`, and text is cut a
 
 A page view is recorded on load, and again when the visitor moves to a page with a different page key
 through `history.pushState`, the browser's back or forward buttons (`popstate`), or a `hashchange`.
-`replaceState` alone is not navigation. Navigating to the page you are already on is not a new view.
+`replaceState` counts too when it changes the page key (a redirect). Navigating to the page you are already on is not a new view.

@@ -60,9 +60,9 @@ One row per project, website, minute, page, action, kind, and destination.
 | `destination`     | TEXT    | `''` for non-links, otherwise `origin + path`                     |
 | `event_count`     | INTEGER | `>= 0`; incremented by upsert                                     |
 
-Primary key: all columns except `event_count`.
-Index: `(project_id, source_id, minute_utc, page_path, action_name)` and a project-wide variant
-`(project_id, minute_utc, source_id, page_path, action_name)`, matching the existing dashboard tables.
+Primary key: all columns except `event_count` (it also serves per-website range reads).
+Index: a project-wide variant `(project_id, minute_utc, source_id, page_path, action_name)`, matching the
+existing dashboard tables.
 
 ### `dashboard_minute_action_visitors`
 

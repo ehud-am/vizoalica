@@ -1,6 +1,12 @@
-import type { CloudEvent, CustomEventData, PageViewData } from '@vizoalica/event-contracts';
+import type {
+  ActionData,
+  CloudEvent,
+  CustomEventData,
+  PageViewData
+} from '@vizoalica/event-contracts';
 import { sanitizeProperties } from '@vizoalica/privacy';
 import type { VizoalicaConfig } from './types.js';
+import type { ActionObservation } from './actions.js';
 import { currentPage, currentReferrer } from './privacy.js';
 
 function randomId(prefix: string): string {
@@ -80,6 +86,23 @@ export function buildCustomEvent(
   return baseEvent(config, context, 'com.vizoalica.custom_event.v1', {
     name,
     properties: sanitizeProperties(properties),
+    visitor: { anonymous_id: context.anonymousId },
+    session: { id: context.sessionId }
+  });
+}
+
+export function buildActionEvent(
+  config: VizoalicaConfig,
+  context: EventContext,
+  observation: ActionObservation
+): CloudEvent<ActionData> {
+  return baseEvent(config, context, 'com.vizoalica.action.v1', {
+    page: { url_origin: currentPage().url_origin, url_path: observation.page },
+    action: {
+      name: observation.name,
+      kind: observation.kind,
+      ...(observation.destination ? { destination: observation.destination } : {})
+    },
     visitor: { anonymous_id: context.anonymousId },
     session: { id: context.sessionId }
   });

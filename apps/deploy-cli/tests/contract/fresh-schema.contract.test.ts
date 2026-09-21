@@ -30,6 +30,8 @@ describe('fresh deployment schema contract', () => {
         'dashboard_minute_dimensions',
         'dashboard_minute_totals',
         'dashboard_minute_visitors',
+        'dashboard_minute_actions',
+        'dashboard_minute_action_visitors',
         'dashboard_rollups',
         'dashboard_seen_events',
         'ingestion_decisions',

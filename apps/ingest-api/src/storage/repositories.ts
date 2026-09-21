@@ -6,6 +6,8 @@ import type {
   StoredEvent
 } from '../domain/types.js';
 import type {
+  ActionsFilters,
+  ActionsReport,
   AdminAuditEntry,
   AnalyticsOverview,
   PageViewCounts,
@@ -83,6 +85,13 @@ export interface AdminRepository {
     startUtc: string,
     endUtc: string
   ): Promise<AnalyticsOverview | undefined>;
+  getActionsReport?(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters?: ActionsFilters
+  ): Promise<ActionsReport | undefined>;
   deleteExpiredDashboardData?(beforeUtc: string): Promise<void>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
 }

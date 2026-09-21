@@ -118,4 +118,18 @@ describe('embed script', () => {
     await client.flush();
     expect(fetch).toHaveBeenCalled();
   });
+
+  it('has no attribute that turns action collection off: collection is always on', () => {
+    const config = configFromScript({
+      dataset: {
+        endpoint: 'https://analytics.example.com/v1/events:batch',
+        source: 'public_src',
+        autoActions: 'false',
+        autoNavigation: 'false',
+        actions: 'false'
+      }
+    } as unknown as HTMLScriptElement);
+    expect(Object.keys(config)).not.toContain('autoActions');
+    expect(JSON.stringify(config)).not.toMatch(/action/i);
+  });
 });

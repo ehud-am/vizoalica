@@ -23,20 +23,23 @@ the whole fragment (tokens and sign-in data live there).
 
 ## R2. How in-page navigation is detected
 
-**Decision.** In the SDK: wrap `history.pushState`, listen for `popstate` and `hashchange`, and emit
-a page view when the normalized page key differs from the last one emitted. `replaceState` is not
-treated as navigation. The wrapper calls the original first, never throws, and defers work to a
-microtask so the router is never delayed.
+**Decision.** In the SDK: wrap `history.pushState` and `history.replaceState`, listen for `popstate`
+and `hashchange`, and emit a page view when the normalized page key differs from the last one
+emitted. The wrappers call the original first, never throw, and defer work to a microtask so the
+router is never delayed.
 
-**Why.** `pushState` is the only history call that creates an entry the visitor can navigate back to.
-Routers use `replaceState` for redirects and query cleanup, which would inflate views.
-`hashchange` plus `popstate` both fire for some fragment navigations, so comparing to the last key
-prevents double counts. It also prevents counting the initial load twice (FR-002).
+**Why.** Comparing to the last key prevents double counts: `hashchange` plus `popstate` both fire for
+some fragment navigations, and it also prevents counting the initial load twice (FR-002).
+`replaceState` is observed because a router redirect (for example to a dashboard after sign-in) is a
+real arrival on a new page; routers also use it to tidy the query string, but the page key ignores
+queries, so that never changes the key and never counts. (The first draft ignored `replaceState`;
+implementation showed that leaves the remembered page stale, so a later `pushState` to the same page
+was counted and the redirect was not.)
 
 **Consequence.** Navigating to the page you are already on is not a new view. Visiting A, B, A gives
 A two views (Story 1 scenario 3).
 
-**Rejected.** Polling `location` (wasteful); `replaceState` counting; a `MutationObserver` on
+**Rejected.** Polling `location` (wasteful); a `MutationObserver` on
 `<title>` (unreliable).
 
 ## R3. Identifier grouping: rules, and where they run
@@ -53,6 +56,7 @@ dropped first):
 | UUID: `3f2b8c1e-5d4a-4a37-9c1b-0e7d2a6f9b10`                                             | `:id`       |
 | Hexadecimal, 16 or more characters: `5f2b8c1e5d4a4a37`                                   | `:id`       |
 | Token: 20 or more of `A-Za-z0-9_-` containing an uppercase, a lowercase, and a digit     | `:id`       |
+| ULID: 26 uppercase Crockford base32 characters including a digit                         | `:id`       |
 | Contains `@` (an email-shaped segment)                                                   | `:id`       |
 | Date run: a year `19xx`/`20xx` immediately followed by a month `1-12`, then optionally a day `1-31` | kept        |
 | Anything else: words, slugs, `v2`, `img-1234.png`                                        | kept        |

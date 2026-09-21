@@ -1,3 +1,4 @@
+import { normalizePagePath } from './page-path.js';
 import { isForbiddenPropertyName, privacyLimits, sensitiveUrlKeys } from './policy.js';
 
 export interface RedactedUrl {
@@ -10,7 +11,7 @@ export function redactUrl(input: string | URL): RedactedUrl {
   const url = input instanceof URL ? input : new URL(input);
   return {
     url_origin: url.origin,
-    url_path: url.pathname.slice(0, privacyLimits.maxUrlPathLength),
+    url_path: normalizePagePath({ pathname: url.pathname, hash: url.hash }),
     url_query_redacted: url.search.length > 0
   };
 }
