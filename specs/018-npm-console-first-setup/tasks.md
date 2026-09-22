@@ -115,14 +115,14 @@ between them, and confirm every screen's data changes with nothing left over fro
 
 ### Tests for User Story 10 (write first, confirm they fail)
 
-- [ ] T050 [P] [US10] Write `packages/ops-core/tests/environment-names.test.ts`: `assertEnvironmentName`
+- [X] T050 [P] [US10] Write `packages/ops-core/tests/environment-names.test.ts`: `assertEnvironmentName`
   accepts lowercase letters, digits, and dashes, starting with a letter, and refuses anything else (spaces,
   uppercase, a leading digit or dash, empty, and a name long enough that `<name>-vizoalica-worker` would
   exceed Cloudflare's resource-name limit); `defaultNames(env)` returns `{ worker: "<env>-vizoalica-worker",
   database: "<env>-vizoalica-db", bucket: "<env>-vizoalica-bucket" }`; `assertResourceName(kind, name, env)`
   now requires `env` and refuses a `name` that does not start with `` `${env}-` ``, with the existing
   character and length rules still applied to the remainder
-- [ ] T051 [P] [US10] Write `apps/local-ops-api/tests/environment-store.test.ts`: `list()` on an empty store;
+- [X] T051 [P] [US10] Write `apps/local-ops-api/tests/environment-store.test.ts`: `list()` on an empty store;
   `create(name, cloudflare)` writes `~/.config/vizoalica/environments/<name>.json` at mode 0600 with
   `VIZOALICA_ENV_NAME`, and either `VIZOALICA_CF_MODE: "token"` plus `VIZOALICA_CF_API_TOKEN` (mode 0600,
   never logged) or `VIZOALICA_CF_MODE: "onecli"` with no token field, and makes it active; a second `create`
@@ -136,7 +136,7 @@ between them, and confirm every screen's data changes with nothing left over fro
   need no change beyond the import; concurrent `create`/`select`/`remove` calls never leave a partial file;
   loading a pre-0.7.0 single `local-operations.json` with no `environments/` directory yet is out of scope
   here (covered by T090)
-- [ ] T052 [P] [US10] Write `apps/local-ops-api/tests/environments-routes.contract.test.ts` for
+- [X] T052 [P] [US10] Write `apps/local-ops-api/tests/environments-routes.contract.test.ts` for
   [contracts/local-service-api.md](./contracts/local-service-api.md) "Environments": `GET /api/environments`
   (list with status and which is active, available to every role); `POST /api/environments` (creates and
   activates, `403` when an environment is already active and its principal is not admin, allowed when no
@@ -145,7 +145,7 @@ between them, and confirm every screen's data changes with nothing left over fro
   (verifies against `:name`'s own backend, independent of whichever environment is currently active); `DELETE
   /api/environments/:name` (`{ confirm: true }`, `403` unless `:name`'s own principal is admin, never calls
   Cloudflare); `404 environment_not_found` for an unknown name on select/connect/remove
-- [ ] T053 [P] [US10] Write `apps/admin-web/tests/environment-switcher.test.tsx` and
+- [X] T053 [P] [US10] Write `apps/admin-web/tests/environment-switcher.test.tsx` and
   `apps/admin-web/e2e/environments.spec.ts` against the mock console: with one environment, only a small,
   unobtrusive label is shown, no switcher chrome; with two or more, a switcher lists every environment by
   name and status, selecting one calls the select route and every screen (journey, versions, projects,
@@ -158,36 +158,36 @@ between them, and confirm every screen's data changes with nothing left over fro
 
 ### Implementation for User Story 10
 
-- [ ] T054 [US10] Add `assertEnvironmentName` and `defaultNames(env)` to `packages/ops-core/src/names.ts`,
+- [X] T054 [US10] Add `assertEnvironmentName` and `defaultNames(env)` to `packages/ops-core/src/names.ts`,
   and change `assertResourceName` to take and enforce the environment prefix (update every existing caller:
   `packages/ops-core/src/backend.ts`, `apps/local-ops-api/src/deploy/engine.ts`, and the checkout's guided
   commands, which pass their existing single default names' environment as a fixed literal so checkout
   behavior for `vizoalica backend`/`connect` is unchanged — see the note on Phase 8 for why the console path
   uses the real active environment instead)
-- [ ] T055 [US10] Implement `apps/local-ops-api/src/environment-store.ts` (replacing
+- [X] T055 [US10] Implement `apps/local-ops-api/src/environment-store.ts` (replacing
   `connection-store.ts`): `list`, `create`, `select`, `remove`, `active`, `current` (per T051), each backed by
   `~/.config/vizoalica/environments/<name>.json` and `~/.config/vizoalica/active-environment.json`; keep the
   existing connection-file validation, atomic-write, and 0600 rules from `connection-store.ts` for the
   per-environment file; update every import of `ConnectionStore` (`server.ts`, `setup/state.ts`, `routes/*`,
   `deploy/engine.ts`) to `EnvironmentStore`
-- [ ] T056 [US10] Implement `apps/local-ops-api/src/routes/environments.ts` per T052's contract, wired into
+- [X] T056 [US10] Implement `apps/local-ops-api/src/routes/environments.ts` per T052's contract, wired into
   `apps/local-ops-api/src/server.ts`; extend `apps/local-ops-api/src/setup/state.ts` so `needsFirstRun` is
   `true` exactly when the environment list is empty and the setup state's `environment` field lists every
   saved environment and which is active (data model)
-- [ ] T057 [US10] Add the client calls (`listEnvironments`, `createEnvironment`, `selectEnvironment`,
+- [X] T057 [US10] Add the client calls (`listEnvironments`, `createEnvironment`, `selectEnvironment`,
   `connectEnvironment`, `removeEnvironment`) and types to `apps/admin-web/src/api/local-operations.ts` with
   tests extending `apps/admin-web/tests/local-operations.api.test.ts`; implement
   `apps/admin-web/src/setup/EnvironmentSwitcher.tsx` per T053 and mount it in the connected shell in
   `apps/admin-web/src/App.tsx`, alongside the footer; add the `manage-environments` capability
   (create/remove only — selecting is not gated, per [contracts/console-availability.md](./contracts/console-availability.md)) to `apps/admin-web/src/capabilities.ts` and `useAvailability.ts`
-- [ ] T058 [US10] Extend `apps/admin-web/src/setup/FirstRun.tsx` and `apps/local-ops-api/src/setup/state.ts`:
+- [X] T058 [US10] Extend `apps/admin-web/src/setup/FirstRun.tsx` and `apps/local-ops-api/src/setup/state.ts`:
   an admin with no environment names one (a suggested default offered, validated live) as part of the same
   step that asks "I need a backend" or "I already have one" (not a fourth question, per
   [contracts/console-availability.md](./contracts/console-availability.md) "First-run questions"); creating
   the environment also asks for its Cloudflare credential choice when the admin is about to deploy (token or
   OneCLI), deferred until Phase 8's deploy wizard when only connecting to an existing backend; update
   `apps/admin-web/tests/first-run.test.tsx` and `apps/admin-web/e2e/first-run.spec.ts` for the combined step
-- [ ] T059 [US10] Update the mock console and fixtures for environments:
+- [X] T059 [US10] Update the mock console and fixtures for environments:
   `apps/admin-web/e2e/mock-console.ts` and `apps/admin-web/tests/fixtures/console.ts` (single-environment,
   multi-environment, and no-environment setup-state variants; the environments list and select/create/remove
   handlers)
