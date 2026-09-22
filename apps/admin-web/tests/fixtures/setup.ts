@@ -47,7 +47,7 @@ export function connectedState(
   };
 }
 
-export const firstRunState = (): SetupState => ({
+export const firstRunState = (overrides: Partial<SetupState> = {}): SetupState => ({
   version: '0.6.3',
   needsFirstRun: true,
   connection: { status: 'none' },
@@ -55,7 +55,8 @@ export const firstRunState = (): SetupState => ({
     id: 'connect-backend',
     label: 'Deploy or connect a backend',
     href: '#/setup'
-  })
+  }),
+  ...overrides
 });
 
 export { stages };

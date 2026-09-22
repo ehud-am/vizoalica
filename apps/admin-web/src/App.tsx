@@ -43,6 +43,7 @@ import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
 import { AccessPage } from './manage/AccessPage.js';
 import { BackendPage } from './manage/BackendPage.js';
+import { EnvironmentSwitcher } from './setup/EnvironmentSwitcher.js';
 import { FirstRun } from './setup/FirstRun.js';
 import { Journey } from './setup/Journey.js';
 import { SetupPage } from './setup/SetupPage.js';
@@ -211,6 +212,10 @@ export function App() {
           <BrandLogo theme={theme.theme} />
         </a>
         <div className="topbar-actions">
+          <EnvironmentSwitcher
+            role={setupState?.principal?.role}
+            onChanged={() => void connect()}
+          />
           <ThemeToggle
             theme={theme.theme}
             saving={theme.saving}
@@ -230,7 +235,7 @@ export function App() {
           <div className="content-column">
             <main id="main" tabIndex={-1}>
               {access === 'first-run' ? (
-                <FirstRun onDone={() => void connect()} />
+                <FirstRun legacySetup={setupState?.legacySetup} onDone={() => void connect()} />
               ) : access === 'setup' ? (
                 <SetupProvider key={session} initial={setupState}>
                   <SetupPage onChanged={() => void connect()} />

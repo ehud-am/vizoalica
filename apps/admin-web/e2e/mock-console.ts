@@ -263,6 +263,11 @@ export interface MockOptions {
   writes?: string[];
   /** Answer a connect with this status instead of connecting. */
   connectFails?: number;
+  /** The environments list; a single "prod" connected environment when omitted. */
+  environments?: {
+    active: string | null;
+    environments: Array<{ name: string; hasConnection: boolean; mode?: 'file' | 'onecli' }>;
+  };
 }
 
 /** Answers every console API call locally; nothing reaches a real backend. */
@@ -290,6 +295,28 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       return route.fulfill({ json: setup });
     }
     if (path === '/api/setup/role') return route.fulfill({ json: setup });
+    if (path === '/api/setup/import-legacy') {
+      setup = options.afterConnect ?? setupState();
+      return route.fulfill({ json: setup });
+    }
+    if (path === '/api/environments' && request.method() === 'GET')
+      return route.fulfill({
+        json: options.environments ?? {
+          active: 'prod',
+          environments: [{ name: 'prod', hasConnection: true, mode: 'file' }]
+        }
+      });
+    if (path === '/api/environments' && request.method() === 'POST')
+      return route.fulfill({
+        json: { active: 'prod', environments: [{ name: 'prod', hasConnection: false }] }
+      });
+    if (/^\/api\/environments\/[^/]+\/select$/.test(path)) return route.fulfill({ json: setup });
+    if (/^\/api\/environments\/[^/]+\/connect$/.test(path)) {
+      setup = options.afterConnect ?? setupState();
+      return route.fulfill({ json: setup });
+    }
+    if (/^\/api\/environments\/[^/]+$/.test(path) && request.method() === 'DELETE')
+      return route.fulfill({ json: { active: null, environments: [] } });
     if (path === '/api/access-keys' && request.method() === 'GET')
       return route.fulfill({ json: [] });
     if (path === '/api/access-keys' && request.method() === 'POST')

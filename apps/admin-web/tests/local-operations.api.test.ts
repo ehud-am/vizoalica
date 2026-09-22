@@ -149,4 +149,61 @@ describe('setup client calls', () => {
       status: 401
     });
   });
+
+  it('imports a pre-0.7.0 single connection file as the first environment', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ needsFirstRun: false }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.importLegacySetup('prod');
+    expect(fetch.mock.calls[0]![0]).toBe('/api/setup/import-legacy');
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({ name: 'prod' });
+  });
+});
+
+describe('environment client calls', () => {
+  it('lists, creates, selects, connects, and removes environments', async () => {
+    const fetch = vi.fn(
+      async (_path: string, _init?: RequestInit) =>
+        new Response(JSON.stringify({ active: null, environments: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.listEnvironments();
+    await api.createEnvironment('stage', { mode: 'token', token: 'cf-tok' });
+    await api.selectEnvironment('dev');
+    await api.connectEnvironment('dev', { workerUrl: 'https://w.test', credential: 'c' });
+    await api.removeEnvironment('dev');
+    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
+      'GET /api/environments',
+      'POST /api/environments',
+      'POST /api/environments/dev/select',
+      'POST /api/environments/dev/connect',
+      'DELETE /api/environments/dev'
+    ]);
+    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({
+      name: 'stage',
+      cloudflare: { mode: 'token', token: 'cf-tok' }
+    });
+    expect(JSON.parse(String(fetch.mock.calls[4]![1]!.body))).toEqual({ confirm: true });
+  });
+
+  it('creates an environment with no Cloudflare credential', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ active: 'x', environments: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.createEnvironment('x');
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({ name: 'x' });
+  });
 });

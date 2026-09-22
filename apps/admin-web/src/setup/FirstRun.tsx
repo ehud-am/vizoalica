@@ -1,20 +1,37 @@
 import { useId, useRef, useEffect, useState } from 'react';
-import { setRoleHint, type RoleHint, type SetupState } from '../api/local-operations.js';
+import {
+  ApiError,
+  createEnvironment,
+  importLegacySetup,
+  setRoleHint,
+  type RoleHint,
+  type SetupState
+} from '../api/local-operations.js';
+import { assertEnvironmentNameLooksValid } from './environment-name.js';
 import { ConnectForm } from './ConnectForm.js';
 import { ROLE_CHOICES, roleLabel } from './roles.js';
 
-type Step = 'role' | 'backend' | 'deploy' | 'connect';
+type Step = 'legacy' | 'role' | 'backend' | 'deploy' | 'connect';
 
 /**
  * The first thing a new console shows: at most three questions, then straight to the step that
  * matches the answers. Nothing here changes what the credential is allowed to do.
  */
-export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
+export function FirstRun({
+  legacySetup,
+  onDone
+}: {
+  legacySetup?: { workerHost: string; mode: 'file' | 'onecli' } | undefined;
+  onDone: (state: SetupState) => void;
+}) {
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
-  const [step, setStep] = useState<Step>('role');
+  const [step, setStep] = useState<Step>(legacySetup ? 'legacy' : 'role');
   const [role, setRole] = useState<RoleHint>('admin');
   const [haveBackend, setHaveBackend] = useState<'need' | 'have'>('have');
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
   useEffect(() => heading.current?.focus(), [step]);
 
   const back = (to: Step) => (
@@ -29,9 +46,103 @@ export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
     setStep(role === 'admin' ? 'backend' : 'connect');
   }
 
+  async function importLegacy() {
+    const problem = assertEnvironmentNameLooksValid(name);
+    if (problem) {
+      setNameError(problem);
+      return;
+    }
+    setBusy(true);
+    setNameError(undefined);
+    try {
+      onDone(await importLegacySetup(name));
+    } catch (error) {
+      setNameError(
+        error instanceof ApiError && error.code === 'environment_name_taken'
+          ? `An environment named "${name}" already exists.`
+          : 'Could not import that setup. Try again.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function nameEnvironment() {
+    const problem = assertEnvironmentNameLooksValid(name);
+    if (problem) {
+      setNameError(problem);
+      return;
+    }
+    setBusy(true);
+    setNameError(undefined);
+    try {
+      await createEnvironment(name);
+      setStep(haveBackend === 'need' ? 'deploy' : 'connect');
+    } catch (error) {
+      setNameError(
+        error instanceof ApiError && error.code === 'environment_name_taken'
+          ? `An environment named "${name}" already exists.`
+          : 'Could not create that environment. Try again.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="state-card first-run" aria-labelledby={headingId}>
       <p className="eyebrow">Welcome to Vizoalica</p>
+      {step === 'legacy' && legacySetup && (
+        <>
+          <h1 id={headingId} ref={heading} tabIndex={-1}>
+            We found an existing setup
+          </h1>
+          <p>
+            A backend at <strong>{legacySetup.workerHost}</strong> is already configured on this
+            computer{legacySetup.mode === 'onecli' ? ' through OneCLI' : ''}. Name it to bring it in
+            as your first environment — the name is used only to keep its resources apart from any
+            others you create later.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void importLegacy();
+            }}
+          >
+            <label htmlFor="legacy-name">Environment name</label>
+            <input
+              id="legacy-name"
+              value={name}
+              autoComplete="off"
+              placeholder="prod"
+              aria-describedby={nameError ? 'legacy-name-error' : undefined}
+              onChange={(event) => {
+                setName(event.target.value);
+                setNameError(undefined);
+              }}
+            />
+            {nameError && (
+              <p id="legacy-name-error" className="notice error" role="alert">
+                {nameError}
+              </p>
+            )}
+            <div className="form-actions">
+              <button className="primary" type="submit" disabled={busy}>
+                {busy ? 'Importing…' : 'Import'}
+              </button>
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => setStep('role')}
+                disabled={busy}
+              >
+                Set up something else instead
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+
       {step === 'role' && (
         <>
           <h1 id={headingId} ref={heading} tabIndex={-1}>
@@ -70,6 +181,7 @@ export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
               <button className="primary" type="submit">
                 Continue
               </button>
+              {legacySetup && back('legacy')}
             </div>
           </form>
         </>
@@ -78,17 +190,36 @@ export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
       {step === 'backend' && (
         <>
           <h1 id={headingId} ref={heading} tabIndex={-1}>
-            Do you have a backend?
+            Name your environment, and do you have a backend?
           </h1>
           <p>
-            The backend is the part that runs in your own Cloudflare account and stores your data.
+            An environment is one independent backend — its own Worker, database, and data. Most
+            people only ever need one; you can add more later. Its name is also used to keep its
+            Cloudflare resources apart from any other environment&rsquo;s.
           </p>
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              setStep(haveBackend === 'need' ? 'deploy' : 'connect');
+              void nameEnvironment();
             }}
           >
+            <label htmlFor="environment-name">Environment name</label>
+            <input
+              id="environment-name"
+              value={name}
+              autoComplete="off"
+              placeholder="prod"
+              aria-describedby={nameError ? 'environment-name-error' : undefined}
+              onChange={(event) => {
+                setName(event.target.value);
+                setNameError(undefined);
+              }}
+            />
+            {nameError && (
+              <p id="environment-name-error" className="notice error" role="alert">
+                {nameError}
+              </p>
+            )}
             <fieldset className="role-choices">
               <legend className="sr-only">Do you have a backend?</legend>
               <label className="role-choice">
@@ -117,8 +248,8 @@ export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
               </label>
             </fieldset>
             <div className="form-actions">
-              <button className="primary" type="submit">
-                Continue
+              <button className="primary" type="submit" disabled={busy}>
+                {busy ? 'Working…' : 'Continue'}
               </button>
               {back('role')}
             </div>
@@ -132,8 +263,9 @@ export function FirstRun({ onDone }: { onDone: (state: SetupState) => void }) {
             Set up a backend
           </h1>
           <p>
-            Deploying from this console is coming in the next release. Until then, set up the
-            backend from the project’s source, then come back and connect to it here.
+            Deploying this environment&rsquo;s backend from the console is coming later in this
+            release. Until then, set one up from the project&rsquo;s source, then come back and
+            connect to it here.
           </p>
           <ol className="steps">
             <li>

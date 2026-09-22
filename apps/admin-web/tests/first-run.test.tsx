@@ -13,6 +13,9 @@ const api = vi.hoisted(() => ({
   connectBackend: vi.fn(),
   disconnectBackend: vi.fn(),
   setRoleHint: vi.fn(),
+  createEnvironment: vi.fn(),
+  importLegacySetup: vi.fn(),
+  listEnvironments: vi.fn(),
   listProjects: vi.fn(),
   listWebsites: vi.fn(),
   getAnalyticsOverview: vi.fn(),
@@ -26,6 +29,8 @@ beforeEach(() => {
   api.bootstrapSession.mockResolvedValue(undefined);
   api.getSetupState.mockResolvedValue(firstRunState());
   api.setRoleHint.mockResolvedValue(firstRunState());
+  api.createEnvironment.mockResolvedValue({ active: 'prod', environments: [] });
+  api.listEnvironments.mockResolvedValue({ active: null, environments: [] });
   api.listProjects.mockResolvedValue([{ id: 'p1', name: 'Acme' }]);
   api.listWebsites.mockResolvedValue([]);
   api.getAnalyticsOverview.mockResolvedValue(makeOverview());
@@ -68,13 +73,27 @@ describe('first run', () => {
     render(<App />);
     await heading('Who are you?'); // question 1
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading('Do you have a backend?'); // question 2
+    await heading('Name your environment, and do you have a backend?'); // question 2
+    await user.type(screen.getByLabelText('Environment name'), 'prod');
     await user.click(screen.getByRole('radio', { name: /I already have one/ }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await heading('Connect your backend'); // question 3: the credential
     expect(screen.getByLabelText('Backend address')).toBeTruthy();
     expect(screen.getByLabelText('Administrator secret').getAttribute('type')).toBe('password');
     expect(api.setRoleHint).toHaveBeenCalledWith('admin');
+    expect(api.createEnvironment).toHaveBeenCalledWith('prod');
+  });
+
+  it('refuses to continue past naming an environment with an invalid name', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await heading('Who are you?');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Name your environment, and do you have a backend?');
+    await user.type(screen.getByLabelText('Environment name'), 'Not Valid');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('alert').textContent).toContain('lowercase');
+    expect(api.createEnvironment).not.toHaveBeenCalled();
   });
 
   it('connects and lands in the console, without sending the credential anywhere else', async () => {
@@ -83,7 +102,9 @@ describe('first run', () => {
     render(<App />);
     await heading('Who are you?');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(await screen.findByRole('button', { name: 'Continue' }));
+    await heading('Name your environment, and do you have a backend?');
+    await user.type(screen.getByLabelText('Environment name'), 'prod');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     await heading('Connect your backend');
     await user.type(screen.getByLabelText('Backend address'), 'https://w.example.workers.dev');
     await user.type(screen.getByLabelText('Administrator secret'), 'the-secret');
@@ -98,11 +119,13 @@ describe('first run', () => {
     expect(document.body.textContent).not.toContain('the-secret');
   });
 
-  it('explains that deploying from the console comes next, and where to start now', async () => {
+  it('explains that deploying from the console comes later in the release, and where to start now', async () => {
     const user = userEvent.setup();
     render(<App />);
     await heading('Who are you?');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Name your environment, and do you have a backend?');
+    await user.type(screen.getByLabelText('Environment name'), 'prod');
     await user.click(await screen.findByRole('radio', { name: /I need a backend/ }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await heading('Set up a backend');
@@ -111,10 +134,11 @@ describe('first run', () => {
         .getByRole('link', { name: /getting started guide/ })
         .getAttribute('href')
     ).toBe('https://vizoalica.dev/get-started');
+    expect(api.createEnvironment).toHaveBeenCalledWith('prod');
     await user.click(screen.getByRole('button', { name: /I have deployed it/ }));
     await heading('Connect your backend');
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    await heading('Do you have a backend?');
+    await heading('Name your environment, and do you have a backend?');
   });
 
   it.each([
@@ -139,7 +163,7 @@ describe('first run', () => {
     const first = await heading('Who are you?');
     await waitFor(() => expect(document.activeElement).toBe(first));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    const second = await heading('Do you have a backend?');
+    const second = await heading('Name your environment, and do you have a backend?');
     await waitFor(() => expect(document.activeElement).toBe(second));
   });
 
@@ -148,6 +172,34 @@ describe('first run', () => {
     render(<App />);
     await screen.findByRole('navigation', { name: 'Primary navigation' });
     expect(screen.queryByRole('heading', { name: 'Who are you?' })).toBeNull();
+  });
+
+  it('offers a found pre-0.7.0 setup to name and import before the usual questions', async () => {
+    const user = userEvent.setup();
+    api.getSetupState.mockResolvedValue(
+      firstRunState({ legacySetup: { workerHost: 'worker.example.workers.dev', mode: 'file' } })
+    );
+    api.importLegacySetup.mockResolvedValue(connectedState());
+    render(<App />);
+    await heading('We found an existing setup');
+    expect(screen.getByText(/worker.example.workers.dev/)).toBeTruthy();
+    await user.type(screen.getByLabelText('Environment name'), 'prod');
+    api.getSetupState.mockResolvedValue(connectedState());
+    await user.click(screen.getByRole('button', { name: 'Import' }));
+    expect(api.importLegacySetup).toHaveBeenCalledWith('prod');
+    await screen.findByRole('navigation', { name: 'Primary navigation' });
+  });
+
+  it('lets the admin set up something else instead of importing the found setup', async () => {
+    const user = userEvent.setup();
+    api.getSetupState.mockResolvedValue(
+      firstRunState({ legacySetup: { workerHost: 'worker.example.workers.dev', mode: 'file' } })
+    );
+    render(<App />);
+    await heading('We found an existing setup');
+    await user.click(screen.getByRole('button', { name: 'Set up something else instead' }));
+    await heading('Who are you?');
+    expect(api.importLegacySetup).not.toHaveBeenCalled();
   });
 
   it('does not hold up the next step when remembering the choice fails', async () => {

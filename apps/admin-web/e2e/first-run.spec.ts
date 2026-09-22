@@ -18,8 +18,12 @@ test('an admin with a backend connects and lands in the console', async ({ page 
   await toRole(page, { afterConnect: setupState('admin') });
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Do you have a backend?' })
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Name your environment, and do you have a backend?'
+    })
   ).toBeVisible();
+  await page.getByLabel('Environment name').fill('prod');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Connect your backend' })).toBeVisible();
   await page.getByLabel('Backend address').fill('https://worker.test');
@@ -31,6 +35,7 @@ test('an admin with a backend connects and lands in the console', async ({ page 
 test('an admin who needs a backend is told where to start', async ({ page }) => {
   await toRole(page);
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Environment name').fill('prod');
   await page.getByRole('radio', { name: /I need a backend/ }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();
@@ -58,6 +63,7 @@ for (const [label, title] of [
 test('says in words when the backend refuses the credential', async ({ page }) => {
   await toRole(page, { connectFails: 401 });
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Environment name').fill('prod');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByLabel('Backend address').fill('https://worker.test');
   await page.getByLabel('Administrator secret').fill('wrong');
@@ -95,9 +101,13 @@ for (const scheme of ['light', 'dark'] as const) {
     await audit();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Do you have a backend?' })
+      page.getByRole('heading', {
+        level: 1,
+        name: 'Name your environment, and do you have a backend?'
+      })
     ).toBeVisible();
     await audit();
+    await page.getByLabel('Environment name').fill('prod');
     await page.getByRole('radio', { name: /I need a backend/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();

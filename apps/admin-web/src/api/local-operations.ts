@@ -281,6 +281,8 @@ export type SetupState = {
   };
   stages: Stage[];
   notice?: 'administrator_secret_used' | 'role_corrected';
+  /** A pre-0.7.0 single connection file waiting to be named and imported as the first environment. */
+  legacySetup?: { workerHost: string; mode: 'file' | 'onecli' };
 };
 export const getSetupState = () => request<SetupState>('/api/setup/state');
 export const connectBackend = (input: {
@@ -291,6 +293,31 @@ export const connectBackend = (input: {
 export const disconnectBackend = () => request<SetupState>('/api/setup/disconnect', json('POST'));
 export const setRoleHint = (roleHint: RoleHint) =>
   request<SetupState>('/api/setup/role', json('POST', { roleHint }));
+export const importLegacySetup = (name: string) =>
+  request<SetupState>('/api/setup/import-legacy', json('POST', { name }));
+
+export type EnvironmentCloudflareCredential = { mode: 'token'; token: string } | { mode: 'onecli' };
+export type EnvironmentSummary = {
+  name: string;
+  hasConnection: boolean;
+  mode?: 'file' | 'onecli';
+};
+export type EnvironmentsList = { active: string | null; environments: EnvironmentSummary[] };
+export const listEnvironments = () => request<EnvironmentsList>('/api/environments');
+export const createEnvironment = (name: string, cloudflare?: EnvironmentCloudflareCredential) =>
+  request<EnvironmentsList>('/api/environments', json('POST', { name, cloudflare }));
+export const selectEnvironment = (name: string) =>
+  request<SetupState>(`/api/environments/${encodeURIComponent(name)}/select`, json('POST'));
+export const connectEnvironment = (
+  name: string,
+  input: { workerUrl: string; credential: string; roleHint?: RoleHint }
+) =>
+  request<SetupState>(`/api/environments/${encodeURIComponent(name)}/connect`, json('POST', input));
+export const removeEnvironment = (name: string) =>
+  request<EnvironmentsList>(
+    `/api/environments/${encodeURIComponent(name)}`,
+    json('DELETE', { confirm: true })
+  );
 
 export type AccessKeyRole = 'analyst' | 'owner';
 export type AccessKeySummary = {
