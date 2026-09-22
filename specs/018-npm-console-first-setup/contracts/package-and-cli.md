@@ -30,10 +30,10 @@ identifier.
 
 | Command                | Status                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
-| `console`              | The front door. Starts the service and console as one process, prints the address, opens the browser (`--no-open` to skip), stops everything on one interrupt. Starts with no backend |
-| `status`, `doctor`, `verify` | Slice 1 (0.6.3): from the package these print where to go (`vizoalica console`, or a source checkout) and exit 2; behavior unchanged in a checkout |
-| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout for scripts and advanced use; from the package (slice 1) they print where to go and exit 2. Console-based replacements arrive in slice 2 |
-| `install`              | **Retired** in the release that ships console deployment: prints "vizoalica install was retired. Run `vizoalica console`; it guides setup.", does nothing else, exit code 2 |
+| `console`              | The front door. Starts the service and console as one process, prints the address, opens the browser (`--no-open` to skip), stops everything on one interrupt. Starts with no environment yet; every environment, deploy, update, and role action happens inside it |
+| `status`, `doctor`, `verify` | From the package these print where to go (`vizoalica console`, or a source checkout) and exit 2; unchanged in a checkout |
+| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout for scripts and advanced use (single-environment, checkout-native, unrelated to the console's environment model); from the package they print where to go and exit 2 |
+| `install`              | **Retired**: prints "vizoalica install was retired. Run `vizoalica console`; it guides setup.", does nothing else, exit code 2 |
 
 ### `vizoalica console` behavior
 
@@ -41,13 +41,16 @@ identifier.
 | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Node older than 22, or unsupported OS    | One plain message naming the requirement and the fix; exit code 1; no stack trace           |
 | Port 4318 busy                           | "A console is probably running already. Open http://127.0.0.1:4318, or stop it (Ctrl+C in its terminal)." exit code 1 |
-| No saved connection                      | Starts the service unconfigured; the console shows first run                               |
-| Saved connection (file mode)             | Starts with it                                                                             |
-| Saved OneCLI mode (`ops.json`)           | Starts the service through `onecli run …` as today, with the packaged entry point           |
+| No saved environment                     | Starts the service unconfigured; the console shows first run, including naming the first environment |
+| One or more saved environments           | Starts with the previously active one selected; the console's switcher shows the rest              |
+| Any environment in OneCLI mode           | That environment's routes are wrapped through `onecli run …` as today; other environments are unaffected |
 | No display / cannot open a browser       | Prints the address                                                                          |
 
-Environment: `VIZOALICA_WRANGLER` overrides the deployment tool command; `CLOUDFLARE_API_TOKEN` is passed
-through to it; `NODE_OPTIONS` under OneCLI keeps the existing warning suppression.
+Process environment variables (distinct from Vizoalica "environments" above, which are console-managed, not
+process-managed): `VIZOALICA_WRANGLER` overrides the deployment tool command for every Vizoalica environment;
+`NODE_OPTIONS` under OneCLI keeps the existing warning suppression. A Cloudflare API token for a `token`-mode
+Vizoalica environment is entered once in the console and saved in that environment's own file (R25), not read
+from the process environment, so that two environments never share one ambient `CLOUDFLARE_API_TOKEN`.
 
 ## Build and checks
 

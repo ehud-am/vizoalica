@@ -1,4 +1,4 @@
-# Feature Specification: Install from npm and a Console-First Setup
+# Feature Specification: Install from npm, a Console-First Setup, and Multiple Backend Environments
 
 **Feature Branch**: `018-npm-console-first-setup`
 
@@ -10,22 +10,29 @@
 
 **Follow-up (2026-09-22)**: "let's add worker and database schema versions and abolity to update those from the console. To clarify the roles, admin - can do everything. analyst - van view the analytics, and see the configuration but change nothing. Website owner - can view analytics, can manager projects and websites, but can not change the backend workers and databases"
 
+**Follow-up (2026-09-22, later): scope change to a 0.7.0 minor release**: "let's update the spec to accomodate this change and go through plan and tasks again. Also, i want to support multiple backend environments, like dev,stage,prod. Please plan how i can manage deployment environments, for each its own cloudflare key (with/without onecli), for each a prefix for naming convension that starts with "<env>-<something>" so i can run this against multiple cloudflare accounts, or have multiple backend environments under a single cloudflare account, and each environment has its own operator, projects admin, analyst keys, and its own list of projects and websites. Let's do all the needed redesigns and refactoring to support this model. I am ok with no backward compatibility / breaking change, and a request to reimplement the entire thing for this particular change. We also need to change this from a patch release to a minor release 0.7.0." This follow-up also names a design gap found while building the first slice: the console's deploy engine must deploy from a pre-bundled Worker artifact shipped inside the installed package, never from the contributor checkout, so that is folded in as a corrected, explicit requirement rather than a separate feature.
+
+This is now a single **0.7.0 minor release** (the earlier two-slice 0.6.3/0.6.4 patch plan is dropped). Nothing described here has shipped yet, so there is no saved state or existing installation to stay compatible with; every part of the in-progress implementation may be redesigned or rewritten as needed to deliver the model below.
+
 ## Who this is for
 
 Three roles use Vizoalica, and this feature keeps them apart. The backend enforces each one; the console
-only reflects it.
+only reflects it. All three now act within one **environment** at a time: a named, fully independent backend
+(for example "dev", "stage", or "prod") with its own Worker, database, storage, credentials, keys, projects,
+and websites.
 
-- **Admin**: looks after the backend in a Cloudflare account and can do everything: deploy and update the
-  Worker and the database, change secrets, issue and revoke access, manage projects and websites, and see all
-  data.
+- **Admin**: looks after one or more environments' backends in one or more Cloudflare accounts and can do
+  everything within an environment: create, name, and remove environments, deploy and update each one's Worker
+  and database, change its secrets, issue and revoke its access keys, manage its projects and websites, and
+  see all its data.
 - **Analyst**: can view the analytics and see the configuration (projects, websites, installation details,
-  health, and the backend's versions), but can change nothing.
+  health, and the backend's versions) of the one environment their key belongs to, but can change nothing.
 - **Website owner**: can view the analytics and manage projects and websites (create, edit, enable,
-  disable, and delete them, within the scope the admin gave), but cannot change the backend: the Worker, the
-  database, its secrets, or who has access.
+  disable, and delete them, within the scope the admin gave) in the one environment their key belongs to, but
+  cannot change that environment's backend: its Worker, database, its secrets, or who has access.
 
 One person can be all three (a solo maintainer), but a team can split them, because each role uses a
-different credential.
+different credential. A key issued in one environment never works in another.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -104,7 +111,9 @@ yet.
 As a person running the console for the first time, the console asks me a few plain questions, and the
 rest of what I see follows from my answers. It asks who I am here (admin, website owner, or
 analyst) and what I already have (a backend already running, or none yet), and it skips anything that
-does not apply. I can change my answers later.
+does not apply. An admin with no backend also picks or creates the environment (Story 10) they are setting
+up first; a website owner or analyst is already working within whichever environment issued their key. I can
+change my answers later.
 
 **Why this priority**: The same tool serves three kinds of people who need different first steps.
 Asking once, in the console, lets one command serve all of them without a wall of options.
@@ -174,11 +183,13 @@ journey shows stage one done and stage two next. Repeat at each later stage.
 
 ### User Story 5 - The Admin Deploys and Maintains the Backend from the Console (Priority: P2)
 
-As an admin, I deploy the Vizoalica backend into my Cloudflare account from the console, without a
-separate command that "does everything". The console shows what it is about to create, asks me to
-approve, does it step by step with visible progress, shows the new secrets once, checks that the
-result works, and connects itself to it. The same place lets me connect to a backend that already
-exists, check its health and version, update it, rotate its secrets, and remove deleted data.
+As an admin, I deploy the Vizoalica backend for one environment into a Cloudflare account from the console,
+without a separate command that "does everything". The console shows what it is about to create (every
+resource named with that environment's prefix), asks me to approve, does it step by step with visible
+progress, shows the new secrets once, checks that the result works, and connects that environment to it. The
+same place lets me connect an environment to a backend that already exists, check its health and version,
+update it, rotate its secrets, and remove deleted data. The console deploys from what it shipped with, not
+from a checkout: nothing about my computer's source tree or build tools matters.
 
 **Why this priority**: This is the main reason `vizoalica install` exists, and moving it into a
 guided, reviewable flow is what lets that command go. It depends on Stories 2 to 4.
@@ -193,8 +204,8 @@ to an existing backend.
 1. **Given** I am an admin with no backend, **When** I choose to deploy, **Then** the console first
    checks that I am signed in to Cloudflare, and if not, guides me through signing in and comes back.
 2. **Given** I am signed in, **When** I continue, **Then** the console shows a plan listing every
-   resource it will create in my account (names and kinds), what each is for, and the cost model, and
-   nothing is created until I approve.
+   resource it will create in my account (names and kinds, each name starting with the chosen
+   environment's prefix), what each is for, and the cost model, and nothing is created until I approve.
 3. **Given** I approve, **When** the deployment runs, **Then** I see each step start and finish, in
    order, and a failed step stops the flow with what failed, what was already created, and how to
    continue or clean up.
@@ -222,10 +233,11 @@ to an existing backend.
 
 ### User Story 6 - A Website Owner Manages Their Projects and Websites (Priority: P2)
 
-As a website owner, I use access my admin gave me to manage projects and websites: add a website to a
-project, configure it, enable or disable it, get its installation steps and the SDK file, and check that
-data has arrived. I can view the analytics. I cannot change the backend, so I never need the administrator
-credential. My access covers everything, one project, or one website, as my admin chose.
+As a website owner, I use access my admin gave me to manage projects and websites in the one environment my
+key belongs to: add a website to a project, configure it, enable or disable it, get its installation steps
+and the SDK file, and check that data has arrived. I can view the analytics. I cannot change the backend, so
+I never need the administrator credential, and I cannot see or touch any other environment. My access covers
+everything, one project, or one website within my environment, as my admin chose.
 
 **Why this priority**: Website owners are a different person from the admin in a team, and today they would
 need the admin's full credential just to add a website or read its installation steps.
@@ -261,9 +273,10 @@ every out-of-scope operation and confirm each is refused.
 
 ### User Story 7 - An Analyst Sees the Data and the Configuration, and Changes Nothing (Priority: P2)
 
-As an analyst, I open the console with read-only access my admin gave me and see the analytics, and I can
-also see how things are configured: the projects and websites, their installation details, their health, and
-the backend's versions. Nothing I can reach changes anything, and the backend itself refuses any attempt.
+As an analyst, I open the console with read-only access my admin gave me and see the analytics for the one
+environment my key belongs to, and I can also see how that environment is configured: its projects and
+websites, their installation details, their health, and the backend's versions. Nothing I can reach changes
+anything, and the backend itself refuses any attempt. I cannot see any other environment.
 
 **Why this priority**: The owner wants to be sure that a person who needs to understand the numbers can see
 the setup behind them, and that this cannot change anything, by enforcement and not only by hiding controls.
@@ -322,10 +335,11 @@ run the console; confirm it recognizes the existing setup and goes straight to t
 
 ### User Story 9 - See the Worker and Database Versions and Update Them from the Console (Priority: P2)
 
-As an admin, I can see three versions at a glance: this console, the Worker running in Cloudflare, and the
-database schema, and whether each is up to date. When the Worker or the database is behind what this console
-carries, I update it from the console. It shows what will change, takes a backup first, updates the database
-and then the Worker, checks the result, and reports. Data keeps being collected throughout.
+As an admin, I can see three versions at a glance for the environment I am looking at: this console, the
+Worker running in Cloudflare, and the database schema, and whether each is up to date. When the Worker or the
+database is behind what this console carries, I update it from the console. It shows what will change, takes
+a backup first, updates the database and then the Worker, checks the result, and reports. Data keeps being
+collected throughout. Updating one environment never touches another.
 
 **Why this priority**: Until now a schema change meant a fresh install, which made every release that touched
 the database a reason not to upgrade. Versioned, updatable backends remove that, and they are what makes
@@ -365,6 +379,93 @@ versions now match, no accepted event was lost, and an audit record exists.
     sign in first and changes nothing until I have.
 12. **Given** an update finished, **When** I look for a record, **Then** an auditable record (no secret values)
     lists what was changed, from which versions to which, and the backup location.
+
+---
+
+### User Story 10 - Manage Multiple Backend Environments (Priority: P1)
+
+As an admin, I create and name one or more environments (for example "dev", "stage", and "prod", or whatever
+names fit my team) from the console, each a fully independent Vizoalica backend: its own Worker, database,
+storage, secrets, access keys, projects, and websites. I choose, per environment, how the console reaches
+Cloudflare for it (a stored credential, or through OneCLI), independently of every other environment. I can
+run every environment in the same Cloudflare account, because the console names every resource it creates
+with that environment's name as a prefix, or spread them across different Cloudflare accounts; either way
+they never collide and never mix. Everywhere the console shows or changes backend data, it is working on the
+one environment I currently have selected, and I can always see which one that is and switch to another.
+
+**Why this priority**: Teams that run a development and a production backend (or more) need this from day
+one; without it, this feature would only ever manage one backend per computer, and the owner has asked
+specifically for this to work now, before the first release, rather than as a later addition.
+
+**Independent Test**: Create two environments in the same Cloudflare account with different names, deploy
+each from the console, confirm every resource Cloudflare shows for them carries the right prefix and neither
+environment's data, keys, or credentials appear while the other is selected, then switch between them and
+confirm the console's screens change to match.
+
+**Acceptance Scenarios**:
+
+1. **Given** no environment exists yet, **When** an admin finishes the first-run flow, **Then** they are
+   asked to name their first environment (with a plain explanation of what an environment is) before
+   deploying or connecting a backend.
+2. **Given** at least one environment exists, **When** an admin opens the console, **Then** an environment
+   switcher is visible showing every environment's name and connection status, and the admin can select any
+   one of them.
+3. **Given** an admin is creating a new environment, **When** they name it, **Then** the console validates
+   the name (safe to use as a resource-name prefix: lowercase letters, digits, and dashes, starting with a
+   letter) and refuses a name that collides with an existing environment on this computer.
+4. **Given** an admin picks an environment's Cloudflare credential, **When** they choose between a stored
+   credential and OneCLI, **Then** that choice, and the resulting sign-in, applies to that environment only;
+   a second environment can use the other kind, or a different Cloudflare account, with no effect on the
+   first.
+5. **Given** an admin deploys an environment named "stage", **When** the console creates resources for it,
+   **Then** every resource name it generates starts with "stage-", and the console refuses to create or
+   attach a resource whose name does not start with the selected environment's prefix.
+6. **Given** two environments share one Cloudflare account, **When** either is deployed, updated, or
+   inspected, **Then** the console only ever acts on the resources whose names carry that environment's
+   prefix, and never lists, shows, or changes the other's resources.
+7. **Given** an admin issues an owner or analyst key while a given environment is selected, **When** that
+   key is used to connect, **Then** the console and the backend recognize it only for that one environment,
+   scoped to that environment's own projects and websites, and it is refused everywhere else.
+8. **Given** an admin selects a different environment, **When** any screen loads, **Then** everything it
+   shows (journey stage, versions, projects, websites, analytics, access keys) reflects the newly selected
+   environment only, with no data left over from the previous one.
+9. **Given** an admin removes an environment from the console, **When** they confirm (naming what will be
+   forgotten), **Then** the console forgets its local connection and credential; the admin is told plainly
+   that this does not delete the Cloudflare resources or the deployed backend itself, and how to do that if
+   they want to.
+10. **Given** an admin who wants only one backend, **When** they never create a second environment, **Then**
+    every screen behaves exactly as if environments did not exist beyond the one they created (no switcher
+    clutter for a single environment beyond a small, unobtrusive label).
+
+---
+
+### User Story 11 - The Installed Package Deploys Itself, Not the Checkout (Priority: P1)
+
+As an admin who installed Vizoalica with `npm install -g vizoalica`, deploying or updating a backend from
+the console works the same whether or not I have ever seen the project's source code. The console deploys
+the exact Worker code and database changes that shipped inside the package I installed; it does not build
+anything, and it does not depend on any file outside what the installer put on my computer.
+
+**Why this priority**: This is a correctness requirement behind Stories 5 and 9 (deploy and update), not a
+separate feature; without it, those stories only work for a contributor with a full checkout, which defeats
+the point of publishing to npm. It is called out on its own because an early implementation attempt got this
+wrong.
+
+**Independent Test**: On a clean machine with only the installed npm package (no source checkout, no
+monorepo tool, no repository-relative files present), deploy a new environment end to end and confirm it
+succeeds using only files the installed package itself contains.
+
+**Acceptance Scenarios**:
+
+1. **Given** only the installed package on a clean machine, **When** an admin deploys a new environment,
+   **Then** the console never attempts to build anything or read a file outside the package's own install
+   location and the environment's saved settings.
+2. **Given** a deployment or an update is running, **When** it deploys the Worker, **Then** it deploys the
+   exact prebuilt Worker code that shipped in the installed package version, matching what that version's
+   console reports as its expected Worker and schema versions.
+3. **Given** a contributor's source checkout, **When** they run the console from it during development,
+   **Then** deploying and updating still work, using the same packaged artifacts the checkout builds for
+   itself, so the checkout and the published package behave the same way.
 
 ---
 
@@ -410,6 +511,22 @@ versions now match, no accepted event was lost, and an audit record exists.
 - **A newer console meets an older backend, or the reverse**: the console explains which side to update and
   never offers a downgrade.
 - **Windows or another unsupported system**: a plain message that says it is unsupported and why.
+- **Two environments happen to want the same name**: the console refuses the second with a plain message
+  before anything is created or saved.
+- **An environment's name would produce an invalid or too-long resource name once prefixed**: the console
+  says so at naming time, before deployment, with what would need to change.
+- **An access key from one environment is presented while another environment is selected, or to a
+  different environment's backend entirely**: it is refused, and the console explains that the key belongs to
+  a different environment rather than treating it as merely invalid.
+- **An admin removes the only environment they had selected**: the console falls back to the environment
+  picker (or first run, if none remain) rather than showing a blank or broken screen.
+- **Cloudflare resources exist with a name that matches another environment's prefix but were not created by
+  this console** (for example a manual test resource): detection and plans only ever compare against the
+  exact names the selected environment's plan lists, so an unrelated resource with a similar prefix is never
+  attached, altered, or reported as a collision.
+- **An admin runs a deploy or update against an environment whose Cloudflare credential has expired or been
+  revoked outside the console**: the flow stops at sign-in with a clear message, and no other environment's
+  credential or session is affected.
 
 ## Requirements *(mandatory)*
 
@@ -438,9 +555,13 @@ versions now match, no accepted event was lost, and an audit record exists.
 - **FR-006**: The console MUST start and be usable when no backend is connected.
 - **FR-007**: Unsupported Node.js versions, unsupported operating systems, and a busy address MUST produce a
   plain message naming the problem and the fix, never a stack trace.
-- **FR-008**: The installed package MUST contain everything needed to run the console and to deploy the
-  backend (including the backend's code and database schema at the same version), and MUST NOT contain
-  secrets, account identifiers, or local configuration.
+- **FR-008**: The installed package MUST contain everything needed to run the console and to deploy or
+  update the backend of any environment, including a ready-to-deploy build of the backend's code (not its
+  source) and the full, ordered set of database changes at the same version, and MUST NOT contain secrets,
+  account identifiers, or local configuration. Deploying and updating MUST use only these packaged artifacts
+  and the environment's own saved settings; neither MUST read, build, or depend on anything from a source
+  checkout, a package manager workspace, or any other repository-relative location, whether or not one
+  happens to be present on the machine.
 - **FR-009**: Updating the package MUST keep saved settings and credentials. The console MUST show its
   own version and the connected backend's version and whether they are compatible.
 - **FR-010**: Nothing in installing or running the console may send information about the user or their
@@ -483,6 +604,43 @@ versions now match, no accepted event was lost, and an audit record exists.
   limit in Assumptions).
 - **FR-020**: A revoked or invalid credential MUST be reported as such, with what to do, and MUST NOT leave
   stale data on screen.
+
+**Environments**
+
+- **FR-046**: The console MUST let an admin create, name, list, select, and remove environments, where an
+  environment is a fully independent backend: its own Worker, database, storage, administrator secret,
+  access keys, projects, and websites, never shared or blended with any other environment.
+- **FR-047**: An environment's name MUST be validated as safe to use as a Cloudflare resource-name prefix
+  (lowercase letters, digits, and dashes, starting with a letter) and MUST be unique among the environments
+  saved on this computer. The console MUST refuse a colliding or invalid name before saving anything.
+- **FR-048**: Every resource name the console generates or accepts when deploying or connecting an
+  environment MUST start with that environment's name followed by a dash. The console MUST refuse to create,
+  attach, or report on a resource whose name does not carry the selected environment's prefix, so that
+  environments in the same Cloudflare account never collide and a plan or a detection step never picks up
+  another environment's resource by accident.
+- **FR-049**: Each environment MUST have its own Cloudflare credential configuration, chosen independently of
+  every other environment: either a credential stored on this computer or one obtained through OneCLI. Two
+  environments MAY use different Cloudflare accounts, the same Cloudflare account, different credential
+  kinds, or any combination, with no effect on each other.
+- **FR-050**: Exactly one environment MUST be selected at a time in the console, shown at all times once more
+  than one environment exists. Every screen that reads or changes backend data (the journey, the deploy and
+  update flows, the backend screen, access keys, projects, websites, and analytics) MUST reflect only the
+  selected environment, and switching the selection MUST replace everything those screens show with the
+  newly selected environment's own data, leaving none of the previous environment's data visible.
+- **FR-051**: An access key (analyst or owner) MUST be valid for the one environment it was issued from only.
+  The backend MUST refuse a key presented to a different environment's backend, and the console MUST refuse a
+  key entered while a different environment is selected, in both cases explaining that the key belongs to
+  another environment.
+- **FR-052**: Removing an environment from the console MUST forget its saved connection and credential on
+  this computer and MUST require a confirmation naming the environment. It MUST NOT delete the Cloudflare
+  resources or the deployed backend itself, and the console MUST say so plainly and point to how to do that
+  separately, if wanted.
+- **FR-053**: On first run, an admin with no environment yet MUST be asked to name and create their first
+  environment as part of reaching a deployed or connected backend. A website owner or analyst is not asked;
+  their key already determines the environment they work in.
+- **FR-054**: With exactly one environment, the console MUST behave as close to today's single-backend
+  experience as possible: no required extra steps or decisions beyond naming that one environment once, and
+  only a small, unobtrusive indicator rather than a prominent switcher.
 
 **Journey and availability**
 
@@ -566,25 +724,33 @@ versions now match, no accepted event was lost, and an audit record exists.
 
 ### Key Entities *(include if feature involves data)*
 
+- **Environment**: a named, independent backend (for example "dev", "stage", "prod"): its own Worker,
+  database, storage, administrator secret, access keys, projects, and websites, plus its own Cloudflare
+  credential configuration (stored, or via OneCLI) and its own resource-name prefix, which is its name.
+  Selecting an environment scopes every other entity below to it.
 - **Role**: admin, website owner, or analyst; determines which screens and actions exist and which
-  credential the console must hold.
-- **Setup stage**: one of console running, backend connected, website configured, data arriving; derived
-  from the state of the backend and its websites, never stored by hand.
-- **Backend connection**: the address of a backend and the credential this computer holds for it (or
-  the way it obtains it); has health, version, and compatibility.
-- **Deployment plan and record**: the resources to be created, the admin's approval, the ordered steps and
-  their outcomes, and the resulting audit entry (no secrets).
+  credential the console must hold, within one environment.
+- **Setup stage**: one of console running, backend connected, website configured, data arriving, tracked per
+  environment; derived from the state of that environment's backend and its websites, never stored by hand.
+- **Backend connection**: the address of an environment's backend and the credential this computer holds for
+  it (or the way it obtains it); has health, version, and compatibility. One environment has exactly one.
+- **Deployment plan and record**: the resources to be created for one environment (every name carrying that
+  environment's prefix), the admin's approval, the ordered steps and their outcomes, and the resulting audit
+  entry (no secrets).
 - **Website setup details**: the public values a website owner needs, plus an access key limited to
-  their website; never includes the administrator credential.
-- **Access key**: the analyst's and owner's credential; carries a role (analyst or owner) and a scope
-  (everything, one project, or one website); issued, shown once, revocable.
-- **Version status**: for the console, the Worker, and the database schema: the current version, the version
-  the console carries, and a status (up to date, update available, console older, unknown).
+  their website within their environment; never includes the administrator credential.
+- **Access key**: the analyst's and owner's credential; carries a role (analyst or owner), the one
+  environment it was issued from, and a scope within that environment (everything, one project, or one
+  website); issued, shown once, revocable.
+- **Version status**: for the console, and for an environment's Worker and database schema: the current
+  version, the version the console carries, and a status (up to date, update available, console older,
+  unknown).
 - **Database change**: a numbered, ordered, forward-only, additive change with a plain description; applied
-  changes are recorded in the database itself.
-- **Update run**: like a deployment run, with a backup step, the pending database changes, the Worker step,
-  and a verification; resumable; recorded without secrets.
-- **Installation**: the installed package and its version, and the saved settings that survive updates.
+  changes are recorded in each environment's own database.
+- **Update run**: like a deployment run, scoped to one environment, with a backup step, the pending database
+  changes, the Worker step, and a verification; resumable; recorded without secrets.
+- **Installation**: the installed package and its version, and the saved settings (including every saved
+  environment) that survive updates.
 
 ## Success Criteria *(mandatory)*
 
@@ -623,13 +789,42 @@ versions now match, no accepted event was lost, and an audit record exists.
   equal to a fresh installation, and an auditable record.
 - **SC-014**: 100% of updates either take a backup before changing the database or record an explicit,
   confirmed decision not to.
+- **SC-015**: An admin creates two environments in the same Cloudflare account and deploys both; 100% of the
+  resources Cloudflare shows for each carry that environment's name as a prefix, and switching between them
+  in the console never shows a trace (data, key, credential, or version) of the other.
+- **SC-016**: 100% of access keys issued from one environment are refused when presented to any other
+  environment's backend or while a different environment is selected in the console.
+- **SC-017**: On a machine with only the installed npm package present (no source checkout of any kind), an
+  admin deploys a new environment end to end successfully, using nothing outside the package and that
+  environment's saved settings.
 
 ## Assumptions
 
-- **Scope for a patch release**: The owner calls this a patch release. It is larger than the previous
-  patches (a new distribution path, a guided deployment, and a read-only credential). Stories are ordered
-  so the release can ship in slices: Stories 1 to 4 need no backend change; Stories 5 to 8 build on them.
-  What ships together is the owner's call at planning time.
+- **Scope for a 0.7.0 minor release, shipped whole**: This grew past a patch: a new distribution path, a
+  guided deployment, a read-only and a scoped credential, versioned migrations, and now multiple backend
+  environments. It ships as one 0.7.0 release rather than the earlier two-slice patch plan. Because none of
+  it has shipped yet, nothing needs to stay compatible with an earlier release of this feature; any part of
+  the in-progress implementation may be redesigned or rewritten to deliver the model in this specification.
+  Only the checkout's existing pre-0.7.0 single-backend commands (used before this feature exists) are what
+  "existing setup" means in Story 8 and Story 10; they are read once, on first use, to seed the first
+  environment, and are not a compatibility contract going forward.
+- **One environment is the common case and stays simple**: Most installs will only ever have one
+  environment. The environment model must not add required steps, screens, or jargon for that case beyond
+  naming it once; multi-environment UI (the switcher, the environment list) earns its place only once a
+  second environment exists.
+- **Environment naming is enforced, not advisory**: The `<environment>-` resource-name prefix is a hard rule
+  the console checks before creating or attaching anything, not a suggestion left to the admin to follow, so
+  that multiple environments can safely share one Cloudflare account.
+- **An environment's Cloudflare credential is independent, including OneCLI**: The existing OneCLI-wrapped
+  mode and the plain stored-credential mode both remain available, chosen per environment; nothing about
+  using OneCLI for one environment implies anything about another.
+- **Environments live only on this computer's saved settings**: There is no server-side registry of
+  environments; the set of environments (and which one is selected) is local state on the admin's machine,
+  the same way today's single connection is. Two admins working on the same backend each maintain their own
+  local environment entry pointing at it.
+- **Deleting an environment locally is not deleting a backend**: Removing an environment from the console
+  only forgets local state; tearing down the Cloudflare resources themselves is a separate, explicit action
+  (existing cleanup guidance), so a mistaken removal cannot destroy running infrastructure.
 - **Package name**: `vizoalica` is currently unclaimed on the npm registry. Publishing is an owner
   action (account, two-factor authentication) and outside this specification; the release process will
   describe it. The existing statement that Vizoalica is source-only is replaced by the npm path.
@@ -639,11 +834,11 @@ versions now match, no accepted event was lost, and an audit record exists.
 - **Roles are credentials, not accounts**: There are no user accounts, sign-ups, or logins. A role is what
   a person's credential allows, held on their own computer. The console adapts to the credential it
   holds and to the role the person chose, and the backend enforces the credential's limits.
-- **Access keys are new**: The backend today has one administrator credential and no scoped credentials, so
-  the analyst and website-owner roles need keys the backend enforces. One kind of key carries a role (analyst
-  or owner) and a scope (everything, one project, or one website). Deleting is part of managing: an owner can
-  delete the projects and websites in their scope, with the same named confirmations the console already
-  asks for.
+- **Access keys are new**: Each environment's backend has one administrator credential and no scoped
+  credentials, so the analyst and website-owner roles need keys that environment's backend enforces. One kind
+  of key carries a role (analyst or owner), the one environment it belongs to, and a scope within it
+  (everything, one project, or one website). Deleting is part of managing: an owner can delete the projects
+  and websites in their scope, with the same named confirmations the console already asks for.
 - **Schema changes become updatable (this ends fresh-install-only)**: Database changes become numbered,
   forward-only, additive changes that the console applies, so the earlier rule that a schema change needs a
   fresh install no longer applies from this release. The oldest schema that can be updated in place is the
@@ -655,9 +850,11 @@ versions now match, no accepted event was lost, and an audit record exists.
   across websites, so an owner who holds that secret could mint tokens for another website. This feature
   does not change that; per-website signing is a separate, later specification. The owner role therefore
   does not receive the administrator credential, and the documentation states this limit plainly.
-- **Deployment tooling**: The console drives Cloudflare's own command-line tool on the admin's computer
-  and the admin's own Cloudflare sign-in; it does not receive or store Cloudflare account credentials
-  itself. The tool is fetched when first needed if it is not already present.
+- **Deployment tooling**: The console drives Cloudflare's own command-line tool on the admin's computer,
+  using the selected environment's own Cloudflare sign-in; it does not receive or store Cloudflare account
+  credentials itself. The tool is fetched when first needed if it is not already present, shared across
+  environments (it is not itself environment-specific), while the sign-in session it acts under follows
+  whichever environment is selected.
 - **Retired command**: `vizoalica install` is retired. Lower-level commands stay for scripts and
   advanced use (the exact list is decided at planning) but are not the documented path. A short
   non-interactive way to deploy for automation is a follow-up if needed.
@@ -669,5 +866,5 @@ versions now match, no accepted event was lost, and an audit record exists.
   version the Worker expects. Anything else is reported with which side to update.
 - **Footer content**: Uses only local assets and static links; the documentation link goes to the
   documentation section of the website. An npm link is added once the package is published.
-- **OneCLI mode**: Continues to work exactly as today for admins who use it; the console reads its
-  existing settings.
+- **OneCLI mode**: Continues to work as today for an environment that uses it; the console reads the
+  existing OneCLI settings for that environment, independently of how any other environment is configured.

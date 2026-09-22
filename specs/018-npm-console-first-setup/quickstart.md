@@ -1,7 +1,7 @@
 # Quickstart: validating the npm install and console-first setup
 
 A run guide that proves the feature end to end. It links to the contracts and data model instead of
-repeating them. Nothing here touches a real Cloudflare account except section 8 (optional, isolated).
+repeating them. Nothing here touches a real Cloudflare account except section 9 (optional, isolated).
 
 ## Prerequisites
 
@@ -101,7 +101,26 @@ takes the backup before migrating, migrates before deploying the Worker, skips w
 step and resumes without repeating, refuses a downgrade, and records what changed; a probe posting events during
 the update loses none.
 
-## 8. Existing setups keep working (Story 8, SC-009)
+## 8. Multiple environments, against a fake Wrangler (Story 10 and Story 11, SC-015, SC-016, SC-017)
+
+```sh
+pnpm vitest run apps/local-ops-api -t "environment"
+pnpm --filter @vizoalica/admin-web test:e2e -- --grep "environment"
+pnpm vitest run apps/cli -t "worker-bundle"
+```
+
+**Expect:** creating two environments ("dev" and "stage") in the console, each with its own Cloudflare
+credential configuration (one `token` mode, one `onecli` mode against the fake tool), produces two plans
+whose every resource name starts with that environment's prefix; deploying both against the fake Wrangler
+never lets one environment's detect or cleanup step see the other's resources; an access key issued from
+"dev" is refused when "stage" is selected and when presented directly to "stage"'s fake backend; switching
+the active environment replaces every screen's data with no leftover from the previous one; removing an
+environment forgets its local file without any Cloudflare call; naming a second environment the same as the
+first is refused before anything is saved; and the packaged Worker bundle (`dist/worker/index.mjs` plus
+`dist/worker/wrangler.template.toml`) passes a `wrangler deploy --dry-run` with the repository's own Wrangler,
+using only files under `apps/cli/package/dist/`, never a repository-relative source path.
+
+## 9. Existing setups keep working (Story 8, SC-009)
 
 ```sh
 pnpm vitest run apps/local-ops-api apps/deploy-cli -t "existing setup|retired"
@@ -110,16 +129,17 @@ pnpm vitest run apps/local-ops-api apps/deploy-cli -t "existing setup|retired"
 **Expect:** a saved file-mode connection and a saved OneCLI-mode connection are recognized with no first-run
 questions; `vizoalica install` deploys nothing, prints where to go, and exits with code 2.
 
-## 9. Rehearsal on a real account (optional, isolated)
+## 10. Rehearsal on a real account (optional, isolated)
 
 In a separate `git worktree`, with scratch names and a scratch Cloudflare account or resources named
-`vizoalica-rehearsal-*`, run the console from the built package, deploy from the console, share a website,
+`vizoalica-rehearsal-*`, run the console from the built package, create an environment named
+`vizoalica-rehearsal` (so every resource it creates carries that prefix), deploy from the console, share a website,
 connect as an analyst and as an owner on a second `HOME`, check the refusals, then install the previous release
 first and update it from the console, watching versions, the backup file, and a loop of test events. Tear down in the order in
 `docs/operations/cloudflare.md`, only names that start with `vizoalica-rehearsal-`. Never point it at the
 production database or the production Wrangler configuration.
 
-## 10. The maintainer's running backend (compatibility, R12, and its first update)
+## 11. The maintainer's running backend (compatibility, R12, and its first update)
 
 With the console from this release against the existing 0.6.2 backend: it connects with no first-run
 questions, shows the backend as older-but-working, keeps analytics working, shows its versions as unknown, and offers the update; running the update from the console

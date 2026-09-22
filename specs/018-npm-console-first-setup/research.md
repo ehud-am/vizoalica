@@ -226,14 +226,122 @@ account ids); Wrangler is spawned without a shell with argument arrays; logs nev
 keys are hashed, compared in constant time, scoped on every route, and each admin route is covered by a
 negative test with a key.
 
-## R18. Delivery in two releases
+## R18. Delivery as one 0.7.0 release (revised 2026-09-22, supersedes the two-slice plan)
 
-**Decision.** Recommend two releases, because the request is larger than a patch: **0.6.3** (footer, npm
-package, console-first start, first run, journey and availability, connect to an existing backend, existing
-setups recognized; no backend change) and **0.6.4** (versioned, updatable database and Worker, access keys and
-the three roles, console deployment and updates, the backend screen, retiring `install`, the publish workflow
-going live). The task list is ordered so the first
-slice is complete and shippable on its own.
+**Finding.** The original two-slice plan (0.6.3 with no backend change, 0.6.4 with the schema change) was
+chosen so a patch-sized first slice could ship even if the rest slipped. Nothing has shipped yet, and the
+owner has since asked for multiple backend environments on top of everything else, which touches the same
+connection and deploy-engine code every later slice depended on. Shipping a 0.6.3 slice now would mean
+building the single-connection model in R3, then replacing it days later with the environment model below,
+for a release nobody will have depended on in between.
+
+**Decision.** Ship the whole feature — footer, npm packaging, console-first setup, roles and access keys,
+versioned migrations, console deployment and updates, and multiple backend environments — as one **0.7.0**
+minor release. The task list is still ordered so foundational work lands before the stories that build on it
+(the environment model before the deploy engine, the deploy engine before updates), but there is no
+independently shippable slice partway through; the gates and the release happen once, at the end.
+
+**Rejected.** Keeping the 0.6.3/0.6.4 split and adding environments as a 0.6.5 or later: it would mean
+building, testing, and documenting a single-connection console flow that the very next patch throws away,
+which is wasted work and a confusing upgrade note for a feature that never reached real users.
+
+## R24. Environments: a named, independent backend, selected like a context (2026-09-22)
+
+**Finding.** Everything built so far (the connection store, setup state, the deploy and update engines, the
+access-keys screen) assumes exactly one backend per installed console. The owner wants several — dev, stage,
+prod, or any names — each a fully separate Worker, database, and bucket, sharing nothing, addressable from
+one console with a visible switch between them.
+
+**Decision.** An environment is not a new concept inside the Worker or the database (a key issued by one
+Worker simply does not exist in another Worker's database, so isolation is already total once each
+environment is its own Cloudflare deployment). It is a **local, console-side concept**, modeled the way a
+tool like `kubectl` models a context: a named set of saved settings (address, credential, role hint,
+Cloudflare credential configuration for deploying), one of which is "active" at a time. The existing
+`ConnectionStore` (R3) becomes an `EnvironmentStore`: it keeps one file per environment under
+`~/.config/vizoalica/environments/<name>.json` (same shape and permission rules the single connection file
+already used, plus the environment's name and its Cloudflare deploy credential) and one small pointer file,
+`~/.config/vizoalica/active-environment.json`, naming which environment is active. Every route that today
+reads "the connection" keeps doing exactly that — it reads the *active* environment's connection — so the
+bulk of the already-built setup, journey, deploy, and access-key code needs no change beyond the store it
+reads from; only environment list/create/select/remove routes and a console-side switcher are new.
+
+**Why this shape.** It reuses nearly everything already built (R3, R9, R10, R11) instead of threading an
+environment id through every route and every screen; switching environments is exactly the "connection
+changed, rebuild the client" mechanism the service already has (R3), just triggered by a different action.
+
+**Rejected.** An environment id on every request (a bigger, riskier refactor of routes and screens that are
+already built and tested, for no behavioral difference from an active-pointer model since the console only
+ever shows one environment at a time per FR-050); one D1 database with an `environment` column shared by one
+Worker (would mean one Cloudflare deployment for every environment, defeating the point of letting an admin
+put "prod" behind stricter Cloudflare account controls than "dev").
+
+## R25. Environment-scoped Cloudflare credentials
+
+**Decision.** Each environment's saved file carries its own Cloudflare credential configuration, independent
+of every other environment's: `VIZOALICA_CF_MODE` is `token` or `onecli`. In `token` mode the environment file
+also carries a Cloudflare API token (mode 0600, never logged), passed to the pinned Wrangler runner (R7) as
+`CLOUDFLARE_API_TOKEN` for that environment's deploy and update runs only. In `onecli` mode, deploy and update
+runs for that environment are wrapped through the OneCLI process the same way the admin secret is wrapped
+today (R3), so the Cloudflare credential never touches a file either. Nothing about one environment's mode or
+account leaks into another's Wrangler invocation: each run builds its own environment variables from scratch.
+
+**Why.** The owner asked for "for each its own Cloudflare key (with/without OneCLI)". Reusing the OneCLI
+wrapping mechanism that already exists for the administrator secret, rather than inventing a second one,
+keeps this small.
+
+## R26. Naming convention: the environment name is the resource prefix, enforced
+
+**Decision.** An environment's name doubles as its Cloudflare resource-name prefix. Validation
+(`assertEnvironmentName`) accepts lowercase letters, digits, and dashes, starting with a letter, short enough
+that `<name>-vizoalica-worker` (the longest default) still fits Cloudflare's resource-name limit. `ops-core`'s
+`DEFAULT_NAMES` constant becomes a function, `defaultNames(envName)`, returning `<env>-vizoalica-worker`,
+`<env>-vizoalica-db`, `<env>-vizoalica-bucket`; `assertResourceName` gains a required environment argument
+and refuses a name that does not start with `<env>-`. The deploy engine's plan, its "detect existing
+resources" step, and its cleanup step all build their Wrangler calls from the environment-prefixed names
+only, and compare by exact name, never by prefix alone, so a resource from another environment (or an
+unrelated resource that happens to share a prefix) is never listed, attached, or touched.
+
+**Why.** This is the mechanism that lets two environments share one Cloudflare account with no collisions,
+which the owner asked for explicitly, and it has to be enforced (enforced console-side, since Cloudflare
+itself does not offer namespacing within an account for Workers, D1, or R2) rather than left to convention,
+or an admin will eventually collide two environments by accident.
+
+**Rejected.** A separate Cloudflare "environment" via Wrangler's own `[env.NAME]` sections in one
+`wrangler.toml` (Wrangler environments still require one Worker script and share the same account-level
+namespace rules the console is trying to route around, and would tie every Vizoalica environment to one
+Cloudflare account, which the owner explicitly wants to avoid requiring); letting the admin type any resource
+name freely (reintroduces the collision risk the feature exists to remove).
+
+## R27. Deploying from what shipped, not from the checkout (2026-09-22, corrects R8/R9)
+
+**Finding.** The first implementation pass at the deploy engine reused the checkout's guided-install
+function (`setUpBackend`) directly, which runs `pnpm build` and deploys `deploy/cloudflare/wrangler.
+production.toml` from the monorepo working tree. That works only when a full checkout is present, which
+contradicts R1, R8, and FR-008: the published package must be able to deploy on a machine that has never
+seen the source.
+
+**Decision.** The console deploy and update engines never call `pnpm build` and never read a
+repository-relative path. `scripts/build-package.mjs` gains a Worker-prebundle step (R8, made concrete):
+esbuild bundles the Worker to `apps/cli/package/dist/worker/index.mjs` and writes
+`apps/cli/package/dist/worker/wrangler.template.toml` (derived from `deploy/cloudflare/wrangler.example.toml`,
+`no_bundle = true`, placeholders only). At runtime the local service resolves these two files, and the
+packaged `dist/schema` migrations, relative to its own module location (works identically whether that
+module is the bundled `apps/cli/package/dist/cli.mjs` from an npm install, or the same `dist/` a contributor's
+checkout produces with `pnpm package:build`), renders a per-deploy `wrangler.toml` into
+`~/.config/vizoalica/deploy/<worker>/` (never the package directory) from the template plus the
+environment's names and the created database's id, and runs Wrangler with `--config` pointing at that
+rendered file. A contributor's checkout therefore deploys through the exact same code path and the exact
+same packaged artifacts as the published npm install (Story 11); the lower-level `vizoalica backend` /
+`connect` / `rotate` commands keep using the checkout-native `setUpBackend` path (R13) since they are
+explicitly for contributors and scripts working from a checkout.
+
+**Why.** This is the only way FR-008 and Story 11 can be true, and it also removes the console deploy
+engine's dependency on `pnpm`, a network-reachable monorepo, or any file outside the package and the
+environment's saved settings.
+
+**Rejected.** Keeping the checkout-reuse path and requiring a checkout for console-driven deploys (defeats
+the point of the npm package); shipping the Worker's TypeScript source in the package and building it on the
+admin's machine (adds a build step and a toolchain dependency to every deploy, which R1 explicitly avoids).
 
 ## R19. Test strategy
 
@@ -247,11 +355,14 @@ slice is complete and shippable on its own.
   deploy of the prebundled Worker.
 - **Coverage** stays above 90%.
 
-## R20. Out of scope
+## R20. Out of scope (revised 2026-09-22: multi-backend switching is now in scope, see R24)
 
 Per-website signing keys; user accounts and logins; automatic update checks (no telemetry); Windows;
 a non-interactive console-free deploy (the approval-gated lane covers automation); Homebrew or a native
-app; multi-backend switching; changing what the SDK collects.
+app; changing what the SDK collects; moving an existing environment's resources between Cloudflare accounts
+(removing and re-adding the environment with a new deploy is the supported path); renaming an environment in
+place (its name is its resource prefix; a rename would mean recreating resources, which is a deploy, not a
+rename).
 
 ## R21. Schema versions and migrations (2026-09-22; ends fresh-install-only)
 

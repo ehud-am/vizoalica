@@ -21,6 +21,7 @@ and `delete-project` move to `operate`.
 | `deploy-backend`, `update-backend`               | backend | ✓     | -       | -                     |
 | `rotate-secret`, `purge-deleted`, `manage-demo`  | backend | ✓     | -       | -                     |
 | `manage-access-keys`, `share-website-setup`      | backend | ✓     | -       | -                     |
+| `manage-environments` (create, select, remove)   | backend | ✓     | -       | -                     |
 
 Connecting to a backend is not a capability: every role does it on first run with its own credential.
 
@@ -85,9 +86,23 @@ current stage, what is done, and one next action. Next actions by role and state
 
 At most three per path. Q1 role: **Admin** ("I look after the backend"), **Website owner** ("I need to make a
 website send data"), **Analyst** ("I only look at results"), each with one sentence on what it allows and does
-not. Q2 (admin only): **I need a backend** or **I already have one**. Q3 the credential needed: for an
-existing backend the address and administrator secret; for an owner the setup details (paste or file); for an
-analyst the address and key. Deploying needs no Q3: it goes to the deployment flow.
+not. For an admin, naming the first environment happens alongside Q2 (one combined step: name it, then "I
+need a backend" or "I already have one"), not as a fourth question, since a single default name (for example
+the environment's own suggestion) is offered and can be accepted with one action. Q3 the credential needed:
+for an existing backend the address and administrator secret; for an owner the setup details (paste or file);
+for an analyst the address and key. Deploying needs no Q3: it goes to the deployment flow. A website owner or
+analyst never names an environment; their key already determines it.
+
+## Environment switcher
+
+Shown once more than one environment is saved (a single environment shows only a small, unobtrusive label,
+per the "one environment is the common case" assumption); present in the shell alongside the footer, visible
+from every screen. Lists every saved environment by name with its connection status; selecting one calls
+`POST /api/environments/:name/select` and every screen's data (journey, versions, projects, websites,
+analytics, access keys) refreshes to the newly selected environment with no leftover data from the previous
+one. An admin can create a new environment or remove an existing one from the same control (removal needs a
+confirmation naming the environment and stating that this does not delete its Cloudflare resources). A
+website owner or analyst never sees the switcher: their key fixes their environment.
 
 ## Footer
 

@@ -6,6 +6,25 @@ Vite origin `http://127.0.0.1:5173` in a checkout). Errors use the existing shap
 `{ "error": "<code>", "recovery": "…" }`. `A` below means the connection's principal must be the admin. Read routes are available to every role and follow
 the Worker's per-role rules; a role that the Worker would refuse is refused locally first (`403`) as defense in depth.
 
+**Environments (R24).** Every route below except `GET/POST /api/environments*` operates on the **active**
+environment only; nothing in this contract changed shape to add an environment id or parameter, because the
+service keeps exactly one environment's connection loaded at a time (the same way it has always kept exactly
+one connection loaded) and switching which one is active is itself one of the environment routes.
+
+## Environments (A for create, select, and remove; read available to every role)
+
+| Route                                    | Purpose                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/environments`                   | Lists every saved environment (`name`, connection `status`, `mode`) and which is active     |
+| `POST /api/environments`                  | `{ name, cloudflare: { mode: "token", token } | { mode: "onecli" } }` creates one (name validated per R26, must be unique), makes it active, and returns it. Creates no Cloudflare resources by itself |
+| `POST /api/environments/:name/select`     | Makes `:name` active; every subsequent route reflects it immediately, no restart needed     |
+| `POST /api/environments/:name/connect`    | Like `POST /api/setup/connect`, but scoped to `:name` rather than the active one; used from environment setup |
+| `DELETE /api/environments/:name`          | `{ confirm: true }` forgets the environment's saved file (never touches Cloudflare); if it was active, the active pointer clears |
+
+Errors: `409 environment_name_taken` on create; `404 environment_not_found` for an unknown `:name`;
+`400 invalid_environment_name` when the name fails validation (R26). `needsFirstRun` in the setup state
+(below) is `true` exactly when this list is empty.
+
 ## Console and assets (no session needed, `GET` and `HEAD` only)
 
 | Path                                   | Behavior                                                                                    |
@@ -50,10 +69,10 @@ console; it never changes access.
 
 | Route                                       | Purpose                                                                                            |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `GET  /api/deploy/preflight`                | Is the deployment tool ready (and being fetched)? Is Cloudflare signed in? Accounts. Existing Vizoalica resources |
-| `POST /api/deploy/tool`                     | Start preparing the pinned deployment tool (first time only); progress appears in `preflight`     |
-| `POST /api/deploy/signin`                   | Start the Cloudflare sign-in; returns `{ "url": "…" }` when the tool prints one; completion appears in `preflight` |
-| `POST /api/deploy/plan`                     | `{ mode, accountId, names }` with `mode` `first-install` or `update-backend` → the plan and a `planId`; creates nothing. For `update-backend` the plan lists the Worker version from and to, each pending database change with its plain description and whether it only adds (with the `non-additive` flag and a required backup when it is not), and the backup that will be taken |
+| `GET  /api/deploy/preflight`                | For the active environment's Cloudflare credential (R25): is the deployment tool ready (and being fetched)? Signed in (token mode: always, once the token verifies; OneCLI mode: as today)? Accounts. Existing Vizoalica resources matching this environment's prefix (R26) |
+| `POST /api/deploy/tool`                     | Start preparing the pinned deployment tool (first time only, shared across environments); progress appears in `preflight` |
+| `POST /api/deploy/signin`                   | OneCLI-mode environments only: start the Cloudflare sign-in; returns `{ "url": "…" }` when the tool prints one; completion appears in `preflight`. Token-mode environments skip this step |
+| `POST /api/deploy/plan`                     | `{ mode, accountId, names? }` with `mode` `first-install` or `update-backend` → the plan and a `planId`; creates nothing. `names` default to `defaultNames(activeEnvironment)` (R26) and are rejected if any does not start with the active environment's prefix. For `update-backend` the plan lists the Worker version from and to, each pending database change with its plain description and whether it only adds (with the `non-additive` flag and a required backup when it is not), and the backup that will be taken |
 | `POST /api/deploy/runs`                     | `{ planId }` approves that plan and starts the run → `{ id }`. For an update `{ planId, skipBackup: { confirm: true } }` declines the backup (recorded); it is refused when the plan has a non-additive change |
 | `GET  /api/deploy/runs/:id`                 | The run record: steps with statuses, errors, `created`, `result`, and whether secrets can be revealed |
 | `POST /api/deploy/runs/:id/resume`          | Continue a failed or interrupted run without repeating finished steps                              |
