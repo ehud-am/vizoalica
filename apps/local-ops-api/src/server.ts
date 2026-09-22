@@ -10,6 +10,7 @@ import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
 import { handleSetup } from './routes/setup.js';
+import { handleEnvironments } from './routes/environments.js';
 import { backendState, expectedSchemaFrom } from './setup/state.js';
 import {
   issueAccessKey,
@@ -172,6 +173,17 @@ export function createLocalServer(input: Config | ServerOptions) {
     try {
       if (url.pathname.startsWith('/api/setup/')) {
         const reply = await handleSetup(
+          request.method ?? 'GET',
+          url.pathname,
+          () => requestJson(request),
+          { store, version, expectedSchema }
+        );
+        return reply
+          ? send(response, reply.status, reply.body)
+          : send(response, 404, { error: 'not_found' });
+      }
+      if (url.pathname === '/api/environments' || url.pathname.startsWith('/api/environments/')) {
+        const reply = await handleEnvironments(
           request.method ?? 'GET',
           url.pathname,
           () => requestJson(request),

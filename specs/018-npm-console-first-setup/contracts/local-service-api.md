@@ -11,16 +11,24 @@ environment only; nothing in this contract changed shape to add an environment i
 service keeps exactly one environment's connection loaded at a time (the same way it has always kept exactly
 one connection loaded) and switching which one is active is itself one of the environment routes.
 
-## Environments (read and select available to every role; create and remove need the active environment's
-principal to be admin, or no environment to exist yet — the same bootstrap trust first run already relies on)
+## Environments
+
+Creating, listing, selecting, and removing environments is local file management on the operator's own
+machine, not a Worker-side resource: no Cloudflare or Worker credential is required to do any of it, the
+same loopback and session trust every route already relies on is what stands behind it, and nothing here
+requires or checks a role. The console UI hides or disables environment management for the analyst and
+owner roles as a courtesy (their key already fixes their one environment, so this is only ever confusing
+for them to see) — that is a UI decision, not a security boundary, exactly like the rest of the
+capability matrix's non-`backend`-class conveniences.
 
 | Route                                    | Purpose                                                                                    |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `GET /api/environments`                   | Lists every saved environment (`name`, connection `status`, `mode`) and which is active     |
-| `POST /api/environments`                  | `{ name, cloudflare: { mode: "token", token } | { mode: "onecli" } }` creates one (name validated per R26, must be unique), makes it active, and returns it. Creates no Cloudflare resources by itself. `403` if an environment is already active and its principal is not admin |
-| `POST /api/environments/:name/select`     | Makes `:name` active; every subsequent route reflects it immediately, no restart needed. Available to every role, since it only changes which saved environment is viewed; the role in effect afterward is still whatever that environment's own connection reports |
+| `POST /api/environments`                  | `{ name, cloudflare?: { mode: "token", token } | { mode: "onecli" } }` creates one (name validated per R26, must be unique), makes it active, and returns it. Creates no Cloudflare resources by itself; `cloudflare` is optional (an environment that will only ever be connected to, never deployed, needs none) |
+| `POST /api/environments/:name/select`     | Makes `:name` active; every subsequent route reflects it immediately, no restart needed     |
 | `POST /api/environments/:name/connect`    | Like `POST /api/setup/connect`, but scoped to `:name` rather than the active one; used from environment setup |
-| `DELETE /api/environments/:name`          | `{ confirm: true }` forgets the environment's saved file (never touches Cloudflare); if it was active, the active pointer clears. `403` unless `:name`'s own principal is admin |
+| `DELETE /api/environments/:name`          | `{ confirm: true }` forgets the environment's saved file (never touches Cloudflare)         |
+| `POST /api/setup/import-legacy`           | `{ name }` names and imports a pre-0.7.0 single connection file (see `legacySetup` in the setup state) as the first environment; the old file is left untouched |
 
 Errors: `409 environment_name_taken` on create; `404 environment_not_found` for an unknown `:name`;
 `400 invalid_environment_name` when the name fails validation (R26). `needsFirstRun` in the setup state
