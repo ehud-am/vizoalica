@@ -25,7 +25,9 @@ test('groups navigation into Analytics and Manage', async ({ page }) => {
   await expect(nav.locator('[data-area="manage"] a')).toHaveText([
     'Projects',
     'Websites',
-    'Health'
+    'Health',
+    'Backend',
+    'Access'
   ]);
 });
 

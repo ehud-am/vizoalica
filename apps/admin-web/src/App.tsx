@@ -28,16 +28,34 @@ import { WebsiteAddPage } from './manage/WebsiteAddPage.js';
 import { WebsiteEditPage } from './manage/WebsiteEditPage.js';
 import { WebsitePage } from './manage/WebsitePage.js';
 import { WebsitesPage } from './manage/WebsitesPage.js';
-import { hrefFor, routeArea, scopeControls, showsRange, useRoute, type Route } from './router.js';
+import { hrefFor, navigate, routeArea, scopeControls, showsRange, useRoute, type Route } from './router.js';
 import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
 import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
+import { AccessPage } from './manage/AccessPage.js';
+import { BackendPage } from './manage/BackendPage.js';
 import { FirstRun } from './setup/FirstRun.js';
 import { Journey } from './setup/Journey.js';
 import { SetupPage } from './setup/SetupPage.js';
 import { SetupProvider, useSetup } from './setup/SetupProvider.js';
 import { useTheme } from './theme.js';
+
+/** Only the admin may use this screen; anyone else is sent home with a notice. */
+function AccessGate() {
+  const { state } = useSetup();
+  if (state && state.principal?.role !== 'admin') {
+    useEffect(() => {
+      navigate('analytics/overview');
+    }, []);
+    return (
+      <p className="notice" role="status">
+        Only an admin can manage access keys.
+      </p>
+    );
+  }
+  return <AccessPage />;
+}
 
 function AnalyticsRoute({ route }: { route: Route }) {
   switch (route.path) {
@@ -73,6 +91,10 @@ function ManageRoute({ route, onReconnect }: { route: Route; onReconnect: () => 
       return <InstallPage websiteId={websiteId} />;
     case 'manage/health':
       return <HealthPage />;
+    case 'manage/backend':
+      return <BackendPage />;
+    case 'manage/access':
+      return <AccessGate />;
     default:
       return <ProjectsPage />;
   }

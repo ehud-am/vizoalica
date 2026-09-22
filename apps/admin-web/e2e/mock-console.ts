@@ -290,6 +290,55 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       return route.fulfill({ json: setup });
     }
     if (path === '/api/setup/role') return route.fulfill({ json: setup });
+    if (path === '/api/access-keys' && request.method() === 'GET')
+      return route.fulfill({ json: [] });
+    if (path === '/api/access-keys' && request.method() === 'POST')
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 'k1',
+          label: 'x',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null,
+          key: 'vzk_test_key'
+        }
+      });
+    if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'DELETE')
+      return route.fulfill({ json: { status: 'revoked' } });
+    if (path.endsWith('/share') && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          workerUrl: 'https://worker.test',
+          projectId: project.id,
+          sourceId: website.id,
+          publicSourceKey: website.publicSourceKey,
+          allowedOrigins: website.allowedOrigins,
+          readKey: 'vzk_test_key',
+          guidance: 'Paste these details into the console.'
+        }
+      });
+    if (path === '/api/backend' && request.method() === 'GET')
+      return route.fulfill({
+        json: {
+          workerVersion: '0.6.4',
+          consoleVersion: '0.6.4',
+          schema: {
+            applied: 2,
+            expected: 2,
+            appliedNames: ['0001_initial.sql', '0002_access_keys.sql']
+          },
+          worker: { status: 'current', message: 'The Worker matches this console.', update: null },
+          schemaStatus: {
+            status: 'current',
+            message: 'The database schema is up to date.',
+            update: null
+          },
+          health: { database: 'ok', storage: 'ok' },
+          featuresAccessKeys: true
+        }
+      });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;
       const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };

@@ -9,7 +9,14 @@ import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
 import { handleSetup } from './routes/setup.js';
-import { expectedSchemaFrom } from './setup/state.js';
+import { backendState, expectedSchemaFrom } from './setup/state.js';
+import {
+  issueAccessKey,
+  listAccessKeys,
+  revokeAccessKey,
+  shareWebsite,
+  validateIssueBody
+} from './routes/access-keys.js';
 import { analytics, analyticsActions, analyticsOverview } from './routes/analytics.js';
 import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import { validOrigins } from './contracts.js';
@@ -290,17 +297,29 @@ export function createLocalServer(input: Config | ServerOptions) {
         );
       }
       const item =
-        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability))?$/.exec(
+        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability|share))?$/.exec(
           url.pathname
         );
       if (item) {
         assertSafeIds(item[1]!, item[2]!);
         const basePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}`;
-        const remotePath = `${basePath}${item[3] && item[3] !== 'reachability' ? `/${item[3]}` : ''}`;
+        const remotePath = `${basePath}${item[3] && item[3] !== 'reachability' && item[3] !== 'share' ? `/${item[3]}` : ''}`;
         if (request.method === 'GET' && item[3] === 'reachability') {
           const metadata = (await workerJson(client, basePath)) as { allowedOrigins?: unknown };
           if (!validOrigins(metadata.allowedOrigins)) throw new Error('remote_unavailable');
           return send(response, 200, await checkReachability(metadata.allowedOrigins[0]!));
+        }
+        if (request.method === 'POST' && item[3] === 'share') {
+          const body = (await requestJson(request)) as { role?: unknown } | undefined;
+          const role = body?.role === 'analyst' ? 'analyst' : 'owner';
+          const details = await shareWebsite(
+            client,
+            store.current()!.remoteUrl,
+            item[1]!,
+            item[2]!,
+            role
+          );
+          return send(response, 200, details);
         }
         if (request.method === 'GET' && item[3]) {
           const metadata = await workerJson(client, remotePath);
@@ -320,6 +339,20 @@ export function createLocalServer(input: Config | ServerOptions) {
           const result = await workerJson(client, remotePath, jsonInit('DELETE'));
           return send(response, 200, { ...((result as object) ?? {}), audit: 'recorded' });
         }
+      }
+      if (url.pathname === '/api/access-keys') {
+        if (request.method === 'GET') return send(response, 200, await listAccessKeys(client));
+        if (request.method === 'POST') {
+          const body = validateIssueBody(await requestJson(request));
+          return send(response, 201, await issueAccessKey(client, body));
+        }
+      }
+      const keyItem = /^\/api\/access-keys\/([^/]+)$/.exec(url.pathname);
+      if (keyItem && request.method === 'DELETE') {
+        return send(response, 200, await revokeAccessKey(client, keyItem[1]!));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/backend') {
+        return send(response, 200, await backendState({ store, version, expectedSchema }));
       }
       return send(response, 404, { error: 'not_found' });
     } catch (error) {

@@ -291,3 +291,49 @@ export const connectBackend = (input: {
 export const disconnectBackend = () => request<SetupState>('/api/setup/disconnect', json('POST'));
 export const setRoleHint = (roleHint: RoleHint) =>
   request<SetupState>('/api/setup/role', json('POST', { roleHint }));
+
+export type AccessKeyRole = 'analyst' | 'owner';
+export type AccessKeySummary = {
+  id: string;
+  label: string;
+  role: AccessKeyRole;
+  scope: { projectId: string | null; sourceId: string | null };
+  createdAt: string;
+  revokedAt: string | null;
+};
+export type IssuedAccessKey = AccessKeySummary & { key: string };
+export const listAccessKeys = () => request<AccessKeySummary[]>('/api/access-keys');
+export const issueAccessKey = (input: {
+  label: string;
+  role: AccessKeyRole;
+  projectId?: string;
+  sourceId?: string;
+}) => request<IssuedAccessKey>('/api/access-keys', json('POST', input));
+export const revokeAccessKey = (id: string) =>
+  request<{ status: 'revoked' }>(`/api/access-keys/${encodeURIComponent(id)}`, json('DELETE'));
+
+export type SetupDetails = {
+  workerUrl: string;
+  projectId: string;
+  sourceId: string;
+  publicSourceKey: string;
+  allowedOrigins: string[];
+  readKey: string;
+  guidance: string;
+};
+export const shareWebsite = (projectId: string, websiteId: string, role: AccessKeyRole = 'owner') =>
+  request<SetupDetails>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/share`,
+    json('POST', { role })
+  );
+
+export type BackendState = {
+  workerVersion: string | null;
+  consoleVersion: string;
+  schema: { applied: number | null; expected: number | null; appliedNames: string[] };
+  worker: VersionStatus;
+  schemaStatus: VersionStatus;
+  health: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' } | null;
+  featuresAccessKeys: boolean;
+};
+export const getBackendState = () => request<BackendState>('/api/backend');

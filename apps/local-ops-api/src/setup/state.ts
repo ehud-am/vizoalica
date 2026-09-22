@@ -265,3 +265,44 @@ export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
 }
 
 export { roleFromBackend };
+
+export type BackendState = {
+  workerVersion: string | null;
+  consoleVersion: string;
+  schema: { applied: number | null; expected: number | null; appliedNames: string[] };
+  worker: ComponentStatus;
+  schemaStatus: ComponentStatus;
+  health: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' } | null;
+  featuresAccessKeys: boolean;
+};
+
+/** The versions and health for the backend screen; every role may read it. */
+export async function backendState(
+  deps: Pick<SetupDeps, 'store' | 'version' | 'expectedSchema' | 'clientFor'>
+): Promise<BackendState> {
+  const connection = deps.store.current();
+  if (!connection) throw new Error('backend_not_connected');
+  const client = (deps.clientFor ?? ((c) => new WorkerClient(c.remoteUrl, c.credential)))(
+    connection
+  );
+  const principal = await client.whoami();
+  const info = await client.backendInfo();
+  const workerVersion = info.workerVersion ?? principal.workerVersion;
+  const statuses = versionStatus(
+    { consoleVersion: deps.version, expectedSchema: deps.expectedSchema },
+    { workerVersion, schemaApplied: info.schema.applied }
+  );
+  return {
+    workerVersion,
+    consoleVersion: deps.version,
+    schema: {
+      applied: info.schema.applied,
+      expected: deps.expectedSchema,
+      appliedNames: info.schema.appliedNames
+    },
+    worker: statuses.worker,
+    schemaStatus: statuses.schema,
+    health: info.health,
+    featuresAccessKeys: principal.features.accessKeys
+  };
+}

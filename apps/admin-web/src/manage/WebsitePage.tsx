@@ -19,6 +19,7 @@ import { useScope } from '../scope/ScopeProvider.js';
 import { FlashMessage, useFlash } from '../shell/FlashProvider.js';
 import { useSetup } from '../setup/SetupProvider.js';
 import { DangerZone } from './DangerZone.js';
+import { SharePanel } from './SharePanel.js';
 import { nextStep } from './HealthPage.js';
 import { WebsiteGate } from './WebsiteGate.js';
 
@@ -197,6 +198,8 @@ function WebsiteHub({ website }: { website: Website }) {
           )}
         </section>
       </div>
+
+      {setup.state?.principal?.role === 'admin' && <SharePanel projectId={projectId} websiteId={website.id} />}
 
       <DangerZone
         target={website.name}
