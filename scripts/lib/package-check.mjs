@@ -26,7 +26,9 @@ export const REQUIRED_FILES = [
   'dist/cli.mjs',
   'dist/console/index.html',
   'dist/sdk/vizoalica.js',
-  'dist/sdk/vizoalica-loader.js'
+  'dist/sdk/vizoalica-loader.js',
+  'dist/worker/index.mjs',
+  'dist/worker/wrangler.template.toml'
 ];
 
 const toRegExp = (pattern) =>

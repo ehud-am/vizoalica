@@ -51,6 +51,34 @@ await build({
 });
 chmodSync(join(dist, 'cli.mjs'), 0o755);
 
+// 1b. The Worker, prebundled with no_bundle so the console can deploy it without a checkout (R27).
+await build({
+  absWorkingDir: root,
+  entryPoints: ['apps/ingest-worker/src/index.ts'],
+  outfile: join(dist, 'worker', 'index.mjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'es2022',
+  alias: {
+    '@vizoalica/event-contracts': './packages/event-contracts/src/index.ts',
+    '@vizoalica/privacy': './packages/privacy/src/index.ts'
+  },
+  legalComments: 'none',
+  logLevel: 'warning'
+});
+{
+  const example = readFileSync(at('deploy', 'cloudflare', 'wrangler.example.toml'), 'utf8');
+  const template = example
+    .replace(/^main\s*=.*$/m, 'main = "index.mjs"\nno_bundle = true')
+    .replace(/^migrations_dir\s*=.*$/m, 'migrations_dir = "__SCHEMA_DIR__"')
+    .replace(/^name\s*=.*$/m, 'name = "__WORKER_NAME__"')
+    .replace(/^database_name\s*=.*$/m, 'database_name = "__DATABASE_NAME__"')
+    .replace(/^database_id\s*=.*$/m, 'database_id = "__DATABASE_ID__"')
+    .replace(/^bucket_name\s*=.*$/m, 'bucket_name = "__BUCKET_NAME__"');
+  writeFileSync(join(dist, 'worker', 'wrangler.template.toml'), template);
+}
+
 // 2. The console. Built straight into the package so the checkout's own build output is left alone.
 run('pnpm', [
   '--filter',

@@ -18,7 +18,9 @@ const good = [
   'dist/console/brand/mark.svg',
   'dist/sdk/vizoalica.js',
   'dist/sdk/vizoalica-loader.js',
-  'dist/schema/0001_initial.sql'
+  'dist/schema/0001_initial.sql',
+  'dist/worker/index.mjs',
+  'dist/worker/wrangler.template.toml'
 ];
 
 describe('compareFileList', () => {
