@@ -13,7 +13,14 @@ export type Ctx = {
 };
 
 /** A failure whose message is the whole story; the CLI prints it without a stack. */
-export class OpsError extends Error {}
+export class OpsError extends Error {
+  constructor(
+    message: string,
+    readonly exitCode = 1
+  ) {
+    super(message);
+  }
+}
 
 export const step = (ctx: Ctx, message: string): void => ctx.out(`▸ ${message}`);
 export const done = (ctx: Ctx, message: string): void => ctx.out(`✔ ${message}`);

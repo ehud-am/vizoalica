@@ -1,11 +1,11 @@
 ---
 title: 'Quick start'
-description: 'Install Vizoalica with one command, then connect your own website in three parts.'
+description: 'Deploy Vizoalica with a few commands, then connect your own website in three parts.'
 ---
 
 # Quick start
 
-Want to see Vizoalica working before you plan a production setup? One command does all three parts for a demo app: it deploys a real backend to your Cloudflare account, sets up this computer as the console, and sends sample page views for a make-believe website through that backend.
+Want to see Vizoalica working before you plan a production setup? A few commands do all three parts for a demo app: they deploy a real backend to your Cloudflare account, set up this computer as the console, and send sample page views for a make-believe website through that backend.
 
 ## What you need
 
@@ -17,13 +17,16 @@ Want to see Vizoalica working before you plan a production setup? One command do
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
 corepack enable && pnpm install
-pnpm vizoalica install
+pnpm vizoalica backend    # deploys the backend and shows your three secrets once
+pnpm vizoalica connect    # sets up this computer as an operator console
+pnpm vizoalica demo       # sends sample page views
+pnpm vizoalica console    # starts the console in your browser
 ```
 
-The command asks for almost nothing. It signs you in to Cloudflare, creates the database, storage bucket, and Worker and deploys them, generates your three secrets and shows them once (so you can save them in a password manager), sets up this computer as an operator console, and starts the console in your browser.
+Each command asks for almost nothing. `backend` signs you in to Cloudflare, creates the database, storage bucket, and Worker and deploys them, and generates your three secrets, shown once (so you can save them in a password manager). `connect` sets up this computer as an operator console. `demo` sends sample page views. `console` starts the console in your browser.
 
 ::: warning Run it yourself
-Setting this up with an AI coding agent? Run `pnpm vizoalica install` yourself in a terminal. It shows your secrets once, they should not pass through an agent conversation, and the command refuses to run without an interactive terminal for that reason.
+Setting this up with an AI coding agent? Run these commands yourself in a terminal. They show your secrets once, which should not pass through an agent conversation, and each guided command refuses to run without an interactive terminal for that reason.
 :::
 
 ## Install the console from npm
@@ -38,7 +41,7 @@ vizoalica console
 The console starts on your computer at `http://127.0.0.1:4318`. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts, keeping you on the path from a running console, to a backend, to your websites, to results. Anything that cannot work yet is shown as unavailable, with the reason and the next step. Update it with `npm update -g vizoalica`, remove it with `npm uninstall -g vizoalica`. Your settings stay in `~/.config/vizoalica/`.
 
 ::: tip This release installs the console
-Deploying the backend for the first time is still done from a source checkout with `pnpm vizoalica install`, as above. The console then connects to it. Deploying from the console itself is planned for the next release.
+Deploying the backend for the first time is still done from a source checkout with `pnpm vizoalica backend`, as above. The console then connects to it. Deploying from the console itself is planned for the next release.
 :::
 
 ## The three parts, in order

@@ -18,7 +18,6 @@ import { setUpBackend } from './cli/backend.js';
 import { connectConsole } from './cli/connect.js';
 import { type Ctx, OpsError } from './cli/context.js';
 import { addDemoData, removeDemoData } from './cli/demo.js';
-import { install } from './cli/install.js';
 import { rotateSecrets } from './cli/rotate.js';
 import { parseSecretKind } from './cli/secrets.js';
 import {
@@ -626,20 +625,8 @@ async function rotateCommand(
   });
 }
 
-async function installCommand(options: Options, dependencies: Dependencies): Promise<void> {
-  const ctx = guidedContext(dependencies);
-  const result = await install(ctx, {
-    ...backendOptions(options),
-    localConfigPath: localConfigPath(options)
-  });
-  if (result.connected && (await ctx.prompt.confirm('\nStart the console now?', true)))
-    await runConsole({ ...options, open: true }, dependencies);
-  else
-    ctx.out(
-      result.connected
-        ? 'Start it any time with: pnpm vizoalica console'
-        : 'Next: pnpm vizoalica connect'
-    );
+function installCommand(): never {
+  throw new OpsError('vizoalica install was retired. Run `vizoalica console`; it guides setup.', 2);
 }
 
 async function status(options: Options, dependencies: Dependencies): Promise<void> {
@@ -813,10 +800,9 @@ export function help(): string {
     '',
     'Get going',
     ...rows([
-      ['install', 'First-time setup, start to finish: backend, this computer, sample data'],
+      ['console', 'Start the private API and the web console (alias: run)'],
       ['backend', 'Install or update the Cloudflare backend (asks first install or update)'],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
-      ['console', 'Start the private API and the web console (alias: run)'],
       ['demo', 'Add sample data (--remove deletes it)']
     ]),
     '',
@@ -883,7 +869,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'verify') await verifyAccess(options, injected);
   else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
-  else if (command === 'install') await installCommand(options, injected);
+  else if (command === 'install') installCommand();
   else if (command === 'backend') await backendCommand(options, injected);
   else if (command === 'connect') await connectCommand(options, injected);
   else if (command === 'demo') await demoCommand(options, injected);
@@ -898,7 +884,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     await run(argv);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : 'Operation failed.'}\n`);
-    process.exitCode = 1;
+    process.exitCode = error instanceof OpsError ? error.exitCode : 1;
   }
 }
 

@@ -25,8 +25,8 @@ features:
     details: Vizoalica runs on Cloudflare Workers, D1, and R2 in your own account. There is no hosted service between you and your visitors’ data.
   - title: Privacy-minimal by default
     details: It collects page views and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, page text, or session replay, and it records the consent state on every event.
-  - title: One command to install
-    details: <code>pnpm vizoalica install</code> deploys the backend, connects this computer as the console, and sends sample page views, in about two minutes.
+  - title: A few commands to install
+    details: <code>pnpm vizoalica backend</code> and <code>connect</code> deploy the backend and connect this computer as the console; <code>demo</code> sends sample page views, in about two minutes.
   - title: A console that stays local
     details: The operator console runs on demand on an admin’s computer. Its browser never holds a remote credential, and there is a clear line between viewing analytics and managing setup.
   - title: Open standards
@@ -49,14 +49,16 @@ A Vizoalica installation has three parts. Set them up in this order, because eac
   <div><strong>3. Website</strong>Your site loads the browser SDK and a small token endpoint. <a href="/operations/pages">Activate a website</a></div>
 </div>
 
-## Try it with one command
+## Try it
 
 You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported.
 
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
 corepack enable && pnpm install
-pnpm vizoalica install
+pnpm vizoalica backend
+pnpm vizoalica connect
+pnpm vizoalica demo
 ```
 
 It creates a real backend in your Cloudflare account, sets up this computer as the console, and sends sample page views for a make-believe website, so you are looking at real analytics about two minutes later. Only the sample data is throwaway. [Read the quick start](/get-started) or [see the console first](/tour).

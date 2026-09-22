@@ -29,6 +29,47 @@ outside the source release.
 Document the release version, commit SHA, compatibility changes, and whether the release changes the
 D1 schema. A self-hosting operator decides whether and when to use the release.
 
+## Publishing the `vizoalica` package to npm
+
+Installing the console with `npm install -g vizoalica` (see [the quick start](../get-started.md)) needs
+the package to exist on npm. Claiming the name and the first publish are the project owner's actions,
+done once:
+
+1. **Create an npm account**, if there is not one already, and turn on **two-factor authentication**
+   set to "Authorization and writes" — npm requires this to publish, and provenance publishing needs
+   it too.
+2. **Claim the name with the first publish.** There is no separate reservation step: whoever
+   publishes first owns it. From a checkout, after `pnpm install`:
+
+   ```sh
+   pnpm package:build && pnpm package:check
+   cd apps/cli/package
+   npm login
+   npm publish --access public --provenance=false
+   ```
+
+   `--provenance=false` is needed for this one manual publish: provenance attestation only works
+   from a supported CI system (GitHub Actions here), not a local machine. npm asks for the
+   two-factor code. If the name is taken, or npm rejects it as too similar to an existing package,
+   nothing was claimed; consider a scoped name such as `@your-org/vizoalica` instead, and update the
+   `bin` name and the documentation accordingly.
+
+3. **Hand future releases to CI.** On [npmjs.com](https://www.npmjs.com), open the package's
+   Settings and add a trusted publisher: GitHub, repository `ehud-am/vizoalica`, workflow
+   `publish-npm.yml`. This lets `.github/workflows/publish-npm.yml` publish with
+   `npm publish --provenance` and no long-lived token, using GitHub's OIDC identity. (If trusted
+   publishing is not available, add a granular npm automation token instead and store it as the
+   repository secret `NPM_TOKEN`.)
+4. **Turn it on.** Set the repository variable `VIZOALICA_NPM_PUBLISH` to `true`
+   (Settings → Secrets and variables → Actions → Variables). Until this is set, the workflow builds
+   and checks the package on every release but skips the actual publish, and says so in the run
+   summary.
+5. **Verify provenance** on the package's npm page after the first automated publish: it should show
+   a "Provenance" badge linking back to the GitHub Actions run and this repository.
+
+After that, publishing a GitHub Release (or running the workflow manually) publishes the matching
+npm version automatically; nothing further is manual.
+
 ## Operator deployment
 
 An operator deploys a selected release from their own checkout and Cloudflare account: a first
@@ -44,19 +85,27 @@ A connected **website**, however, can deploy automatically on push once configur
 That automation is scoped to the website's own Cloudflare Pages project and repository — it never
 touches the backend.
 
-## Deployment boundary of the 0.5 and 0.6 lines
+## Deployment boundary of the 0.5 and early 0.6 lines
 
-The 0.5 and 0.6 releases support **fresh installs only**: a new installation applies the single complete
-`0001_initial.sql` baseline to a new empty D1 database, and the install preflight rejects existing
-or ambiguous Vizoalica schema state without changing it. There is no automated upgrade,
-data-preserving migration, backfill, or schema rollback. Version 0.6 changes the schema (it adds two
-tables for actions to the baseline), so a fresh install on a new empty database is its supported path.
+Through 0.6.3, releases supported **fresh installs only**: a new installation applied the single
+complete `0001_initial.sql` baseline to a new empty D1 database, and the install preflight rejected
+existing or ambiguous Vizoalica schema state without changing it. There was no automated upgrade,
+data-preserving migration, backfill, or schema rollback.
+
+**This ends at 0.6.4.** Database changes are now numbered, additive migrations under
+`deploy/cloudflare/migrations/` (starting with `0002_access_keys.sql`), and the console's Backend
+screen reports the applied and expected schema versions and the Worker's version to every role. See
+[Database and Worker versions](schema-versions.md) for what changed and how to author a migration
+for a future release. Applying a migration to an existing database today is done with
+`wrangler d1 migrations apply <database> --remote --config <config>` (see
+[Update an existing backend](cloudflare.md#update-an-existing-backend)); updating the schema and the
+Worker from inside the console itself is planned for a later release.
 
 Shipping a newer Worker build to an installation that already has data is supported when the
 release leaves the schema unchanged; see
 [Update an existing backend](cloudflare.md#update-an-existing-backend). When a release does change
-the schema, its [changelog](../../CHANGELOG.md) entry has upgrade notes and a fresh install on a new
-empty database is the supported alternative.
+the schema, its [changelog](../../CHANGELOG.md) entry names the migration; a fresh install on a new
+empty database still works too.
 
 A source release, tag, or GitHub Release never deploys an operator's Cloudflare resources or
 alters credentials. [Local validation evidence](../../specs/010-project-first-console/qa-report.md)

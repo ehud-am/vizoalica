@@ -21,7 +21,8 @@ devices, unique visitors, and where they are (countries on a world map). Visitor
 
 ```mermaid
 flowchart LR
-  install["pnpm vizoalica install"]
+  backend["pnpm vizoalica backend"]
+  connect["pnpm vizoalica connect"]
   console["Local console<br/>runs on demand"]
 
   subgraph site["Your website"]
@@ -36,8 +37,8 @@ flowchart LR
     worker --> r2[("R2<br/>raw event batches")]
   end
 
-  install --> worker
-  install --> console
+  backend --> worker
+  backend --> connect --> console
   sdk -->|"privacy-filtered<br/>CloudEvents batches"| worker
   console <-->|"admin API"| worker
 ```
@@ -45,7 +46,7 @@ flowchart LR
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
 - **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
 - **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
-- **Setup:** one command, `pnpm vizoalica install`. You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
+- **Setup:** `pnpm vizoalica backend` then `pnpm vizoalica connect`. You need Node.js 22 or newer, Git, and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
 - **License:** MIT.
 
 ## The three parts, in order
@@ -64,8 +65,8 @@ something the previous one produces.
 
 | Order | Part        | Runs on                                | What it does                                                                                              | Set up with                              |
 | ----- | ----------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| 1     | **Backend** | Your Cloudflare account                | Receives signed event batches, filters them, and stores raw events (R2) and bounded aggregates (D1).      | `pnpm vizoalica backend` (or `install`)  |
-| 2     | **Console** | An operator's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.       | `pnpm vizoalica connect` (or `install`)  |
+| 1     | **Backend** | Your Cloudflare account                | Receives signed event batches, filters them, and stores raw events (R2) and bounded aggregates (D1).      | `pnpm vizoalica backend`                 |
+| 2     | **Console** | An operator's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.       | `pnpm vizoalica connect`                 |
 | 3     | **Website** | Wherever your site is hosted           | Loads the browser SDK and a small token endpoint that lets visitors' browsers send events to the backend. | The console's website panel (see step 3) |
 
 Three secrets keep it safe, and none of them is ever in browser code:
@@ -78,47 +79,50 @@ Three secrets keep it safe, and none of them is ever in browser code:
 
 ## Quick start
 
-Want to see it working before you plan a production setup? One command does all three parts above
-for a demo app: it deploys a real backend to your Cloudflare account, sets up this computer as the
-console, and sends sample page views for a make-believe website through that backend, so you are
-looking at real analytics about two minutes later.
+Want to see it working before you plan a production setup? Three commands do all three parts above
+for a demo app: the first deploys a real backend to your Cloudflare account, the second sets up this
+computer as the console, and the third sends sample page views for a make-believe website through
+that backend, so you are looking at real analytics minutes later.
 
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
 corepack enable && pnpm install
-pnpm vizoalica install
+pnpm vizoalica backend    # deploys the backend and generates your three secrets, shown once
+pnpm vizoalica connect    # sets up this computer as an operator console
+pnpm vizoalica demo       # sends sample page views, so there is something to see
+pnpm vizoalica console    # starts the console and opens it in your browser
 ```
 
-You need Node.js 22 or newer, Git, and a Cloudflare account. The command asks for almost nothing.
-In a rehearsal on a real account (already signed in to Cloudflare) it took under two minutes, most
-of it Cloudflare deploying and the numbers appearing:
+You need Node.js 22 or newer, Git, and a Cloudflare account. Each command asks for almost nothing.
+In a rehearsal on a real account (already signed in to Cloudflare) the four commands together took
+under two minutes, most of it Cloudflare deploying and the numbers appearing:
 
-1. It signs you in to Cloudflare (a browser window opens) and asks whether this is your first
-   install. It detects the answer and offers it as the default.
-2. It creates the database, storage bucket, and Worker, and deploys them (part 1). There is nothing
-   to copy or edit.
-3. It **generates your three secrets and shows them once**. You save them in a password manager
+1. `backend` signs you in to Cloudflare (a browser window opens), creates the database, storage
+   bucket, and Worker, and deploys them (part 1). There is nothing to copy or edit.
+2. It **generates your three secrets and shows them once**. You save them in a password manager
    and type `saved`; the screen is then cleared. It never asks you to invent or paste a key.
-4. It sets up this computer as an operator console (part 2), and offers to send sample page views
-   through your new backend so the console has something real to show (a stand-in for part 3).
-5. It starts the console and opens it in your browser.
+3. `connect` sets up this computer as an operator console (part 2), asking only for the Worker
+   address and the administrator secret it just showed you.
+4. `demo` sends sample page views through your new backend so the console has something real to
+   show (a stand-in for part 3).
+5. `console` starts the console and opens it in your browser.
 
 <p align="center">
   <img src="docs/assets/console-overview-light.png" alt="The Vizoalica web analytics console showing 96 page views and 29 unique visitors from sample data" width="900">
 </p>
 
-_The console after `pnpm vizoalica install`, showing the sample data it sent through your own backend._
+_The console showing the sample data `pnpm vizoalica demo` sent through your own backend._
 
 The backend it creates is a real one, and only the sample data is throwaway: remove that any time
-with `pnpm vizoalica demo --remove`. Setting this up with an AI coding agent? Run
-`pnpm vizoalica install` yourself in a terminal. It shows your secrets once, they should not pass
-through an agent conversation, and the command refuses to run without an interactive terminal for
-that reason. Windows is not supported yet: the console's private-file permission checks and the
-deploy scripts assume macOS or Linux.
+with `pnpm vizoalica demo --remove`. Setting this up with an AI coding agent? Run these commands
+yourself in a terminal. They show your secrets once, which should not pass through an agent
+conversation, and each guided command refuses to run without an interactive terminal for that
+reason. Windows is not supported yet: the console's private-file permission checks and the deploy
+scripts assume macOS or Linux.
 
 **Ready for production?** The quick start does not connect a website of yours. Read the next
-section to do that, and to install on another computer, choose your own names, use OneCLI, or
-update an existing backend.
+section to do that, and to set up another computer, choose your own names, use OneCLI, or update an
+existing backend.
 
 ## Install the console from npm
 
@@ -137,7 +141,7 @@ and shows anything that cannot work yet as unavailable, with the reason and the 
 `~/.config/vizoalica/`.
 
 This release installs the **console**. Deploying the backend for the first time is still done from a source
-checkout (`pnpm vizoalica install` above), and the console then connects to it. Deploying from the console
+checkout (`pnpm vizoalica backend` above), and the console then connects to it. Deploying from the console
 itself is planned for the next release, and `pnpm vizoalica` remains available for scripts and contributors.
 
 ## Production deployment, part by part
@@ -162,7 +166,7 @@ Full guide: **[docs/operations/cloudflare.md](docs/operations/cloudflare.md)**.
 ### 2. Console — second
 
 Run this on every computer that should administer Vizoalica. The first one is set up by
-`pnpm vizoalica install`; for any other, check out the repository, run `corepack enable && pnpm install`,
+`pnpm vizoalica connect` above; for any other, check out the repository, run `corepack enable && pnpm install`,
 and then:
 
 ```sh
@@ -212,7 +216,6 @@ If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and r
 
 | Command                                             | What it does                                                                     |
 | --------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `pnpm vizoalica install`                            | First-time setup, start to finish: backend, this computer, sample data, console. |
 | `pnpm vizoalica backend`                            | Install or update the Cloudflare backend.                                        |
 | `pnpm vizoalica connect`                            | Set up this computer as an operator console.                                     |
 | `pnpm vizoalica console`                            | Start the private local API and the web console (`run` is an alias).             |
@@ -248,7 +251,7 @@ pnpm build                                    # compiles every workspace package
 pnpm browser-sdk:build                        # script-tag bundles for a website (optional)
 ```
 
-`pnpm vizoalica install` and `pnpm vizoalica backend` run `pnpm build` for you.
+`pnpm vizoalica backend` runs `pnpm build` for you.
 
 - **Backend:** Wrangler bundles the Worker from source when you deploy, so there is nothing to
   publish by hand.

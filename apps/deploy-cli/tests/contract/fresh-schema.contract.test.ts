@@ -14,10 +14,13 @@ describe('fresh deployment schema contract', () => {
       .sort();
     expect(migrations[0]).toBe('0001_initial.sql');
     const baseline = await readFile(join(migrationsDirectory, migrations[0]!), 'utf8');
-    expect(baseline).not.toMatch(/ALTER\s+TABLE|DROP\s+TABLE|INSERT\s+OR\s+IGNORE\s+INTO[\s\S]+SELECT/i);
+    expect(baseline).not.toMatch(
+      /ALTER\s+TABLE|DROP\s+TABLE|INSERT\s+OR\s+IGNORE\s+INTO[\s\S]+SELECT/i
+    );
 
     const database = new DatabaseSync(':memory:');
-    for (const name of migrations) database.exec(await readFile(join(migrationsDirectory, name), 'utf8'));
+    for (const name of migrations)
+      database.exec(await readFile(join(migrationsDirectory, name), 'utf8'));
     const tables = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()

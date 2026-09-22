@@ -28,6 +28,7 @@ export const sidebar: NavGroup[] = [
       { text: 'Start the console day to day', link: '/operations/operator-local' },
       { text: 'Activate a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
+      { text: 'Database and Worker versions', link: '/operations/schema-versions' },
       { text: 'Troubleshooting', link: '/operations/troubleshooting' }
     ]
   },

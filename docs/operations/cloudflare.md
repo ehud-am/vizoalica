@@ -18,13 +18,7 @@ the inputs for [operator setup without OneCLI](local-analytics.md),
 ## Automated install (recommended)
 
 From a checkout of this repository (see [Build from source](../../README.md#build-from-source)),
-one command does the whole first install and the first console setup:
-
-```sh
-pnpm vizoalica install
-```
-
-Or, for the backend alone (for example when another person will set up the console):
+one command deploys the backend:
 
 ```sh
 pnpm vizoalica backend
@@ -44,9 +38,9 @@ What it does, in order:
    standard input, never as a command argument or a file. It never asks you to invent or paste a key.
 5. Checks the Worker's `/healthz`, and prints its address.
 
-`pnpm vizoalica install` then continues: it offers to set up this computer as an operator console (using
-the administrator secret it just generated, so you paste nothing), to send sample data through the
-new backend, and to start the console.
+Next, run `pnpm vizoalica connect` to set up this computer as an operator console (pasting the
+administrator secret it just showed you), then `pnpm vizoalica demo` to send sample data through the
+new backend if you want something to see, and `pnpm vizoalica console` to start the console.
 
 Names default to `vizoalica-ingest`, `vizoalica-config`, and `vizoalica-events`. Override them with
 `--worker-name`, `--database`, and `--bucket`, and skip the question with `--first-run` or

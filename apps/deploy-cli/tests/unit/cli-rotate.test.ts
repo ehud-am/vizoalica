@@ -2,21 +2,9 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_NAMES } from '../../../../scripts/cli/backend.js';
-import { install } from '../../../../scripts/cli/install.js';
 import { rotateSecrets } from '../../../../scripts/cli/rotate.js';
 import { generateSecret } from '../../../../scripts/cli/secrets.js';
-import {
-  D1_LIST,
-  DEPLOY_OUT,
-  R2_LIST,
-  WHOAMI,
-  WORKER_URL,
-  fakeCtx,
-  fakePrompt,
-  fakeRun,
-  tempCheckout
-} from '../cli-support.js';
+import { WORKER_URL, fakeCtx, fakePrompt, fakeRun, tempCheckout } from '../cli-support.js';
 
 const localPath = () =>
   join(mkdtempSync(join(tmpdir(), 'vizoalica-rotate-')), 'cfg', 'local-operations.json');
@@ -210,111 +198,5 @@ describe('rotating secrets', () => {
     );
     expect(JSON.parse(readFileSync(path, 'utf8')).VIZOALICA_ADMIN_SECRET).toBe(original);
     expect(cleared()).toBe(0);
-  });
-});
-
-describe('the one-command install', () => {
-  const account = () => ({
-    whoami: { stdout: WHOAMI },
-    'd1 list': [{ stdout: '[]' }, { stdout: D1_LIST }],
-    'r2 bucket list': { stdout: 'Listing buckets...' },
-    'd1 create': {},
-    'r2 bucket create': {},
-    'd1 migrations apply': {},
-    deploy: { stdout: DEPLOY_OUT },
-    'secret list': { stdout: '[]' },
-    'secret bulk': {}
-  });
-
-  /** A Worker that accepts whatever admin secret the install just stored, plus the demo endpoints. */
-  function liveWorker(run: ReturnType<typeof fakeRun>) {
-    const secrets = () => stored(run.calls);
-    return (async (input: string | URL | Request, init?: RequestInit) => {
-      const url = new URL(String(input));
-      const method = init?.method ?? 'GET';
-      if (url.pathname === '/healthz') return Response.json({ ok: true });
-      if (url.pathname === '/v1/events:batch') return Response.json({}, { status: 202 });
-      const ok =
-        new Headers(init?.headers).get('authorization') ===
-        `Bearer ${secrets().VIZOALICA_ADMIN_SECRET}`;
-      if (!ok) return new Response('', { status: 401 });
-      if (url.pathname === '/v1/admin/projects' && method === 'GET') return Response.json([]);
-      if (url.pathname === '/v1/admin/projects')
-        return Response.json({ id: 'p1' }, { status: 201 });
-      if (url.pathname.endsWith('/sources'))
-        return Response.json({ id: 's1', publicSourceKey: 'k' }, { status: 201 });
-      if (url.pathname.endsWith('/analytics'))
-        return Response.json({ totals: { pageViews: 96, uniqueUsers: 30 } });
-      return new Response('{}', { status: 404 });
-    }) as typeof fetch;
-  }
-
-  it('goes from an empty Cloudflare account to a connected console with sample data', async () => {
-    const cwd = tempCheckout();
-    const wrangler = fakeRun(account());
-    const path = localPath();
-    const { ctx, output } = fakeCtx({ cwd, run: wrangler.run, fetch: liveWorker(wrangler) });
-    const result = await install(ctx, { ...DEFAULT_NAMES, localConfigPath: path });
-    expect(result).toEqual({ workerUrl: WORKER_URL, connected: true, demo: true });
-    // The generated admin secret went straight into the private file: the operator was never asked for a key.
-    expect(JSON.parse(readFileSync(path, 'utf8')).VIZOALICA_ADMIN_SECRET).toBe(
-      stored(wrangler.calls).VIZOALICA_ADMIN_SECRET
-    );
-    expect(output()).toContain('96 page views from 30 visitors');
-    expect(output()).toContain('Setup complete');
-    expect(output()).toContain(`Worker: ${WORKER_URL}`);
-    expect(output()).toContain('with sample data');
-  });
-
-  it('skips the console and sample data when the operator declines', async () => {
-    const wrangler = fakeRun(account());
-    const { ctx } = fakeCtx({
-      cwd: tempCheckout(),
-      run: wrangler.run,
-      fetch: liveWorker(wrangler),
-      prompt: fakePrompt({
-        confirm: (q, fallback) =>
-          q.includes('operator console') || q.includes('sample data') ? false : fallback
-      }).prompt
-    });
-    expect(await install(ctx, { ...DEFAULT_NAMES, localConfigPath: localPath() })).toMatchObject({
-      connected: false,
-      demo: false
-    });
-  });
-
-  it('offers a sample only right after a first install, not on an update', async () => {
-    const cwd = tempCheckout();
-    const path = localPath();
-    const secret = generateSecret();
-    seedLocal(path, secret);
-    const wrangler = fakeRun({
-      whoami: { stdout: WHOAMI },
-      'd1 list': { stdout: D1_LIST },
-      'r2 bucket list': { stdout: R2_LIST },
-      deploy: { stdout: DEPLOY_OUT },
-      'secret list': {
-        stdout: JSON.stringify(
-          [
-            'VIZOALICA_ADMIN_SECRET',
-            'VIZOALICA_TOKEN_SECRET',
-            'VIZOALICA_ANALYTICS_DIGEST_SECRET'
-          ].map((name) => ({ name }))
-        )
-      }
-    });
-    const prompts = fakePrompt();
-    const fetcher = (async (input: string | URL | Request, init?: RequestInit) =>
-      String(input).endsWith('/healthz')
-        ? Response.json({ ok: true })
-        : new Headers(init?.headers).get('authorization') === `Bearer ${secret}`
-          ? Response.json([])
-          : new Response('', { status: 401 })) as typeof fetch;
-    const { ctx } = fakeCtx({ cwd, run: wrangler.run, prompt: prompts.prompt, fetch: fetcher });
-    expect(await install(ctx, { ...DEFAULT_NAMES, localConfigPath: path })).toMatchObject({
-      connected: true,
-      demo: false
-    });
-    expect(prompts.log.some((line) => line.includes('sample data'))).toBe(false);
   });
 });

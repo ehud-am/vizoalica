@@ -36,7 +36,8 @@ describe('deployment documentation contract', () => {
     expect(readme).toMatch(/1\. BACKEND[\s\S]*2\. CONSOLE[\s\S]*3\. WEBSITE/);
     // The quick start is one command, says what it covers, and points on to production.
     const quick = readme.slice(at('## Quick start'), at('## Production deployment, part by part'));
-    expect(quick).toContain('pnpm vizoalica install');
+    expect(quick).toContain('pnpm vizoalica backend');
+    expect(quick).toContain('pnpm vizoalica connect');
     expect(quick).toMatch(/demo app/);
     expect(quick).toMatch(/Ready for production\?/);
     for (const command of [
@@ -165,7 +166,7 @@ describe('deployment documentation contract', () => {
       guide.indexOf('## Quick command reference')
     );
     for (const command of [
-      'pnpm vizoalica install',
+      'pnpm vizoalica backend',
       'pnpm vizoalica backend --update',
       'pnpm vizoalica rotate admin'
     ])

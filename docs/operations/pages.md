@@ -67,8 +67,8 @@ public source key, each with a copy control; these are three different non-secre
 **Check:** the new website belongs to the intended customer project, lists only its real allowed
 origin(s), and has its own source ID and public key.
 
-If you ran `pnpm vizoalica install` and accepted the sample data, the console also shows a project called
-"Vizoalica demo (sample data)". It is separate from your websites; remove it whenever you like with
+If you ran `pnpm vizoalica demo`, the console also shows a project called "Vizoalica demo (sample
+data)". It is separate from your websites; remove it whenever you like with
 `pnpm vizoalica demo --remove`.
 
 ## 2. Choose a deployment path
