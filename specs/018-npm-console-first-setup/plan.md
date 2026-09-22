@@ -184,7 +184,7 @@ deploy/cloudflare/
 └── wrangler.example.toml                unchanged (the package template is derived from it)
 
 .github/workflows/ci.yml                 package check on every pull request
-.github/workflows/publish-npm.yml        (new) provenance publish, skipped until enabled
+.github/workflows/publish.yml        (new) provenance publish, skipped until enabled
 package.json                             renamed vizoalica-workspace; package:build and package:check scripts
 README.md, llms.txt, docs/**, .github/ISSUE_TEMPLATE/**   the npm path, retired command, contributor notes
 CHANGELOG.md, docs/releases/v0.6.3.md, v0.6.4.md          release notes and upgrade notes

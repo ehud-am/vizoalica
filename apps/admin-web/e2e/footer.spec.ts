@@ -87,7 +87,7 @@ test('is fully keyboard reachable with a visible focus ring', async ({ page }) =
   await page.goto('/');
   const links = page.getByRole('contentinfo').getByRole('link');
   const count = await links.count();
-  expect(count).toBe(9);
+  expect(count).toBe(10);
   await links.first().focus();
   for (let index = 0; index < count; index += 1) {
     const focused = page.locator(':focus');

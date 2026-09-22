@@ -15,6 +15,7 @@ export const VIZOALICA_LINKS: readonly FooterLink[] = [
 
 export const PROJECT_LINKS: readonly FooterLink[] = [
   { label: 'GitHub', href: REPO, description: 'the project on GitHub' },
+  { label: 'npm', href: 'https://www.npmjs.com/package/vizoalica', description: 'the npm package' },
   { label: 'Discussions', href: `${REPO}/discussions`, description: 'GitHub Discussions' },
   { label: 'Issues', href: `${REPO}/issues`, description: 'GitHub Issues' },
   { label: 'Release notes', href: `${REPO}/releases`, description: 'the release notes' },

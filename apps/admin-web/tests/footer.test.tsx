@@ -43,13 +43,14 @@ describe('AppFooter', () => {
     const links = within(group).getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual([
       'GitHub',
+      'npm',
       'Discussions',
       'Issues',
       'Release notes',
       'License'
     ]);
     expect(links[0]!.getAttribute('href')).toBe('https://github.com/ehud-am/vizoalica');
-    expect(links[1]!.getAttribute('href')).toBe('https://github.com/ehud-am/vizoalica/discussions');
+    expect(links[1]!.getAttribute('href')).toBe('https://www.npmjs.com/package/vizoalica');
   });
 
   it('opens every link in a new tab without leaking the opener, with a distinct name', () => {

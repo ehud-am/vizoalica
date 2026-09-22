@@ -38,25 +38,16 @@ done once:
 1. **Create an npm account**, if there is not one already, and turn on **two-factor authentication**
    set to "Authorization and writes" — npm requires this to publish, and provenance publishing needs
    it too.
-2. **Claim the name with the first publish.** There is no separate reservation step: whoever
-   publishes first owns it. From a checkout, after `pnpm install`:
-
-   ```sh
-   pnpm package:build && pnpm package:check
-   cd apps/cli/package
-   npm login
-   npm publish --access public --provenance=false
-   ```
-
-   `--provenance=false` is needed for this one manual publish: provenance attestation only works
-   from a supported CI system (GitHub Actions here), not a local machine. npm asks for the
-   two-factor code. If the name is taken, or npm rejects it as too similar to an existing package,
-   nothing was claimed; consider a scoped name such as `@your-org/vizoalica` instead, and update the
-   `bin` name and the documentation accordingly.
-
+2. **Claim the name with a first publish.** There is no separate reservation step: whoever publishes
+   first owns it. `vizoalica` on npm is already claimed this way (published manually, once, with a
+   one-time automation token, `--provenance=false`, since provenance only works from a supported CI
+   system). If the name were ever lost and had to be reclaimed, or for a scoped alternative such as
+   `@your-org/vizoalica`, the same steps apply: `pnpm package:build && pnpm package:check`, then
+   `npm publish --access public --provenance=false` from `apps/cli/package`, signed in with
+   `npm login`.
 3. **Hand future releases to CI.** On [npmjs.com](https://www.npmjs.com), open the package's
    Settings and add a trusted publisher: GitHub, repository `ehud-am/vizoalica`, workflow
-   `publish-npm.yml`. This lets `.github/workflows/publish-npm.yml` publish with
+   `publish.yml`. This lets `.github/workflows/publish.yml` publish with
    `npm publish --provenance` and no long-lived token, using GitHub's OIDC identity. (If trusted
    publishing is not available, add a granular npm automation token instead and store it as the
    repository secret `NPM_TOKEN`.)

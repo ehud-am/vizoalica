@@ -59,7 +59,7 @@ refused, and the process stops on interrupt. CI runs it on every pull request.
 
 ## Publishing
 
-`.github/workflows/publish-npm.yml` runs on a published release and on manual dispatch, needs
+`.github/workflows/publish.yml` runs on a published release and on manual dispatch, needs
 `id-token: write`, runs the package check, and `npm publish --provenance --access public`. It runs only when
 the repository variable `VIZOALICA_NPM_PUBLISH` is `true`; otherwise it reports "publishing is not set up"
 and is skipped, not failed. The first publish, the npm account, and two-factor authentication are the

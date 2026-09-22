@@ -34,12 +34,23 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
+      # Trusted publishing (OIDC, no token) needs a recent npm CLI; the one bundled with a given
+      # Node.js release can lag behind. This is a no-op once the runner image catches up.
+      - name: Update npm for OIDC trusted publishing
+        if: vars.VIZOALICA_NPM_PUBLISH == 'true'
+        run: npm install --global npm@latest
+
       - name: Build the browser SDK (the npm package embeds it)
         run: pnpm browser-sdk:build
 
       - name: Build and check the npm package
         run: pnpm package:build && pnpm package:check
 
+      # With a trusted publisher configured on the npm package (Settings → Trusted Publisher →
+      # GitHub Actions → this repository and workflow), npm authenticates via this job's OIDC
+      # token (id-token: write, above) and needs no secret. If trusted publishing is not set up
+      # yet, set the repository secret NPM_TOKEN as a fallback; an empty NODE_AUTH_TOKEN is
+      # ignored by npm, so trusted publishing still takes over once configured.
       - name: Publish to npm with provenance
         if: vars.VIZOALICA_NPM_PUBLISH == 'true'
         working-directory: apps/cli/package
