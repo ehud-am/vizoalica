@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadSettings } from '../src/config.js';
-import { ConnectionStore } from '../src/connection-store.js';
+import { EnvironmentStore } from '../src/environment-store.js';
 import { createLocalServer } from '../src/server.js';
 import { callerFor } from './support.js';
 import { stubWorker, type StubOptions } from './worker-stub.js';
@@ -14,16 +14,26 @@ const SECRET = 'super-secret-credential-value';
 
 function start(worker: StubOptions = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'vizoalica-setup-'));
-  const path = join(dir, 'local-operations.json');
-  const store = ConnectionStore.fromFile(path);
+  const store = EnvironmentStore.fromDirectory(dir);
   const stub = stubWorker(worker);
   const server = createLocalServer({
-    settings: { ...loadSettings({}), configFilePath: path },
+    settings: { ...loadSettings({}), homeDir: dir },
     store,
     version: '0.6.3',
     schemaDir: undefined
   });
-  return { path, store, stub, ...callerFor(server) };
+  return {
+    dir,
+    /** The active environment's own file, once one exists. */
+    get path() {
+      const active = store.active();
+      if (!active) throw new Error('no active environment yet');
+      return join(dir, 'environments', `${active}.json`);
+    },
+    store,
+    stub,
+    ...callerFor(server)
+  };
 }
 const post = (api: ReturnType<typeof start>, cookie: string, path: string, body: unknown) =>
   api.call(path, { method: 'POST', cookie, body });
@@ -65,7 +75,8 @@ describe('POST /api/setup/connect', () => {
       principal: { role: 'admin' }
     });
     expect(statSync(api.path).mode & 0o777).toBe(0o600);
-    expect(JSON.parse(readFileSync(api.path, 'utf8'))).toEqual({
+    // An auto-created environment (this connect named none itself) also carries its own identity.
+    expect(JSON.parse(readFileSync(api.path, 'utf8'))).toMatchObject({
       VIZOALICA_REMOTE_URL: 'https://worker.example.workers.dev',
       VIZOALICA_ADMIN_SECRET: SECRET,
       VIZOALICA_ROLE_HINT: 'admin'
@@ -210,7 +221,7 @@ describe('POST /api/setup/connect', () => {
 
   it('refuses a backend this console cannot work with', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vizoalica-setup-'));
-    const store = ConnectionStore.fromFile(join(dir, 'c.json'));
+    const store = EnvironmentStore.fromDirectory(dir);
     stubWorker({ role: 'admin', workerVersion: '0.6.3', schemaApplied: 5 });
     const { mkdirSync, writeFileSync } = await import('node:fs');
     const schemaDir = join(dir, 'schema');
@@ -242,13 +253,16 @@ describe('POST /api/setup/connect', () => {
 });
 
 describe('POST /api/setup/disconnect and /role', () => {
-  it('disconnects back to first run and forgets the credential', async () => {
+  it('disconnects the active environment without forgetting it, and forgets the credential', async () => {
     const api = start();
     const cookie = await api.session();
     await post(api, cookie, '/api/setup/connect', connectBody());
     const result = await post(api, cookie, '/api/setup/disconnect', {});
     expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({ needsFirstRun: true, connection: { status: 'none' } });
+    // The environment itself survives disconnecting: only the checkout's pre-environments model treated
+    // "no connection" as first run; here the admin already named this environment, so reconnecting is
+    // the next step, not naming a new one.
+    expect(result.body).toMatchObject({ needsFirstRun: false, connection: { status: 'none' } });
     expect(readFileSync(api.path, 'utf8')).not.toContain(SECRET);
   });
 

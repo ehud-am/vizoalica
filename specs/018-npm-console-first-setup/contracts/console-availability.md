@@ -21,7 +21,7 @@ and `delete-project` move to `operate`.
 | `deploy-backend`, `update-backend`               | backend | ✓     | -       | -                     |
 | `rotate-secret`, `purge-deleted`, `manage-demo`  | backend | ✓     | -       | -                     |
 | `manage-access-keys`, `share-website-setup`      | backend | ✓     | -       | -                     |
-| `manage-environments` (create, select, remove)   | backend | ✓     | -       | -                     |
+| `manage-environments` (create, remove)           | backend | ✓     | -       | -                     |
 
 Connecting to a backend is not a capability: every role does it on first run with its own credential.
 

@@ -11,15 +11,16 @@ environment only; nothing in this contract changed shape to add an environment i
 service keeps exactly one environment's connection loaded at a time (the same way it has always kept exactly
 one connection loaded) and switching which one is active is itself one of the environment routes.
 
-## Environments (A for create, select, and remove; read available to every role)
+## Environments (read and select available to every role; create and remove need the active environment's
+principal to be admin, or no environment to exist yet — the same bootstrap trust first run already relies on)
 
 | Route                                    | Purpose                                                                                    |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `GET /api/environments`                   | Lists every saved environment (`name`, connection `status`, `mode`) and which is active     |
-| `POST /api/environments`                  | `{ name, cloudflare: { mode: "token", token } | { mode: "onecli" } }` creates one (name validated per R26, must be unique), makes it active, and returns it. Creates no Cloudflare resources by itself |
-| `POST /api/environments/:name/select`     | Makes `:name` active; every subsequent route reflects it immediately, no restart needed     |
+| `POST /api/environments`                  | `{ name, cloudflare: { mode: "token", token } | { mode: "onecli" } }` creates one (name validated per R26, must be unique), makes it active, and returns it. Creates no Cloudflare resources by itself. `403` if an environment is already active and its principal is not admin |
+| `POST /api/environments/:name/select`     | Makes `:name` active; every subsequent route reflects it immediately, no restart needed. Available to every role, since it only changes which saved environment is viewed; the role in effect afterward is still whatever that environment's own connection reports |
 | `POST /api/environments/:name/connect`    | Like `POST /api/setup/connect`, but scoped to `:name` rather than the active one; used from environment setup |
-| `DELETE /api/environments/:name`          | `{ confirm: true }` forgets the environment's saved file (never touches Cloudflare); if it was active, the active pointer clears |
+| `DELETE /api/environments/:name`          | `{ confirm: true }` forgets the environment's saved file (never touches Cloudflare); if it was active, the active pointer clears. `403` unless `:name`'s own principal is admin |
 
 Errors: `409 environment_name_taken` on create; `404 environment_not_found` for an unknown `:name`;
 `400 invalid_environment_name` when the name fails validation (R26). `needsFirstRun` in the setup state

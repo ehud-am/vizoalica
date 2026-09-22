@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { dirname } from 'node:path';
 import type { Config, Settings } from './config.js';
 import { resolvePreferencesPath } from './config.js';
-import { ConnectionStore } from './connection-store.js';
+import { EnvironmentStore } from './environment-store.js';
 import { isStaticRequest, serveStatic, type StaticDirs } from './static.js';
 import { readPreferences, writePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
@@ -84,7 +85,7 @@ function requestOrigin(request: IncomingMessage): string | undefined {
 export type ServerOptions = StaticDirs & {
   settings: Settings;
   /** The backend connection; it may be empty, and the console then guides first run. */
-  store: ConnectionStore;
+  store: EnvironmentStore;
   /** The installed package version, shown by the console and compared with the backend's. */
   version?: string;
   /** Where the packaged database changes live; the highest number is the expected schema. */
@@ -99,9 +100,9 @@ function optionsFromConfig(config: Config): ServerOptions {
       consoleOrigin: config.consoleOrigin,
       allowedOrigins: [...new Set([config.consoleOrigin, `http://127.0.0.1:${config.port}`])],
       sessionTtlMs: config.sessionTtlMs,
-      ...(config.configFilePath ? { configFilePath: config.configFilePath } : {})
+      ...(config.configFilePath ? { homeDir: dirname(config.configFilePath) } : {})
     },
-    store: ConnectionStore.fromConnection({
+    store: EnvironmentStore.fromConnection('default', {
       remoteUrl: config.remoteUrl,
       credential: config.adminSecret,
       kind: 'admin-secret'

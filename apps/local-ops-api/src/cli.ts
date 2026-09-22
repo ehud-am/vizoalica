@@ -60,7 +60,7 @@ async function main(): Promise<void> {
     );
     console.log(`Local authorization revoked: ${path}`);
   } else {
-    const { server, settings } = createService({ configPath: path });
+    const { server, settings } = createService({ homeDir: path });
     await listenLoopback(server, settings.port);
     console.log(`Vizoalica local API listening on http://127.0.0.1:${settings.port}`);
   }

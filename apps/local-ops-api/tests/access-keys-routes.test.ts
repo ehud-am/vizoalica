@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadSettings } from '../src/config.js';
-import { ConnectionStore } from '../src/connection-store.js';
+import { EnvironmentStore } from '../src/environment-store.js';
 import { createLocalServer } from '../src/server.js';
 import { callerFor } from './support.js';
 import { stubWorker } from './worker-stub.js';
@@ -12,7 +12,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 function start(role: 'admin' | 'analyst' | 'owner' = 'admin') {
   const dir = mkdtempSync(join(tmpdir(), 'vizoalica-keys-'));
-  const store = ConnectionStore.fromConnection({
+  const store = EnvironmentStore.fromConnection('default', {
     remoteUrl: 'https://worker.example.workers.dev',
     credential: 'secret',
     kind: role === 'admin' ? 'admin-secret' : 'access-key'
@@ -23,7 +23,7 @@ function start(role: 'admin' | 'analyst' | 'owner' = 'admin') {
     sources: { p1: [{ id: 's1' }] }
   });
   const server = createLocalServer({
-    settings: { ...loadSettings({}), configFilePath: join(dir, 'c.json') },
+    settings: { ...loadSettings({}), homeDir: dir },
     store,
     version: '0.6.4',
     schemaDir: undefined
@@ -126,7 +126,7 @@ describe('GET /api/backend', () => {
 
   it('answers 409 with no connection', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vizoalica-keys-'));
-    const store = ConnectionStore.fromFile(join(dir, 'c.json'));
+    const store = EnvironmentStore.fromDirectory(dir);
     const server = createLocalServer({ settings: loadSettings({}), store, version: '0.6.4' });
     const api = callerFor(server);
     const cookie = await api.session();

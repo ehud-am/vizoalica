@@ -10,7 +10,7 @@ import { fakeDeps, tempHome } from './support.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** A connection file exactly as `pnpm vizoalica connect` writes it. */
+/** A connection file exactly as `pnpm vizoalica connect` writes it, pre-0.7.0, with no environment yet. */
 function checkoutFile(secret: string) {
   const home = tempHome();
   const directory = join(home, '.config', 'vizoalica');
@@ -20,42 +20,62 @@ function checkoutFile(secret: string) {
     VIZOALICA_REMOTE_URL: 'https://worker.example.workers.dev',
     VIZOALICA_ADMIN_SECRET: secret
   });
-  return { home, path };
+  return { home, directory, path };
 }
 
 describe('a setup made with the checkout commands', () => {
-  it('is recognized by the packaged console with no first-run questions', async () => {
-    const { path } = checkoutFile('direct-secret');
+  it('is offered as the first environment to name, with no other first-run questions', async () => {
+    const { directory } = checkoutFile('direct-secret');
     stubWorker({ role: 'legacy', projects: [] });
-    const { server } = createService({ configPath: path, env: {} });
+    const { server, store } = createService({ homeDir: directory, env: {} });
     const api = callerFor(server);
-    const state = await api.call('/api/setup/state', { cookie: await api.session() });
-    expect(state.body).toMatchObject({
+    const cookie = await api.session();
+    // Found, but not silently imported: its name doubles as a resource-name prefix (research R26), so
+    // naming it is the one step 0.7.0 adds on top of the old "no first-run questions" behavior.
+    const before = await api.call('/api/setup/state', { cookie });
+    expect(before.body).toMatchObject({
+      needsFirstRun: true,
+      legacySetup: { workerHost: 'worker.example.workers.dev', mode: 'file' }
+    });
+    const imported = await api.call('/api/setup/import-legacy', {
+      method: 'POST',
+      cookie,
+      body: { name: 'prod' }
+    });
+    expect(imported.status).toBe(200);
+    expect(imported.body).toMatchObject({
       needsFirstRun: false,
       connection: { status: 'connected', mode: 'file', workerHost: 'worker.example.workers.dev' },
       principal: { role: 'admin' }
     });
+    expect(store.active()).toBe('prod');
   });
 
   it('keeps the OneCLI placeholder and never writes a secret to a file', async () => {
-    const { path } = checkoutFile('onecli-managed');
+    const { directory, path } = checkoutFile('onecli-managed');
     const before = readFileSync(path, 'utf8');
     stubWorker({ role: 'legacy', projects: [] });
-    const { server } = createService({ configPath: path, env: { VIZOALICA_ONECLI_WRAPPED: '1' } });
+    const { server, store } = createService({
+      homeDir: directory,
+      env: { VIZOALICA_ONECLI_WRAPPED: '1' }
+    });
     const api = callerFor(server);
     const cookie = await api.session();
+    await api.call('/api/setup/import-legacy', { method: 'POST', cookie, body: { name: 'prod' } });
     const state = await api.call('/api/setup/state', { cookie });
     expect(state.body).toMatchObject({ needsFirstRun: false, connection: { mode: 'onecli' } });
     expect(state.text).not.toContain('onecli-managed');
-    await api.call('/api/setup/role', { method: 'POST', cookie, body: { roleHint: 'admin' } });
-    expect(readFileSync(path, 'utf8')).toContain('onecli-managed');
-    expect(readFileSync(path, 'utf8')).not.toMatch(/secret-[a-z]+/);
-    expect(before).toContain('onecli-managed');
+    const envPath = join(directory, 'environments', 'prod.json');
+    expect(readFileSync(envPath, 'utf8')).toContain('onecli-managed');
+    expect(readFileSync(envPath, 'utf8')).not.toMatch(/secret-[a-z]+/);
+    // The old file is left exactly as it was: importing moves nothing, it only reads.
+    expect(readFileSync(path, 'utf8')).toBe(before);
+    void store;
   });
 
   it('is not started outside the OneCLI wrapper', () => {
-    const { path } = checkoutFile('onecli-managed');
-    expect(() => createService({ configPath: path, env: {} })).toThrow(
+    const { directory } = checkoutFile('onecli-managed');
+    expect(() => createService({ homeDir: directory, env: {} })).toThrow(
       'onecli_placeholder_requires_wrapper'
     );
   });

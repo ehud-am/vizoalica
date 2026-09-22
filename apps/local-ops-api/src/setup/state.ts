@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { presetRange } from '../../../ingest-api/src/analytics/range.js';
 import { isIncompatible, versionStatus, type ComponentStatus } from '../compat.js';
-import type { Connection, ConnectionStore, RoleHint } from '../connection-store.js';
+import type { Connection, EnvironmentStore, RoleHint } from '../environment-store.js';
 import { analyticsOverview } from '../routes/analytics.js';
 import { workerJson } from '../routes/websites.js';
 import { WorkerClient, type BackendInfo, type Principal } from '../remote-client/worker-client.js';
@@ -38,10 +38,12 @@ export type SetupState = {
   stages: Stage[];
   /** Set only on the answer to a connect that used a credential of a different role than chosen. */
   notice?: 'administrator_secret_used' | 'role_corrected';
+  /** A pre-0.7.0 single connection file waiting to be named and imported as the first environment. */
+  legacySetup?: { workerHost: string; mode: 'file' | 'onecli' };
 };
 
 export type SetupDeps = {
-  store: ConnectionStore;
+  store: EnvironmentStore;
   version: string;
   /** The highest database change this console carries, or null when it does not know. */
   expectedSchema: number | null;
@@ -163,10 +165,14 @@ export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
   const hint = deps.store.hint();
   const base = { version: deps.version };
   if (!connection) {
+    const legacySetup = deps.store.legacyPreview?.();
     return {
       ...base,
-      needsFirstRun: true,
+      // First run is "no environment exists yet", not merely "the active one has no connection"
+      // (an environment can exist, freshly created, with nothing deployed or connected to it yet).
+      needsFirstRun: deps.store.active() === undefined,
       connection: { status: 'none', ...(hint ? { roleHint: hint } : {}) },
+      ...(legacySetup ? { legacySetup } : {}),
       stages: computeStages({
         connection: 'none',
         role: viewRole(undefined, hint),

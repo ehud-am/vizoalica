@@ -1,11 +1,12 @@
 import type { Server } from 'node:http';
-import { defaultConfigPath, loadConfig, loadSettings, type Settings } from './config.js';
-import { ConnectionStore } from './connection-store.js';
+import { defaultHomeDir, loadConfig, loadSettings, type Settings } from './config.js';
+import { EnvironmentStore } from './environment-store.js';
 import { createLocalServer } from './server.js';
 
 export type ServiceOptions = {
-  /** The connection file. Without one, an environment connection is used, else the default file. */
-  configPath?: string | undefined;
+  /** The environments home directory (holds `environments/` and `active-environment.json`). Without
+   * one, and without VIZOALICA_REMOTE_URL/VIZOALICA_ADMIN_SECRET set, the default home directory is used. */
+  homeDir?: string | undefined;
   consoleDir?: string | undefined;
   sdkDir?: string | undefined;
   schemaDir?: string | undefined;
@@ -14,33 +15,30 @@ export type ServiceOptions = {
 };
 
 /**
- * Builds the local service from the environment and a connection file that may not exist yet.
- * Throws the store's plain error codes for an unreadable or over-permissive file.
+ * Builds the local service from the environment and an environments home directory that may not exist
+ * yet. Throws the store's plain error codes for an unreadable or over-permissive environment file.
  */
 export function createService(options: ServiceOptions = {}): {
   server: Server;
-  store: ConnectionStore;
+  store: EnvironmentStore;
   settings: Settings;
 } {
   const env = options.env ?? process.env;
   const base = loadSettings(env);
-  let store: ConnectionStore;
-  let configFilePath: string | undefined;
-  if (options.configPath) {
-    configFilePath = options.configPath;
-    store = ConnectionStore.fromFile(configFilePath, env);
-  } else if (env.VIZOALICA_REMOTE_URL && env.VIZOALICA_ADMIN_SECRET) {
+  let store: EnvironmentStore;
+  let homeDir: string | undefined;
+  if (env.VIZOALICA_REMOTE_URL && env.VIZOALICA_ADMIN_SECRET) {
     const config = loadConfig(env);
-    store = ConnectionStore.fromConnection({
+    store = EnvironmentStore.fromConnection('default', {
       remoteUrl: config.remoteUrl,
       credential: config.adminSecret,
       kind: 'admin-secret'
     });
   } else {
-    configFilePath = defaultConfigPath();
-    store = ConnectionStore.fromFile(configFilePath, env);
+    homeDir = options.homeDir ?? defaultHomeDir();
+    store = EnvironmentStore.fromDirectory(homeDir, env);
   }
-  const settings: Settings = { ...base, ...(configFilePath ? { configFilePath } : {}) };
+  const settings: Settings = { ...base, ...(homeDir ? { homeDir } : {}) };
   const server = createLocalServer({
     settings,
     store,

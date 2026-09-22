@@ -3,14 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadSettings } from '../src/config.js';
-import { ConnectionStore } from '../src/connection-store.js';
+import { EnvironmentStore } from '../src/environment-store.js';
 import { createLocalServer } from '../src/server.js';
 import { callerFor } from './support.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
 function start(
-  store = ConnectionStore.fromFile(join(mkdtempSync(join(tmpdir(), 'vizoalica-u-')), 'c.json'))
+  store = EnvironmentStore.fromDirectory(mkdtempSync(join(tmpdir(), 'vizoalica-u-')))
 ) {
   const root = mkdtempSync(join(tmpdir(), 'vizoalica-u-web-'));
   mkdirSync(join(root, 'console'));
@@ -18,7 +18,7 @@ function start(
   const server = createLocalServer({
     settings: {
       ...loadSettings({}),
-      configFilePath: join(mkdtempSync(join(tmpdir(), 'vizoalica-u-prefs-')), 'c.json')
+      homeDir: mkdtempSync(join(tmpdir(), 'vizoalica-u-prefs-'))
     },
     store,
     consoleDir: join(root, 'console')
@@ -126,7 +126,7 @@ describe('saving a connection', () => {
 
   it('goes back to 409 after a disconnect', async () => {
     const api = start(
-      ConnectionStore.fromConnection({
+      EnvironmentStore.fromConnection('default', {
         remoteUrl: 'https://w.test',
         credential: 'k',
         kind: 'admin-secret'

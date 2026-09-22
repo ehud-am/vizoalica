@@ -9,7 +9,7 @@ import {
   parseBuckets
 } from '@vizoalica/ops-core';
 import type { Run } from '@vizoalica/ops-core';
-import type { ConnectionStore } from '../connection-store.js';
+import type { EnvironmentStore } from '../environment-store.js';
 import { consoleCtx } from './console-ctx.js';
 import { SecretVault } from './vault.js';
 import { RunStore, type Plan, type PlanResource, type RunRecord } from './runs.js';
@@ -18,7 +18,7 @@ export type EngineDeps = {
   cwd: string;
   store: RunStore;
   vault: SecretVault;
-  connectionStore: ConnectionStore;
+  connectionStore: EnvironmentStore;
   /** The pinned Wrangler runner; a test replaces this with a fake one. */
   run: Run;
   now?: () => Date;

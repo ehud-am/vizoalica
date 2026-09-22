@@ -60,20 +60,13 @@ describe('ensureCredential', () => {
 });
 
 describe('resolvePreferencesPath', () => {
-  it('places preferences.json beside the configured local-operations file', () => {
-    const config = {
-      ...loadConfig(validEnv),
-      configFilePath: '/home/op/.config/vizoalica/local-operations.json'
-    };
-    expect(resolvePreferencesPath(config)).toBe(
+  it('places preferences.json in the configured environments home directory', () => {
+    expect(resolvePreferencesPath({ homeDir: '/home/op/.config/vizoalica' })).toBe(
       join('/home/op/.config/vizoalica', 'preferences.json')
     );
   });
 
-  it('falls back to the default ~/.config/vizoalica directory when no config file path is set', () => {
-    const config = loadConfig(validEnv);
-    expect(resolvePreferencesPath(config)).toContain(
-      join('.config', 'vizoalica', 'preferences.json')
-    );
+  it('falls back to the default ~/.config/vizoalica directory when no home directory is set', () => {
+    expect(resolvePreferencesPath({})).toContain(join('.config', 'vizoalica', 'preferences.json'));
   });
 });

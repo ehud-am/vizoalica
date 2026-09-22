@@ -4,7 +4,7 @@ import {
   ONECLI_PLACEHOLDER,
   ROLE_HINTS,
   type RoleHint
-} from '../connection-store.js';
+} from '../environment-store.js';
 import {
   backendSummary,
   buildSetupState,
@@ -39,6 +39,22 @@ export async function handleSetup(
     const body = (await readBody()) as { roleHint?: unknown } | undefined;
     if (!ROLE_HINTS.includes(body?.roleHint as RoleHint)) return bad('roleHint');
     deps.store.setRoleHint(body!.roleHint as RoleHint);
+    return { status: 200, body: await buildSetupState(deps) };
+  }
+
+  if (method === 'POST' && pathname === '/api/setup/import-legacy') {
+    const body = (await readBody()) as { name?: unknown } | undefined;
+    if (typeof body?.name !== 'string') return bad('name');
+    try {
+      deps.store.importLegacyAs(body.name);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'invalid_request';
+      if (code === 'invalid_environment_name') return bad('name');
+      if (code === 'environment_name_taken')
+        return { status: 409, body: { error: 'environment_name_taken' } };
+      if (code === 'no_legacy_setup') return { status: 409, body: { error: 'no_legacy_setup' } };
+      throw error;
+    }
     return { status: 200, body: await buildSetupState(deps) };
   }
 

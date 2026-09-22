@@ -39,8 +39,8 @@ export type Settings = {
   /** Every origin the API accepts: its own address and `consoleOrigin`. */
   allowedOrigins: string[];
   sessionTtlMs: number;
-  /** The connection file, used to place sibling files such as preferences.json. */
-  configFilePath?: string;
+  /** The environments home directory, used to place sibling files such as preferences.json. */
+  homeDir?: string;
 };
 
 function safeConsoleOrigin(value: string | undefined): string {
@@ -56,6 +56,11 @@ function safeConsoleOrigin(value: string | undefined): string {
 
 export function defaultConfigPath(): string {
   return join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+}
+
+/** The base directory holding every environment's file and the active-environment pointer. */
+export function defaultHomeDir(): string {
+  return join(homedir(), '.config', 'vizoalica');
 }
 
 export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
@@ -92,10 +97,9 @@ export function loadConfigFile(path: string): Config {
   return { ...loadConfig({ ...process.env, ...values }), configFilePath: resolve(path) };
 }
 
-/** Resolves the preferences file path beside the configured local-operations file. */
-export function resolvePreferencesPath(config: Pick<Config, 'configFilePath'>): string {
-  const base = config.configFilePath ?? defaultConfigPath();
-  return join(dirname(base), 'preferences.json');
+/** Resolves the preferences file path in the environments home directory. */
+export function resolvePreferencesPath(settings: Pick<Settings, 'homeDir'>): string {
+  return join(settings.homeDir ?? defaultHomeDir(), 'preferences.json');
 }
 
 export function writeConfigFile(

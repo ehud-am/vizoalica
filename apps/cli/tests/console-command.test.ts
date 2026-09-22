@@ -27,7 +27,7 @@ describe('consoleCommand without a saved connection', () => {
       schemaDir: '/assets/dist/schema',
       version: '9.9.9'
     });
-    expect(String(received?.configPath)).toMatch(/\.config\/vizoalica\/local-operations\.json$/);
+    expect(String(received?.homeDir)).toMatch(/\.config\/vizoalica$/);
     expect(d.opened).toEqual(['http://127.0.0.1:4318']);
   });
 
@@ -85,7 +85,7 @@ describe('a saved connection that cannot be used', () => {
     const d = failing('config_permissions_must_be_0600');
     expect(await consoleCommand({ open: false }, d)).toBe(1);
     expect(d.errors.join('')).toContain('chmod 600');
-    expect(d.errors.join('')).toContain('local-operations.json');
+    expect(d.errors.join('')).toContain('.config/vizoalica');
   });
 
   it('offers to move aside a damaged file', async () => {
@@ -127,10 +127,7 @@ describe('OneCLI mode', () => {
     expect(call.args).toContain(
       'NODE_OPTIONS=--max-old-space-size=512 --disable-warning=UNDICI-EHPA'
     );
-    expect(call.args.slice(-2)).toEqual([
-      'serve',
-      expect.stringMatching(/local-operations\.json$/)
-    ]);
+    expect(call.args.slice(-2)).toEqual(['serve', expect.stringMatching(/\.config\/vizoalica$/)]);
     expect(call.args).toContain('/assets/dist/cli.mjs');
     expect(d.output.join('')).toContain('OneCLI');
     // The service itself is not started in this process.
@@ -213,17 +210,17 @@ describe('serveCommand', () => {
     expect(d.opened).toEqual([]);
   });
 
-  it('uses the default connection file when none is named', async () => {
+  it('uses the default environments directory when none is named', async () => {
     let path: unknown;
     const d = fakeDeps({
-      createService: ((options: { configPath?: string }) => {
-        path = options.configPath;
+      createService: ((options: { homeDir?: string }) => {
+        path = options.homeDir;
         return fakeDeps().createService!(options as never);
       }) as never
     });
     d.stop();
     await serveCommand(undefined, d);
-    expect(String(path)).toMatch(/local-operations\.json$/);
+    expect(String(path)).toMatch(/\.config\/vizoalica$/);
   });
 
   it('reports an unusable connection file and a busy port', async () => {

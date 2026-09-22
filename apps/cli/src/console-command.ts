@@ -40,11 +40,36 @@ function readJson(path: string): Record<string, unknown> | undefined {
   }
 }
 
-/** OneCLI mode: the saved connection holds only the placeholder and ops.json names the gateway. */
-function oneCliSettings(home: string): OpsSettings | undefined {
-  const connection = readJson(join(home, '.config', 'vizoalica', 'local-operations.json'));
+/**
+ * The active environment's own connection file, or — before it has ever been named and imported as one
+ * — the pre-0.7.0 single connection file `vizoalica console` still finds sitting under this home
+ * directory. Checking the raw legacy file too (not only an already-named environment) matters
+ * specifically for OneCLI mode: naming it as an environment is a console action, and the console itself
+ * can only reach an OneCLI-managed backend once the whole process is already wrapped, so the wrap
+ * decision has to be made from the file as found, before any import has happened.
+ */
+function activeEnvironmentConnection(homeDir: string): Record<string, unknown> | undefined {
+  const pointer = readJson(join(homeDir, 'active-environment.json'));
+  const active = pointer?.active;
+  if (typeof active === 'string') {
+    const connection = readJson(join(homeDir, 'environments', `${active}.json`));
+    if (connection) return connection;
+  }
+  return readJson(join(homeDir, 'local-operations.json'));
+}
+
+/**
+ * OneCLI mode for the active environment's administrator secret: its connection file holds only the
+ * placeholder and `ops.json` names the gateway. Whichever environment is active when the console starts
+ * decides whether the whole process is wrapped; switching to a different OneCLI-managed environment
+ * later needs the console restarted to rewrap under that environment's own OneCLI settings (a known
+ * limit for 0.7.0 — file-mode environments, and OneCLI-mode Cloudflare deploy credentials per
+ * environment, are unaffected and can be switched freely without a restart).
+ */
+function oneCliSettings(homeDir: string): OpsSettings | undefined {
+  const connection = activeEnvironmentConnection(homeDir);
   if (connection?.VIZOALICA_ADMIN_SECRET !== PLACEHOLDER) return undefined;
-  const ops = readJson(join(home, '.config', 'vizoalica', 'ops.json'));
+  const ops = readJson(join(homeDir, 'ops.json'));
   const onecli = ops?.onecli as Record<string, unknown> | undefined;
   return typeof onecli?.project === 'string' &&
     typeof onecli.agent === 'string' &&
@@ -56,7 +81,7 @@ function oneCliSettings(home: string): OpsSettings | undefined {
 export function oneCliArguments(
   settings: OpsSettings,
   cliPath: string,
-  configPath: string,
+  homeDir: string,
   nodeOptions: string | undefined
 ) {
   return [
@@ -74,13 +99,25 @@ export function oneCliArguments(
     process.execPath,
     cliPath,
     'serve',
-    configPath
+    homeDir
   ];
 }
 
-/** A plain message for the ways the saved connection can be unusable, or undefined for anything else. */
-function connectionProblem(error: unknown, path: string): string | undefined {
+/** The specific file that made the store throw: the active environment's, or the legacy single file
+ * (the store validates the active environment first, before ever looking at a legacy file). */
+function likelyBadFile(homeDir: string): string {
+  const pointer = readJson(join(homeDir, 'active-environment.json'));
+  if (typeof pointer?.active === 'string') {
+    const path = join(homeDir, 'environments', `${pointer.active}.json`);
+    if (existsSync(path)) return path;
+  }
+  return join(homeDir, 'local-operations.json');
+}
+
+/** A plain message for the ways a saved environment can be unusable, or undefined for anything else. */
+function connectionProblem(error: unknown, homeDir: string): string | undefined {
   const code = error instanceof Error ? error.message : '';
+  const path = likelyBadFile(homeDir);
   if (code === 'config_permissions_must_be_0600')
     return `The saved connection file can be read by other users, so it was not used:\n  ${path}\nMake it private and run this again:\n  chmod 600 ${path}`;
   if (code === 'invalid_connection_file')
@@ -98,19 +135,19 @@ export type ConsoleOptions = { open: boolean };
 
 /** `vizoalica console`: start the service and the console as one process. */
 export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps): Promise<number> {
-  const connectionPath = join(deps.home, '.config', 'vizoalica', 'local-operations.json');
+  const homeDir = join(deps.home, '.config', 'vizoalica');
   const port = Number(deps.env.VIZOALICA_PORT ?? 4318);
   const address = CONSOLE_ADDRESS(port);
   const stopHint = 'Keep this terminal open; press Ctrl+C once to stop.';
 
-  const oneCli = oneCliSettings(deps.home);
+  const oneCli = oneCliSettings(homeDir);
   if (oneCli) {
     deps.out(
       `Starting the console through OneCLI (${oneCli.gateway}).\nConsole: ${address}\n${stopHint}\n`
     );
     const child = deps.spawn(
       'onecli',
-      oneCliArguments(oneCli, deps.cliPath, connectionPath, deps.env.NODE_OPTIONS),
+      oneCliArguments(oneCli, deps.cliPath, homeDir, deps.env.NODE_OPTIONS),
       {
         stdio: 'inherit'
       }
@@ -130,7 +167,7 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
   let service: ReturnType<typeof createService>;
   try {
     service = (deps.createService ?? createService)({
-      configPath: connectionPath,
+      homeDir,
       consoleDir: join(deps.assetDir, 'console'),
       sdkDir: join(deps.assetDir, 'sdk'),
       schemaDir: join(deps.assetDir, 'schema'),
@@ -138,7 +175,7 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
       env: deps.env
     });
   } catch (error) {
-    const message = connectionProblem(error, connectionPath);
+    const message = connectionProblem(error, homeDir);
     if (!message) throw error;
     deps.err(`${message}\n`);
     return 1;
@@ -167,16 +204,16 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
   return 0;
 }
 
-/** `vizoalica serve <file>`: the service alone, used when OneCLI starts it. */
+/** `vizoalica serve <home-dir>`: the service alone, used when OneCLI starts it. */
 export async function serveCommand(
-  configPath: string | undefined,
+  homeDir: string | undefined,
   deps: ConsoleDeps
 ): Promise<number> {
   const port = Number(deps.env.VIZOALICA_PORT ?? 4318);
   let service: ReturnType<typeof createService>;
   try {
     service = (deps.createService ?? createService)({
-      configPath: configPath ?? join(deps.home, '.config', 'vizoalica', 'local-operations.json'),
+      homeDir: homeDir ?? join(deps.home, '.config', 'vizoalica'),
       consoleDir: join(deps.assetDir, 'console'),
       sdkDir: join(deps.assetDir, 'sdk'),
       schemaDir: join(deps.assetDir, 'schema'),
@@ -184,7 +221,7 @@ export async function serveCommand(
       env: deps.env
     });
   } catch (error) {
-    const message = connectionProblem(error, configPath ?? '(default connection file)');
+    const message = connectionProblem(error, homeDir ?? '(default environments directory)');
     deps.err(`${message ?? (error instanceof Error ? error.message : 'Could not start.')}\n`);
     return 1;
   }

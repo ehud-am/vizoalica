@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ConnectionStore } from '../src/connection-store.js';
+import { EnvironmentStore } from '../src/environment-store.js';
 import { buildSetupState, expectedSchemaFrom } from '../src/setup/state.js';
 import { stubWorker, type StubOptions } from './worker-stub.js';
 
@@ -12,13 +12,13 @@ const connect = (
   kind: 'admin-secret' | 'access-key' = 'admin-secret',
   hint?: 'admin' | 'website-owner' | 'analyst'
 ) =>
-  ConnectionStore.fromConnection({
+  EnvironmentStore.fromConnection('default', {
     remoteUrl: 'https://worker.example.workers.dev',
     credential: 'the-credential',
     kind,
     ...(hint ? { roleHint: hint } : {})
   });
-const state = (store: ConnectionStore, expectedSchema: number | null = 1, version = '0.6.3') =>
+const state = (store: EnvironmentStore, expectedSchema: number | null = 1, version = '0.6.3') =>
   buildSetupState({ store, version, expectedSchema });
 const withWorker = (options: StubOptions) => stubWorker(options);
 const stageStatuses = (result: Awaited<ReturnType<typeof state>>) =>
@@ -26,9 +26,7 @@ const stageStatuses = (result: Awaited<ReturnType<typeof state>>) =>
 
 describe('with no connection', () => {
   it('needs first run and offers the first step for the remembered role', async () => {
-    const store = ConnectionStore.fromFile(
-      join(mkdtempSync(join(tmpdir(), 'vizoalica-state-')), 'c.json')
-    );
+    const store = EnvironmentStore.fromDirectory(mkdtempSync(join(tmpdir(), 'vizoalica-state-')));
     const result = await state(store);
     expect(result).toMatchObject({
       version: '0.6.3',
@@ -45,9 +43,7 @@ describe('with no connection', () => {
 
   it('does not contact anything', async () => {
     const { fetchMock } = withWorker({});
-    await state(
-      ConnectionStore.fromFile(join(mkdtempSync(join(tmpdir(), 'vizoalica-state-')), 'c.json'))
-    );
+    await state(EnvironmentStore.fromDirectory(mkdtempSync(join(tmpdir(), 'vizoalica-state-'))));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -203,7 +199,7 @@ describe('with a connection', () => {
 
   it('shows the OneCLI mode without ever exposing the credential', async () => {
     withWorker({});
-    const store = ConnectionStore.fromConnection({
+    const store = EnvironmentStore.fromConnection('default', {
       remoteUrl: 'https://w.example.workers.dev',
       credential: 'onecli-managed',
       kind: 'admin-secret'
@@ -216,7 +212,7 @@ describe('with a connection', () => {
 
   it('survives an unparsable address', async () => {
     withWorker({});
-    const store = ConnectionStore.fromConnection({
+    const store = EnvironmentStore.fromConnection('default', {
       remoteUrl: 'nonsense',
       credential: 'c',
       kind: 'admin-secret'

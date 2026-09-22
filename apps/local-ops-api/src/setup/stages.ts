@@ -1,4 +1,4 @@
-import type { RoleHint } from '../connection-store.js';
+import type { RoleHint } from '../environment-store.js';
 
 export type ViewRole = 'admin' | 'owner' | 'analyst';
 export type StageId = 'console' | 'backend' | 'website' | 'data';
