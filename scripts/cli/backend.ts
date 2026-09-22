@@ -25,84 +25,29 @@ export type BackendResult = {
   secrets: Record<string, string>;
 };
 
-export const DEFAULT_NAMES = {
-  worker: 'vizoalica-ingest',
-  database: 'vizoalica-config',
-  bucket: 'vizoalica-events'
-};
+export {
+  DEFAULT_NAMES,
+  assertResourceName,
+  readConfigNames,
+  parseAccounts,
+  parseDatabases,
+  parseBuckets,
+  parseWorkerUrl,
+  renderProductionConfig
+} from '../../packages/ops-core/src/index.js';
+import {
+  assertResourceName,
+  parseAccounts,
+  parseBuckets,
+  parseDatabases,
+  parseWorkerUrl,
+  readConfigNames,
+  renderProductionConfig
+} from '../../packages/ops-core/src/index.js';
 
 const clean = (text: string): string => text.replace(/\u001b\[[0-9;]*m/g, '').trim();
 const lastLines = (result: RunResult): string =>
   clean(`${result.stderr}\n${result.stdout}`).split('\n').filter(Boolean).slice(-6).join('\n');
-
-export function assertResourceName(kind: string, name: string): void {
-  if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(name))
-    throw new OpsError(
-      `${kind} name "${name}" must be 3-63 lowercase letters, digits, or dashes, starting and ending with a letter or digit.`
-    );
-}
-
-const line = (key: string): RegExp => new RegExp(`^${key}\\s*=\\s*"[^"]*"`, 'm');
-
-/** Fills the checked-in example, so nobody hand-edits a TOML file. */
-export function renderProductionConfig(
-  example: string,
-  values: { worker: string; database: string; databaseId: string; bucket: string }
-): string {
-  let result = example;
-  const replacements: Array<[string, string]> = [
-    ['name', values.worker],
-    ['database_name', values.database],
-    ['database_id', values.databaseId],
-    ['bucket_name', values.bucket]
-  ];
-  for (const [key, value] of replacements) {
-    if (!line(key).test(result))
-      throw new OpsError(
-        `deploy/cloudflare/wrangler.example.toml has no "${key}" line to fill in.`
-      );
-    result = result.replace(line(key), `${key} = "${value}"`);
-  }
-  return result;
-}
-
-export function readConfigNames(
-  config: string
-): { worker: string; database: string; bucket: string } | undefined {
-  const value = (key: string): string | undefined =>
-    config.match(new RegExp(`^${key}\\s*=\\s*"([^"]*)"`, 'm'))?.[1];
-  const worker = value('name');
-  const database = value('database_name');
-  const bucket = value('bucket_name');
-  return worker && database && bucket ? { worker, database, bucket } : undefined;
-}
-
-export function parseAccounts(output: string): Array<{ name: string; id: string }> {
-  const accounts: Array<{ name: string; id: string }> = [];
-  for (const match of clean(output).matchAll(/[│|]\s*([^│|\n]+?)\s*[│|]\s*([0-9a-f]{32})\s*[│|]/g))
-    accounts.push({ name: match[1]!, id: match[2]! });
-  return accounts;
-}
-
-export function parseDatabases(output: string): Array<{ name: string; uuid: string }> {
-  try {
-    const parsed = JSON.parse(output.slice(output.indexOf('['))) as Array<{
-      name?: string;
-      uuid?: string;
-    }>;
-    return parsed.flatMap((item) =>
-      item.name && item.uuid ? [{ name: item.name, uuid: item.uuid }] : []
-    );
-  } catch {
-    return [];
-  }
-}
-
-export const parseBuckets = (output: string): string[] =>
-  [...clean(output).matchAll(/^name:\s+(\S+)/gm)].map((match) => match[1]!);
-
-export const parseWorkerUrl = (output: string): string | undefined =>
-  clean(output).match(/https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev/i)?.[0];
 
 /** Shows generated secrets once, makes the operator confirm they saved them, then wipes the screen. */
 export async function presentSecrets(ctx: Ctx, secrets: Record<string, string>): Promise<void> {
