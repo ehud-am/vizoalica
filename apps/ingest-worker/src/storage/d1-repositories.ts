@@ -1,4 +1,8 @@
 import type {
+  AccessKeyRecord,
+  AccessKeyRole,
+  AccessKeyScope,
+  AccessKeySummary,
   AdminAuditEntry,
   IngestionDecision,
   PageViewCounts,
@@ -113,6 +117,11 @@ const PURGE_TABLES: Array<{ table: string; where: string }> = [
   // Not attributable to a website; only a deleted project's digests can be removed.
   { table: 'dashboard_seen_events', where: `project_id IN (${DELETED_PROJECTS})` },
   { table: 'quota_policies', where: PURGE_POLICY_WHERE },
+  // A key scoped to a deleted website or project goes with it; a key scoped to everything is untouched.
+  {
+    table: 'access_keys',
+    where: `project_id IN (${DELETED_PROJECTS}) OR source_id IN (${DELETED_SOURCES})`
+  },
   { table: 'sources', where: `id IN (${DELETED_SOURCES})` },
   { table: 'projects', where: "status = 'deleted'" }
 ];
@@ -1045,7 +1054,7 @@ export class D1Repositories
   async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
     await this.db
       .prepare(
-        'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code, actor) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
       .bind(
         new Date().toISOString(),
@@ -1053,8 +1062,117 @@ export class D1Repositories
         entry.outcome,
         entry.projectId ?? null,
         entry.sourceId ?? null,
-        entry.reasonCode
+        entry.reasonCode,
+        entry.actor ?? null
       )
       .run();
   }
+
+  private accessKeyRow(row: AccessKeyRow): AccessKeyRecord {
+    return {
+      id: row.id,
+      label: row.label,
+      role: row.role,
+      secretHash: row.secret_hash,
+      scope: { projectId: row.project_id, sourceId: row.source_id },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at
+    };
+  }
+
+  /** False the first time this method is called against a database that predates schema 2. */
+  async hasAccessKeysTable(): Promise<boolean> {
+    const row = await this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'access_keys'")
+      .first();
+    return row !== null;
+  }
+
+  async createAccessKey(input: {
+    id: string;
+    label: string;
+    role: AccessKeyRole;
+    secretHash: string;
+    scope: AccessKeyScope;
+  }): Promise<AccessKeySummary> {
+    const createdAt = new Date().toISOString();
+    await this.db
+      .prepare(
+        'INSERT INTO access_keys (id, label, role, secret_hash, project_id, source_id, created_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)'
+      )
+      .bind(
+        input.id,
+        input.label,
+        input.role,
+        input.secretHash,
+        input.scope.projectId,
+        input.scope.sourceId,
+        createdAt
+      )
+      .run();
+    return {
+      id: input.id,
+      label: input.label,
+      role: input.role,
+      scope: input.scope,
+      createdAt,
+      revokedAt: null
+    };
+  }
+
+  async listAccessKeys(): Promise<AccessKeySummary[]> {
+    const result = await this.db
+      .prepare(
+        'SELECT id, label, role, project_id, source_id, created_at, revoked_at FROM access_keys ORDER BY created_at DESC'
+      )
+      .all<Omit<AccessKeyRow, 'secret_hash'>>();
+    return result.results.map((row) => ({
+      id: row.id,
+      label: row.label,
+      role: row.role,
+      scope: { projectId: row.project_id, sourceId: row.source_id },
+      createdAt: row.created_at,
+      revokedAt: row.revoked_at
+    }));
+  }
+
+  async findAccessKeyById(id: string): Promise<AccessKeyRecord | undefined> {
+    const row = await this.db
+      .prepare('SELECT * FROM access_keys WHERE id = ?')
+      .bind(id)
+      .first<AccessKeyRow>();
+    return row ? this.accessKeyRow(row) : undefined;
+  }
+
+  /** Idempotent: revoking an already-revoked or unknown key still returns whether one exists. */
+  async revokeAccessKey(id: string): Promise<boolean> {
+    const existing = await this.db
+      .prepare('SELECT id FROM access_keys WHERE id = ?')
+      .bind(id)
+      .first();
+    if (!existing) return false;
+    await this.db
+      .prepare('UPDATE access_keys SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ?')
+      .bind(new Date().toISOString(), id)
+      .run();
+    return true;
+  }
+
+  async countActiveAccessKeys(): Promise<number> {
+    const row = await this.db
+      .prepare('SELECT COUNT(*) AS n FROM access_keys WHERE revoked_at IS NULL')
+      .first<{ n: number }>();
+    return Number(row?.n ?? 0);
+  }
 }
+
+type AccessKeyRow = {
+  id: string;
+  label: string;
+  role: AccessKeyRole;
+  secret_hash: string;
+  project_id: string | null;
+  source_id: string | null;
+  created_at: string;
+  revoked_at: string | null;
+};

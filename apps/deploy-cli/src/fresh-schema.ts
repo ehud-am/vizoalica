@@ -19,7 +19,8 @@ const VIZOALICA_SCHEMA_TABLES = [
   'dashboard_minute_actions',
   'dashboard_minute_action_visitors',
   'dashboard_seen_events',
-  'dashboard_aggregate_watermarks'
+  'dashboard_aggregate_watermarks',
+  'access_keys'
 ] as const;
 
 const quotedTables = VIZOALICA_SCHEMA_TABLES.map((name) => `'${name}'`).join(', ');

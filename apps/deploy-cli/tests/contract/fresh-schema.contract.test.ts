@@ -8,14 +8,16 @@ import { ok } from '../support.js';
 const migrationsDirectory = join(process.cwd(), 'deploy/cloudflare/migrations');
 
 describe('fresh deployment schema contract', () => {
-  it('contains one complete baseline without upgrade transformations', async () => {
-    const migrations = (await readdir(migrationsDirectory)).filter((name) => name.endsWith('.sql'));
-    expect(migrations).toEqual(['0001_initial.sql']);
-    const sql = await readFile(join(migrationsDirectory, migrations[0]!), 'utf8');
-    expect(sql).not.toMatch(/ALTER\s+TABLE|DROP\s+TABLE|INSERT\s+OR\s+IGNORE\s+INTO[\s\S]+SELECT/i);
+  it('starts from one complete baseline, then only additive numbered changes', async () => {
+    const migrations = (await readdir(migrationsDirectory))
+      .filter((name) => name.endsWith('.sql'))
+      .sort();
+    expect(migrations[0]).toBe('0001_initial.sql');
+    const baseline = await readFile(join(migrationsDirectory, migrations[0]!), 'utf8');
+    expect(baseline).not.toMatch(/ALTER\s+TABLE|DROP\s+TABLE|INSERT\s+OR\s+IGNORE\s+INTO[\s\S]+SELECT/i);
 
     const database = new DatabaseSync(':memory:');
-    database.exec(sql);
+    for (const name of migrations) database.exec(await readFile(join(migrationsDirectory, name), 'utf8'));
     const tables = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()
@@ -38,7 +40,8 @@ describe('fresh deployment schema contract', () => {
         'projects',
         'quota_policies',
         'quota_windows',
-        'sources'
+        'sources',
+        'access_keys'
       ])
     );
     const sourceColumns = database

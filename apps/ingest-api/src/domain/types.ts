@@ -27,7 +27,30 @@ export interface AdminAuditEntry {
   reasonCode: string;
   projectId?: string;
   sourceId?: string;
+  /** The access key id of an owner's write; absent for the admin. */
+  actor?: string;
 }
+
+export type AccessKeyRole = 'analyst' | 'owner';
+export interface AccessKeyScope {
+  projectId: string | null;
+  sourceId: string | null;
+}
+export interface AccessKeyRecord {
+  id: string;
+  label: string;
+  role: AccessKeyRole;
+  secretHash: string;
+  scope: AccessKeyScope;
+  createdAt: string;
+  revokedAt: string | null;
+}
+export type AccessKeySummary = Omit<AccessKeyRecord, 'secretHash'>;
+
+/** The admin, or an access key's holder with the role and scope the backend resolved. */
+export type Principal =
+  | { role: 'admin' }
+  | { role: AccessKeyRole; keyId: string; keyLabel: string; scope: AccessKeyScope };
 
 export interface PageViewCounts {
   total: number;

@@ -6,6 +6,10 @@ import type {
   StoredEvent
 } from '../domain/types.js';
 import type {
+  AccessKeyRecord,
+  AccessKeyRole,
+  AccessKeyScope,
+  AccessKeySummary,
   ActionsFilters,
   ActionsReport,
   AdminAuditEntry,
@@ -94,4 +98,18 @@ export interface AdminRepository {
   ): Promise<ActionsReport | undefined>;
   deleteExpiredDashboardData?(beforeUtc: string): Promise<void>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
+  /** Absent on a Worker whose database predates access keys. */
+  createAccessKey?(input: {
+    id: string;
+    label: string;
+    role: AccessKeyRole;
+    secretHash: string;
+    scope: AccessKeyScope;
+  }): Promise<AccessKeySummary>;
+  listAccessKeys?(): Promise<AccessKeySummary[]>;
+  findAccessKeyById?(id: string): Promise<AccessKeyRecord | undefined>;
+  revokeAccessKey?(id: string): Promise<boolean>;
+  countActiveAccessKeys?(): Promise<number>;
+  /** True when the schema has the `access_keys` table (a database updated to at least schema 2). */
+  hasAccessKeysTable?(): Promise<boolean>;
 }
