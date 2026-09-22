@@ -43,20 +43,36 @@ export function SharePanel({ projectId, websiteId }: { projectId: string; websit
       <fieldset className="role-choices">
         <legend>Give them</legend>
         <label className="role-choice">
-          <input type="radio" name="share-role" checked={role === 'owner'} onChange={() => setRole('owner')} />
+          <input
+            type="radio"
+            name="share-role"
+            checked={role === 'owner'}
+            onChange={() => setRole('owner')}
+          />
           <span>
             <strong>Website owner access</strong> — can manage this website.
           </span>
         </label>
         <label className="role-choice">
-          <input type="radio" name="share-role" checked={role === 'analyst'} onChange={() => setRole('analyst')} />
+          <input
+            type="radio"
+            name="share-role"
+            checked={role === 'analyst'}
+            onChange={() => setRole('analyst')}
+          />
           <span>
             <strong>Analyst access</strong> — can only view it.
           </span>
         </label>
       </fieldset>
       <div className="form-actions">
-        <ActionButton capability="share-website-setup" type="button" className="primary" disabled={busy} onClick={() => void share()}>
+        <ActionButton
+          capability="share-website-setup"
+          type="button"
+          className="primary"
+          disabled={busy}
+          onClick={() => void share()}
+        >
           {busy ? 'Creating…' : details ? 'Create a new one' : 'Create setup details'}
         </ActionButton>
       </div>

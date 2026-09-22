@@ -28,7 +28,15 @@ import { WebsiteAddPage } from './manage/WebsiteAddPage.js';
 import { WebsiteEditPage } from './manage/WebsiteEditPage.js';
 import { WebsitePage } from './manage/WebsitePage.js';
 import { WebsitesPage } from './manage/WebsitesPage.js';
-import { hrefFor, navigate, routeArea, scopeControls, showsRange, useRoute, type Route } from './router.js';
+import {
+  hrefFor,
+  navigate,
+  routeArea,
+  scopeControls,
+  showsRange,
+  useRoute,
+  type Route
+} from './router.js';
 import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
 import { FlashProvider } from './shell/FlashProvider.js';

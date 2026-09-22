@@ -199,7 +199,9 @@ function WebsiteHub({ website }: { website: Website }) {
         </section>
       </div>
 
-      {setup.state?.principal?.role === 'admin' && <SharePanel projectId={projectId} websiteId={website.id} />}
+      {setup.state?.principal?.role === 'admin' && (
+        <SharePanel projectId={projectId} websiteId={website.id} />
+      )}
 
       <DangerZone
         target={website.name}
