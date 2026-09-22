@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, bootstrapSession, listProjects, type Project } from './api/local-operations.js';
+import {
+  ApiError,
+  bootstrapSession,
+  getSetupState,
+  listProjects,
+  type Project,
+  type SetupState
+} from './api/local-operations.js';
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
@@ -26,6 +33,10 @@ import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
 import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
+import { FirstRun } from './setup/FirstRun.js';
+import { Journey } from './setup/Journey.js';
+import { SetupPage } from './setup/SetupPage.js';
+import { SetupProvider, useSetup } from './setup/SetupProvider.js';
 import { useTheme } from './theme.js';
 
 function AnalyticsRoute({ route }: { route: Route }) {
@@ -45,9 +56,11 @@ function AnalyticsRoute({ route }: { route: Route }) {
   }
 }
 
-function ManageRoute({ route }: { route: Route }) {
+function ManageRoute({ route, onReconnect }: { route: Route; onReconnect: () => void }) {
   const websiteId = route.websiteId ?? '';
   switch (route.path) {
+    case 'setup':
+      return <SetupPage onChanged={onReconnect} />;
     case 'manage/websites':
       return <WebsitesPage />;
     case 'manage/websites/new':
@@ -65,7 +78,22 @@ function ManageRoute({ route }: { route: Route }) {
   }
 }
 
-function Console({ route }: { route: Route }) {
+/** Shown on every screen when the backend cannot be reached, so stale results are never mistaken for live ones. */
+function BackendNotice() {
+  const { state, refresh } = useSetup();
+  if (!state || state.connection.status !== 'unreachable') return null;
+  return (
+    <p className="notice error backend-notice" role="alert">
+      The backend is not answering. Your websites keep collecting; results will return when it does.{' '}
+      <button className="link-button" type="button" onClick={() => void refresh()}>
+        Try again
+      </button>{' '}
+      <a href="#/setup">Check the connection</a>
+    </p>
+  );
+}
+
+function Console({ route, onReconnect }: { route: Route; onReconnect: () => void }) {
   const area = routeArea(route.path);
   const controls = scopeControls(route.path);
   return (
@@ -80,6 +108,8 @@ function Console({ route }: { route: Route }) {
             showWebsite={controls === 'project-website'}
             showRange={showsRange(route.path)}
           />
+          <BackendNotice />
+          <Journey />
           <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>
             {route.path === 'analytics/actions' ? (
               // Its own data: it never needs the overview, so it does not fetch it.
@@ -89,7 +119,7 @@ function Console({ route }: { route: Route }) {
                 <AnalyticsRoute route={route} />
               </AnalyticsProvider>
             ) : (
-              <ManageRoute route={route} />
+              <ManageRoute route={route} onReconnect={onReconnect} />
             )}
           </main>
           <AppFooter />
@@ -102,7 +132,10 @@ function Console({ route }: { route: Route }) {
 export function App() {
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [session, setSession] = useState(0);
-  const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
+  const [setupState, setSetupState] = useState<SetupState | undefined>();
+  const [access, setAccess] = useState<
+    'loading' | 'ready' | 'denied' | 'offline' | 'first-run' | 'setup'
+  >('loading');
   const [denialReason, setDenialReason] = useState<
     'session_expired' | 'worker_authorization' | undefined
   >();
@@ -113,6 +146,22 @@ export function App() {
     setDenialReason(undefined);
     try {
       await bootstrapSession();
+      // A console that cannot ask how far along it is carries on as before rather than blocking.
+      const state = await getSetupState().catch(() => undefined);
+      setSetupState(state);
+      if (state?.needsFirstRun) {
+        setAccess('first-run');
+        return;
+      }
+      if (state?.connection.status === 'incompatible') {
+        setAccess('setup');
+        return;
+      }
+      if (state?.connection.status === 'revoked') {
+        setDenialReason('worker_authorization');
+        setAccess('denied');
+        return;
+      }
       setInitialProjects(await listProjects());
       setSession((value) => value + 1);
       setAccess('ready');
@@ -141,14 +190,35 @@ export function App() {
         </div>
       </header>
       {access === 'ready' ? (
-        <ScopeProvider key={session} initialProjects={initialProjects}>
-          <Console route={route} />
-        </ScopeProvider>
+        <SetupProvider key={session} initial={setupState}>
+          <ScopeProvider key={session} initialProjects={initialProjects}>
+            <Console route={route} onReconnect={() => void connect()} />
+          </ScopeProvider>
+        </SetupProvider>
       ) : (
         <div className="workspace workspace-single">
           <div className="content-column">
             <main id="main" tabIndex={-1}>
-              <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
+              {access === 'first-run' ? (
+                <FirstRun onDone={() => void connect()} />
+              ) : access === 'setup' ? (
+                <SetupProvider key={session} initial={setupState}>
+                  <SetupPage onChanged={() => void connect()} />
+                </SetupProvider>
+              ) : (
+                <>
+                  <AccessState
+                    state={access}
+                    reason={denialReason}
+                    onRetry={() => void connect()}
+                  />
+                  {setupState && access !== 'loading' && (
+                    <SetupProvider initial={setupState}>
+                      <SetupPage onChanged={() => void connect()} />
+                    </SetupProvider>
+                  )}
+                </>
+              )}
             </main>
             <AppFooter />
           </div>

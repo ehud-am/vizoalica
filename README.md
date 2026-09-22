@@ -120,6 +120,26 @@ deploy scripts assume macOS or Linux.
 section to do that, and to install on another computer, choose your own names, use OneCLI, or
 update an existing backend.
 
+## Install the console from npm
+
+You do not need a checkout to run the console. With Node.js 22 or newer on macOS or Linux:
+
+```sh
+npm install -g vizoalica
+vizoalica console
+```
+
+`vizoalica console` starts the console on your computer at `http://127.0.0.1:4318` and opens it in your
+browser. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts: it keeps
+you on the path from a running console, to a backend in your Cloudflare account, to your websites, to results,
+and shows anything that cannot work yet as unavailable, with the reason and the next step. Update it with
+`npm update -g vizoalica` and remove it with `npm uninstall -g vizoalica`; your settings stay in
+`~/.config/vizoalica/`.
+
+This release installs the **console**. Deploying the backend for the first time is still done from a source
+checkout (`pnpm vizoalica install` above), and the console then connects to it. Deploying from the console
+itself is planned for the next release, and `pnpm vizoalica` remains available for scripts and contributors.
+
 ## Production deployment, part by part
 
 The quick start already did parts 1 and 2 on this computer. Use this section to do the parts one at

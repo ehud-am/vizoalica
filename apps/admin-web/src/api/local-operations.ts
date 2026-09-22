@@ -240,3 +240,54 @@ export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };
 export const getThemePreference = () => request<ThemePreferenceResult>('/api/preferences/theme');
 export const putThemePreference = (theme: Theme) =>
   request<{ theme: Theme; updatedAt: string }>('/api/preferences/theme', json('PUT', { theme }));
+
+export type ViewRole = 'admin' | 'owner' | 'analyst';
+export type RoleHint = 'admin' | 'website-owner' | 'analyst';
+export type ConnectionStatus = 'none' | 'connected' | 'unreachable' | 'revoked' | 'incompatible';
+export type StageId = 'console' | 'backend' | 'website' | 'data';
+export type NextAction = { id: string; label: string; href?: string };
+export type Stage = {
+  id: StageId;
+  label: string;
+  status: 'done' | 'current' | 'todo' | 'blocked';
+  next?: NextAction;
+};
+export type VersionStatus = {
+  status: 'current' | 'update-available' | 'console-older' | 'unknown' | 'unsupported';
+  message: string;
+  update: 'backend' | 'console' | null;
+};
+export type SetupState = {
+  version: string;
+  needsFirstRun: boolean;
+  connection: {
+    status: ConnectionStatus;
+    workerHost?: string;
+    mode?: 'file' | 'onecli';
+    roleHint?: RoleHint;
+  };
+  principal?: {
+    role: ViewRole;
+    scope: { projectId: string | null; sourceId: string | null };
+    keyLabel: string | null;
+    features: { accessKeys: boolean; versions: boolean };
+  };
+  backend?: {
+    workerVersion: string | null;
+    schema: { applied: number | null; expected: number | null };
+    worker: VersionStatus;
+    schemaStatus: VersionStatus;
+    message: string;
+  };
+  stages: Stage[];
+  notice?: 'administrator_secret_used' | 'role_corrected';
+};
+export const getSetupState = () => request<SetupState>('/api/setup/state');
+export const connectBackend = (input: {
+  workerUrl: string;
+  credential: string;
+  roleHint?: RoleHint;
+}) => request<SetupState>('/api/setup/connect', json('POST', input));
+export const disconnectBackend = () => request<SetupState>('/api/setup/disconnect', json('POST'));
+export const setRoleHint = (roleHint: RoleHint) =>
+  request<SetupState>('/api/setup/role', json('POST', { roleHint }));

@@ -134,11 +134,11 @@ test('keeps the footer centered, unobscured, and reachable at narrow 200% zoom',
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     )
   ).toBeLessThanOrEqual(1);
-  await expect(page.getByRole('link', { name: 'vizoalica.dev' })).toHaveAttribute(
+  await expect(footer.getByRole('link', { name: /^Website:/ })).toHaveAttribute(
     'href',
     'https://vizoalica.dev'
   );
-  await expect(page.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
+  await expect(footer.getByRole('link', { name: /^GitHub:/ })).toHaveAttribute(
     'href',
     'https://github.com/ehud-am/vizoalica'
   );

@@ -21,6 +21,16 @@ Never start the API yourself with `pnpm local-ops-api:dev` when the file contain
 `onecli-managed`: it would send the placeholder and get HTTP 401, and the API refuses that launch
 when it can identify the placeholder.
 
+## From the npm package
+
+If you installed the package with `npm install -g vizoalica`, there is no checkout and no separate web server.
+`vizoalica console` starts the private API and serves the console itself on `http://127.0.0.1:4318`, opens
+it in your browser, and stops on one Ctrl+C. It reads the same `~/.config/vizoalica/local-operations.json`, so
+a setup made with `pnpm vizoalica connect` (in either credential mode) is recognized with no questions. With no
+saved connection it starts anyway and the console asks a few first-run questions. If the file can be read by
+other users, or is damaged, it tells you the one command that fixes it and prints nothing from inside the file.
+Update with `npm update -g vizoalica`. `--no-open` skips opening the browser.
+
 ## Check the mode and status
 
 ```sh

@@ -41,3 +41,31 @@ describe('audience attributes review', () => {
     expect(read('docs/operations/operator-local.md')).toContain('## Using the console');
   });
 });
+
+describe('install from npm', () => {
+  it.each(['README.md', 'docs/get-started.md', 'docs/index.md', 'llms.txt'])(
+    '%s shows how to install and start the console',
+    (path) => {
+      const text = read(path);
+      expect(text).toContain('npm install -g vizoalica');
+      expect(text).toContain('vizoalica console');
+    }
+  );
+
+  it('no longer says the project is distributed as source only', () => {
+    expect(read('llms.txt')).not.toContain('source only');
+    expect(read('llms.txt')).toContain('`vizoalica` npm package');
+  });
+
+  it('says how to update and remove it, and where settings live', () => {
+    const text = read('README.md');
+    expect(text).toContain('npm update -g vizoalica');
+    expect(text).toContain('npm uninstall -g vizoalica');
+    expect(text).toContain('~/.config/vizoalica/');
+  });
+
+  it('is honest that this release installs the console and the backend is deployed from a checkout', () => {
+    expect(read('README.md')).toMatch(/installs the \*\*console\*\*/);
+    expect(read('docs/get-started.md')).toMatch(/installs the console/);
+  });
+});

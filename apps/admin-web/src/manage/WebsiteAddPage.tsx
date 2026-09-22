@@ -5,12 +5,14 @@ import { PageHeader } from '../components/PageHeader.js';
 import { WebsiteForm, type WebsiteInput } from '../components/WebsiteForm.js';
 import { hrefFor, navigate } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
+import { useSetup } from '../setup/SetupProvider.js';
 import { useFlash } from '../shell/FlashProvider.js';
 import { useDirtyGuard } from './useDirtyGuard.js';
 
 /** Adds a website. Its first field is the project, so the owner is always chosen on purpose. */
 export function WebsiteAddPage() {
   const scope = useScope();
+  const setup = useSetup();
   const flash = useFlash();
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +30,7 @@ export function WebsiteAddPage() {
         name: input.name,
         allowedOrigins: input.allowedOrigins
       });
+      void setup.refresh();
       if (input.projectId === scope.projectId) await scope.refreshWebsites();
       else scope.selectProject(input.projectId);
       flash.carry(

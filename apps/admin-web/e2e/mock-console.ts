@@ -178,20 +178,118 @@ function actionsReport(url: URL) {
 const staticSnippet =
   '<script async src="/vizoalica.js" data-source="public-key" data-project="project-1"></script>';
 
+export type MockSetup = Record<string, unknown>;
+
+const stage = (id: string, label: string, status: string, next?: unknown) => ({
+  id,
+  label,
+  status,
+  ...(next ? { next } : {})
+});
+export const STAGE_LABELS = [
+  'Console running',
+  'Backend connected',
+  'Website configured',
+  'Data arriving'
+];
+
+/** The setup state a console would report; every stage is done unless `current` names one that is not. */
+export function setupState(
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  current?: { at: 1 | 2 | 3; next: { id: string; label: string; href?: string }; status?: string },
+  overrides: Record<string, unknown> = {}
+): MockSetup {
+  const ids = ['console', 'backend', 'website', 'data'];
+  return {
+    version: '0.6.3',
+    needsFirstRun: false,
+    connection: { status: 'connected', workerHost: 'worker.test', mode: 'file' },
+    principal: {
+      role,
+      scope: { projectId: null, sourceId: null },
+      keyLabel: role === 'admin' ? null : 'Jane',
+      features: { accessKeys: true, versions: true }
+    },
+    backend: {
+      workerVersion: '0.6.3',
+      schema: { applied: 1, expected: 1 },
+      worker: { status: 'current', message: 'The Worker matches this console.', update: null },
+      schemaStatus: {
+        status: 'current',
+        message: 'The database schema is up to date.',
+        update: null
+      },
+      message: 'The database schema is up to date.'
+    },
+    stages: ids.map((id, index) =>
+      stage(
+        id,
+        STAGE_LABELS[index]!,
+        !current || index < current.at
+          ? 'done'
+          : index === current.at
+            ? (current.status ?? 'current')
+            : 'todo',
+        current && index === current.at ? current.next : undefined
+      )
+    ),
+    ...overrides
+  };
+}
+
+export const firstRunSetup = (): MockSetup => ({
+  version: '0.6.3',
+  needsFirstRun: true,
+  connection: { status: 'none' },
+  stages: ['console', 'backend', 'website', 'data'].map((id, index) =>
+    stage(
+      id,
+      STAGE_LABELS[index]!,
+      index === 0 ? 'done' : index === 1 ? 'current' : 'todo',
+      index === 1
+        ? { id: 'connect-backend', label: 'Deploy or connect a backend', href: '#/setup' }
+        : undefined
+    )
+  )
+});
+
 export interface MockOptions {
   projects?: unknown[];
+  /** The setup state to report; connected with nothing left to do when omitted. */
+  setup?: MockSetup;
+  /** What a successful connect reports next. */
+  afterConnect?: MockSetup;
+  /** Records every request that is not a read, so tests can prove a control sent nothing. */
+  writes?: string[];
+  /** Answer a connect with this status instead of connecting. */
+  connectFails?: number;
 }
 
 /** Answers every console API call locally; nothing reaches a real backend. */
 export async function mockConsole(page: Page, options: MockOptions = {}) {
   // Websites created during a test are listed afterwards, so create-then-open flows work.
   const created: Array<Record<string, unknown>> = [];
+  let setup: MockSetup = options.setup ?? setupState();
   await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
     let body: unknown = {};
+    if (request.method() !== 'GET' && path !== '/api/session')
+      options.writes?.push(`${request.method()} ${path}`);
     if (path === '/api/session') return route.fulfill({ status: 204 });
+    if (path === '/api/setup/state') return route.fulfill({ json: setup });
+    if (path === '/api/setup/connect') {
+      if (options.connectFails)
+        return route.fulfill({ status: options.connectFails, json: { error: 'failed' } });
+      setup = options.afterConnect ?? setupState();
+      return route.fulfill({ json: setup });
+    }
+    if (path === '/api/setup/disconnect') {
+      setup = firstRunSetup();
+      return route.fulfill({ json: setup });
+    }
+    if (path === '/api/setup/role') return route.fulfill({ json: setup });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;
       const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };

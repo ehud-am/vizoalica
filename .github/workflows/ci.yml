@@ -62,6 +62,10 @@ jobs:
       - name: Build the standalone browser SDK
         run: pnpm browser-sdk:build
 
+      # Packs what npm would publish, installs it into an empty prefix and home, and starts the console from it.
+      - name: Build and check the npm package
+        run: pnpm package:build && pnpm package:check
+
       - name: Install Chromium
         run: pnpm --filter @vizoalica/admin-web exec playwright install --with-deps chromium
 

@@ -27,6 +27,11 @@ export async function startApi(
     sessionTtlMs,
     configFilePath
   });
+  return { server, ...callerFor(server), close: async () => undefined };
+}
+
+/** Drives a server with hand-made request and response objects, so no port is opened. */
+export function callerFor(server: ReturnType<typeof createLocalServer>) {
   const call = (
     path: string,
     options: {
@@ -42,6 +47,7 @@ export async function startApi(
     new Promise<{
       status: number;
       body: Record<string, unknown>;
+      text: string;
       cookie?: string;
       headers: Record<string, string>;
     }>((resolve) => {
@@ -72,12 +78,14 @@ export async function startApi(
             responseHeaders.set(name.toLowerCase(), value);
           return this;
         },
-        end(data?: string) {
-          const text = data ?? '';
+        end(data?: string | Buffer) {
+          const text = data === undefined ? '' : data.toString();
           const setCookie = responseHeaders.get('set-cookie')?.split(';')[0];
+          const json = (responseHeaders.get('content-type') ?? '').includes('json');
           resolve({
             status,
-            body: text ? (JSON.parse(text) as Record<string, unknown>) : {},
+            text,
+            body: text && json ? (JSON.parse(text) as Record<string, unknown>) : {},
             headers: Object.fromEntries(responseHeaders),
             ...(setCookie ? { cookie: setCookie } : {})
           });
@@ -86,5 +94,5 @@ export async function startApi(
       server.emit('request', request, response);
     });
   const session = async () => (await call('/api/session', { method: 'POST' })).cookie!;
-  return { server, call, session, close: async () => undefined };
+  return { call, session };
 }

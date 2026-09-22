@@ -415,23 +415,76 @@ h2 {
 .app-footer {
   width: 100%;
   margin-top: auto;
-  padding: 20px 40px;
+  padding: 32px 40px 20px;
   border-top: 1px solid var(--color-border-default);
-  color: var(--color-text-tertiary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
 .app-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px 48px;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+}
+.app-footer-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 320px;
+}
+.app-footer-brand .brand-logo {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.app-footer-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.app-footer-tagline {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+}
+.app-footer-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.app-footer-heading {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.app-footer a {
+  color: var(--color-text-brand);
+  text-underline-offset: 3px;
+}
+.app-footer a:focus-visible {
+  outline: 2px solid var(--color-text-brand);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.app-footer-legal {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 8px;
   width: min(100%, 1200px);
-  margin: 0 auto;
-  text-align: center;
-}
-.app-footer a {
-  color: var(--color-text-brand);
+  margin: 24px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-default);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
 }
 .technical-value,
 .detail-card dd {
@@ -1019,6 +1072,10 @@ pre {
   }
   .app-footer {
     padding-inline: 20px;
+  }
+  .app-footer-inner {
+    flex-direction: column;
+    gap: 20px;
   }
   .brand span:last-child {
     display: none;
@@ -2127,4 +2184,183 @@ a.nav-item {
 }
 .page-cell {
   overflow-wrap: anywhere;
+}
+
+/* Setup: first run, the journey, the connection form, and controls that cannot be used yet. */
+.first-run {
+  max-width: 640px;
+  margin: 8vh auto 0;
+  text-align: left;
+}
+.first-run .eyebrow {
+  margin: 0 0 8px;
+}
+.first-run h1:focus {
+  outline: none;
+}
+.role-choices {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  border: 0;
+}
+.role-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  cursor: pointer;
+}
+.role-choice:has(input:checked) {
+  border-color: var(--color-text-brand);
+  background: var(--color-surface-accent);
+}
+.role-choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-text-brand);
+  outline-offset: 2px;
+}
+.role-choice input {
+  margin-top: 4px;
+}
+.role-choice small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.steps {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.connect-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.connect-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.connect-form small {
+  color: var(--color-text-secondary);
+}
+.connect-form input {
+  width: 100%;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.control-reason {
+  display: inline-block;
+  margin-left: 10px;
+  max-width: 46ch;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.control-reason a {
+  color: var(--color-text-brand);
+}
+[aria-disabled='true'][data-capability] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.journey {
+  margin: 0 0 8px;
+  padding: 16px 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+.journey-stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.journey-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.journey-number {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 50%;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.journey-stage.done .journey-number {
+  color: var(--color-text-brand);
+  border-color: var(--color-text-brand);
+}
+.journey-stage[aria-current='step'] .journey-number {
+  color: var(--color-surface-raised);
+  background: var(--color-text-brand);
+  border-color: var(--color-text-brand);
+}
+.journey-label {
+  display: grid;
+  min-width: 0;
+}
+.journey-status {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.journey-next {
+  margin: 14px 0 0;
+}
+.journey-next a {
+  color: var(--color-text-brand);
+}
+.detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+.detail-list > div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+}
+.detail-list dt {
+  color: var(--color-text-secondary);
+}
+.detail-list dd {
+  margin: 0;
+}
+.backend-notice {
+  margin: 0 0 12px;
+}
+@media (max-width: 720px) {
+  .journey-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .first-run {
+    margin-top: 4vh;
+    padding: 24px 16px;
+  }
+  .detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
 }

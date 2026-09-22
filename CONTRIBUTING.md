@@ -62,6 +62,9 @@ it. A contribution you make is released under the project's [MIT license](LICENS
 
 ## Development setup
 
+You only need a checkout to work on Vizoalica or to deploy a backend. To run the console, install the
+package instead: `npm install -g vizoalica`, then `vizoalica console`.
+
 Requirements are Node.js 22 or newer and the pnpm version declared in `package.json`.
 
 ```sh

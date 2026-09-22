@@ -31,8 +31,8 @@ identifier.
 | Command                | Status                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
 | `console`              | The front door. Starts the service and console as one process, prints the address, opens the browser (`--no-open` to skip), stops everything on one interrupt. Starts with no backend |
-| `status`, `doctor`, `verify` | Unchanged behavior                                                                     |
-| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept for scripts and advanced use; not the documented path |
+| `status`, `doctor`, `verify` | Slice 1 (0.6.3): from the package these print where to go (`vizoalica console`, or a source checkout) and exit 2; behavior unchanged in a checkout |
+| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout for scripts and advanced use; from the package (slice 1) they print where to go and exit 2. Console-based replacements arrive in slice 2 |
 | `install`              | **Retired** in the release that ships console deployment: prints "vizoalica install was retired. Run `vizoalica console`; it guides setup.", does nothing else, exit code 2 |
 
 ### `vizoalica console` behavior
@@ -51,7 +51,7 @@ through to it; `NODE_OPTIONS` under OneCLI keeps the existing warning suppressio
 
 ## Build and checks
 
-`pnpm package:build` assembles `apps/cli/dist` and a publishable `package.json`; `pnpm package:check` runs
+`pnpm package:build` assembles `apps/cli/package` and a publishable `package.json`; `pnpm package:check` runs
 `npm pack`, compares the file list to the allowlist, installs the tarball into a temporary prefix, starts
 `vizoalica console` on a spare port, and asserts: `--version`, `GET /` returns the console, `GET
 /api/setup/state` says `needsFirstRun`, `/api/sdk/vizoalica.js` is served, a path-traversal request is

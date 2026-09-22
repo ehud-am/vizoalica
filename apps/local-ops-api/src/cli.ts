@@ -1,5 +1,5 @@
-import { loadConfig, loadConfigFile, writeConfigFile } from './config.js';
-import { createLocalServer } from './server.js';
+import { writeConfigFile } from './config.js';
+import { createService, listenLoopback } from './service.js';
 import { Writable } from 'node:stream';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -60,18 +60,9 @@ async function main(): Promise<void> {
     );
     console.log(`Local authorization revoked: ${path}`);
   } else {
-    const config = path ? loadConfigFile(path) : loadConfig();
-    // This check is a foot-gun guard for an honest operator who ran the
-    // wrong startup command, not a security boundary: anyone able to set
-    // VIZOALICA_ONECLI_WRAPPED=1 already has local shell access to this
-    // machine, and therefore to the config file itself.
-    if (config.adminSecret === 'onecli-managed' && process.env.VIZOALICA_ONECLI_WRAPPED !== '1')
-      throw new Error(
-        'onecli_placeholder_requires_wrapper: start this configuration with pnpm vizoalica console'
-      );
-    createLocalServer(config).listen(config.port, '127.0.0.1', () =>
-      console.log(`Vizoalica local API listening on http://127.0.0.1:${config.port}`)
-    );
+    const { server, settings } = createService({ configPath: path });
+    await listenLoopback(server, settings.port);
+    console.log(`Vizoalica local API listening on http://127.0.0.1:${settings.port}`);
   }
 }
 

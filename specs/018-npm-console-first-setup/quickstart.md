@@ -26,7 +26,7 @@ pnpm package:check   # the tarball allowlist, clean-prefix install, and start-up
 
 ```sh
 pnpm package:build
-npm pack --workspace vizoalica --pack-destination "$TMPDIR/vz-pack"
+(cd apps/cli/package && npm pack --pack-destination "$TMPDIR/vz-pack")
 npm install -g --prefix "$TMPDIR/vz-prefix" "$TMPDIR/vz-pack"/vizoalica-*.tgz
 "$TMPDIR/vz-prefix/bin/vizoalica" --version
 HOME="$TMPDIR/vz-home" "$TMPDIR/vz-prefix/bin/vizoalica" console --no-open
@@ -41,7 +41,7 @@ the files in [contracts/package-and-cli.md](./contracts/package-and-cli.md).
 ## 3. The footer (Story 1, SC-008)
 
 ```sh
-pnpm --filter @vizoalica/admin-web test:e2e -- --grep "footer"
+pnpm --filter @vizoalica/admin-web exec playwright test e2e/footer.spec.ts
 ```
 
 **Expect:** the brand, tagline, both link groups, and version appear on the first-run, connected, and
@@ -51,7 +51,8 @@ name; no network request is made by the footer; axe reports nothing.
 ## 4. First run and the journey (Stories 3 and 4, SC-003, SC-004)
 
 ```sh
-pnpm --filter @vizoalica/admin-web test:e2e -- --grep "first run|journey|availability"
+pnpm --filter @vizoalica/admin-web exec playwright test e2e/first-run.spec.ts e2e/journey.spec.ts
+pnpm vitest run apps/admin-web/tests/first-run.test.tsx apps/admin-web/tests/journey.test.tsx apps/admin-web/tests/availability.test.ts apps/admin-web/tests/setup-experience.test.tsx
 ```
 
 **Expect:** for each role and situation the first-run flow asks at most three questions and lands on the right

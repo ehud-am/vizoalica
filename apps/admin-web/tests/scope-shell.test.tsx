@@ -151,7 +151,10 @@ describe('single scope control', () => {
 
   it('offers a path to create a project from every screen that needs one when none exists', async () => {
     api.listProjects.mockResolvedValue([]);
-    for (const route of concrete.filter((item) => item.address !== 'manage/projects')) {
+    // The Connection screen is about the backend, not about a project.
+    for (const route of concrete.filter(
+      (item) => item.address !== 'manage/projects' && item.address !== 'setup'
+    )) {
       window.location.hash = `#/${route.address}`;
       render(<App />);
       const link = await screen.findByRole('link', { name: 'Create a project' });

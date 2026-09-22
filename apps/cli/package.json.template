@@ -1,0 +1,40 @@
+{
+  "name": "vizoalica",
+  "version": "__VERSION__",
+  "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2. Run `vizoalica console` to set it up and see your results.",
+  "keywords": [
+    "analytics",
+    "web-analytics",
+    "product-analytics",
+    "privacy",
+    "privacy-first",
+    "self-hosted",
+    "open-source",
+    "cloudflare",
+    "cloudflare-workers",
+    "cloudflare-d1",
+    "cloudflare-r2"
+  ],
+  "license": "MIT",
+  "homepage": "https://vizoalica.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ehud-am/vizoalica.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ehud-am/vizoalica/issues"
+  },
+  "type": "module",
+  "bin": {
+    "vizoalica": "dist/cli.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "os": ["darwin", "linux"],
+  "files": ["dist/", "README.md", "LICENSE", "CHANGELOG.md"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

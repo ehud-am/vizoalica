@@ -53,6 +53,12 @@ setup procedure.
 - **Worker rejects the current credential:** use `pnpm vizoalica status`, then repair or rotate the
   direct credential, or correct the OneCLI card and grant. Verify again before reopening the UI.
 
+- **`vizoalica console` says a console is probably running already:** something already listens on port 4318.
+  Open `http://127.0.0.1:4318`, or stop the other console (Ctrl+C in its terminal) and run it again.
+- **It says the saved connection file can be read by other users, or is damaged:** run the `chmod 600` or
+  `mv` command it prints. Your data is not affected; the console then asks its first-run questions again.
+- **It says Node.js 22 or newer is needed:** install a current Node.js from nodejs.org and run it again.
+
 ## OneCLI and Pages uploads
 
 Some OneCLI proxy configurations replace Wrangler's short-lived Pages upload authorization and

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { NoProject } from '../components/NoProject.js';
 import { useScope } from '../scope/ScopeProvider.js';
+import { AnalyticsSetupHint } from '../setup/Journey.js';
 import { rangeSummary } from '../time-range.js';
 
 export type FrameStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -61,6 +62,7 @@ export function AnalyticsFrame({
               </p>
             )}
             {notices}
+            <AnalyticsSetupHint />
           </div>
           {status === 'loading' && (
             <div className="dashboard-grid skeleton-grid" aria-hidden="true">

@@ -4,6 +4,11 @@ Run this guide **once per operator or data analyst** who will store the Vizoalic
 credential in a private local file. Use [the OneCLI setup](onecli.md) instead when OneCLI manages
 the credential. Do not complete both paths on the same machine.
 
+> **Without a checkout:** if you only need to run the console, `npm install -g vizoalica` then
+> `vizoalica console` does steps 2 and 3 below for you: the console asks for the Worker address and the
+> administrator secret on first run and saves them privately. The checkout is for deploying the backend and
+> for contributors.
+
 ## Returning operator: start here
 
 If this machine is already configured without OneCLI, run `pnpm vizoalica console` from your checkout

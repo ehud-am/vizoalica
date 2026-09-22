@@ -129,6 +129,14 @@ export const ROUTES = define([
     range: false
   },
   {
+    path: 'setup',
+    area: 'manage',
+    label: 'Connection',
+    nav: false,
+    scope: 'none',
+    range: false
+  },
+  {
     path: 'manage/health',
     area: 'manage',
     label: 'Health',

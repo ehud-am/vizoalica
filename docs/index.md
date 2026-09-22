@@ -61,6 +61,8 @@ pnpm vizoalica install
 
 It creates a real backend in your Cloudflare account, sets up this computer as the console, and sends sample page views for a make-believe website, so you are looking at real analytics about two minutes later. Only the sample data is throwaway. [Read the quick start](/get-started) or [see the console first](/tour).
 
+Already have a backend, or just want the console? Install it from npm with `npm install -g vizoalica`, then run `vizoalica console`. It asks a few questions the first time and guides the rest.
+
 ## Built in the open
 
 Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.6.2).

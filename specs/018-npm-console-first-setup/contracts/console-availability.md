@@ -93,7 +93,7 @@ analyst the address and key. Deploying needs no Q3: it goes to the deployment fl
 
 Present on every screen and state. Content: brand mark and name; tagline "Privacy-first analytics that runs in
 your own Cloudflare account."; column **Vizoalica**: Website (vizoalica.dev), Documentation, Get started,
-Privacy; column **Project**: GitHub, Discussions, Issues, Release notes, License (and npm once published);
+Privacy; column **Project**: GitHub, Discussions, Issues, Release notes, License (npm is added once the package is published);
 bottom line: © year Vizoalica and "Version x.y.z". Requirements: local assets only, no request until a link is
 followed, external links `rel="noopener noreferrer"` and `target="_blank"`, single column at phone width, AA
 contrast in both themes, visible focus, each link has a distinct accessible name.

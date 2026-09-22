@@ -31,8 +31,14 @@ export default defineConfig({
         'scripts/verify-website.ts',
         'scripts/cli/**/*.ts'
       ],
-      // The terminal layer only wraps a real TTY and child processes; everything it feeds is tested.
-      exclude: ['**/src/main.tsx', '**/src/cli.ts', 'scripts/cli/terminal.ts'],
+      // The terminal layer and the command's entry file only wrap a real TTY, process signals, and child
+      // processes; everything they feed is tested, and scripts/check-package.mjs runs the real thing.
+      exclude: [
+        '**/src/main.tsx',
+        '**/src/cli.ts',
+        'apps/cli/src/bin.ts',
+        'scripts/cli/terminal.ts'
+      ],
       thresholds: { lines: 90, branches: 90 }
     }
   }

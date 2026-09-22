@@ -104,3 +104,49 @@ describe('actions report client', () => {
     expect(fetch.mock.calls[0]![1]!.signal).toBe(controller.signal);
   });
 });
+
+describe('setup client calls', () => {
+  it('reads the state and posts connect, disconnect, and role changes', async () => {
+    const fetch = vi.fn(
+      async (_path: string, init?: RequestInit) =>
+        new Response(JSON.stringify({ needsFirstRun: false, method: init?.method ?? 'GET' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.getSetupState();
+    await api.connectBackend({ workerUrl: 'https://w.test', credential: 'c', roleHint: 'analyst' });
+    await api.disconnectBackend();
+    await api.setRoleHint('website-owner');
+    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
+      'GET /api/setup/state',
+      'POST /api/setup/connect',
+      'POST /api/setup/disconnect',
+      'POST /api/setup/role'
+    ]);
+    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({
+      workerUrl: 'https://w.test',
+      credential: 'c',
+      roleHint: 'analyst'
+    });
+    expect(JSON.parse(String(fetch.mock.calls[3]![1]!.body))).toEqual({
+      roleHint: 'website-owner'
+    });
+  });
+
+  it('carries the error code and status of a refused connect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ error: 'unauthorized', recovery: 'reauthorize' }, { status: 401 })
+      )
+    );
+    await expect(
+      api.connectBackend({ workerUrl: 'https://w.test', credential: 'c' })
+    ).rejects.toMatchObject({
+      code: 'unauthorized',
+      status: 401
+    });
+  });
+});

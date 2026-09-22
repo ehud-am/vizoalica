@@ -1,11 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import type { Config } from './config.js';
+import type { Config, Settings } from './config.js';
 import { resolvePreferencesPath } from './config.js';
+import { ConnectionStore } from './connection-store.js';
+import { isStaticRequest, serveStatic, type StaticDirs } from './static.js';
 import { readPreferences, writePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
+import { handleSetup } from './routes/setup.js';
+import { expectedSchemaFrom } from './setup/state.js';
 import { analytics, analyticsActions, analyticsOverview } from './routes/analytics.js';
 import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import { validOrigins } from './contracts.js';
@@ -70,17 +74,73 @@ function requestOrigin(request: IncomingMessage): string | undefined {
   }
 }
 
-export function createLocalServer(config: Config) {
-  const client = new WorkerClient(config.remoteUrl, config.adminSecret);
+export type ServerOptions = StaticDirs & {
+  settings: Settings;
+  /** The backend connection; it may be empty, and the console then guides first run. */
+  store: ConnectionStore;
+  /** The installed package version, shown by the console and compared with the backend's. */
+  version?: string;
+  /** Where the packaged database changes live; the highest number is the expected schema. */
+  schemaDir?: string | undefined;
+};
+
+/** Older callers pass one fixed connection; that is the same thing with a store that never changes. */
+function optionsFromConfig(config: Config): ServerOptions {
+  return {
+    settings: {
+      port: config.port,
+      consoleOrigin: config.consoleOrigin,
+      allowedOrigins: [...new Set([config.consoleOrigin, `http://127.0.0.1:${config.port}`])],
+      sessionTtlMs: config.sessionTtlMs,
+      ...(config.configFilePath ? { configFilePath: config.configFilePath } : {})
+    },
+    store: ConnectionStore.fromConnection({
+      remoteUrl: config.remoteUrl,
+      credential: config.adminSecret,
+      kind: 'admin-secret'
+    })
+  };
+}
+
+function sendStatic(
+  request: IncomingMessage,
+  response: ServerResponse,
+  dirs: StaticDirs,
+  path: string
+) {
+  const result = serveStatic(request.method ?? 'GET', path, dirs);
+  response.writeHead(result.status, result.headers);
+  response.end(result.body);
+}
+
+export function createLocalServer(input: Config | ServerOptions) {
+  const options = 'settings' in input ? input : optionsFromConfig(input);
+  const { settings, store } = options;
+  const staticDirs: StaticDirs = { consoleDir: options.consoleDir, sdkDir: options.sdkDir };
+  let cached: { revision: number; client: WorkerClient } | undefined;
+  /** The client for the current connection; rebuilt when the connection changes, absent before first run. */
+  const currentClient = (): WorkerClient => {
+    const connection = store.current();
+    if (!connection) throw new Error('backend_not_connected');
+    if (!cached || cached.revision !== store.revision)
+      cached = {
+        revision: store.revision,
+        client: new WorkerClient(connection.remoteUrl, connection.credential)
+      };
+    return cached.client;
+  };
+  const version = options.version ?? 'dev';
+  const expectedSchema = expectedSchemaFrom(options.schemaDir);
   const sessions = new Map<string, number>();
-  const preferencesPath = resolvePreferencesPath(config);
+  const preferencesPath = resolvePreferencesPath(settings);
   return createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
       return send(response, 403, { error: 'forbidden' });
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-    if (!url.pathname.startsWith('/api/')) return send(response, 404, { error: 'not_found' });
-    if (requestOrigin(request) !== config.consoleOrigin)
+    if (isStaticRequest(url.pathname))
+      return sendStatic(request, response, staticDirs, (request.url ?? '/').split(/[?#]/)[0]!);
+    if (!settings.allowedOrigins.includes(requestOrigin(request) ?? ''))
       return send(response, 403, { error: 'origin_not_allowed' });
 
     if (request.method === 'POST' && url.pathname === '/api/session') {
@@ -89,9 +149,9 @@ export function createLocalServer(config: Config) {
       // Map keeps insertion order, so the oldest session is dropped first.
       while (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
       const token = randomBytes(32).toString('base64url');
-      sessions.set(token, now + config.sessionTtlMs);
+      sessions.set(token, now + settings.sessionTtlMs);
       return send(response, 204, undefined, {
-        'set-cookie': `vizoalica_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(config.sessionTtlMs / 1000)}`
+        'set-cookie': `vizoalica_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(settings.sessionTtlMs / 1000)}`
       });
     }
 
@@ -102,6 +162,54 @@ export function createLocalServer(config: Config) {
     }
 
     try {
+      if (url.pathname.startsWith('/api/setup/')) {
+        const reply = await handleSetup(
+          request.method ?? 'GET',
+          url.pathname,
+          () => requestJson(request),
+          { store, version, expectedSchema }
+        );
+        return reply
+          ? send(response, reply.status, reply.body)
+          : send(response, 404, { error: 'not_found' });
+      }
+      if (url.pathname === '/api/preferences/theme') {
+        if (request.method === 'GET') {
+          let record;
+          try {
+            record = readPreferences(preferencesPath);
+          } catch {
+            // A corrupt or invalid preferences file must not block the console;
+            // treat it the same as no explicit preference (follow the system).
+            record = undefined;
+          }
+          return send(response, 200, {
+            theme: record?.theme ?? null,
+            ...(record?.updatedAt !== undefined ? { updatedAt: record.updatedAt } : {})
+          });
+        }
+        if (request.method === 'PUT') {
+          const body = (await requestJson(request)) as { theme?: unknown } | undefined;
+          if (body?.theme !== 'light' && body?.theme !== 'dark')
+            return send(response, 400, {
+              error: 'invalid_request',
+              field: 'theme',
+              message: 'theme must be "light" or "dark".'
+            });
+          const theme: 'light' | 'dark' = body.theme;
+          const saved = { theme, updatedAt: new Date().toISOString() };
+          try {
+            writePreferences(preferencesPath, saved);
+          } catch {
+            return send(response, 503, {
+              error: 'preferences_unavailable',
+              recovery: recoveryFor(503)
+            });
+          }
+          return send(response, 200, saved);
+        }
+      }
+      const client = currentClient();
       if (request.method === 'GET' && url.pathname === '/api/projects') {
         return send(response, 200, await workerJson(client, '/v1/admin/projects'));
       }
@@ -181,42 +289,6 @@ export function createLocalServer(config: Config) {
           )
         );
       }
-      if (url.pathname === '/api/preferences/theme') {
-        if (request.method === 'GET') {
-          let record;
-          try {
-            record = readPreferences(preferencesPath);
-          } catch {
-            // A corrupt or invalid preferences file must not block the console;
-            // treat it the same as no explicit preference (follow the system).
-            record = undefined;
-          }
-          return send(response, 200, {
-            theme: record?.theme ?? null,
-            ...(record?.updatedAt !== undefined ? { updatedAt: record.updatedAt } : {})
-          });
-        }
-        if (request.method === 'PUT') {
-          const body = (await requestJson(request)) as { theme?: unknown } | undefined;
-          if (body?.theme !== 'light' && body?.theme !== 'dark')
-            return send(response, 400, {
-              error: 'invalid_request',
-              field: 'theme',
-              message: 'theme must be "light" or "dark".'
-            });
-          const theme: 'light' | 'dark' = body.theme;
-          const saved = { theme, updatedAt: new Date().toISOString() };
-          try {
-            writePreferences(preferencesPath, saved);
-          } catch {
-            return send(response, 503, {
-              error: 'preferences_unavailable',
-              recovery: recoveryFor(503)
-            });
-          }
-          return send(response, 200, saved);
-        }
-      }
       const item =
         /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability))?$/.exec(
           url.pathname
@@ -236,7 +308,7 @@ export function createLocalServer(config: Config) {
             response,
             200,
             item[3] === 'snippet'
-              ? integrationSnippet(metadata, config.remoteUrl, item[1]!, item[2]!)
+              ? integrationSnippet(metadata, store.current()!.remoteUrl, item[1]!, item[2]!)
               : metadata
           );
         }
@@ -269,7 +341,9 @@ export function createLocalServer(config: Config) {
               ? 413
               : message === 'not_found'
                 ? 404
-                : 503;
+                : message === 'backend_not_connected'
+                  ? 409
+                  : 503;
       if (code === 401) {
         sessions.delete(session);
         response.setHeader(
@@ -279,7 +353,7 @@ export function createLocalServer(config: Config) {
       }
       return send(response, code, {
         error: code === 503 ? 'remote_unavailable' : code === 401 ? 'access_revoked' : message,
-        recovery: recoveryFor(code)
+        recovery: message === 'backend_not_connected' ? 'connect_backend' : recoveryFor(code)
       });
     }
   });

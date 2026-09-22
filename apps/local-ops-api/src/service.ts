@@ -1,0 +1,63 @@
+import type { Server } from 'node:http';
+import { defaultConfigPath, loadConfig, loadSettings, type Settings } from './config.js';
+import { ConnectionStore } from './connection-store.js';
+import { createLocalServer } from './server.js';
+
+export type ServiceOptions = {
+  /** The connection file. Without one, an environment connection is used, else the default file. */
+  configPath?: string | undefined;
+  consoleDir?: string | undefined;
+  sdkDir?: string | undefined;
+  schemaDir?: string | undefined;
+  version?: string | undefined;
+  env?: NodeJS.ProcessEnv | undefined;
+};
+
+/**
+ * Builds the local service from the environment and a connection file that may not exist yet.
+ * Throws the store's plain error codes for an unreadable or over-permissive file.
+ */
+export function createService(options: ServiceOptions = {}): {
+  server: Server;
+  store: ConnectionStore;
+  settings: Settings;
+} {
+  const env = options.env ?? process.env;
+  const base = loadSettings(env);
+  let store: ConnectionStore;
+  let configFilePath: string | undefined;
+  if (options.configPath) {
+    configFilePath = options.configPath;
+    store = ConnectionStore.fromFile(configFilePath, env);
+  } else if (env.VIZOALICA_REMOTE_URL && env.VIZOALICA_ADMIN_SECRET) {
+    const config = loadConfig(env);
+    store = ConnectionStore.fromConnection({
+      remoteUrl: config.remoteUrl,
+      credential: config.adminSecret,
+      kind: 'admin-secret'
+    });
+  } else {
+    configFilePath = defaultConfigPath();
+    store = ConnectionStore.fromFile(configFilePath, env);
+  }
+  const settings: Settings = { ...base, ...(configFilePath ? { configFilePath } : {}) };
+  const server = createLocalServer({
+    settings,
+    store,
+    ...(options.version ? { version: options.version } : {}),
+    consoleDir: options.consoleDir,
+    sdkDir: options.sdkDir,
+    schemaDir: options.schemaDir
+  });
+  return { server, store, settings };
+}
+
+/** Listens on loopback only; rejects with `port_in_use` when something else holds the port. */
+export function listenLoopback(server: Server, port: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.once('error', (error: NodeJS.ErrnoException) =>
+      reject(error.code === 'EADDRINUSE' ? new Error('port_in_use') : error)
+    );
+    server.listen(port, '127.0.0.1', () => resolve());
+  });
+}

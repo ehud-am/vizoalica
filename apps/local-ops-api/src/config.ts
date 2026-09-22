@@ -31,6 +31,44 @@ function safePort(value: string | undefined): number {
   return port;
 }
 
+/** Everything about the service that is not the backend connection. */
+export type Settings = {
+  port: number;
+  /** The extra origin allowed to call the API; the Vite dev server in a checkout. */
+  consoleOrigin: string;
+  /** Every origin the API accepts: its own address and `consoleOrigin`. */
+  allowedOrigins: string[];
+  sessionTtlMs: number;
+  /** The connection file, used to place sibling files such as preferences.json. */
+  configFilePath?: string;
+};
+
+function safeConsoleOrigin(value: string | undefined): string {
+  const consoleOrigin = value ?? 'http://127.0.0.1:5173';
+  const origin = new URL(consoleOrigin);
+  if (
+    (origin.hostname !== '127.0.0.1' && origin.hostname !== 'localhost') ||
+    origin.origin !== consoleOrigin
+  )
+    throw new Error('console_origin_must_be_loopback');
+  return consoleOrigin;
+}
+
+export function defaultConfigPath(): string {
+  return join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+}
+
+export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
+  const port = safePort(env.VIZOALICA_PORT);
+  const consoleOrigin = safeConsoleOrigin(env.VIZOALICA_CONSOLE_ORIGIN);
+  return {
+    port,
+    consoleOrigin,
+    allowedOrigins: [...new Set([`http://127.0.0.1:${port}`, consoleOrigin])],
+    sessionTtlMs: safeSessionTtl(env.VIZOALICA_SESSION_TTL_MS)
+  };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const remoteUrl = env.VIZOALICA_REMOTE_URL;
   const adminSecret = env.VIZOALICA_ADMIN_SECRET;
@@ -38,20 +76,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const url = new URL(remoteUrl);
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.hostname === 'localhost'))
     throw new Error('remote_url_must_use_https');
-  const port = safePort(env.VIZOALICA_PORT);
-  const consoleOrigin = env.VIZOALICA_CONSOLE_ORIGIN ?? 'http://127.0.0.1:5173';
-  const origin = new URL(consoleOrigin);
-  if (
-    (origin.hostname !== '127.0.0.1' && origin.hostname !== 'localhost') ||
-    origin.origin !== consoleOrigin
-  )
-    throw new Error('console_origin_must_be_loopback');
+  const settings = loadSettings(env);
   return {
     remoteUrl: url.toString().replace(/\/$/, ''),
     adminSecret,
-    port,
-    consoleOrigin,
-    sessionTtlMs: safeSessionTtl(env.VIZOALICA_SESSION_TTL_MS)
+    port: settings.port,
+    consoleOrigin: settings.consoleOrigin,
+    sessionTtlMs: settings.sessionTtlMs
   };
 }
 export function loadConfigFile(path: string): Config {
@@ -62,9 +93,8 @@ export function loadConfigFile(path: string): Config {
 }
 
 /** Resolves the preferences file path beside the configured local-operations file. */
-export function resolvePreferencesPath(config: Config): string {
-  const base =
-    config.configFilePath ?? join(homedir(), '.config', 'vizoalica', 'local-operations.json');
+export function resolvePreferencesPath(config: Pick<Config, 'configFilePath'>): string {
+  const base = config.configFilePath ?? defaultConfigPath();
   return join(dirname(base), 'preferences.json');
 }
 

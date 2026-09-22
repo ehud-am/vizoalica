@@ -26,6 +26,21 @@ The command asks for almost nothing. It signs you in to Cloudflare, creates the 
 Setting this up with an AI coding agent? Run `pnpm vizoalica install` yourself in a terminal. It shows your secrets once, they should not pass through an agent conversation, and the command refuses to run without an interactive terminal for that reason.
 :::
 
+## Install the console from npm
+
+You do not need a checkout to run the console. Once a backend exists, install it and start it:
+
+```sh
+npm install -g vizoalica
+vizoalica console
+```
+
+The console starts on your computer at `http://127.0.0.1:4318`. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts, keeping you on the path from a running console, to a backend, to your websites, to results. Anything that cannot work yet is shown as unavailable, with the reason and the next step. Update it with `npm update -g vizoalica`, remove it with `npm uninstall -g vizoalica`. Your settings stay in `~/.config/vizoalica/`.
+
+::: tip This release installs the console
+Deploying the backend for the first time is still done from a source checkout with `pnpm vizoalica install`, as above. The console then connects to it. Deploying from the console itself is planned for the next release.
+:::
+
 ## The three parts, in order
 
 Each part needs something the previous one produces.
