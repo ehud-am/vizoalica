@@ -5,6 +5,7 @@
   "references": [
     { "path": "../ingest-api" },
     { "path": "../../packages/event-contracts" },
-    { "path": "../../packages/privacy" }
+    { "path": "../../packages/privacy" },
+    { "path": "../../packages/ops-core" }
   ]
 }

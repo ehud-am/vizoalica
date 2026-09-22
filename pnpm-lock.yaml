@@ -154,7 +154,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/event-contracts
 
-  apps/local-ops-api: {}
+  apps/local-ops-api:
+    dependencies:
+      '@vizoalica/ops-core':
+        specifier: workspace:*
+        version: link:../../packages/ops-core
 
   apps/token-demo:
     dependencies:
@@ -184,6 +188,8 @@ importers:
         version: link:../privacy
 
   packages/event-contracts: {}
+
+  packages/ops-core: {}
 
   packages/privacy: {}
 
