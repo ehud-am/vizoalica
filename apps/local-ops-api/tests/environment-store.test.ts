@@ -310,3 +310,30 @@ describe('normalizeRemoteUrl', () => {
       expect(() => normalizeRemoteUrl(value)).toThrow('invalid_request');
   });
 });
+
+describe('EnvironmentStore#onecliSettings', () => {
+  it('is undefined when there is no ops.json', () => {
+    const store = EnvironmentStore.fromDirectory(dir());
+    expect(store.onecliSettings()).toBeUndefined();
+  });
+
+  it('reads the machine-wide OneCLI project, agent, and gateway', () => {
+    const base = dir();
+    mkdirSync(base, { recursive: true });
+    writeFileSync(
+      join(base, 'ops.json'),
+      JSON.stringify({ onecli: { project: 'p', agent: 'a', gateway: 'g:1' } })
+    );
+    const store = EnvironmentStore.fromDirectory(base);
+    expect(store.onecliSettings()).toEqual({ project: 'p', agent: 'a', gateway: 'g:1' });
+  });
+
+  it('is undefined for a malformed or incomplete ops.json', () => {
+    const base = dir();
+    mkdirSync(base, { recursive: true });
+    writeFileSync(join(base, 'ops.json'), '{bad json');
+    expect(EnvironmentStore.fromDirectory(base).onecliSettings()).toBeUndefined();
+    writeFileSync(join(base, 'ops.json'), JSON.stringify({ onecli: { project: 'p' } }));
+    expect(EnvironmentStore.fromDirectory(base).onecliSettings()).toBeUndefined();
+  });
+});

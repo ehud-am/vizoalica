@@ -53,6 +53,13 @@ function commandRunner(cwd: string, command: readonly string[]): Run {
     });
 }
 
+function wranglerCommand(): string[] {
+  const override = process.env.VIZOALICA_WRANGLER;
+  return override
+    ? override.split(' ').filter(Boolean)
+    : ['npm', 'exec', '--yes', `--package=wrangler@${PINNED_WRANGLER_VERSION}`, '--', 'wrangler'];
+}
+
 /**
  * The pinned Wrangler runner the console uses to deploy and maintain a backend: fetched on demand
  * through `npm exec` rather than bundled, so the install stays small for roles that never deploy.
@@ -60,9 +67,48 @@ function commandRunner(cwd: string, command: readonly string[]): Run {
  * tests), split on spaces.
  */
 export function pinnedWrangler(cwd: string): Run {
-  const override = process.env.VIZOALICA_WRANGLER;
-  const command = override
-    ? override.split(' ').filter(Boolean)
-    : ['npm', 'exec', '--yes', `--package=wrangler@${PINNED_WRANGLER_VERSION}`, '--', 'wrangler'];
-  return commandRunner(cwd, command);
+  return commandRunner(cwd, wranglerCommand());
+}
+
+export type OneCliSettings = { project: string; agent: string; gateway: string };
+
+/** The pinned Wrangler run through OneCLI, the same wrapping mechanism used for the admin secret. */
+export function onecliWrangler(cwd: string, settings: OneCliSettings): Run {
+  return commandRunner(cwd, [
+    'onecli',
+    'run',
+    '--project',
+    settings.project,
+    '--agent',
+    settings.agent,
+    '--gateway',
+    settings.gateway,
+    '--',
+    ...wranglerCommand()
+  ]);
+}
+
+/**
+ * The runner for one environment's deploy and update runs, built from its own Cloudflare credential
+ * (research R25): a stored API token is passed as `CLOUDFLARE_API_TOKEN` on every call; OneCLI mode
+ * wraps every call through the same OneCLI settings the admin secret's wrapping already reads from
+ * `ops.json` in the environments home directory (OneCLI is one machine-wide tool configuration, not
+ * saved per environment).
+ */
+export function runnerForCredential(
+  cwd: string,
+  credential: { mode: 'token'; token: string } | { mode: 'onecli' },
+  onecli?: OneCliSettings
+): Run {
+  if (credential.mode === 'token') {
+    const base = pinnedWrangler(cwd);
+    const token = credential.token;
+    return (args, options = {}) =>
+      base(args, { ...options, env: { ...options.env, CLOUDFLARE_API_TOKEN: token } });
+  }
+  if (!onecli)
+    throw new Error(
+      'onecli_settings_not_found: this environment uses OneCLI for Cloudflare, but no OneCLI settings were found on this computer'
+    );
+  return onecliWrangler(cwd, onecli);
 }

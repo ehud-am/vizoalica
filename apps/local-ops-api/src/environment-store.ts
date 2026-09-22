@@ -470,4 +470,21 @@ export class EnvironmentStore {
     }
     this.revision_ += 1;
   }
+
+  /** The machine-wide OneCLI settings (`ops.json`), used both to wrap the admin secret's whole process
+   * and, for an OneCLI-mode environment's Cloudflare credential, to wrap each deploy or update run. */
+  onecliSettings(): { project: string; agent: string; gateway: string } | undefined {
+    if (!this.baseDir) return undefined;
+    try {
+      const ops = JSON.parse(readFileSync(join(this.baseDir, 'ops.json'), 'utf8')) as {
+        onecli?: { project?: unknown; agent?: unknown; gateway?: unknown };
+      };
+      const { project, agent, gateway } = ops.onecli ?? {};
+      return typeof project === 'string' && typeof agent === 'string' && typeof gateway === 'string'
+        ? { project, agent, gateway }
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 }

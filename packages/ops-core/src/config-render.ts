@@ -5,14 +5,22 @@ const line = (key: string): RegExp => new RegExp(`^${key}\\s*=\\s*"[^"]*"`, 'm')
 /** Fills the checked-in example, so nobody hand-edits a TOML file. */
 export function renderProductionConfig(
   example: string,
-  values: { worker: string; database: string; databaseId: string; bucket: string }
+  values: {
+    worker: string;
+    database: string;
+    databaseId: string;
+    bucket: string;
+    /** Only for the packaged template (research R27): the absolute path to the packaged schema. */
+    migrationsDir?: string;
+  }
 ): string {
   let result = example;
   const replacements: Array<[string, string]> = [
     ['name', values.worker],
     ['database_name', values.database],
     ['database_id', values.databaseId],
-    ['bucket_name', values.bucket]
+    ['bucket_name', values.bucket],
+    ...(values.migrationsDir ? ([['migrations_dir', values.migrationsDir]] as const) : [])
   ];
   for (const [key, value] of replacements) {
     if (!line(key).test(result))
