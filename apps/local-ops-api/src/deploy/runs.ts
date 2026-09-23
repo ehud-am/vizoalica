@@ -1,13 +1,15 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { Step } from './console-ctx.js';
+import type { Step } from './steps.js';
 
 export type RunMode = 'first-install' | 'update-backend';
 export type PlanResource = { kind: 'd1' | 'r2' | 'worker'; name: string; purpose: string };
 export type Plan = {
   id: string;
   mode: RunMode;
+  /** Which environment this plan belongs to; every name in it carries this prefix (research R26). */
+  environment: string;
   names: { worker: string; database: string; bucket: string };
   accountId?: string;
   accountName?: string;
@@ -18,6 +20,7 @@ export type RunRecord = {
   id: string;
   planId: string;
   mode: RunMode;
+  environment: string;
   names: { worker: string; database: string; bucket: string };
   status: 'running' | 'done' | 'failed';
   steps: Step[];
@@ -27,6 +30,14 @@ export type RunRecord = {
   /** Only which secrets were generated, by name; never a value. */
   result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
   skippedBackup?: boolean;
+  /** For updates: versions before and after, the migrations applied, and the backup path (research data-model). */
+  versions?: {
+    before: { worker: string | null; schema: number | null };
+    after: { worker: string | null; schema: number | null };
+    migrationsApplied: string[];
+    backupPath?: string;
+    backupDeclined?: boolean;
+  };
 };
 
 function runsDir(base?: string): string {

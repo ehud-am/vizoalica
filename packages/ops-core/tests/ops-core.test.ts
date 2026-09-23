@@ -92,6 +92,26 @@ describe('config-render', () => {
       })
     ).toThrow(OpsCoreError);
   });
+
+  it('fills migrations_dir only when migrationsDir is given, for the packaged template', () => {
+    const example =
+      'name = "x"\ndatabase_name = "x"\ndatabase_id = "x"\nbucket_name = "x"\nmigrations_dir = "x"';
+    const withoutOverride = renderProductionConfig(example, {
+      worker: 'w',
+      database: 'd',
+      databaseId: 'id',
+      bucket: 'b'
+    });
+    expect(withoutOverride).toContain('migrations_dir = "x"');
+    const withOverride = renderProductionConfig(example, {
+      worker: 'w',
+      database: 'd',
+      databaseId: 'id',
+      bucket: 'b',
+      migrationsDir: '/packaged/schema'
+    });
+    expect(withOverride).toContain('migrations_dir = "/packaged/schema"');
+  });
 });
 
 describe('secrets', () => {

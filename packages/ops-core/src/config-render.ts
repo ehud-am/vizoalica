@@ -20,7 +20,7 @@ export function renderProductionConfig(
     ['database_name', values.database],
     ['database_id', values.databaseId],
     ['bucket_name', values.bucket],
-    ...(values.migrationsDir ? ([['migrations_dir', values.migrationsDir]] as const) : [])
+    ...(values.migrationsDir ? [['migrations_dir', values.migrationsDir] as [string, string]] : [])
   ];
   for (const [key, value] of replacements) {
     if (!line(key).test(result))
