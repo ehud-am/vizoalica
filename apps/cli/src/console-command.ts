@@ -171,6 +171,7 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
       consoleDir: join(deps.assetDir, 'console'),
       sdkDir: join(deps.assetDir, 'sdk'),
       schemaDir: join(deps.assetDir, 'schema'),
+      workerDir: join(deps.assetDir, 'worker'),
       version: deps.version,
       env: deps.env
     });
@@ -217,6 +218,7 @@ export async function serveCommand(
       consoleDir: join(deps.assetDir, 'console'),
       sdkDir: join(deps.assetDir, 'sdk'),
       schemaDir: join(deps.assetDir, 'schema'),
+      workerDir: join(deps.assetDir, 'worker'),
       version: deps.version,
       env: deps.env
     });

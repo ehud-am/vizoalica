@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
   SECRETS,
@@ -143,8 +143,33 @@ const lastLines = (text: string): string =>
     .slice(-6)
     .join('\n');
 
-function configPath(deps: Pick<EngineDeps, 'configBaseDir'>, worker: string): string {
+export function configPath(deps: Pick<EngineDeps, 'configBaseDir'>, worker: string): string {
   return join(deps.configBaseDir, worker, 'wrangler.toml');
+}
+
+/**
+ * Replaces one secret on the Worker named `worker`, reusing the config this console rendered when it
+ * deployed or last updated that environment. An environment only ever connected to (never deployed
+ * or updated from this console) has no rendered config yet; that is a known limit for this release,
+ * reported plainly rather than guessed at.
+ */
+export async function rotateSecret(
+  deps: Pick<EngineDeps, 'run' | 'configBaseDir'>,
+  worker: string,
+  kind: SecretKind
+): Promise<string> {
+  const rendered = configPath(deps, worker);
+  if (!existsSync(rendered))
+    throw new Error(
+      'no_rendered_config: this environment has no configuration this console rendered yet (it was only connected to, not deployed or updated, from here)'
+    );
+  const generated = generateSecrets([kind]);
+  const stored = await deps.run(['secret', 'bulk', '--config', rendered], {
+    stdin: JSON.stringify(generated)
+  });
+  if (stored.code !== 0)
+    throw new Error(`Storing the new secret failed:\n${lastLines(stored.stdout + stored.stderr)}`);
+  return generated[SECRETS[kind].name]!;
 }
 
 async function runFirstInstall(

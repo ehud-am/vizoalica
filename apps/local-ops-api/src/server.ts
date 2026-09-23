@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { dirname } from 'node:path';
-import type { Config, Settings } from './config.js';
+import { dirname, join } from 'node:path';
+import { defaultHomeDir, type Config, type Settings } from './config.js';
 import { resolvePreferencesPath } from './config.js';
 import { EnvironmentStore } from './environment-store.js';
 import { isStaticRequest, serveStatic, type StaticDirs } from './static.js';
@@ -11,6 +11,12 @@ import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
 import { handleSetup } from './routes/setup.js';
 import { handleEnvironments } from './routes/environments.js';
+import { handleDeploy } from './routes/deploy.js';
+import { handleBackendMaintenance } from './routes/backend.js';
+import { RunStore } from './deploy/runs.js';
+import { SecretVault } from './deploy/vault.js';
+import { runnerForCredential } from './deploy/wrangler.js';
+import type { EngineDeps } from './deploy/engine.js';
 import { backendState, expectedSchemaFrom } from './setup/state.js';
 import {
   issueAccessKey,
@@ -91,6 +97,11 @@ export type ServerOptions = StaticDirs & {
   version?: string;
   /** Where the packaged database changes live; the highest number is the expected schema. */
   schemaDir?: string | undefined;
+  /** Where the packaged Worker bundle and its Wrangler config template live (`dist/worker`). Deploying
+   * and updating are unavailable (backend_deploy_unavailable) when this is not given. */
+  workerDir?: string | undefined;
+  /** A test replaces the pinned-Wrangler-by-credential runner with a fake one. */
+  deployRun?: import('@vizoalica/ops-core').Run | undefined;
 };
 
 /** Older callers pass one fixed connection; that is the same thing with a store that never changes. */
@@ -142,6 +153,27 @@ export function createLocalServer(input: Config | ServerOptions) {
   const expectedSchema = expectedSchemaFrom(options.schemaDir);
   const sessions = new Map<string, number>();
   const preferencesPath = resolvePreferencesPath(settings);
+  const homeDir = settings.homeDir ?? defaultHomeDir();
+  const runStore = new RunStore(join(homeDir, 'deployments'));
+  const vault = new SecretVault();
+  /** Built fresh per request: the active environment's Cloudflare credential can change between calls. */
+  const engineDeps = (): EngineDeps | undefined => {
+    if (!options.workerDir) return undefined;
+    const environment = store.active();
+    if (!environment) return undefined;
+    const credential = store.cloudflareCredential(environment);
+    if (!credential) return undefined;
+    return {
+      configBaseDir: join(homeDir, 'deploy'),
+      workerBundle: join(options.workerDir, 'index.mjs'),
+      wranglerTemplate: join(options.workerDir, 'wrangler.template.toml'),
+      schemaDir: options.schemaDir ?? join(options.workerDir, '..', 'schema'),
+      store: runStore,
+      vault,
+      environmentStore: store,
+      run: options.deployRun ?? runnerForCredential(homeDir, credential, store.onecliSettings())
+    };
+  };
   return createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
@@ -188,6 +220,40 @@ export function createLocalServer(input: Config | ServerOptions) {
           url.pathname,
           () => requestJson(request),
           { store, version, expectedSchema }
+        );
+        return reply
+          ? send(response, reply.status, reply.body)
+          : send(response, 404, { error: 'not_found' });
+      }
+      if (url.pathname === '/api/deploy' || url.pathname.startsWith('/api/deploy/')) {
+        const active = engineDeps();
+        if (!active)
+          return send(response, 409, {
+            error: 'backend_deploy_unavailable',
+            recovery: 'retry_safely'
+          });
+        const reply = await handleDeploy(
+          request.method ?? 'GET',
+          url.pathname,
+          () => requestJson(request),
+          active
+        );
+        return reply
+          ? send(response, reply.status, reply.body)
+          : send(response, 404, { error: 'not_found' });
+      }
+      if (url.pathname.startsWith('/api/backend/')) {
+        const active = engineDeps();
+        if (!active)
+          return send(response, 409, {
+            error: 'backend_deploy_unavailable',
+            recovery: 'retry_safely'
+          });
+        const reply = await handleBackendMaintenance(
+          request.method ?? 'GET',
+          url.pathname,
+          () => requestJson(request),
+          active
         );
         return reply
           ? send(response, reply.status, reply.body)

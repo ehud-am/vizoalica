@@ -10,6 +10,8 @@ export type ServiceOptions = {
   consoleDir?: string | undefined;
   sdkDir?: string | undefined;
   schemaDir?: string | undefined;
+  /** Where the packaged Worker bundle and its Wrangler config template live (`dist/worker`). */
+  workerDir?: string | undefined;
   version?: string | undefined;
   env?: NodeJS.ProcessEnv | undefined;
 };
@@ -45,7 +47,8 @@ export function createService(options: ServiceOptions = {}): {
     ...(options.version ? { version: options.version } : {}),
     consoleDir: options.consoleDir,
     sdkDir: options.sdkDir,
-    schemaDir: options.schemaDir
+    schemaDir: options.schemaDir,
+    workerDir: options.workerDir
   });
   return { server, store, settings };
 }
