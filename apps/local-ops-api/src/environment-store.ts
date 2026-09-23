@@ -168,23 +168,6 @@ class EnvironmentFile {
     return this.extra[key];
   }
 
-  setExtra(values: Record<string, string | undefined>): void {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) delete this.extra[key];
-      else this.extra[key] = value;
-    }
-    // Re-persist whatever connection fields are already on disk, merged with the updated extras.
-    if (this.connection)
-      this.write({
-        VIZOALICA_REMOTE_URL: this.connection.remoteUrl,
-        ...(this.connection.kind === 'admin-secret'
-          ? { VIZOALICA_ADMIN_SECRET: this.connection.credential }
-          : { VIZOALICA_READ_KEY: this.connection.credential }),
-        ...(this.connection.roleHint ? { VIZOALICA_ROLE_HINT: this.connection.roleHint } : {})
-      });
-    else if (this.path) replaceFile(this.path, { ...this.extra });
-  }
-
   save(connection: Connection): void {
     this.write({
       VIZOALICA_REMOTE_URL: connection.remoteUrl,

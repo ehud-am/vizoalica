@@ -336,6 +336,19 @@ describe('audit', () => {
   });
 });
 
+describe('cross-environment key isolation', () => {
+  it('refuses a key issued against one environment when presented to a separate, unrelated one', async () => {
+    const dev = environment();
+    const prod = environment();
+    const devKey = await issueKey(dev.env, 'analyst');
+    // The same key, presented to a different environment's own Worker/database pair, is unrecognized:
+    // isolation between environments falls out of them being separate Worker/D1 pairs (research R24),
+    // with no extra environment-id check needed in the route matrix.
+    const response = await call(prod.env, '/v1/admin/projects', { token: devKey });
+    expect(response.status).toBe(401);
+  });
+});
+
 describe('a database that has not been updated to schema 2', () => {
   it('still serves the admin, and answers key routes with 501', async () => {
     const sqlite = freshDatabase({ upTo: 1 });

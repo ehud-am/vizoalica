@@ -64,6 +64,19 @@ describe('access key routes', () => {
     expect(api.stub.requests.length).toBe(before);
   });
 
+  it.each([
+    { label: 'x'.repeat(65), role: 'analyst' },
+    { label: 'has\u0000control', role: 'analyst' },
+    { label: 'Jane', role: 'bogus' },
+    { label: 'Jane', role: 'analyst', projectId: 5 },
+    { label: 'Jane', role: 'analyst', sourceId: 5 }
+  ])('rejects %j', async (body) => {
+    const api = start();
+    const cookie = await api.session();
+    const result = await api.call('/api/access-keys', { method: 'POST', cookie, body });
+    expect(result.status).toBe(400);
+  });
+
   it('forwards the caller credential, so an analyst or owner connection is refused by the Worker', async () => {
     // The service maps every Worker authorization refusal to the same local 401, as it already
     // does for every other proxied route (routes/websites.ts workerJson).

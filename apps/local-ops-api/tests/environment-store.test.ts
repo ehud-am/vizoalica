@@ -240,6 +240,50 @@ describe('EnvironmentStore', () => {
     expect(store.list()).toEqual([{ name: 'default', hasConnection: true, mode: 'file' }]);
   });
 
+  it('fromConnection refuses to create, select an unknown name, or remove an environment', () => {
+    const store = EnvironmentStore.fromConnection('default', {
+      remoteUrl: 'https://w.example.workers.dev',
+      credential: 'a',
+      kind: 'admin-secret'
+    });
+    expect(() => store.create('another')).toThrow('environments_not_supported');
+    expect(() => store.select('ghost')).toThrow('environment_not_found');
+    expect(() => store.select('default')).not.toThrow();
+    expect(() => store.remove('default')).toThrow('environments_not_supported');
+    expect(store.cloudflareCredential()).toBeUndefined();
+    expect(store.onecliSettings()).toBeUndefined();
+  });
+
+  it('cloudflareCredential is undefined with no active environment, and for a name it does not know', () => {
+    const store = EnvironmentStore.fromDirectory(dir());
+    expect(store.cloudflareCredential()).toBeUndefined();
+    store.create('dev');
+    expect(store.cloudflareCredential()).toBeUndefined();
+  });
+
+  it('has no legacy setup and refuses to import one when there is none', () => {
+    const store = EnvironmentStore.fromDirectory(dir());
+    expect(store.hasLegacySetup()).toBe(false);
+    expect(store.legacyPreview()).toBeUndefined();
+    expect(() => store.importLegacyAs('prod')).toThrow('no_legacy_setup');
+  });
+
+  it('reports no active environment as not revoked, with no mode, and disconnect does nothing', () => {
+    const store = EnvironmentStore.fromDirectory(dir());
+    expect(store.revoked).toBe(false);
+    expect(store.mode()).toBeUndefined();
+    expect(() => store.disconnect()).not.toThrow();
+  });
+
+  it('lists nothing before the environments directory exists, and reads an unreadable ops.json as undefined', () => {
+    const base = dir();
+    const store = EnvironmentStore.fromDirectory(base);
+    expect(store.list()).toEqual([]);
+    mkdirSync(base, { recursive: true });
+    writeFileSync(join(base, 'ops.json'), 'not json', { mode: 0o600 });
+    expect(EnvironmentStore.fromDirectory(base).onecliSettings()).toBeUndefined();
+  });
+
   it('rejects a role hint it does not know and unreadable JSON in an environment file', () => {
     const base = dir();
     writeEnv(base, 'dev', {
@@ -253,6 +297,48 @@ describe('EnvironmentStore', () => {
     expect(() => store.current()).toThrow('invalid_connection_file');
     writeFileSync(envPath(base, 'dev'), '{nope', { mode: 0o600 });
     expect(() => EnvironmentStore.fromDirectory(base).current()).toThrow('invalid_connection_file');
+  });
+
+  it('rejects a JSON array, and a file with a url but neither or both credentials', () => {
+    const arrayBase = dir();
+    writeEnv(arrayBase, 'dev', { VIZOALICA_ENV_NAME: 'dev' });
+    // Overwrite with a JSON array instead of an object.
+    writeFileSync(envPath(arrayBase, 'dev'), JSON.stringify(['not', 'an', 'object']), {
+      mode: 0o600
+    });
+    const arrayStore = EnvironmentStore.fromDirectory(arrayBase);
+    arrayStore.select('dev');
+    expect(() => arrayStore.current()).toThrow('invalid_connection_file');
+
+    const bothBase = dir();
+    writeEnv(bothBase, 'both', {
+      VIZOALICA_ENV_NAME: 'both',
+      VIZOALICA_REMOTE_URL: 'https://w.example.workers.dev',
+      VIZOALICA_ADMIN_SECRET: 'a',
+      VIZOALICA_READ_KEY: 'k'
+    });
+    const bothStore = EnvironmentStore.fromDirectory(bothBase);
+    bothStore.select('both');
+    expect(() => bothStore.current()).toThrow('invalid_connection_file');
+
+    const neitherBase = dir();
+    writeEnv(neitherBase, 'neither', {
+      VIZOALICA_ENV_NAME: 'neither',
+      VIZOALICA_REMOTE_URL: 'https://w.example.workers.dev'
+    });
+    const neitherStore = EnvironmentStore.fromDirectory(neitherBase);
+    neitherStore.select('neither');
+    expect(() => neitherStore.current()).toThrow('invalid_connection_file');
+
+    const badUrlBase = dir();
+    writeEnv(badUrlBase, 'badurl', {
+      VIZOALICA_ENV_NAME: 'badurl',
+      VIZOALICA_REMOTE_URL: 'not a url',
+      VIZOALICA_ADMIN_SECRET: 'a'
+    });
+    const badUrlStore = EnvironmentStore.fromDirectory(badUrlBase);
+    badUrlStore.select('badurl');
+    expect(() => badUrlStore.current()).toThrow('invalid_connection_file');
   });
 
   it('rejects an environment file others can read', () => {

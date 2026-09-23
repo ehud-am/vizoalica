@@ -37,6 +37,15 @@ describe('migration file names', () => {
   it('are lowercase, snake-cased descriptions', () => {
     for (const name of files) expect(name).toMatch(/^\d{4}_[a-z][a-z0-9_]*\.sql$/);
   });
+
+  it('reports a malformed name and a gap in the numbering', () => {
+    expect(checkNumbering(['not_a_migration.sql'])).toEqual([
+      'not_a_migration.sql: must be named NNNN_description.sql'
+    ]);
+    expect(checkNumbering(['0001_initial.sql', '0003_skipped.sql'])).toEqual([
+      'expected migration 2, found 3'
+    ]);
+  });
 });
 
 describe('additivity', () => {
