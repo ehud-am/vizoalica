@@ -168,6 +168,7 @@ export function createLocalServer(input: Config | ServerOptions) {
       workerBundle: join(options.workerDir, 'index.mjs'),
       wranglerTemplate: join(options.workerDir, 'wrangler.template.toml'),
       schemaDir: options.schemaDir ?? join(options.workerDir, '..', 'schema'),
+      consoleVersion: version,
       store: runStore,
       vault,
       environmentStore: store,

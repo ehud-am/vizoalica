@@ -101,7 +101,9 @@ function deps(
       'migrations_dir = "__SCHEMA_DIR__"',
       '[[r2_buckets]]',
       'binding = "VIZOALICA_EVENTS"',
-      'bucket_name = "__BUCKET_NAME__"'
+      'bucket_name = "__BUCKET_NAME__"',
+      '[vars]',
+      'VIZOALICA_WORKER_VERSION = ""'
     ].join('\n')
   );
   const environmentStore = EnvironmentStore.fromDirectory(join(base, 'home'));
@@ -111,6 +113,7 @@ function deps(
     workerBundle: join(workerDir, 'index.mjs'),
     wranglerTemplate: join(workerDir, 'wrangler.template.toml'),
     schemaDir,
+    consoleVersion: '0.7.0',
     store: new RunStore(join(base, 'home', 'deployments')),
     vault: new SecretVault(),
     environmentStore,
@@ -250,6 +253,7 @@ describe('a first-install run', () => {
     const content = readFileSync(rendered, 'utf8');
     expect(content).toContain('name = "stage-vizoalica-worker"');
     expect(content).toContain(`migrations_dir = "${engineDeps.schemaDir}"`);
+    expect(content).toContain('VIZOALICA_WORKER_VERSION = "0.7.0"');
     expect(rendered.startsWith(join(engineDeps.workerBundle, '..'))).toBe(false);
   });
 

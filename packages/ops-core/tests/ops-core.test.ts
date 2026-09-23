@@ -93,6 +93,26 @@ describe('config-render', () => {
     ).toThrow(OpsCoreError);
   });
 
+  it('fills VIZOALICA_WORKER_VERSION only when workerVersion is given', () => {
+    const example =
+      'name = "x"\ndatabase_name = "x"\ndatabase_id = "x"\nbucket_name = "x"\nVIZOALICA_WORKER_VERSION = ""';
+    const withoutOverride = renderProductionConfig(example, {
+      worker: 'w',
+      database: 'd',
+      databaseId: 'id',
+      bucket: 'b'
+    });
+    expect(withoutOverride).toContain('VIZOALICA_WORKER_VERSION = ""');
+    const withOverride = renderProductionConfig(example, {
+      worker: 'w',
+      database: 'd',
+      databaseId: 'id',
+      bucket: 'b',
+      workerVersion: '0.7.0'
+    });
+    expect(withOverride).toContain('VIZOALICA_WORKER_VERSION = "0.7.0"');
+  });
+
   it('fills migrations_dir only when migrationsDir is given, for the packaged template', () => {
     const example =
       'name = "x"\ndatabase_name = "x"\ndatabase_id = "x"\nbucket_name = "x"\nmigrations_dir = "x"';

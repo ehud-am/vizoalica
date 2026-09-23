@@ -28,6 +28,8 @@ export type EngineDeps = {
   wranglerTemplate: string;
   /** The packaged migrations directory (`dist/schema`), applied with `d1 migrations apply`. */
   schemaDir: string;
+  /** This console's own version, written into the rendered config so the deployed Worker reports it. */
+  consoleVersion: string;
   store: RunStore;
   vault: SecretVault;
   environmentStore: EnvironmentStore;
@@ -251,7 +253,8 @@ async function runFirstInstall(
     database: names.database,
     databaseId,
     bucket: names.bucket,
-    migrationsDir: deps.schemaDir
+    migrationsDir: deps.schemaDir,
+    workerVersion: deps.consoleVersion
   });
   mkdirSync(dirname(rendered), { recursive: true, mode: 0o700 });
   writeFileSync(rendered, filled, { mode: 0o600 });

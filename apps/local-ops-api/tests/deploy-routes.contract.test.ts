@@ -68,7 +68,9 @@ function packagedWorker(base: string): string {
       'migrations_dir = "__SCHEMA_DIR__"',
       '[[r2_buckets]]',
       'binding = "VIZOALICA_EVENTS"',
-      'bucket_name = "__BUCKET_NAME__"'
+      'bucket_name = "__BUCKET_NAME__"',
+      '[vars]',
+      'VIZOALICA_WORKER_VERSION = ""'
     ].join('\n')
   );
   return workerDir;
