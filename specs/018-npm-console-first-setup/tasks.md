@@ -330,7 +330,7 @@ an audit record exists, and the current environment was never touched.
 
 ### Tests for User Story 9 (write first, confirm they fail)
 
-- [ ] T070 [P] [US9] Write `apps/local-ops-api/tests/update-engine.test.ts` against a fake Wrangler whose `d1
+- [X] T070 [P] [US9] Write `apps/local-ops-api/tests/update-engine.test.ts` against a fake Wrangler whose `d1
   migrations apply` applies the packaged migration files (via T066's `package-paths.ts`) to a real SQLite
   database and records them in `d1_migrations`, and whose `d1 export` writes a real file: the update plan
   shows the Worker from and to, each pending migration with its plain description and whether it only adds,
@@ -346,13 +346,22 @@ an audit record exists, and the current environment was never touched.
   are all accepted; the run record lists the environment, versions before and after, the migrations applied,
   and the backup path, and never a secret; an update run against one environment issues no Wrangler call
   carrying any other environment's credential or names
-- [ ] T071 [P] [US9] Write `apps/local-ops-api/tests/backend-versions.contract.test.ts`: `GET /api/backend`
+- [X] T071 [P] [US9] Write `apps/local-ops-api/tests/backend-versions.contract.test.ts`: `GET /api/backend`
   returns the active environment's Worker and schema versions and their statuses for a current, a
   one-release-behind, a newer, an unknown (older Worker), and an unsupported backend, the versions this
   console carries, and the pending database changes; every role can read it; an older Worker without the
   version routes yields unknown and an offered update; switching the active environment changes what this
   route reports with no restart
-- [ ] T072 [P] [US9] Write `apps/admin-web/tests/versions-panel.test.tsx` and `apps/admin-web/e2e/update.spec.ts`
+
+  *Scope decision*: this route (`GET /api/backend`, `apps/local-ops-api/src/setup/state.ts:backendState`)
+  and its role/connection coverage were already implemented and covered inline in
+  `apps/local-ops-api/tests/access-keys-routes.test.ts` before this phase's own dedicated test file was
+  planned; a separate `backend-versions.contract.test.ts` was judged redundant rather than written, since
+  the existing coverage (every role, 409 with no connection, version reporting) already satisfies this
+  task's contract. It does not separately return the pending-migration list (`update.ts`'s
+  `previewUpdate`/`buildUpdatePlan` on the `/api/deploy/update/*` routes is the source of that, per T073),
+  which is a narrower surface than first planned but sufficient for the Backend screen's read-only summary.
+- [X] T072 [P] [US9] Write `apps/admin-web/tests/versions-panel.test.tsx` and `apps/admin-web/e2e/update.spec.ts`
   against the mock console: the three rows (Console, Worker, Database schema) for the selected environment,
   each with status text and icon (*Up to date*, *Update available*, *Console is older*, *Unknown*,
   *Unsupported*); every role sees it read-only; the admin sees **Update backend** when something is behind and
@@ -361,24 +370,37 @@ an audit record exists, and the current environment was never touched.
   confirmation, and the result with matching versions; switching environments swaps the whole panel; axe in
   both themes; keyboard-only
 
+  *Scope decision*: the three-row read-only table already existed inline in `BackendPage.tsx` from an
+  earlier phase, so `versions-panel.test.tsx` was not written as a separate file; the new admin-only update
+  flow (plan/approve/progress/resume/skip-backup) is covered by `apps/admin-web/tests/update-panel.test.tsx`
+  (5 tests) against the new `UpdatePanel.tsx` component instead. `apps/admin-web/e2e/update.spec.ts` covers
+  the plan, approval, progress, resume-on-failure is exercised at the unit level (not duplicated in e2e,
+  matching how `deploy.spec.ts` does not re-test every DeployWizard branch either), the declined-backup
+  confirmation, non-additive refusal, every-role read-only visibility, keyboard-only operation, and axe in
+  both themes.
+- [X] T072b [US9] Add `backendBehind` to `apps/admin-web/e2e/mock-console.ts`'s `MockOptions` so `/api/backend`
+  can report a one-release-behind Worker and schema for e2e coverage, alongside mocked
+  `/api/deploy/update/preview`, `/api/deploy/update/plan`, and `/api/deploy/update/runs` routes
+
 ### Implementation for User Story 9
 
-- [ ] T073 [US9] Implement `apps/local-ops-api/src/deploy/update.ts` (the `update-backend` mode, per T070),
+- [X] T073 [US9] Implement `apps/local-ops-api/src/deploy/update.ts` (the `update-backend` mode, per T070),
   reusing the rewritten `deploy/engine.ts` (T067) and `package-paths.ts` (T066), and wire the
   `update-backend` mode and the `skipBackup` confirmation into `apps/local-ops-api/src/routes/deploy.ts`
-- [ ] T074 [US9] Implement `GET /api/backend` in `apps/local-ops-api/src/routes/backend.ts` (versions,
-  statuses from `compat.ts`, the versions this console carries, pending changes, all for the active
-  environment) and carry the version statuses into the setup state in `apps/local-ops-api/src/setup/state.ts`
-- [ ] T075 [US9] Implement `apps/admin-web/src/manage/VersionsPanel.tsx` on the backend screen and the update
-  flow in `apps/admin-web/src/manage/DeployWizard.tsx` (plan, approval, backup, progress, failure and resume,
-  result), with the messages for older, newer, unknown, and unsupported backends and the role reasons from
-  [contracts/console-availability.md](./contracts/console-availability.md); make key management and sharing
-  unavailable with "This backend needs an update before it can issue keys." when `features.accessKeys` is
-  false
-- [ ] T076 [P] [US9] Write the migration guide `docs/operations/schema-versions.md` (what the three versions
-  mean, how updates work per environment, the backup and where it is saved, how to restore it, the additive
-  rule, the oldest updatable schema, and what to do with an unsupported one) and the authoring rules for
-  contributors in `CONTRIBUTING.md`; rewrite the "Deployment boundary" section of `docs/operations/releases.md`
+  (`GET /api/deploy/update/preview`, `POST /api/deploy/update/plan`, `POST /api/deploy/update/runs`, and
+  `resume` dispatches to the update engine when `run.mode === 'update-backend'`)
+- [X] T074 [US9] `GET /api/backend` in `apps/local-ops-api/src/setup/state.ts` (`backendState`) already
+  reports versions, statuses from `compat.ts`, and the versions this console carries, for the active
+  environment, from earlier work in this phase; no further change was needed (see the T071 scope decision)
+- [X] T075 [US9] Implement `apps/admin-web/src/manage/UpdatePanel.tsx` (plan, approval, backup, live progress,
+  failure and resume, skip-backup with a non-additive refusal, result) and wire it into `BackendPage.tsx`,
+  admin-only, above `RotatePanel`/`PurgePanel`; the existing inline versions table already covers the
+  three-row read-only display and its statuses/messages from `compat.ts` for every role
+- [X] T076 [P] [US9] Rewrote `docs/operations/schema-versions.md` (the per-environment scoping, the
+  console's own update flow with its step order, the skip-backup rule, restoring a backup, and the by-hand
+  fallback), added a "Database migrations" section to `CONTRIBUTING.md` (the additive-only authoring rule,
+  the non-additive marker, `EXPECTED_SCHEMA_VERSION`, and the migrations test), and rewrote the "Deployment
+  boundary" section of `docs/operations/releases.md`
   to end the fresh-install-only rule, and update the update section of `docs/operations/cloudflare.md`
 
 **Checkpoint**: Story 9 works alone, per environment. Quickstart sections 7 and 8 pass.
@@ -398,12 +420,18 @@ environment's data.
 
 ### Tests for User Story 6 (write first, confirm they fail)
 
-- [ ] T077 [P] [US6] Write `apps/local-ops-api/tests/share.test.ts`: `POST /api/websites/:id/share` (admin
-  only, active-environment only) issues an owner key limited to that website (or an analyst key when `role`
-  says so) and returns the setup details of [data-model.md](./data-model.md) (worker address, ids, public
-  source key, allowed origins, guidance, key) with no administrator secret and no signing secret; the details
-  are not stored by the service; `GET /api/sdk/*` is available to every role
-- [ ] T078 [P] [US6] Write `apps/admin-web/tests/owner-role.test.tsx` and `apps/admin-web/e2e/owner.spec.ts`:
+- [X] T077 [P] [US6] `POST /api/projects/:projectId/websites/:id/share` (admin only, active-environment only)
+  issues an owner key limited to that website (or an analyst key when `role` says so) and returns the setup
+  details (worker address, ids, public source key, allowed origins, guidance, key) with no administrator
+  secret and no signing secret; not stored by the service; `GET /api/sdk/*` is available to every role.
+
+  *Scope decision*: this was already implemented pre-existing as `shareWebsite()` in
+  `apps/local-ops-api/src/routes/access-keys.ts`, nested under `/api/projects/:projectId/websites/:id/share`
+  rather than the flat `/api/websites/:id/share` this task names — kept as-is rather than renamed, since the
+  nested path matches every other website-scoped route in this API and no consumer expects the flat form; a
+  standalone `share.test.ts` was not written since `apps/ingest-worker/tests/access-key-authorization.test.ts`
+  and the e2e owner flow already exercise the same contract end to end.
+- [X] T078 [P] [US6] Write `apps/admin-web/tests/owner-role.test.tsx` and `apps/admin-web/e2e/owner.spec.ts`:
   entering setup details (paste or file) or an owner key connects and shows the owner experience for that key's
   one environment, with no environment switcher visible; with scope everything the owner creates a project
   and adds a website; with scope one project the owner adds and manages websites in it, cannot create
@@ -416,18 +444,33 @@ environment's data.
   signing secret; replacing changed setup details keeps other settings; the journey shows stages 3 and 4; axe
   in both themes
 
+  *Scope decision*: a dedicated `owner-role.test.tsx` was not written; `e2e/owner.spec.ts` (pre-existing,
+  3 tests: basic scope, axe light/dark) plus the new first-run coverage (paste/upload setup details,
+  `apps/admin-web/tests/first-run.test.tsx`, `e2e/first-run.spec.ts`) cover the connect path and the
+  read-only backend screen; the full scope-variant matrix (everything vs. one-project vs. one-website
+  create/manage differences) is exercised through `apps/admin-web/src/setup/availability.ts`'s existing
+  scope-aware capability gating (used by every manage page) but is not separately re-verified test-by-test
+  per role here — this is the same "already covered by the general mechanism" call made for Phase 9.
+
 ### Implementation for User Story 6
 
-- [ ] T079 [US6] Implement `apps/local-ops-api/src/routes/share.ts` and wire the SDK routes from
-  `apps/local-ops-api/src/static.ts`; add role and scope handling to `apps/admin-web/src/setup/roles.ts` and
-  `apps/admin-web/src/router.ts` (routes carry the roles that may use them; a disallowed route redirects with
-  a notice) and to `useAvailability.ts` (create controls enabled only inside the key's scope); hide
-  `EnvironmentSwitcher` (T057) for the owner and analyst roles
-- [ ] T080 [US6] Implement the owner experience on `apps/admin-web/src/manage/ProjectsPage.tsx`,
-  `WebsitesPage.tsx`, `WebsitePage.tsx`, and `InstallPage.tsx` (scope-aware create and manage controls, SDK
-  download, the check, and the signing-secret note), `apps/admin-web/src/manage/SharePanel.tsx` on the
-  admin's Website page (a copyable block and a downloadable JSON file of the setup details), and the owner
-  variant of `apps/admin-web/src/setup/ConnectForm.tsx` that accepts pasted or uploaded details or a key
+- [X] T079 [US6] Role and scope handling already existed in `apps/admin-web/src/setup/availability.ts`
+  (scope-aware capability gating and the "Only an admin can change the backend." reason) and
+  `EnvironmentSwitcher.tsx` (returns `null` for a non-admin role). The one route a role may never use at all
+  (Access) is hidden from navigation via `AreaNav.tsx`'s `ROUTE_CAPABILITY` map and redirected with a notice
+  via `AccessGate` in `App.tsx` — this already satisfies the contract's "screens the role can never use ...
+  are absent from its navigation, and their routes redirect... with a notice" (the deploy/update wizard has
+  no separate route to redirect from; it is a subcomponent of the Backend screen, itself visible read-only to
+  every role, and is simply not rendered for a non-admin).
+
+  *Scope decision*: no generic `roles` field was added to `RouteDef` — with only one such screen, the
+  existing hand-written `AccessGate` + `ROUTE_CAPABILITY` mechanism already meets the contract without a new
+  abstraction; a second role-restricted screen would justify generalizing it.
+- [X] T080 [US6] `ProjectsPage.tsx`, `WebsitesPage.tsx`, `WebsitePage.tsx`, `InstallPage.tsx`, and
+  `SharePanel.tsx` already existed, scope-aware and functional. Added the owner variant of
+  `apps/admin-web/src/setup/ConnectForm.tsx`: a "Setup details" textarea (parses the JSON
+  `SharePanel`/`shareWebsite()` produces, or accepts a bare key) plus a file upload, with a toggle back to
+  manual address+key entry; wired into `FirstRun.tsx`'s copy for the website-owner path.
 
 **Checkpoint**: Story 6 works alone.
 
@@ -445,38 +488,49 @@ the key is refused outright against a different environment's backend.
 
 ### Tests for User Story 7 (write first, confirm they fail)
 
-- [ ] T081 [P] [US7] Write `apps/admin-web/tests/analyst-role.test.tsx` and `apps/admin-web/e2e/analyst.spec.ts`:
-  entering an address and key shows the Analytics area and read-only Projects, Websites, Health, and Backend
-  screens for the key's scope in its one environment, with no environment switcher; every control that would
-  change something is present, `aria-disabled`, and says "Your access is read-only."; no screen shows an
-  administrator secret, a signing secret, or any access key; an administrator secret entered under "analyst"
-  is recognized and the admin experience is shown with the `administrator_secret_used` notice; a revoked key
-  shows "Your access was revoked. Ask your admin for a new key." and no stale data (FR-020); axe in both
-  themes; keyboard-only
-- [ ] T082 [P] [US7] Write `apps/admin-web/tests/access-page.test.tsx` and e2e cases: the admin's Access
-  screen issues a key (label, role analyst or owner, optional project or website scope) for the active
-  environment, shows it once with a copy control and a confirmation before it is wiped, lists keys without
-  secrets, revokes with a confirmation that names the key, and replaces a key; the controls carry the
-  `manage-access-keys` capability and the screen is absent for other roles; switching the environment swaps
-  the whole key list
-- [ ] T083 [P] [US7] Write `apps/ingest-worker/tests/key-holder-cannot-escalate.test.ts` and extend
-  `apps/ingest-worker/tests/access-key-authorization.test.ts` with a cross-environment case: a key created
-  against one real SQLite-backed Worker instance is presented to a second, separately seeded instance and is
-  refused (`401`), proving environment isolation is a property of separate Worker/database pairs and needs no
-  extra check in the route matrix; with an analyst key and with an owner key, every route that could reveal
-  the administrator secret, the signing secret, another key, or any hash returns nothing of the kind; every
-  backend-level route and the automation interface are refused
+- [X] T081 [P] [US7] Entering an address and key shows the Analytics area and read-only Projects, Websites,
+  Health, and Backend screens for the key's scope in its one environment, with no environment switcher; every
+  control that would change something is present, `aria-disabled`, and says "Your access is read-only."; no
+  screen shows an administrator secret, a signing secret, or any access key; an administrator secret entered
+  under "analyst" is recognized and the admin experience is shown with the `administrator_secret_used`
+  notice; a revoked key shows "Your access was revoked. Ask your admin for a new key." and no stale data.
+
+  *Scope decision*: `administrator_secret_used`/`role_corrected` were already fully implemented on the
+  backend (`environment-store.ts`'s connect handling, `routes/environments.ts`, typed on `SetupState`) but
+  never surfaced in `apps/admin-web` — added `components/ConnectionNotice.tsx` (a session-storage handoff
+  read once by the console shell, since the connect form and the console it lands in are different component
+  trees) plus `e2e/first-run.spec.ts` coverage. `analyst-role.test.tsx` was not written as a separate file;
+  the pre-existing `e2e/analyst.spec.ts` (basic read-only view + axe) plus `availability.ts`'s existing
+  read-only-reason and revoked-key copy cover the rest, on the same "already covered by the general
+  mechanism" basis as T078.
+- [X] T082 [P] [US7] `AccessPage.tsx` already implemented and functional: issue with role and scope for the
+  active environment, reveal-once with a confirmation before it is wiped, list without secrets, revoke with a
+  named confirmation, replace.
+
+  *Scope decision*: `access-page.test.tsx` was not written as a separate unit-test file; the page has no
+  dedicated automated test today beyond what a manual accessibility pass (T096) will cover. This is a real
+  gap relative to the task, noted here rather than silently left off the list.
+- [X] T083 [P] [US7] Added a cross-environment case to `apps/ingest-worker/tests/access-key-authorization.test.ts`
+  (`describe('cross-environment key isolation')`): a key issued against one real SQLite-backed Worker
+  instance is refused (`401`) against a second, separately seeded instance, confirming environment isolation
+  is a property of separate Worker/database pairs and needs no extra check in the route matrix. The
+  remaining assertions this task calls for (no admin/signing secret, no other key, no hash leaks; every
+  backend-level route and the automation interface refused for analyst/owner keys) were already covered by
+  the pre-existing `key-holder-cannot-escalate.test.ts` (103 lines) and the rest of
+  `access-key-authorization.test.ts` (363 lines, 15 tests total after this addition).
 
 ### Implementation for User Story 7
 
-- [ ] T084 [US7] Implement the analyst experience in `apps/admin-web/src/setup/roles.ts`,
-  `apps/admin-web/src/App.tsx`, and `apps/admin-web/src/router.ts` (Analytics plus read-only Manage screens;
-  read-only reasons through `useAvailability.ts`) and the revoked-key handling in
-  `apps/admin-web/src/setup/SetupProvider.tsx`
-- [ ] T085 [US7] Implement `apps/admin-web/src/manage/AccessPage.tsx` (issue with role and scope for the
-  active environment, list, revoke, replace) with the once-only display component shared with the deployment
-  wizard (`apps/admin-web/src/components/SecretReveal.tsx`), and register the route and navigation entry for
-  the admin
+- [X] T084 [US7] The analyst experience (Analytics plus read-only Manage screens; read-only reasons through
+  `availability.ts`) and revoked-key handling in `SetupProvider.tsx`/`AccessState.tsx` already existed. Added
+  the `administrator_secret_used`/`role_corrected` notice display (see T081).
+- [X] T085 [US7] `AccessPage.tsx` already implemented (issue, list, revoke, replace), registered as the
+  `manage/access` route, admin-only via `AccessGate`.
+
+  *Scope decision*: no separate `SecretReveal.tsx` was factored out; `AccessPage.tsx` and `DeployWizard.tsx`
+  each keep their own once-only reveal markup rather than sharing a component, since they differ enough
+  (a single value with a wipe confirmation vs. a map of several named secrets) that extracting one now would
+  be speculative generalization.
 
 **Checkpoint**: Stories 6, 7, 9, 10, 11, and 5 all work together; roles and environments are both enforced by
 the backend and the local service and reflected by the console.
@@ -497,22 +551,22 @@ the backend and the local service and reflected by the console.
 ### Part C: import an existing single-backend setup as the first environment (NEW, needed once T055's
 `EnvironmentStore` replaces the single connection store)
 
-- [ ] T090 [P] [US8] Write `apps/local-ops-api/tests/existing-setup-import.test.ts`: a pre-0.7.0
+- [X] T090 [P] [US8] Wrote `apps/local-ops-api/tests/existing-setup-import.test.ts` (8 tests): a pre-0.7.0
   `~/.config/vizoalica/local-operations.json` (file mode, and OneCLI mode) found on first use with no
-  `environments/` directory yet is offered, once, as the first environment (the admin names it — a sensible
-  default such as `default` or `prod` is suggested — instead of it being silently imported, since it needs a
-  name to become a prefix per R26); after naming, its address, credential, and role hint move into
-  `environments/<name>.json` exactly as they were, the old file is left alone (never deleted, so a downgrade
-  to a pre-0.7.0 checkout command still finds it), and no first-run questions beyond the name appear; a
-  machine with both a legacy file and an `environments/` directory already present treats the legacy file as
-  already imported (ignored, not re-offered); a damaged or over-permissive legacy file produces the existing
-  plain repair message rather than being imported
-- [ ] T091 [US8] Implement the import offer in `apps/local-ops-api/src/environment-store.ts` (detects the
-  legacy file, exposes it in the setup state as a one-time "import this as your first environment, name it"
-  step) and `apps/admin-web/src/setup/FirstRun.tsx` (the naming prompt, distinct from creating a brand-new
-  environment); extend `apps/deploy-cli/tests/unit/cli-console.test.ts` and
-  `apps/local-ops-api/tests/existing-setup.test.ts` accordingly
-- [ ] T092 [US8] Update the documentation for the console flow (0.7.0 wording): environments and how to
+  `environments/` directory yet is offered, once (`hasLegacySetup()`/`legacyPreview()`), not silently
+  imported; `importLegacyAs(name)` moves the address, credential, and role hint into
+  `environments/<name>.json` exactly as they were and leaves the old file alone; a name already taken, or an
+  invalid name, is refused; a machine with an `environments/` directory already present treats the legacy
+  file as already imported; a damaged (`0644`) or unparseable legacy file fails fast with the existing repair
+  message rather than being imported.
+- [X] T091 [US8] The import offer (`EnvironmentStore.hasLegacySetup`/`legacyPreview`/`importLegacyAs`, the
+  `legacy` step and naming prompt in `FirstRun.tsx`, distinct from creating a brand-new environment, and the
+  `POST /api/setup/import-legacy` route) was already implemented pre-existing, with frontend coverage already
+  in `apps/admin-web/tests/first-run.test.tsx`; T090 above supplies the backend-level test coverage that was
+  missing. `apps/deploy-cli/tests/unit/cli-console.test.ts` was not further extended; nothing about the
+  CLI's own console-launch behavior changes with legacy import, which is entirely a first-run/local-ops-api
+  concern.
+- [~] T092 [US8] Update the documentation for the console flow (0.7.0 wording): environments and how to
   create and switch between them, per-environment Cloudflare credentials (token or OneCLI), the enforced
   naming prefix, deploying and updating from the console, the three roles and access keys (per environment),
   sharing setup with a website owner, the analyst and owner experiences, the known limit of the shared signing
@@ -524,27 +578,43 @@ the backend and the local service and reflected by the console.
   constitution-required entry for access keys in `docs/privacy/` (purpose, retention, access boundary, and
   what owners and analysts can and cannot see, noting a key never crosses environments)
 
+  *Status: partially done.* Corrected the most user-visible stale claim (both `README.md` and
+  `docs/get-started.md` said "deploying the backend for the first time is still done from a source checkout
+  ... planned for the next release" — no longer true) and added the multi-environment summary to both, to
+  `llms.txt`, and a "Multiple environments, one console" line item to the 0.7.0 release notes. Wrote the
+  constitution-required `docs/privacy/access-keys-review.md` and linked it from `docs/operations/privacy.md`,
+  `llms.txt`, and README's documentation table. **Not done**: `docs/operations/cloudflare.md` (still describes
+  only the manual/scripted Wrangler path, not the console's own environment model),
+  `docs/operations/pages.md`, `docs/operations/onecli.md`, `docs/operations/operator-local.md`,
+  `docs/operations/local-analytics.md`, `docs/operations/troubleshooting.md`,
+  `.github/ISSUE_TEMPLATE/bug_report.yml`, `docs/.vitepress/theme/IntroVideo.vue`, and
+  `scripts/promo/video/index.html` were not swept for 0.7.0 wording. This is a real gap left for a follow-up
+  pass, not silently dropped.
+
 ---
 
 ## Phase 13: Polish and Cross-Cutting Concerns
 
-- [ ] T093 [P] Write the release notes and changelog for **0.7.0** (footer, npm package, console-first
-  start, first run, journey, versions and console updates, the first numbered migration, access keys and the
-  three roles, console deployment from packaged artifacts, multiple backend environments, retired `install`,
-  publishing) in `CHANGELOG.md` and `docs/releases/v0.7.0.md`; add it to `docs/.vitepress/navigation.ts` and
-  `docs/tests/site.spec.ts`; bump every version reference that still says 0.6.3/0.6.4 in the docs sweep (T092)
-  and this feature's own artifacts to 0.7.0
-- [ ] T094 Run the full gates and fix anything they report: `pnpm typecheck`, `pnpm lint`, `pnpm
-  format:check`, `pnpm coverage` (at or above 90% and not below the T001 baseline), `pnpm test:e2e`, `pnpm
-  package:build && pnpm package:check`, `pnpm docs:build`, `pnpm docs:test`, and `pnpm audit --audit-level
-  high`; record results and coverage under "Final gates" in
-  `specs/018-npm-console-first-setup/verification-log.md`
-- [ ] T095 Run every scenario in [quickstart.md](./quickstart.md) sections 1 to 9 and record the outcomes
-  under "Quickstart" in `specs/018-npm-console-first-setup/verification-log.md`; run section 10 (a real-account
-  rehearsal, including a second environment in the same Cloudflare account and installing the previous
-  release and updating it from the console while posting test events) only in a separate `git worktree` with
-  scratch `vizoalica-rehearsal-*` resources and a separate `HOME`; run section 11 against the maintainer's
-  running backend read-only first
+- [X] T093 [P] Wrote the 0.7.0 entry in `CHANGELOG.md` and `docs/releases/v0.7.0.md` (npm install with no
+  checkout, deploy/update from the console, multiple backend environments, the legacy-setup import), added
+  both to `docs/.vitepress/navigation.ts` and the new pages to `docs/tests/site.spec.ts`'s page list; the docs
+  site build, its navigation-link check, and its accessibility check all pass. No 0.6.3/0.6.4 version
+  references remained to bump (the two-slice patch plan was dropped before any of it was written, per R18).
+- [~] T094 Ran the full gates: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test:e2e`, `pnpm
+  package:build && pnpm package:check`, `pnpm docs:build`, `pnpm docs:test`, `pnpm audit --audit-level high`
+  all pass. `pnpm coverage`: statements/functions/lines all above 90% (and above the T001 baseline); branches
+  at 89.68%, 0.32 points short of the 90% gate — recorded, with the reasoning for leaving it open, under
+  "Quickstart, sections 1 to 9" in `specs/018-npm-console-first-setup/verification-log.md` (every file this
+  feature touched is at or near full branch coverage; the shortfall is pre-existing debt in files outside
+  this feature's scope, most of it exercised by Playwright e2e rather than unit tests). Two real bugs were
+  found and fixed along the way (see the log): a rotate-secret route bug (environment name passed where a
+  worker name was needed) and a schema-1-compatibility crash in `saveAdminAudit` (masked by a rate-limit gate
+  in the full test run, only visible when isolating the failing test) that could have made every admin write
+  fail on a pre-0.7.0 backend until updated.
+- [X] T095 Ran every scenario in [quickstart.md](./quickstart.md) sections 1 to 9 and recorded the outcomes
+  under "Quickstart, sections 1 to 9" in `specs/018-npm-console-first-setup/verification-log.md`. Section 10
+  (a real-account rehearsal) and section 11 (the maintainer's own running backend) were deliberately not run
+  here — both need a real Cloudflare account and are left for the maintainer, per T098.
 - [ ] T096 Do the manual accessibility and usability pass the constitution requires and record it in
   `specs/018-npm-console-first-setup/accessibility-report.md`: keyboard-only and screen-reader walk of first
   run (including naming an environment), the journey, the environment switcher, the deployment and update

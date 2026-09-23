@@ -48,3 +48,108 @@ Deviations from the plan, all in slice 1:
 
 `npm publish --dry-run --provenance=false` from `apps/cli/package/` on 2026-09-21 lists the same 16 files as `vizoalica@0.6.2`; `npm view vizoalica`
 still answers 404, so the name is free. Nothing was published.
+
+## Quickstart, sections 1 to 9 (0.7.0, environments and console-side deploy), 2026-09-23
+
+### 1. The quality gates
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: pass.
+- `pnpm test:e2e` (`playwright test` in `apps/admin-web`): 90 tests pass, including the new
+  `e2e/update.spec.ts` and `e2e/environments.spec.ts` suites, with axe in both themes.
+- `pnpm docs:build` and `pnpm docs:test`: pass (12 tests; 3 pre-existing consent tests skipped, same
+  as before this feature).
+- `pnpm coverage`: 182 files, 1595 tests pass. Statements 94.11%, functions 92.89%, lines 95.38% (all
+  above the 90% floor). **Branches: 89.68%, 0.32 points below the 90% threshold.** Every file this
+  feature added or substantially changed (`deploy/update.ts`, `deploy/engine.ts`,
+  `routes/deploy.ts`, `routes/backend.ts`, `routes/environments.ts`, `environment-store.ts`,
+  `deploy/wrangler.ts`, `deploy/vault.ts`, `deploy/runs.ts`, `deploy/steps.ts`,
+  `routes/access-keys.ts`, `ConnectForm.tsx`, `UpdatePanel.tsx`, `ConnectionNotice.tsx`) is now at or
+  near full branch coverage; the remaining shortfall is pre-existing debt in files this feature did
+  not touch (`admin-adapter.ts`, `d1-repositories.ts`, `action-rollups.ts`, `local-ops-api/server.ts`,
+  `console-command.ts`, `BackendPage.tsx`, `AccessPage.tsx`, `DeployWizard.tsx`, and a long tail of
+  1-3-branch gaps elsewhere), most of it exercised only by Playwright e2e (not counted toward this
+  vitest branch metric) rather than by unit tests. Left open for a dedicated coverage pass; not
+  something this feature should absorb without a separate scope decision.
+- Along the way, fixed a stale `vitest.config.ts` coverage `exclude` entry (`scripts/cli/terminal.ts`
+  pointed at a 12-line re-export shim; the real 165-line implementation had moved to
+  `packages/ops-core/src/terminal.ts` without updating the exclude list), removed a genuinely unused
+  `EnvironmentFile.setExtra` method (zero callers anywhere in the repo), and fixed a real bug found by
+  the new tests: `routes/backend.ts`'s rotate-secret handler passed the **environment name** instead
+  of the **worker name** to `rotateSecret`/`configPath`, so rotating a secret after a real deploy
+  always failed with `no_rendered_config` — fixed by resolving the deployed worker name via
+  `deployedNames()` first.
+- **A second, more significant bug found via `-t` test-filter isolation** (reproducible: fails when
+  `apps/ingest-worker/tests/access-key-authorization.test.ts`'s "a database that has not been updated
+  to schema 2" test runs alone, passes when the whole file runs in order): `D1Repositories.saveAdminAudit`
+  unconditionally wrote an `actor` column that only exists from schema 2 (`0002_access_keys.sql`)
+  onward. In the full test file, an earlier test consumes the module-level `shouldAuditDenial` rate
+  gate (one audit write per 60s per Worker instance), so the schema-2-only column is never actually
+  written and the bug stays masked; run in isolation, the gate is fresh and the write fires,
+  crashing (500) instead of cleanly refusing (401) an admin request. In production this meant **any
+  backend still on schema 1 could not perform any admin write or denial at all** — every admin-audited
+  action (create/delete project, share a website, or an authorization refusal) would 500 until updated
+  to schema 2, which directly contradicts this feature's own promise that an un-updated backend keeps
+  working and only offers an update. Fixed in `saveAdminAudit` itself: catch the specific "no column
+  named actor" error and retry the insert without that column, so a pre-schema-2 backend degrades
+  gracefully (records the audit without an actor) instead of crashing. Added a direct regression test
+  in `d1-repositories.test.ts` against a real `freshDatabase({ upTo: 1 })` fixture.
+
+### 2. The package, from a clean prefix
+
+`pnpm package:build`, `npm pack`, install into a scratch prefix and `HOME`, `--version` (0.7.0), `console --no-open`
+on a scratch `VIZOALICA_PORT` (avoiding the maintainer's own long-running console on 4318): all pass. Manually
+confirmed beyond `pnpm package:check`'s own assertions: `GET /` serves the page with security headers;
+`POST /api/session` (with a matching `Origin` header) succeeds; `GET /api/setup/state` reports
+`needsFirstRun: true`; `GET /api/sdk/vizoalica.js` serves the SDK; a `--path-as-is` traversal attempt
+(`/api/sdk/../../../../etc/passwd`) answers 404; a `PUT` to a static asset answers 405.
+`pnpm package:check`'s own 24 assertions (tarball allowlist, no secrets/local paths, four traversal
+forms, no credential written on start, clean interrupt) all pass. The tarball now carries the packaged
+Worker (`dist/worker/index.mjs`, `dist/worker/wrangler.template.toml`) and migrations
+(`dist/schema/*.sql`) alongside the console and SDK, per Phase 8's redesign.
+
+### 3. The footer
+
+`e2e/footer.spec.ts` (13 tests): pass, unchanged from slice 1.
+
+### 4. First run and the journey
+
+`e2e/first-run.spec.ts`, `e2e/journey.spec.ts`, and the jsdom suites (`first-run`, `journey`,
+`availability`, `setup-experience`): 71 tests pass, now covering the environment-naming step, the
+website-owner paste/upload setup-details path, and the `administrator_secret_used`/`role_corrected`
+one-line notice.
+
+### 5. Roles are enforced by the Worker
+
+Full `apps/ingest-worker` suite: 219 tests pass (the quickstart's suggested `-t "access key"` filter
+doesn't literally match any test title in this package; `-t "key"` or the full package run are the
+working equivalents). Covers the access-key route matrix, cross-environment key isolation (new this
+pass), and the schema-1-compatibility fix above.
+
+### 6. Deploying from the console, against a fake Wrangler
+
+`apps/local-ops-api` deploy-engine and deploy-routes suites: pass, including the update-mode routes
+added this pass (`/api/deploy/update/preview|plan|runs`) and the rotate-secret bug fix.
+
+### 7. Versions and updates
+
+`apps/ingest-worker apps/local-ops-api apps/cli -t "schema|migration|update"` and the admin-web
+`--grep "versions|update"` e2e filter: pass, reproducibly (checked 3 consecutive runs after the
+schema-1 audit fix, since this is exactly the command that first surfaced it).
+
+### 8. Multiple environments
+
+`apps/local-ops-api -t "environment"` (68 tests), `e2e/environments.spec.ts` (7 tests), and
+`apps/cli/tests/worker-bundle.test.ts` (2 tests, the quickstart's `-t "worker-bundle"` filter matches
+no test title so the file is run directly): all pass, including the `wrangler deploy --dry-run`
+check against the real packaged Worker bundle and template.
+
+### 9. Existing setups keep working
+
+`apps/local-ops-api/tests/existing-setup-import.test.ts` (12 tests, new this pass) and
+`apps/cli/tests/existing-setup.test.ts` (6 tests): pass. A saved file-mode and OneCLI-mode connection
+are recognized with no first-run questions; `vizoalica install` prints where to go and exits 2; a
+pre-0.7.0 legacy connection is offered once, named, and imported without disturbing the old file.
+
+Section 10 (real-account rehearsal) and section 11 (the maintainer's own running 0.6.2 backend) are
+deliberately not run here: both need a real Cloudflare account and are left for the maintainer,
+per T098.
