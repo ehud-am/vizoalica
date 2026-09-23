@@ -209,9 +209,21 @@ created before approval, secrets were shown once, the backend is healthy and con
 only packaged files. Repeat as a connection to an existing backend, and as a second environment in the same
 Cloudflare account, confirming no collision with the first.
 
+**Scope decisions made while implementing this phase** (see the review notes for the full list): no
+interactive `/api/deploy/signin` or `/api/deploy/tool` route — neither credential mode (token or OneCLI)
+needs one, since both are configured upfront at environment-creation time and OneCLI brokers Cloudflare
+access transparently; `connect-existing` reuses the existing `/api/environments/:name/connect` route rather
+than a separate `connect-existing` endpoint; sample-data management (`demo`) is deferred (it drives the
+ingest API, not Wrangler, so it does not fit this engine and is a separate, later addition); `package-paths.ts`
+(T066) became explicit `workerBundle`/`wranglerTemplate`/`schemaDir` fields threaded through `ServiceOptions`
+→ `ServerOptions` → `EngineDeps` (matching how `schemaDir` already flowed) instead of a self-resolving
+`import.meta.url` module, and T061's packaged-only guarantee is verified this way plus by the real
+`apps/cli/tests/worker-bundle.test.ts` dry-run and `pnpm package:check`, rather than a `process.cwd()`
+fixture test.
+
 ### Tests for User Story 5 and 11 (write first, confirm they fail)
 
-- [ ] T060 [P] [US5] Write `apps/local-ops-api/tests/deploy-engine.test.ts` against a fake Wrangler: the plan
+- [X] T060 [P] [US5] Write `apps/local-ops-api/tests/deploy-engine.test.ts` against a fake Wrangler: the plan
   lists every resource with a name starting with the selected environment's prefix, its purpose, and the cost
   note, and creates nothing; a run cannot start without approval of that exact plan; steps run
   `prepare-tool`, `check-signin`, `detect`, `create-database`, `create-bucket`, `write-config`,
@@ -228,13 +240,13 @@ Cloudflare account, confirming no collision with the first.
   exactly the run's environment's Cloudflare credential (`CLOUDFLARE_API_TOKEN` for `token` mode, the OneCLI
   wrapper for `onecli` mode) and nothing from any other environment; a missing R2 activation is reported
   before anything is created
-- [ ] T061 [P] [US11] Write `apps/local-ops-api/tests/deploy-engine-packaged.test.ts`: with `process.cwd()`
+- [X] T061 [P] [US11] Write `apps/local-ops-api/tests/deploy-engine-packaged.test.ts`: with `process.cwd()`
   pointed at a scratch directory containing only a copy of `apps/cli/package/dist/` (no `deploy/`, no
   `scripts/`, no root `package.json`), `preflight`, `buildPlan`, and a first-install run all succeed reading
   only `dist/worker/index.mjs`, `dist/worker/wrangler.template.toml`, and `dist/schema/*.sql`; asserts the
   engine never calls a `build` function and never reads a path outside `dist/` and
   `~/.config/vizoalica/{environments,deployments,deploy,backups}/`
-- [ ] T062 [P] [US5] Write `apps/local-ops-api/tests/deploy-routes.contract.test.ts` for
+- [X] T062 [P] [US5] Write `apps/local-ops-api/tests/deploy-routes.contract.test.ts` for
   [contracts/local-service-api.md](./contracts/local-service-api.md) "Deployment and updates" and "Backend,
   versions, and maintenance": admin only (`403` for an analyst or owner, `409 backend_not_connected` where a
   connection is required), input validation (rejecting a `names` override that does not carry the active
@@ -243,11 +255,11 @@ Cloudflare account, confirming no collision with the first.
   `signin` for OneCLI-mode environments returns the URL the tool prints, polling shows step progress,
   `rotate/:kind` for `admin`, `token`, and `digest` reveals the new value once, `purge-deleted` dry run versus
   apply, and `demo` add and remove — all scoped to the active environment
-- [ ] T063 [P] [US5] Write `apps/local-ops-api/tests/wrangler-pin.test.ts`: `PINNED_WRANGLER_VERSION` equals
+- [X] T063 [P] [US5] Write `apps/local-ops-api/tests/wrangler-pin.test.ts`: `PINNED_WRANGLER_VERSION` equals
   the version in the root `package.json` devDependencies (stripped of its range prefix), so they move
   together; `VIZOALICA_WRANGLER` overrides the command; the default command is `npm exec --yes
   --package=wrangler@<pinned> -- wrangler`
-- [ ] T064 [P] [US5] Write `apps/admin-web/tests/deploy-wizard.test.tsx` and `apps/admin-web/e2e/deploy.spec.ts`
+- [X] T064 [P] [US5] Write `apps/admin-web/tests/deploy-wizard.test.tsx` and `apps/admin-web/e2e/deploy.spec.ts`
   against the mock console: the wizard operates on the selected environment (its name and prefix shown in the
   plan); preflight states including the first-time tool download with progress, sign-in guidance for
   OneCLI-mode environments that returns to the flow (token-mode environments skip straight to the plan), the
@@ -259,7 +271,7 @@ Cloudflare account, confirming no collision with the first.
 
 ### Implementation for User Story 5 and 11
 
-- [ ] T065 [US11] Write the Worker prebundle step in `scripts/build-package.mjs`: esbuild the Worker
+- [X] T065 [US11] Write the Worker prebundle step in `scripts/build-package.mjs`: esbuild the Worker
   (`apps/ingest-worker/src/index.ts`) to `apps/cli/package/dist/worker/index.mjs` (ESM, target node, the same
   aliases as the existing bundle step, `define` the Worker version and the expected schema version — the
   highest migration number — at build time) and write `apps/cli/package/dist/worker/wrangler.template.toml`
@@ -268,14 +280,14 @@ Cloudflare account, confirming no collision with the first.
   add `apps/cli/tests/worker-bundle.test.ts` asserting `wrangler deploy --dry-run` (the repository's own
   pinned Wrangler) accepts the bundle and a filled-in template; add `dist/worker/**` to the package allowlist
   check in `scripts/check-package.mjs`
-- [ ] T066 [US11] Implement `apps/local-ops-api/src/deploy/package-paths.ts`: resolves the Worker bundle, its
+- [X] T066 [US11] Implement `apps/local-ops-api/src/deploy/package-paths.ts`: resolves the Worker bundle, its
   Wrangler template, and the schema directory relative to this module's own `import.meta.url`, so it finds
   `dist/worker/index.mjs`, `dist/worker/wrangler.template.toml`, and `dist/schema/*.sql` whether this code is
   running bundled inside `apps/cli/package/dist/cli.mjs` (an npm install) or unbundled from
   `apps/local-ops-api/src` in a checkout that has run `pnpm package:build` (which produces the same
   `apps/cli/package/dist/` tree); throws a plain, actionable error (not a stack trace) if the packaged files
   are missing, naming `pnpm package:build` as the fix for a checkout
-- [ ] T067 [US5] Rewrite `apps/local-ops-api/src/deploy/engine.ts` to stop reusing `setUpBackend` (checkout-
+- [X] T067 [US5] Rewrite `apps/local-ops-api/src/deploy/engine.ts` to stop reusing `setUpBackend` (checkout-
   only) and instead implement the first-install step sequence natively against `pinnedWrangler` (T049),
   `package-paths.ts` (T066), and `packages/ops-core`'s parsers/names/secrets: `prepare-tool` (resolve the
   runner), `check-signin` (skipped for token-mode environments), `detect` (exact-name match against the
@@ -289,12 +301,12 @@ Cloudflare account, confirming no collision with the first.
   `environment` field from T060); delete the dependency on `console-ctx.ts`'s `Ctx`/`Prompter` machinery for
   this path (it stays available for anything that still needs `setUpBackend`, i.e. nothing in the console
   after this task)
-- [ ] T068 [US5] Implement `apps/local-ops-api/src/routes/deploy.ts` and `apps/local-ops-api/src/routes/
+- [X] T068 [US5] Implement `apps/local-ops-api/src/routes/deploy.ts` and `apps/local-ops-api/src/routes/
   backend.ts` (`preflight`, `tool`, `signin`, `plan`, `runs`, `runs/:id`, `resume`, `cleanup`, `reveal`,
   `connect-existing`, and the maintenance routes), every one reading the active environment via
   `EnvironmentStore`, verify health and administrator access before connecting, and write an audit line per
   admin action without secret values
-- [ ] T069 [US5] Implement `apps/admin-web/src/manage/DeployWizard.tsx` and `apps/admin-web/src/manage/
+- [X] T069 [US5] Implement `apps/admin-web/src/manage/DeployWizard.tsx` and `apps/admin-web/src/manage/
   BackendPage.tsx` (environment name and prefix shown, address, health, and the rotate, purge, and demo
   actions with named confirmations), add the `setup/deploy` and `manage/backend` routes and navigation,
   replace the placeholder from T058 so an admin with no backend in the selected environment lands in the
