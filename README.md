@@ -134,15 +134,26 @@ vizoalica console
 ```
 
 `vizoalica console` starts the console on your computer at `http://127.0.0.1:4318` and opens it in your
-browser. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts: it keeps
-you on the path from a running console, to a backend in your Cloudflare account, to your websites, to results,
-and shows anything that cannot work yet as unavailable, with the reason and the next step. Update it with
-`npm update -g vizoalica` and remove it with `npm uninstall -g vizoalica`; your settings stay in
-`~/.config/vizoalica/`.
+browser. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts: for an
+admin, it also asks you to name your first **environment** (`dev`, `stage`, `prod`, or any name you choose)
+before deploying or connecting a backend. It then keeps you on the path from a running console, to a backend
+in your Cloudflare account, to your websites, to results, and shows anything that cannot work yet as
+unavailable, with the reason and the next step. Update it with `npm update -g vizoalica` and remove it with
+`npm uninstall -g vizoalica`; your settings stay in `~/.config/vizoalica/`.
 
-This release installs the **console**. Deploying the backend for the first time is still done from a source
-checkout (`pnpm vizoalica backend` above), and the console then connects to it. Deploying from the console
-itself is planned for the next release, and `pnpm vizoalica` remains available for scripts and contributors.
+This release installs everything the console needs, including deploying a backend: no source checkout is
+required. Every operation runs from the packaged console (a bundled Worker, its migrations, and a pinned
+Wrangler), never from `pnpm vizoalica backend`; that command remains available for a source checkout and
+scripted use.
+
+**Multiple environments, one console.** An admin can manage more than one independent backend from the same
+console — for example `dev`, `stage`, and `prod` — each with its own Worker, database, storage bucket, and
+access keys, and its own Cloudflare credential (a plain token or OneCLI). Every resource an environment
+creates is named `<environment>-something`, so environments can share one Cloudflare account without
+colliding, or each point at a different account. Switch between them from the environment control shown once
+more than one exists; a website owner's or analyst's key always fixes their one environment, so they never
+see the switcher. See [Get started](docs/get-started.md) for a first environment, and
+[operator setup](docs/operations/operator-local.md) for managing more than one.
 
 ## Production deployment, part by part
 
@@ -338,22 +349,23 @@ goes.
 
 ## Documentation
 
-| Topic                                                  | Guide                                                                                          |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Deploy, update, rotate, and maintain the backend       | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
-| Console, default (private credential file)             | [Without OneCLI](docs/operations/local-analytics.md)                                           |
-| Console, OneCLI-managed credential                     | [With OneCLI](docs/operations/onecli.md)                                                       |
-| Daily console startup and mode check                   | [Start the console](docs/operations/operator-local.md)                                         |
-| Using the console: Analytics, Manage, Geography        | [Using the console](docs/operations/operator-local.md#using-the-console)                       |
-| Register, deploy, verify, and remove a website         | [Website activation](docs/operations/pages.md)                                                 |
-| Browser SDK reference                                  | [Browser SDK](docs/operations/browser-sdk.md)                                                  |
-| What is collected and what is not                      | [Privacy](docs/operations/privacy.md)                                                          |
-| Why only country and continent, and not more           | [Audience attributes review](docs/privacy/audience-attributes-review.md)                       |
-| D1 and R2 cost and capacity                            | [Cost model](docs/operations/cost-model.md)                                                    |
-| Publishing the documentation site (vizoalica.dev)      | [Publishing this site](docs/operations/docs-site.md)                                           |
-| Something failed                                       | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
-| Publishing a release, and making the repository public | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |
-| Getting involved, and where to ask                     | [Get involved](docs/community.md), [Support](SUPPORT.md)                                       |
-| Vulnerability reports, contributing, brand             | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |
+| Topic                                                              | Guide                                                                                          |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Deploy, update, rotate, and maintain the backend                   | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
+| Console, default (private credential file)                         | [Without OneCLI](docs/operations/local-analytics.md)                                           |
+| Console, OneCLI-managed credential                                 | [With OneCLI](docs/operations/onecli.md)                                                       |
+| Daily console startup and mode check                               | [Start the console](docs/operations/operator-local.md)                                         |
+| Using the console: Analytics, Manage, Geography                    | [Using the console](docs/operations/operator-local.md#using-the-console)                       |
+| Register, deploy, verify, and remove a website                     | [Website activation](docs/operations/pages.md)                                                 |
+| Browser SDK reference                                              | [Browser SDK](docs/operations/browser-sdk.md)                                                  |
+| What is collected and what is not                                  | [Privacy](docs/operations/privacy.md)                                                          |
+| Why only country and continent, and not more                       | [Audience attributes review](docs/privacy/audience-attributes-review.md)                       |
+| What an owner or analyst key can see, and its environment boundary | [Access keys review](docs/privacy/access-keys-review.md)                                       |
+| D1 and R2 cost and capacity                                        | [Cost model](docs/operations/cost-model.md)                                                    |
+| Publishing the documentation site (vizoalica.dev)                  | [Publishing this site](docs/operations/docs-site.md)                                           |
+| Something failed                                                   | [Troubleshooting](docs/operations/troubleshooting.md)                                          |
+| Publishing a release, and making the repository public             | [Releases](docs/operations/releases.md), [public checklist](docs/operations/public-release.md) |
+| Getting involved, and where to ask                                 | [Get involved](docs/community.md), [Support](SUPPORT.md)                                       |
+| Vulnerability reports, contributing, brand                         | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |
 
 Vizoalica is released under the [MIT License](LICENSE).

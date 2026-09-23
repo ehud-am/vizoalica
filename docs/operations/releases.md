@@ -86,11 +86,14 @@ data-preserving migration, backfill, or schema rollback.
 **This ends at 0.6.4.** Database changes are now numbered, additive migrations under
 `deploy/cloudflare/migrations/` (starting with `0002_access_keys.sql`), and the console's Backend
 screen reports the applied and expected schema versions and the Worker's version to every role. See
-[Database and Worker versions](schema-versions.md) for what changed and how to author a migration
-for a future release. Applying a migration to an existing database today is done with
-`wrangler d1 migrations apply <database> --remote --config <config>` (see
-[Update an existing backend](cloudflare.md#update-an-existing-backend)); updating the schema and the
-Worker from inside the console itself is planned for a later release.
+[Database and Worker versions](schema-versions.md) for what changed and how to author a migration.
+
+**Since 0.7.0**, the console updates a backend in place itself: an admin approves a plan (the
+Worker's and the schema's versions and every pending migration), the console backs up the database,
+applies pending migrations, and redeploys the Worker, all per selected environment (see
+[Updating from the console](schema-versions.md#updating-from-the-console)). Applying a migration by
+hand (`wrangler d1 migrations apply <database> --remote --config <config>`) remains available; see
+[Update an existing backend](cloudflare.md#update-an-existing-backend).
 
 Shipping a newer Worker build to an installation that already has data is supported when the
 release leaves the schema unchanged; see

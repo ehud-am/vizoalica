@@ -11,6 +11,11 @@ Worker's D1 database has applied. Each has a status: up to date, an update is av
 is older than the backend, unknown (an older backend that predates this), or unsupported (a database
 older than this feature can update in place).
 
+Since 0.7.0, this is tracked **per environment** (research R24): if you manage more than one backend
+from this console (`dev`, `stage`, `prod`, or any names you chose), each environment has its own
+Worker, its own database, and its own versions, shown for whichever environment is currently
+selected. Updating one environment never touches another's Worker, database, or credential.
+
 ## How a database change ships
 
 Database changes are files in `deploy/cloudflare/migrations/`, named `NNNN_description.sql` and
@@ -31,9 +36,36 @@ website-owner roles) and an `actor` column on the audit log. Because two of 0.6.
 existing databases before they were folded into `0001`, it creates both with `IF NOT EXISTS`, so
 either a stock 0.5.2 database or one with those tables already present reaches the same schema.
 
-## Applying a migration to an existing database
+## Updating from the console
 
-Take a backup first:
+An admin updates the selected environment's backend from the Backend screen: **Show the update
+plan** displays the Worker's and the schema's current and expected versions, every pending
+migration with its plain description, and whether each one is purely additive. Nothing runs until
+**Approve and update**. The run then, in order:
+
+1. Checks Cloudflare access for this environment's credential.
+2. Reads the current versions again (refusing to proceed if the backend is newer than this console
+   — this never downgrades a backend — or if its schema predates what this console can update in
+   place).
+3. Backs up the database (`wrangler d1 export --remote`), unless declined (see below) or nothing is
+   pending.
+4. Applies pending migrations (`wrangler d1 migrations apply --remote`), skipped if the schema is
+   already current.
+5. Redeploys the Worker with this console's bundle, skipped if the Worker is already current.
+6. Verifies the backend answers with the new versions.
+
+A failed step stops the run there; **Resume** repeats no step already done. The backup, if taken, is
+saved under `~/.config/vizoalica/backups/` and its path is shown in the result.
+
+**Skip the database backup** is available only when every pending migration is purely additive; it
+is refused (both in the UI and by the console's local service) the moment any pending change carries
+the `-- vizoalica:non-additive` marker, since declining a backup before a destructive change is not
+safe.
+
+## Applying a migration by hand
+
+If you would rather not use the console (or are recovering outside it), the same two steps work
+directly. Take a backup first:
 
 ```sh
 wrangler d1 export <database> --remote --output backup.sql
@@ -42,16 +74,24 @@ wrangler d1 export <database> --remote --output backup.sql
 Then apply the pending migrations:
 
 ```sh
-wrangler d1 migrations apply <database> --remote --config deploy/cloudflare/wrangler.production.toml
+wrangler d1 migrations apply <database> --remote --config <this environment's rendered wrangler.toml>
 ```
 
 This only runs files not already recorded in `d1_migrations`, so it is safe to run again. Deploy the
-matching Worker build afterward (`pnpm vizoalica backend --update` or `wrangler deploy`), since the
-database change and the Worker code that expects it ship together.
+matching Worker build afterward (`wrangler deploy --config <same config> <packaged Worker bundle>`),
+since the database change and the Worker code that expects it ship together. The console keeps each
+environment's rendered configuration under `~/.config/vizoalica/deploy/<worker-name>/wrangler.toml`.
 
-Updating the schema and the Worker from inside the console — with a plan shown first, an automatic
-backup, and step-by-step progress — is planned for a later release; for now the Backend screen only
-reports the versions.
+## Restoring a backup
+
+A backup taken before an update is a plain SQL export. To restore it to the same database:
+
+```sh
+wrangler d1 execute <database> --remote --file <backup path>
+```
+
+Restoring rolls the database back to the moment of the backup; redeploy the matching older Worker
+build afterward if the Worker was also updated, so the two stay in step.
 
 ## The oldest schema this can update
 

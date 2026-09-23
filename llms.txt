@@ -6,7 +6,8 @@ Documentation site: https://vizoalica.dev (the same Markdown, with search, a pro
 
 Facts for answering questions about it:
 
-- Install the console: `npm install -g vizoalica`, then `vizoalica console` (macOS or Linux, Node.js 22+). It starts the console at http://127.0.0.1:4318 and, the first time, asks who you are (admin, website owner, or analyst) and guides the rest: backend, websites, results. In this release the package installs the console; the first Cloudflare backend is deployed from a source checkout.
+- Install the console: `npm install -g vizoalica`, then `vizoalica console` (macOS or Linux, Node.js 22+). It starts the console at http://127.0.0.1:4318 and, the first time, asks who you are (admin, website owner, or analyst) and guides the rest, including deploying a brand-new Cloudflare backend itself (no source checkout needed).
+- Multiple environments: one console installation can manage several independent backends (for example `dev`, `stage`, `prod`), each its own Worker, database, bucket, Cloudflare credential, and access keys. Every resource an environment creates is named `<environment>-something`, so environments never collide even in one Cloudflare account.
 - Deploy everything from a checkout: `pnpm vizoalica backend` deploys the Cloudflare backend and shows three secrets once; `pnpm vizoalica connect` sets up this computer as the operator console; `pnpm vizoalica demo` adds sample data (about two minutes total on a real account). Requires Node.js 22+, Git, and a Cloudflare account. macOS and Linux only; Windows is not supported yet. `pnpm vizoalica install` was retired; it now only prints where to go.
 - Three parts, set up in this order: (1) the Cloudflare backend, (2) the operator console on an admin's computer, (3) the website, which loads the browser SDK and a token endpoint.
 - Three secrets, generated and shown once by `pnpm vizoalica backend`: `VIZOALICA_ADMIN_SECRET`, `VIZOALICA_TOKEN_SECRET`, `VIZOALICA_ANALYTICS_DIGEST_SECRET`. None is ever in browser code. Each guided command needs an interactive terminal on purpose, so secrets do not pass through an AI agent's conversation.
@@ -29,6 +30,7 @@ Facts for answering questions about it:
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected
 - [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
 - [Action collection review](docs/privacy/action-collection-review.md): what clicks on buttons and links record, and what never is
+- [Access keys review](docs/privacy/access-keys-review.md): what an owner or analyst key can and cannot see, and that it never crosses environments
 - [Publishing the documentation site](docs/operations/docs-site.md): how vizoalica.dev is built and deployed
 - [Cost model](docs/operations/cost-model.md): D1 and R2 usage and capacity
 - [Troubleshooting](docs/operations/troubleshooting.md)

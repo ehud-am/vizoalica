@@ -80,6 +80,19 @@ Changes to responsive layout or accessibility should also run:
 pnpm test:e2e
 ```
 
+## Database migrations
+
+Database changes are additive-only files in `deploy/cloudflare/migrations/`, named
+`NNNN_description.sql` with the next sequential number. `CREATE TABLE`, `CREATE INDEX`,
+`ALTER TABLE … ADD COLUMN`, and `INSERT OR IGNORE` are always allowed. Anything else (`DROP`,
+`RENAME`, `DELETE`, `UPDATE`) requires the `-- vizoalica:non-additive` marker on its own line, an
+explanation in the file, and a note in that release's changelog entry — the console refuses to skip
+the pre-update backup when a non-additive migration is pending. Update
+`EXPECTED_SCHEMA_VERSION` in `apps/ingest-worker/src/schema-version.ts` to the new highest number,
+and add a case to `apps/ingest-worker/tests/migrations.test.ts`. See
+[Database and Worker versions](docs/operations/schema-versions.md) for how a migration ships once
+merged.
+
 ## Pull requests
 
 - Link the issue or discussion it comes from.

@@ -31,17 +31,17 @@ Setting this up with an AI coding agent? Run these commands yourself in a termin
 
 ## Install the console from npm
 
-You do not need a checkout to run the console. Once a backend exists, install it and start it:
+You do not need a checkout at all. Install and start it:
 
 ```sh
 npm install -g vizoalica
 vizoalica console
 ```
 
-The console starts on your computer at `http://127.0.0.1:4318`. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts, keeping you on the path from a running console, to a backend, to your websites, to results. Anything that cannot work yet is shown as unavailable, with the reason and the next step. Update it with `npm update -g vizoalica`, remove it with `npm uninstall -g vizoalica`. Your settings stay in `~/.config/vizoalica/`.
+The console starts on your computer at `http://127.0.0.1:4318`. The first time, it asks who you are (an admin, a website owner, or an analyst) and adapts. For an admin, it also asks you to name your first **environment** (`dev`, `stage`, `prod`, or any name), then offers to deploy a brand-new backend for it right there, or connect to one you already have. It keeps you on the path from a running console, to a backend, to your websites, to results. Anything that cannot work yet is shown as unavailable, with the reason and the next step. Update it with `npm update -g vizoalica`, remove it with `npm uninstall -g vizoalica`. Your settings stay in `~/.config/vizoalica/`.
 
-::: tip This release installs the console
-Deploying the backend for the first time is still done from a source checkout with `pnpm vizoalica backend`, as above. The console then connects to it. Deploying from the console itself is planned for the next release.
+::: tip One console, many backends
+An admin can manage more than one independent environment (say "dev", "stage", and "prod") from the same console, each with its own Worker, database, bucket, credential, and access keys. Every resource an environment creates is named after it, so they never collide even in the same Cloudflare account. A website owner's or analyst's key always fixes their one environment.
 :::
 
 ## The three parts, in order

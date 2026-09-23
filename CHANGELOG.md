@@ -4,6 +4,36 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-23
+
+### Added
+
+- **Install and run the console from npm, with no source checkout.** `npm install -g vizoalica` then
+  `vizoalica console` starts a console that carries everything it needs, including a pre-bundled Worker
+  and its migrations, so deploying a brand-new backend no longer needs a repository checkout or
+  `pnpm build`.
+- **Deploy and update a backend from the console.** An admin approves a plan before anything is
+  created (or before an update runs), watches ordered step-by-step progress, resumes a failed run, and
+  sees generated secrets exactly once. Updating an existing backend backs up the database, applies
+  pending additive migrations, and redeploys the Worker, with a plan shown first and a backup that can
+  only be declined when every pending change is purely additive.
+- **Multiple backend environments.** One console installation now manages several independent
+  backends side by side — for example `dev`, `stage`, and `prod`, or any names an admin chooses. Each
+  environment has its own Worker, D1 database, R2 bucket, Cloudflare credential (a plain token or
+  OneCLI, chosen independently per environment), administrator secret, access keys, and list of
+  projects and websites. Every resource an environment creates is named `<environment>-something`, so
+  environments never collide even inside one Cloudflare account. An environment switcher appears once
+  more than one is saved; a website owner's or analyst's access key always fixes their one environment,
+  so they never see it.
+- A pre-0.7.0 single-backend setup is offered, once, to become the first named environment (its
+  address, credential, and role hint move across unchanged); the old connection file is never deleted.
+
+### Changed
+
+- This is a minor release: the environment model is a genuine redesign of the console's connection and
+  deploy machinery, with no backward-compatibility constraint, since nothing built on the previous
+  in-development shape had shipped.
+
 ## [0.6.2] - 2026-09-21
 
 ### Changed
