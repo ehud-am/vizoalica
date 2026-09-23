@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   createEnvironment: vi.fn(),
   importLegacySetup: vi.fn(),
   listEnvironments: vi.fn(),
+  getDeployPreflight: vi.fn(),
   listProjects: vi.fn(),
   listWebsites: vi.fn(),
   getAnalyticsOverview: vi.fn(),
@@ -31,6 +32,17 @@ beforeEach(() => {
   api.setRoleHint.mockResolvedValue(firstRunState());
   api.createEnvironment.mockResolvedValue({ active: 'prod', environments: [] });
   api.listEnvironments.mockResolvedValue({ active: null, environments: [] });
+  api.getDeployPreflight.mockResolvedValue({
+    environment: 'prod',
+    names: {
+      worker: 'prod-vizoalica-worker',
+      database: 'prod-vizoalica-db',
+      bucket: 'prod-vizoalica-bucket'
+    },
+    signedIn: true,
+    accounts: [],
+    existing: { database: false, bucket: false }
+  });
   api.listProjects.mockResolvedValue([{ id: 'p1', name: 'Acme' }]);
   api.listWebsites.mockResolvedValue([]);
   api.getAnalyticsOverview.mockResolvedValue(makeOverview());
@@ -119,8 +131,19 @@ describe('first run', () => {
     expect(document.body.textContent).not.toContain('the-secret');
   });
 
-  it('explains that deploying from the console comes later in the release, and where to start now', async () => {
+  it('takes an admin who needs a backend to the deploy wizard', async () => {
     const user = userEvent.setup();
+    api.getDeployPreflight.mockResolvedValue({
+      environment: 'prod',
+      names: {
+        worker: 'prod-vizoalica-worker',
+        database: 'prod-vizoalica-db',
+        bucket: 'prod-vizoalica-bucket'
+      },
+      signedIn: true,
+      accounts: [{ id: 'a'.repeat(32), name: 'Acme' }],
+      existing: { database: false, bucket: false }
+    });
     render(<App />);
     await heading('Who are you?');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -129,14 +152,8 @@ describe('first run', () => {
     await user.click(await screen.findByRole('radio', { name: /I need a backend/ }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await heading('Set up a backend');
-    expect(
-      within(screen.getByRole('main'))
-        .getByRole('link', { name: /getting started guide/ })
-        .getAttribute('href')
-    ).toBe('https://vizoalica.dev/get-started');
     expect(api.createEnvironment).toHaveBeenCalledWith('prod');
-    await user.click(screen.getByRole('button', { name: /I have deployed it/ }));
-    await heading('Connect your backend');
+    await screen.findByRole('heading', { name: /Deploy this environment/ });
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await heading('Name your environment, and do you have a backend?');
   });

@@ -366,6 +366,80 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
           featuresAccessKeys: true
         }
       });
+    if (path === '/api/backend/purge-deleted' && request.method() === 'POST') {
+      const applyPurge = (request.postDataJSON() as { apply?: boolean })?.apply === true;
+      return route.fulfill({
+        json: { dryRun: !applyPurge, complete: true, rows: { projects: 0 }, objects: 0 }
+      });
+    }
+    if (/^\/api\/backend\/rotate\/[^/]+$/.test(path) && request.method() === 'POST')
+      return route.fulfill({ json: { kind: path.split('/').pop(), value: 'new-secret-value' } });
+    if (path === '/api/deploy/preflight' && request.method() === 'GET')
+      return route.fulfill({
+        json: {
+          environment: 'prod',
+          names: {
+            worker: 'prod-vizoalica-worker',
+            database: 'prod-vizoalica-db',
+            bucket: 'prod-vizoalica-bucket'
+          },
+          signedIn: true,
+          accounts: [{ id: 'a'.repeat(32), name: 'Acme' }],
+          existing: { database: false, bucket: false }
+        }
+      });
+    if (path === '/api/deploy/plan' && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'plan-1',
+          mode: 'first-install',
+          environment: 'prod',
+          names: {
+            worker: 'prod-vizoalica-worker',
+            database: 'prod-vizoalica-db',
+            bucket: 'prod-vizoalica-bucket'
+          },
+          resources: [
+            { kind: 'd1', name: 'prod-vizoalica-db', purpose: 'Stores aggregates.' },
+            { kind: 'r2', name: 'prod-vizoalica-bucket', purpose: 'Stores raw batches.' },
+            { kind: 'worker', name: 'prod-vizoalica-worker', purpose: 'Serves the admin API.' }
+          ],
+          createdAt: '2026-01-01T00:00:00.000Z'
+        }
+      });
+    if (path === '/api/deploy/runs' && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'run-1',
+          planId: 'plan-1',
+          mode: 'first-install',
+          environment: 'prod',
+          names: {
+            worker: 'prod-vizoalica-worker',
+            database: 'prod-vizoalica-db',
+            bucket: 'prod-vizoalica-bucket'
+          },
+          status: 'done',
+          steps: [{ id: 'deploy-worker', label: 'Deploying the Worker', status: 'done' }],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          result: { workerUrl: 'https://prod-vizoalica-worker.example.workers.dev', healthy: true },
+          canReveal: true
+        }
+      });
+    if (/^\/api\/deploy\/runs\/[^/]+$/.test(path) && request.method() === 'GET')
+      return route.fulfill({
+        json: {
+          id: 'run-1',
+          status: 'done',
+          steps: [{ id: 'deploy-worker', label: 'Deploying the Worker', status: 'done' }],
+          result: { workerUrl: 'https://prod-vizoalica-worker.example.workers.dev', healthy: true },
+          canReveal: true
+        }
+      });
+    if (/^\/api\/deploy\/runs\/[^/]+\/reveal$/.test(path) && request.method() === 'POST')
+      return route.fulfill({
+        json: { secrets: { VIZOALICA_ADMIN_SECRET: 'shown-once-secret' } }
+      });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;
       const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };

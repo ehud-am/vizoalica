@@ -32,15 +32,17 @@ test('an admin with a backend connects and lands in the console', async ({ page 
   await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
 });
 
-test('an admin who needs a backend is told where to start', async ({ page }) => {
+test('an admin who needs a backend deploys from the console', async ({ page }) => {
   await toRole(page);
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByLabel('Environment name').fill('prod');
   await page.getByRole('radio', { name: /I need a backend/ }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();
-  await page.getByRole('button', { name: /I have deployed it/ }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Connect your backend' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Deploy this environment/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Show the deployment plan' }).click();
+  await page.getByRole('button', { name: 'Approve and deploy' }).click();
+  await expect(page.getByRole('button', { name: 'Show the generated secrets' })).toBeVisible();
 });
 
 for (const [label, title] of [
@@ -111,11 +113,16 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByRole('radio', { name: /I need a backend/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Deploy this environment/ })).toBeVisible();
     await audit();
-    await page.getByRole('button', { name: /I have deployed it/ }).click();
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Connect your backend' })
-    ).toBeVisible();
+    await page.getByRole('button', { name: 'Show the deployment plan' }).click();
+    await expect(page.getByRole('heading', { name: 'This will create' })).toBeVisible();
+    await audit();
+    await page.getByRole('button', { name: 'Approve and deploy' }).click();
+    await expect(page.getByRole('button', { name: 'Show the generated secrets' })).toBeVisible();
+    await audit();
+    await page.getByRole('button', { name: 'Show the generated secrets' }).click();
+    await expect(page.getByText('shown-once-secret')).toBeVisible();
     await audit();
   });
 }

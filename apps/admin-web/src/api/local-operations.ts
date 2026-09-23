@@ -364,3 +364,77 @@ export type BackendState = {
   featuresAccessKeys: boolean;
 };
 export const getBackendState = () => request<BackendState>('/api/backend');
+
+export type DeployPreflight = {
+  environment: string;
+  names: { worker: string; database: string; bucket: string };
+  signedIn: boolean;
+  accounts: Array<{ id: string; name: string }>;
+  existing: { database: boolean; bucket: boolean };
+};
+export const getDeployPreflight = () => request<DeployPreflight>('/api/deploy/preflight');
+
+export type DeployPlanResource = { kind: 'd1' | 'r2' | 'worker'; name: string; purpose: string };
+export type DeployPlan = {
+  id: string;
+  mode: 'first-install' | 'update-backend';
+  environment: string;
+  names: { worker: string; database: string; bucket: string };
+  accountId?: string;
+  accountName?: string;
+  resources: DeployPlanResource[];
+  createdAt: string;
+};
+export const createDeployPlan = (input: { accountId?: string; accountName?: string } = {}) =>
+  request<DeployPlan>('/api/deploy/plan', json('POST', input));
+
+export type DeployStep = {
+  id: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+  error?: string;
+};
+export type DeployRun = {
+  id: string;
+  planId: string;
+  mode: 'first-install' | 'update-backend';
+  environment: string;
+  names: { worker: string; database: string; bucket: string };
+  status: 'running' | 'done' | 'failed';
+  steps: DeployStep[];
+  createdAt: string;
+  finishedAt?: string;
+  error?: string;
+  result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
+  canReveal?: boolean;
+};
+export const startDeployRun = (planId: string) =>
+  request<DeployRun>('/api/deploy/runs', json('POST', { planId }));
+export const getDeployRun = (runId: string) =>
+  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}`);
+export const resumeDeployRun = (runId: string) =>
+  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}/resume`, json('POST'));
+export const cleanupDeployRun = (runId: string) =>
+  request<{ removed: string[] }>(
+    `/api/deploy/runs/${encodeURIComponent(runId)}/cleanup`,
+    json('POST', { confirm: true })
+  );
+export const revealDeploySecrets = (runId: string) =>
+  request<{ secrets: Record<string, string> }>(
+    `/api/deploy/runs/${encodeURIComponent(runId)}/reveal`,
+    json('POST')
+  );
+
+export const rotateBackendSecret = (kind: 'admin' | 'token' | 'digest') =>
+  request<{ kind: string; value: string }>(
+    `/api/backend/rotate/${encodeURIComponent(kind)}`,
+    json('POST')
+  );
+export type PurgeSummary = {
+  dryRun: boolean;
+  complete: boolean;
+  rows: Record<string, number>;
+  objects: number;
+};
+export const purgeDeleted = (apply: boolean) =>
+  request<PurgeSummary>('/api/backend/purge-deleted', json('POST', { apply }));

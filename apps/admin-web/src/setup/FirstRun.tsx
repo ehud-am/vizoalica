@@ -2,6 +2,7 @@ import { useId, useRef, useEffect, useState } from 'react';
 import {
   ApiError,
   createEnvironment,
+  getSetupState,
   importLegacySetup,
   setRoleHint,
   type RoleHint,
@@ -9,6 +10,7 @@ import {
 } from '../api/local-operations.js';
 import { assertEnvironmentNameLooksValid } from './environment-name.js';
 import { ConnectForm } from './ConnectForm.js';
+import { DeployWizard } from '../manage/DeployWizard.js';
 import { ROLE_CHOICES, roleLabel } from './roles.js';
 
 type Step = 'legacy' | 'role' | 'backend' | 'deploy' | 'connect';
@@ -262,31 +264,12 @@ export function FirstRun({
           <h1 id={headingId} ref={heading} tabIndex={-1}>
             Set up a backend
           </h1>
-          <p>
-            Deploying this environment&rsquo;s backend from the console is coming later in this
-            release. Until then, set one up from the project&rsquo;s source, then come back and
-            connect to it here.
-          </p>
-          <ol className="steps">
-            <li>
-              Follow{' '}
-              <a href="https://vizoalica.dev/get-started" target="_blank" rel="noopener noreferrer">
-                the getting started guide
-              </a>{' '}
-              (it takes about ten minutes).
-            </li>
-            <li>
-              Keep the backend address and the administrator secret it prints. The secret is shown
-              once.
-            </li>
-            <li>Return here and connect.</li>
-          </ol>
-          <div className="form-actions">
-            <button className="primary" type="button" onClick={() => setStep('connect')}>
-              I have deployed it. Connect
-            </button>
-            {back('backend')}
-          </div>
+          <DeployWizard
+            onDeployed={() => {
+              void getSetupState().then(onDone);
+            }}
+          />
+          <div className="form-actions">{back('backend')}</div>
         </>
       )}
 

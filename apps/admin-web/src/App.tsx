@@ -101,7 +101,7 @@ function ManageRoute({ route, onReconnect }: { route: Route; onReconnect: () => 
     case 'manage/health':
       return <HealthPage />;
     case 'manage/backend':
-      return <BackendPage />;
+      return <BackendPage onDeployed={onReconnect} />;
     case 'manage/access':
       return <AccessGate />;
     default:

@@ -207,3 +207,51 @@ describe('environment client calls', () => {
     expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({ name: 'x' });
   });
 });
+
+describe('deploy and backend maintenance client calls', () => {
+  it('drives preflight, plan, run polling, resume, reveal, and cleanup', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: 'r1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.getDeployPreflight();
+    await api.createDeployPlan({ accountId: 'a'.repeat(32) });
+    await api.startDeployRun('p1');
+    await api.getDeployRun('r1');
+    await api.resumeDeployRun('r1');
+    await api.cleanupDeployRun('r1');
+    await api.revealDeploySecrets('r1');
+    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
+      'GET /api/deploy/preflight',
+      'POST /api/deploy/plan',
+      'POST /api/deploy/runs',
+      'GET /api/deploy/runs/r1',
+      'POST /api/deploy/runs/r1/resume',
+      'POST /api/deploy/runs/r1/cleanup',
+      'POST /api/deploy/runs/r1/reveal'
+    ]);
+    expect(JSON.parse(String(fetch.mock.calls[5]![1]!.body))).toEqual({ confirm: true });
+  });
+
+  it('rotates a secret and purges deleted data', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ kind: 'token', value: 'x' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.rotateBackendSecret('token');
+    await api.purgeDeleted(false);
+    expect(fetch.mock.calls.map(([path]) => path)).toEqual([
+      '/api/backend/rotate/token',
+      '/api/backend/purge-deleted'
+    ]);
+    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({ apply: false });
+  });
+});
