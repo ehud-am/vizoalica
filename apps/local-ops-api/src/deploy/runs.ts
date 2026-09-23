@@ -5,6 +5,7 @@ import type { Step } from './steps.js';
 
 export type RunMode = 'first-install' | 'update-backend';
 export type PlanResource = { kind: 'd1' | 'r2' | 'worker'; name: string; purpose: string };
+export type PendingMigrationPreview = { name: string; description: string; nonAdditive: boolean };
 export type Plan = {
   id: string;
   mode: RunMode;
@@ -14,6 +15,12 @@ export type Plan = {
   accountId?: string;
   accountName?: string;
   resources: PlanResource[];
+  /** Update plans only: the versions before and expected after, and each pending database change. */
+  update?: {
+    worker: { current: string | null; expected: string; status: string; message: string };
+    schema: { applied: number | null; expected: number | null; status: string; message: string };
+    pending: PendingMigrationPreview[];
+  };
   createdAt: string;
 };
 export type RunRecord = {

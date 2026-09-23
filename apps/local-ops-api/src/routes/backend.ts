@@ -1,6 +1,7 @@
 import { parseSecretKind } from '@vizoalica/ops-core';
 import type { EngineDeps } from '../deploy/engine.js';
 import { rotateSecret } from '../deploy/engine.js';
+import { deployedNames } from '../deploy/update.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
 import { jsonInit, workerJson } from './websites.js';
 
@@ -26,10 +27,12 @@ export async function handleBackendMaintenance(
   if (method === 'POST' && rotateMatch) {
     const kind = parseSecretKind(rotateMatch[1]);
     if (!kind || kind === 'all') return bad('kind');
-    const worker = deps.environmentStore.active();
-    if (!worker) return { status: 409, body: { error: 'no_active_environment' } };
+    const environment = deps.environmentStore.active();
+    if (!environment) return { status: 409, body: { error: 'no_active_environment' } };
+    const names = deployedNames(deps, environment);
+    if (!names) return { status: 409, body: { error: 'no_rendered_config' } };
     try {
-      const value = await rotateSecret(deps, worker, kind);
+      const value = await rotateSecret(deps, names.worker, kind);
       return { status: 200, body: { kind, value } };
     } catch (error) {
       const code = error instanceof Error ? error.message : 'rotate_failed';

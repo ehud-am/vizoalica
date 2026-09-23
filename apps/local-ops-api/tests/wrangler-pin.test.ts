@@ -34,6 +34,35 @@ describe('PINNED_WRANGLER_VERSION', () => {
   });
 });
 
+describe('the underlying process runner', () => {
+  it('reports a spawn failure (a command that does not exist) as a failed result, not a rejection', async () => {
+    process.env.VIZOALICA_WRANGLER = join(tmpdir(), 'vizoalica-does-not-exist-binary');
+    const run = pinnedWrangler(root);
+    const result = await run(['--version']);
+    expect(result.code).not.toBe(0);
+    expect(result.stderr.length).toBeGreaterThan(0);
+  });
+
+  it('echoes output live when asked, and pipes stdin when given', async () => {
+    const script = fixtureScript(
+      'process.stdin.on("data", (d) => process.stdout.write(d)); process.stdin.on("end", () => process.exit(0));'
+    );
+    process.env.VIZOALICA_WRANGLER = `${process.execPath} ${script}`;
+    const run = pinnedWrangler(root);
+    const result = await run([], { stdin: 'hello', echo: true });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe('hello');
+  });
+
+  it('inherits the terminal in interactive mode with no stdin', async () => {
+    const script = fixtureScript('process.exit(0)');
+    process.env.VIZOALICA_WRANGLER = `${process.execPath} ${script}`;
+    const run = pinnedWrangler(root);
+    const result = await run([], { interactive: true });
+    expect(result.code).toBe(0);
+  });
+});
+
 describe('pinnedWrangler', () => {
   it('runs npm exec with the pinned package by default', async () => {
     const script = fixtureScript('console.log(JSON.stringify(process.argv.slice(2)))');

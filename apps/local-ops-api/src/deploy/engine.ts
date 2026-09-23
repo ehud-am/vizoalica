@@ -393,6 +393,11 @@ export function getRun(deps: Pick<EngineDeps, 'store'>, runId: string): RunRecor
   return runs.get(runId) ?? deps.store.loadRun(runId);
 }
 
+/** Shares the in-memory run registry with deploy/update.ts, so its runs are pollable the same way. */
+export function trackRun(run: RunRecord): void {
+  runs.set(run.id, run);
+}
+
 /** A failed run resumes from where it left off: steps already done are not repeated. */
 export function resumeRun(deps: EngineDeps, runId: string): RunRecord {
   const prior = getRun(deps, runId);

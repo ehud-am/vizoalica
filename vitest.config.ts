@@ -37,7 +37,8 @@ export default defineConfig({
         '**/src/main.tsx',
         '**/src/cli.ts',
         'apps/cli/src/bin.ts',
-        'scripts/cli/terminal.ts'
+        'scripts/cli/terminal.ts',
+        'packages/ops-core/src/terminal.ts'
       ],
       thresholds: { lines: 90, branches: 90 }
     }

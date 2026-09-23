@@ -7,6 +7,12 @@ import {
   startRun,
   type EngineDeps
 } from '../deploy/engine.js';
+import {
+  buildUpdatePlan,
+  previewUpdate,
+  resumeUpdateRun,
+  startUpdateRun
+} from '../deploy/update.js';
 import { defaultNames } from '@vizoalica/ops-core';
 
 export type DeployReply = { status: number; body: unknown };
@@ -27,6 +33,12 @@ function errorReply(error: unknown): DeployReply {
   if (code === 'plan_not_found') return { status: 404, body: { error: 'plan_not_found' } };
   if (code === 'run_not_found') return { status: 404, body: { error: 'run_not_found' } };
   if (code === 'run_not_resumable') return { status: 409, body: { error: 'run_not_resumable' } };
+  if (code === 'backend_not_connected')
+    return { status: 409, body: { error: 'backend_not_connected' } };
+  if (code === 'no_active_environment')
+    return { status: 409, body: { error: 'no_active_environment' } };
+  if (code.startsWith('no_rendered_config'))
+    return { status: 409, body: { error: 'no_rendered_config', message: code } };
   throw error;
 }
 
@@ -85,6 +97,38 @@ export async function handleDeploy(
     }
   }
 
+  if (method === 'GET' && pathname === '/api/deploy/update/preview') {
+    try {
+      return { status: 200, body: await previewUpdate(deps) };
+    } catch (error) {
+      return errorReply(error);
+    }
+  }
+
+  if (method === 'POST' && pathname === '/api/deploy/update/plan') {
+    try {
+      return { status: 200, body: await buildUpdatePlan(deps) };
+    } catch (error) {
+      return errorReply(error);
+    }
+  }
+
+  if (method === 'POST' && pathname === '/api/deploy/update/runs') {
+    const body = (await readBody()) as { planId?: unknown; skipBackup?: unknown } | undefined;
+    if (typeof body?.planId !== 'string') return bad('planId');
+    if (body?.skipBackup !== undefined && body.skipBackup !== true) return bad('skipBackup');
+    try {
+      const run = startUpdateRun(
+        deps,
+        body.planId,
+        body.skipBackup === true ? { skipBackup: { confirm: true } } : {}
+      );
+      return { status: 200, body: run };
+    } catch (error) {
+      return errorReply(error);
+    }
+  }
+
   const runMatch = /^\/api\/deploy\/runs\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && runMatch) {
     const run = getRun(deps, runMatch[1]!);
@@ -94,8 +138,16 @@ export async function handleDeploy(
 
   const resumeMatch = /^\/api\/deploy\/runs\/([^/]+)\/resume$/.exec(pathname);
   if (method === 'POST' && resumeMatch) {
+    const existing = getRun(deps, resumeMatch[1]!);
+    if (!existing) return { status: 404, body: { error: 'run_not_found' } };
     try {
-      return { status: 200, body: resumeRun(deps, resumeMatch[1]!) };
+      return {
+        status: 200,
+        body:
+          existing.mode === 'update-backend'
+            ? resumeUpdateRun(deps, resumeMatch[1]!)
+            : resumeRun(deps, resumeMatch[1]!)
+      };
     } catch (error) {
       return errorReply(error);
     }
