@@ -1052,20 +1052,41 @@ export class D1Repositories
     return { rows, complete: true };
   }
   async saveAdminAudit(entry: AdminAuditEntry): Promise<void> {
-    await this.db
-      .prepare(
-        'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code, actor) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      )
-      .bind(
-        new Date().toISOString(),
-        entry.operation,
-        entry.outcome,
-        entry.projectId ?? null,
-        entry.sourceId ?? null,
-        entry.reasonCode,
-        entry.actor ?? null
-      )
-      .run();
+    const occurredAt = new Date().toISOString();
+    try {
+      await this.db
+        .prepare(
+          'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code, actor) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind(
+          occurredAt,
+          entry.operation,
+          entry.outcome,
+          entry.projectId ?? null,
+          entry.sourceId ?? null,
+          entry.reasonCode,
+          entry.actor ?? null
+        )
+        .run();
+    } catch (error) {
+      // A database not yet updated to schema 2 (0002_access_keys.sql) has no `actor` column; audit
+      // it the way this release's predecessors did rather than fail the request over a missing
+      // column that only matters once the operator updates.
+      if (!(error instanceof Error) || !/no column named actor/i.test(error.message)) throw error;
+      await this.db
+        .prepare(
+          'INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code) VALUES (?, ?, ?, ?, ?, ?)'
+        )
+        .bind(
+          occurredAt,
+          entry.operation,
+          entry.outcome,
+          entry.projectId ?? null,
+          entry.sourceId ?? null,
+          entry.reasonCode
+        )
+        .run();
+    }
   }
 
   private accessKeyRow(row: AccessKeyRow): AccessKeyRecord {
