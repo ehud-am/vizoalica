@@ -407,6 +407,13 @@ export type DeployRun = {
   error?: string;
   result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
   canReveal?: boolean;
+  versions?: {
+    before: { worker: string | null; schema: number | null };
+    after: { worker: string | null; schema: number | null };
+    migrationsApplied: string[];
+    backupPath?: string;
+    backupDeclined?: boolean;
+  };
 };
 export const startDeployRun = (planId: string) =>
   request<DeployRun>('/api/deploy/runs', json('POST', { planId }));
@@ -424,6 +431,36 @@ export const revealDeploySecrets = (runId: string) =>
     `/api/deploy/runs/${encodeURIComponent(runId)}/reveal`,
     json('POST')
   );
+
+export type PendingMigration = { name: string; description: string; nonAdditive: boolean };
+export type UpdateComponent = {
+  current?: string | null;
+  applied?: number | null;
+  expected: string | number | null;
+  status: string;
+  message: string;
+};
+export type UpdatePreview = {
+  environment: string;
+  worker: UpdateComponent;
+  schema: UpdateComponent;
+  pending: PendingMigration[];
+  upToDate: boolean;
+};
+export const getUpdatePreview = () => request<UpdatePreview>('/api/deploy/update/preview');
+export const createUpdatePlan = () =>
+  request<
+    DeployPlan & {
+      update: { worker: UpdateComponent; schema: UpdateComponent; pending: PendingMigration[] };
+    }
+  >('/api/deploy/update/plan', json('POST', {}));
+export const startUpdateRun = (planId: string, skipBackup?: boolean) =>
+  request<DeployRun>(
+    '/api/deploy/update/runs',
+    json('POST', skipBackup ? { planId, skipBackup: true } : { planId })
+  );
+export const resumeUpdateRun = (runId: string) =>
+  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}/resume`, json('POST'));
 
 export const rotateBackendSecret = (kind: 'admin' | 'token' | 'digest') =>
   request<{ kind: string; value: string }>(

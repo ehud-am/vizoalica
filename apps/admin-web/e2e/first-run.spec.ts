@@ -45,22 +45,50 @@ test('an admin who needs a backend deploys from the console', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Show the generated secrets' })).toBeVisible();
 });
 
-for (const [label, title] of [
-  ['Website owner', 'Connect as website owner'],
-  ['Analyst', 'Connect as analyst']
-] as const) {
-  test(`${label} goes straight to the address and access key`, async ({ page }) => {
-    await toRole(page, { afterConnect: setupState(label === 'Analyst' ? 'analyst' : 'owner') });
-    await page.getByRole('radio', { name: new RegExp(label) }).check();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
-    await expect(page.getByLabel('Access key')).toBeVisible();
-    await page.getByLabel('Backend address').fill('https://worker.test');
-    await page.getByLabel('Access key').fill('vzk_key');
-    await page.getByRole('button', { name: 'Connect' }).click();
-    await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+test('Analyst goes straight to the address and access key', async ({ page }) => {
+  await toRole(page, { afterConnect: setupState('analyst') });
+  await page.getByRole('radio', { name: /Analyst/ }).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Connect as analyst' })).toBeVisible();
+  await expect(page.getByLabel('Access key')).toBeVisible();
+  await page.getByLabel('Backend address').fill('https://worker.test');
+  await page.getByLabel('Access key').fill('vzk_key');
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+});
+
+test('Website owner pastes setup details and connects with no separate address field shown first', async ({
+  page
+}) => {
+  await toRole(page, { afterConnect: setupState('owner') });
+  await page.getByRole('radio', { name: /Website owner/ }).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Connect as website owner' })
+  ).toBeVisible();
+  await expect(page.getByLabel('Setup details')).toBeVisible();
+  await expect(page.getByLabel('Backend address')).toHaveCount(0);
+  await page
+    .getByLabel('Setup details')
+    .fill(JSON.stringify({ workerUrl: 'https://worker.test', readKey: 'vzk_key' }));
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+});
+
+test('shows a one-line notice when an administrator secret was entered as an analyst', async ({
+  page
+}) => {
+  await toRole(page, {
+    afterConnect: { ...setupState('admin'), notice: 'administrator_secret_used' }
   });
-}
+  await page.getByRole('radio', { name: /Analyst/ }).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Backend address').fill('https://worker.test');
+  await page.getByLabel('Access key').fill('the-admin-secret');
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+  await expect(page.getByText(/administrator secret, not an access key/)).toBeVisible();
+});
 
 test('says in words when the backend refuses the credential', async ({ page }) => {
   await toRole(page, { connectFails: 401 });

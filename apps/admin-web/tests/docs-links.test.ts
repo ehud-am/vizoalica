@@ -64,8 +64,15 @@ describe('install from npm', () => {
     expect(text).toContain('~/.config/vizoalica/');
   });
 
-  it('is honest that this release installs the console and the backend is deployed from a checkout', () => {
-    expect(read('README.md')).toMatch(/installs the \*\*console\*\*/);
-    expect(read('docs/get-started.md')).toMatch(/installs the console/);
+  it('is honest that this release installs everything, including deploying a backend, with no source checkout', () => {
+    expect(read('README.md')).toMatch(
+      /installs everything the console needs, including deploying a backend/
+    );
+    expect(read('docs/get-started.md')).toMatch(/You do not need a checkout at all/);
+  });
+
+  it('documents managing multiple environments from the same console', () => {
+    for (const path of ['README.md', 'docs/get-started.md', 'llms.txt'])
+      expect(read(path), path).toMatch(/environment/i);
   });
 });

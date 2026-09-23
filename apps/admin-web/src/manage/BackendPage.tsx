@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { PageHeader } from '../components/PageHeader.js';
 import { DeployWizard } from './DeployWizard.js';
+import { UpdatePanel } from './UpdatePanel.js';
 import { useSetup } from '../setup/SetupProvider.js';
 
 const STATUS_TEXT: Record<string, string> = {
@@ -213,6 +214,12 @@ export function BackendPage({ onDeployed }: { onDeployed: () => void }) {
     };
   }, [notConnected]);
 
+  function refresh() {
+    getBackendState()
+      .then(setState)
+      .catch(() => setError('The backend could not be reached.'));
+  }
+
   return (
     <div className="page backend-page" data-page="backend">
       <PageHeader
@@ -281,6 +288,7 @@ export function BackendPage({ onDeployed }: { onDeployed: () => void }) {
           </section>
           {isAdmin ? (
             <>
+              <UpdatePanel onUpdated={refresh} />
               <RotatePanel />
               <PurgePanel />
             </>

@@ -10,6 +10,7 @@ import {
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
+import { ConnectionNotice } from './components/ConnectionNotice.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
@@ -139,6 +140,7 @@ function Console({ route, onReconnect }: { route: Route; onReconnect: () => void
             showWebsite={controls === 'project-website'}
             showRange={showsRange(route.path)}
           />
+          <ConnectionNotice />
           <BackendNotice />
           <Journey />
           <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>

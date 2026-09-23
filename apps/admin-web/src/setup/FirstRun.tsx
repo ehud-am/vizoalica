@@ -283,7 +283,9 @@ export function FirstRun({
           <p>
             {role === 'admin'
               ? 'Enter the backend address and the administrator secret.'
-              : 'Enter the backend address and the access key your admin gave you.'}
+              : role === 'website-owner'
+                ? 'Paste the setup details your admin gave you, or upload the file.'
+                : 'Enter the backend address and the access key your admin gave you.'}
           </p>
           <ConnectForm
             role={role}

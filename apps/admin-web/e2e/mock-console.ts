@@ -268,6 +268,8 @@ export interface MockOptions {
     active: string | null;
     environments: Array<{ name: string; hasConnection: boolean; mode?: 'file' | 'onecli' }>;
   };
+  /** Reports the Worker and schema as one release behind, so the update flow has something to do. */
+  backendBehind?: boolean;
 }
 
 /** Answers every console API call locally; nothing reaches a real backend. */
@@ -348,23 +350,46 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       });
     if (path === '/api/backend' && request.method() === 'GET')
       return route.fulfill({
-        json: {
-          workerVersion: '0.6.4',
-          consoleVersion: '0.6.4',
-          schema: {
-            applied: 2,
-            expected: 2,
-            appliedNames: ['0001_initial.sql', '0002_access_keys.sql']
-          },
-          worker: { status: 'current', message: 'The Worker matches this console.', update: null },
-          schemaStatus: {
-            status: 'current',
-            message: 'The database schema is up to date.',
-            update: null
-          },
-          health: { database: 'ok', storage: 'ok' },
-          featuresAccessKeys: true
-        }
+        json: options.backendBehind
+          ? {
+              workerVersion: '0.6.2',
+              consoleVersion: '0.7.0',
+              schema: { applied: 1, expected: 2, appliedNames: ['0001_initial.sql'] },
+              worker: {
+                status: 'update-available',
+                message:
+                  'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.',
+                update: 'backend'
+              },
+              schemaStatus: {
+                status: 'update-available',
+                message: 'The database schema (1) is behind what this console expects (2).',
+                update: 'backend'
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
+          : {
+              workerVersion: '0.6.4',
+              consoleVersion: '0.6.4',
+              schema: {
+                applied: 2,
+                expected: 2,
+                appliedNames: ['0001_initial.sql', '0002_access_keys.sql']
+              },
+              worker: {
+                status: 'current',
+                message: 'The Worker matches this console.',
+                update: null
+              },
+              schemaStatus: {
+                status: 'current',
+                message: 'The database schema is up to date.',
+                update: null
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
       });
     if (path === '/api/backend/purge-deleted' && request.method() === 'POST') {
       const applyPurge = (request.postDataJSON() as { apply?: boolean })?.apply === true;
@@ -439,6 +464,83 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
     if (/^\/api\/deploy\/runs\/[^/]+\/reveal$/.test(path) && request.method() === 'POST')
       return route.fulfill({
         json: { secrets: { VIZOALICA_ADMIN_SECRET: 'shown-once-secret' } }
+      });
+    if (path === '/api/deploy/update/preview' && request.method() === 'GET')
+      return route.fulfill({
+        json: {
+          environment: 'prod',
+          worker: {
+            current: '0.6.2',
+            expected: '0.7.0',
+            status: 'update-available',
+            message: 'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.'
+          },
+          schema: {
+            applied: 1,
+            expected: 2,
+            status: 'update-available',
+            message: 'The database schema (1) is behind what this console expects (2).'
+          },
+          pending: [
+            { name: '0002_access_keys.sql', description: 'adds access keys', nonAdditive: false }
+          ],
+          upToDate: false
+        }
+      });
+    if (path === '/api/deploy/update/plan' && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'update-plan-1',
+          mode: 'update-backend',
+          environment: 'prod',
+          names: {
+            worker: 'prod-vizoalica-worker',
+            database: 'prod-vizoalica-db',
+            bucket: 'prod-vizoalica-bucket'
+          },
+          resources: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          update: {
+            worker: {
+              current: '0.6.2',
+              expected: '0.7.0',
+              status: 'update-available',
+              message: 'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.'
+            },
+            schema: {
+              applied: 1,
+              expected: 2,
+              status: 'update-available',
+              message: 'The database schema (1) is behind what this console expects (2).'
+            },
+            pending: [
+              { name: '0002_access_keys.sql', description: 'adds access keys', nonAdditive: false }
+            ]
+          }
+        }
+      });
+    if (path === '/api/deploy/update/runs' && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'update-run-1',
+          planId: 'update-plan-1',
+          mode: 'update-backend',
+          environment: 'prod',
+          names: {
+            worker: 'prod-vizoalica-worker',
+            database: 'prod-vizoalica-db',
+            bucket: 'prod-vizoalica-bucket'
+          },
+          status: 'done',
+          steps: [{ id: 'migrate', label: 'Applying database changes', status: 'done' }],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          versions: {
+            before: { worker: '0.6.2', schema: 1 },
+            after: { worker: '0.7.0', schema: 2 },
+            migrationsApplied: ['0002_access_keys.sql'],
+            backupPath: '/home/.config/vizoalica/backups/prod-vizoalica-db-1.sql'
+          }
+        }
       });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;

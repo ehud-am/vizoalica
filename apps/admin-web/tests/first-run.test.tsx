@@ -158,17 +158,28 @@ describe('first run', () => {
     await heading('Name your environment, and do you have a backend?');
   });
 
-  it.each([
-    ['Website owner', 'Connect as website owner'],
-    ['Analyst', 'Connect as analyst']
-  ])('takes a %s straight to the address and access key', async (label, title) => {
+  it('takes an analyst straight to the address and access key', async () => {
     const user = userEvent.setup();
     render(<App />);
     await heading('Who are you?');
-    await user.click(screen.getByRole('radio', { name: new RegExp(label) }));
+    await user.click(screen.getByRole('radio', { name: /Analyst/ }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading(title);
+    await heading('Connect as analyst');
     expect(screen.getByLabelText('Access key').getAttribute('type')).toBe('password');
+    expect(screen.queryByLabelText('Administrator secret')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await heading('Who are you?');
+  });
+
+  it('takes a website owner straight to pasting or uploading their setup details', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await heading('Who are you?');
+    await user.click(screen.getByRole('radio', { name: /Website owner/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Connect as website owner');
+    expect(screen.getByLabelText('Setup details')).toBeTruthy();
+    expect(screen.queryByLabelText('Access key')).toBeNull();
     expect(screen.queryByLabelText('Administrator secret')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     await heading('Who are you?');
