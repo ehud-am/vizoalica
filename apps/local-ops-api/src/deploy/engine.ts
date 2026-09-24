@@ -15,6 +15,13 @@ import {
   type Run
 } from '@vizoalica/ops-core';
 import type { EnvironmentStore } from '../environment-store.js';
+import {
+  diagnose,
+  notSignedInIssue,
+  workerUnhealthyIssue,
+  type DiagnoseContext,
+  type Issue
+} from './diagnose.js';
 import { StepTracker } from './steps.js';
 import { SecretVault } from './vault.js';
 import { RunStore, type Plan, type PlanResource, type RunRecord } from './runs.js';
@@ -44,27 +51,74 @@ function id(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 }
 
+/** A failure whose cause is already known, so it carries its own explanation and steps. */
+class IssueError extends Error {
+  constructor(
+    message: string,
+    readonly issue: Issue
+  ) {
+    super(message);
+  }
+}
+
 export type PreflightAccount = { id: string; name: string };
 export type Preflight = {
   signedIn: boolean;
   accounts: PreflightAccount[];
   existing: { database: boolean; bucket: boolean };
+  /** Set when something stops a deploy from starting: what it is, and the steps to fix it. */
+  issue?: Issue;
 };
 
-/** Never creates anything: whether the credential works, the accounts it can see, and what already exists. */
+/** How this environment's Cloudflare credential is used, so a diagnosis can say where to fix it. */
+function credentialMode(
+  deps: { environmentStore?: Pick<EnvironmentStore, 'cloudflareCredential'> },
+  environment?: string
+): DiagnoseContext['mode'] {
+  return deps.environmentStore?.cloudflareCredential(environment)?.mode;
+}
+
+/**
+ * Never creates anything: whether the credential works, the accounts it can see, what already exists,
+ * and, when something would stop a deploy, exactly what and how to fix it.
+ */
 export async function preflight(
-  deps: Pick<EngineDeps, 'run'>,
-  names: { worker: string; database: string; bucket: string }
+  deps: Pick<EngineDeps, 'run'> & {
+    environmentStore?: Pick<EnvironmentStore, 'cloudflareCredential'>;
+  },
+  names: { worker: string; database: string; bucket: string },
+  environment?: string
 ): Promise<Preflight> {
+  const mode = credentialMode(deps, environment);
+  const none = { database: false, bucket: false };
   const whoami = await deps.run(['whoami']);
   const accounts = parseAccounts(whoami.stdout).map((account) => ({
     id: account.id,
     name: account.name
   }));
-  if (accounts.length === 0)
-    return { signedIn: false, accounts: [], existing: { database: false, bucket: false } };
-  const databases = parseDatabases((await deps.run(['d1', 'list', '--json'])).stdout);
-  const buckets = parseBuckets((await deps.run(['r2', 'bucket', 'list'])).stdout);
+  if (accounts.length === 0) {
+    const output = whoami.stdout + whoami.stderr;
+    const issue =
+      diagnose(output, { mode, step: 'preflight' }) ?? notSignedInIssue({ mode }, output);
+    return { signedIn: false, accounts: [], existing: none, issue };
+  }
+  const listed = await deps.run(['d1', 'list', '--json']);
+  const bucketsListed = await deps.run(['r2', 'bucket', 'list']);
+  for (const [result, step] of [
+    [listed, 'create-database'],
+    [bucketsListed, 'create-bucket']
+  ] as const) {
+    if (result.code !== 0) {
+      const output = result.stdout + result.stderr;
+      const issue =
+        diagnose(output, { mode, step }) ??
+        diagnose('permission denied', { mode, step }) ??
+        notSignedInIssue({ mode }, output);
+      return { signedIn: true, accounts, existing: none, issue };
+    }
+  }
+  const databases = parseDatabases(listed.stdout);
+  const buckets = parseBuckets(bucketsListed.stdout);
   return {
     signedIn: true,
     accounts,
@@ -199,16 +253,26 @@ async function runFirstInstall(
   tracker.finish('prepare-tool');
 
   tracker.start('check-signin');
-  const accounts = parseAccounts((await wr(['whoami'])).stdout);
-  if (accounts.length === 0)
+  const whoami = await wr(['whoami']);
+  if (parseAccounts(whoami.stdout).length === 0)
     throw new Error(
-      "Cloudflare did not recognize this environment's credential. Check it and try again."
+      `Cloudflare did not recognize this environment's credential:\n${lastLines(whoami.stdout + whoami.stderr)}`
     );
   tracker.finish('check-signin');
 
   tracker.start('detect');
-  const databases = parseDatabases((await wr(['d1', 'list', '--json'])).stdout);
-  const buckets = parseBuckets((await wr(['r2', 'bucket', 'list'])).stdout);
+  const databaseList = await wr(['d1', 'list', '--json']);
+  if (databaseList.code !== 0)
+    throw new Error(
+      `Listing the databases failed:\n${lastLines(databaseList.stdout + databaseList.stderr)}`
+    );
+  const bucketList = await wr(['r2', 'bucket', 'list']);
+  if (bucketList.code !== 0)
+    throw new Error(
+      `Listing the storage buckets failed:\n${lastLines(bucketList.stdout + bucketList.stderr)}`
+    );
+  const databases = parseDatabases(databaseList.stdout);
+  const buckets = parseBuckets(bucketList.stdout);
   let existingDatabase = databases.find((item) => item.name === names.database);
   const bucketExists = buckets.includes(names.bucket);
   if (!resuming && (existingDatabase || bucketExists))
@@ -318,6 +382,11 @@ async function runFirstInstall(
     }
     if (!healthy && attempt < 9) await new Promise((resolve) => setTimeout(resolve, 3000));
   }
+  if (!healthy)
+    throw new IssueError(
+      `The Worker at ${workerUrl} did not answer its health check.`,
+      workerUnhealthyIssue(workerUrl)
+    );
   tracker.finish('verify-health');
 
   tracker.start('connect');
@@ -367,9 +436,17 @@ async function execute(
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
     const running = tracker.steps.find((step) => step.status === 'running');
-    if (running) tracker.fail(running.id, failure);
+    const issue =
+      failure instanceof IssueError
+        ? failure.issue
+        : diagnose(failure.message, {
+            mode: credentialMode(deps, plan.environment),
+            ...(running ? { step: running.id } : {})
+          });
+    if (running) tracker.fail(running.id, failure, issue);
     run.status = 'failed';
     run.error = failure.message;
+    if (issue) run.issue = issue;
   } finally {
     run.steps = tracker.steps;
     run.finishedAt = new Date().toISOString();
@@ -407,6 +484,7 @@ export function resumeRun(deps: EngineDeps, runId: string): RunRecord {
   if (!plan) throw new Error('plan_not_found');
   const run: RunRecord = { ...prior, status: 'running' };
   delete run.error;
+  delete run.issue;
   delete run.finishedAt;
   runs.set(run.id, run);
   deps.store.saveRun(run);

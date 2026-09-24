@@ -2,6 +2,7 @@ import { useId, useRef, useEffect, useState, type ReactNode } from 'react';
 import {
   ApiError,
   createEnvironment,
+  type EnvironmentCloudflareCredential,
   getSetupState,
   importLegacySetup,
   setRoleHint,
@@ -9,6 +10,7 @@ import {
   type SetupState
 } from '../api/local-operations.js';
 import { assertEnvironmentNameLooksValid } from './environment-name.js';
+import { CloudflareCredentialForm } from './CloudflareCredentialForm.js';
 import { ConnectForm } from './ConnectForm.js';
 import { DeployWizard } from '../manage/DeployWizard.js';
 import { ROLE_CHOICES, roleLabel } from './roles.js';
@@ -44,7 +46,7 @@ const ROLE_ICONS: Record<RoleHint, ReactNode> = {
   )
 };
 
-type Step = 'legacy' | 'role' | 'backend' | 'deploy' | 'connect';
+type Step = 'legacy' | 'role' | 'backend' | 'credential' | 'deploy' | 'connect';
 
 /**
  * The first thing a new console shows: at most three questions, then straight to the step that
@@ -64,6 +66,7 @@ export function FirstRun({
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [credentialError, setCredentialError] = useState<string | undefined>();
   useEffect(() => heading.current?.focus(), [step]);
 
   const back = (to: Step) => (
@@ -106,11 +109,17 @@ export function FirstRun({
       setNameError(problem);
       return;
     }
-    setBusy(true);
     setNameError(undefined);
+    // Deploying needs a Cloudflare credential saved with the environment, so it is created after
+    // the credential step rather than here.
+    if (haveBackend === 'need') {
+      setStep('credential');
+      return;
+    }
+    setBusy(true);
     try {
       await createEnvironment(name);
-      setStep(haveBackend === 'need' ? 'deploy' : 'connect');
+      setStep('connect');
     } catch (error) {
       setNameError(
         error instanceof ApiError && error.code === 'environment_name_taken'
@@ -119,6 +128,24 @@ export function FirstRun({
             ? 'This console is running against a single fixed backend, so it cannot create environments. Start it with `vizoalica console` instead.'
             : 'Could not create that environment. Try again.'
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createWithCredential(credential: EnvironmentCloudflareCredential) {
+    setBusy(true);
+    setCredentialError(undefined);
+    try {
+      await createEnvironment(name, credential);
+      setStep('deploy');
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'environment_name_taken') {
+        setNameError(`An environment named "${name}" already exists.`);
+        setStep('backend');
+      } else {
+        setCredentialError('Could not save that credential. Try again.');
+      }
     } finally {
       setBusy(false);
     }
@@ -278,6 +305,28 @@ export function FirstRun({
             </button>
           </div>
           <div className="form-actions">{back('role')}</div>
+        </>
+      )}
+
+      {step === 'credential' && (
+        <>
+          <p className="eyebrow">Step 3 of 3</p>
+          <h1 id={headingId} ref={heading} tabIndex={-1}>
+            Connect to Cloudflare
+          </h1>
+          <p className="welcome-lead">
+            The console needs access to your Cloudflare account to create the backend for &ldquo;
+            {name}&rdquo;. It is saved on this computer for this environment only.
+          </p>
+          <CloudflareCredentialForm
+            submitLabel="Continue"
+            busyLabel="Saving…"
+            busy={busy}
+            error={credentialError}
+            onSubmit={(credential) => void createWithCredential(credential)}
+          >
+            {back('backend')}
+          </CloudflareCredentialForm>
         </>
       )}
 

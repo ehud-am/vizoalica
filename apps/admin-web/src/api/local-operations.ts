@@ -124,11 +124,22 @@ export type ActionsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+/** A recognized problem with what was asked: what happened, and ordered steps to fix it. */
+export type Issue = {
+  code: string;
+  title: string;
+  detail: string;
+  steps: string[];
+  /** Set when the Cloudflare credential form can fix it without leaving the console. */
+  fix?: 'credential';
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
     public readonly status: number,
-    public readonly recovery?: string
+    public readonly recovery?: string,
+    public readonly issue?: Issue
   ) {
     super(
       code === 'access_revoked' || code === 'session_expired'
@@ -149,8 +160,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const details = (await response.json().catch(() => ({}))) as {
       error?: string;
       recovery?: string;
+      issue?: Issue;
     };
-    throw new ApiError(details.error ?? 'request_failed', response.status, details.recovery);
+    throw new ApiError(
+      details.error ?? 'request_failed',
+      response.status,
+      details.recovery,
+      details.issue
+    );
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
@@ -296,16 +313,32 @@ export const setRoleHint = (roleHint: RoleHint) =>
 export const importLegacySetup = (name: string) =>
   request<SetupState>('/api/setup/import-legacy', json('POST', { name }));
 
-export type EnvironmentCloudflareCredential = { mode: 'token'; token: string } | { mode: 'onecli' };
+export type OnecliSettings = { project: string; agent: string; gateway: string };
+/** OneCLI's `settings` are needed only when this computer has none saved yet (`onecliConfigured`). */
+export type EnvironmentCloudflareCredential =
+  { mode: 'token'; token: string } | { mode: 'onecli'; onecli?: OnecliSettings };
 export type EnvironmentSummary = {
   name: string;
   hasConnection: boolean;
   mode?: 'file' | 'onecli';
 };
-export type EnvironmentsList = { active: string | null; environments: EnvironmentSummary[] };
+export type EnvironmentsList = {
+  active: string | null;
+  environments: EnvironmentSummary[];
+  onecliConfigured?: boolean;
+};
 export const listEnvironments = () => request<EnvironmentsList>('/api/environments');
 export const createEnvironment = (name: string, cloudflare?: EnvironmentCloudflareCredential) =>
   request<EnvironmentsList>('/api/environments', json('POST', { name, cloudflare }));
+/** Replaces how one existing environment reaches Cloudflare, keeping its connection. */
+export const setEnvironmentCloudflare = (
+  name: string,
+  cloudflare: EnvironmentCloudflareCredential
+) =>
+  request<EnvironmentsList>(
+    `/api/environments/${encodeURIComponent(name)}/cloudflare`,
+    json('PUT', { cloudflare })
+  );
 export const selectEnvironment = (name: string) =>
   request<SetupState>(`/api/environments/${encodeURIComponent(name)}/select`, json('POST'));
 export const connectEnvironment = (
@@ -371,6 +404,8 @@ export type DeployPreflight = {
   signedIn: boolean;
   accounts: Array<{ id: string; name: string }>;
   existing: { database: boolean; bucket: boolean };
+  /** Set when something stops a deploy from starting. */
+  issue?: Issue;
 };
 export const getDeployPreflight = () => request<DeployPreflight>('/api/deploy/preflight');
 
@@ -393,6 +428,7 @@ export type DeployStep = {
   label: string;
   status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
   error?: string;
+  issue?: Issue;
 };
 export type DeployRun = {
   id: string;
@@ -405,6 +441,7 @@ export type DeployRun = {
   createdAt: string;
   finishedAt?: string;
   error?: string;
+  issue?: Issue;
   result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
   canReveal?: boolean;
   versions?: {

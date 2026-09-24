@@ -56,7 +56,10 @@ export async function handleDeploy(
 
   if (method === 'GET' && pathname === '/api/deploy/preflight') {
     const names = defaultNames(environment);
-    return { status: 200, body: { environment, names, ...(await preflight(deps, names)) } };
+    return {
+      status: 200,
+      body: { environment, names, ...(await preflight(deps, names, environment)) }
+    };
   }
 
   if (method === 'POST' && pathname === '/api/deploy/plan') {

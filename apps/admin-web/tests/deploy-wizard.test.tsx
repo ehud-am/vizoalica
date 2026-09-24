@@ -172,4 +172,237 @@ describe('DeployWizard', () => {
     await screen.findByRole('alert');
     expect(screen.getByRole('alert').textContent).toContain('did not recognize');
   });
+
+  describe('when something stops a deploy from starting', () => {
+    const BLOCKED: api.Issue = {
+      code: 'ip_not_allowed',
+      title: "Cloudflare blocked this computer's address",
+      detail: 'The API token is limited to certain IP addresses. Cloudflare error 9109.',
+      steps: [
+        'Open the Cloudflare dashboard and edit the token.',
+        'Add 203.0.113.9 under Client IP Address Filtering.',
+        'Come back here and choose Check again (or Resume) — nothing is repeated.'
+      ]
+    };
+
+    it('explains it with the steps, and carries on after Check again once fixed', async () => {
+      const preflight = vi
+        .spyOn(api, 'getDeployPreflight')
+        .mockResolvedValueOnce({ ...PREFLIGHT, signedIn: false, accounts: [], issue: BLOCKED })
+        .mockResolvedValue(PREFLIGHT);
+      render(<DeployWizard onDeployed={() => {}} />);
+      const panel = await screen.findByRole('alert');
+      expect(within(panel).getByRole('heading', { name: BLOCKED.title })).toBeTruthy();
+      expect(
+        within(panel)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent)
+      ).toEqual(BLOCKED.steps);
+      expect(screen.queryByRole('button', { name: 'Show the deployment plan' })).toBeNull();
+
+      fireEvent.click(within(panel).getByRole('button', { name: 'Check again' }));
+      await screen.findByRole('button', { name: 'Show the deployment plan' });
+      expect(preflight).toHaveBeenCalledTimes(2);
+    });
+
+    it('stays on the explanation when the check still fails', async () => {
+      vi.spyOn(api, 'getDeployPreflight').mockResolvedValue({
+        ...PREFLIGHT,
+        signedIn: false,
+        accounts: [],
+        issue: BLOCKED
+      });
+      render(<DeployWizard onDeployed={() => {}} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Check again' }));
+      await screen.findByRole('heading', { name: BLOCKED.title });
+      expect(screen.queryByRole('button', { name: 'Show the deployment plan' })).toBeNull();
+    });
+
+    it('lets the admin save a missing credential right there, then checks again', async () => {
+      const missing: api.Issue = {
+        code: 'no_credential',
+        title: 'This environment has no Cloudflare credential',
+        detail: 'None is saved for this environment.',
+        steps: ['Choose how to reach Cloudflare below and save it.', 'Then choose Check again.'],
+        fix: 'credential'
+      };
+      vi.spyOn(api, 'listEnvironments').mockResolvedValue({
+        active: 'stage',
+        environments: [],
+        onecliConfigured: false
+      });
+      const preflight = vi
+        .spyOn(api, 'getDeployPreflight')
+        .mockRejectedValueOnce(
+          new api.ApiError('backend_deploy_unavailable', 409, undefined, missing)
+        )
+        .mockResolvedValue(PREFLIGHT);
+      const save = vi
+        .spyOn(api, 'setEnvironmentCloudflare')
+        .mockResolvedValue({ active: 'stage', environments: [] });
+      render(<DeployWizard onDeployed={() => {}} />);
+      await screen.findByRole('heading', { name: missing.title });
+      // Nothing to re-check until a credential exists, so only the form is offered.
+      expect(screen.queryByRole('button', { name: 'Check again' })).toBeNull();
+
+      fireEvent.change(screen.getByLabelText('API token'), { target: { value: 'cf-token' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+      await screen.findByRole('button', { name: 'Show the deployment plan' });
+      expect(save).toHaveBeenCalledWith('stage', { mode: 'token', token: 'cf-token' });
+      expect(preflight).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks for the OneCLI settings when they are missing, and saves them', async () => {
+      const missing: api.Issue = {
+        code: 'onecli_settings_missing',
+        title: 'OneCLI settings are missing on this computer',
+        detail: 'No project, agent, or gateway is saved.',
+        steps: ['Enter them below.', 'Then choose Check again.'],
+        fix: 'credential'
+      };
+      vi.spyOn(api, 'listEnvironments').mockResolvedValue({
+        active: 'stage',
+        environments: [],
+        onecliConfigured: false
+      });
+      vi.spyOn(api, 'getDeployPreflight')
+        .mockRejectedValueOnce(
+          new api.ApiError('onecli_settings_not_found', 409, undefined, missing)
+        )
+        .mockResolvedValue(PREFLIGHT);
+      const save = vi
+        .spyOn(api, 'setEnvironmentCloudflare')
+        .mockResolvedValue({ active: 'stage', environments: [] });
+      render(<DeployWizard onDeployed={() => {}} />);
+      await screen.findByRole('heading', { name: missing.title });
+      fireEvent.click(screen.getByRole('button', { name: /OneCLI/ }));
+      fireEvent.change(screen.getByLabelText('OneCLI project'), { target: { value: 'harness' } });
+      fireEvent.change(screen.getByLabelText('OneCLI agent'), {
+        target: { value: 'vizoalica-deploy' }
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+      await screen.findByRole('button', { name: 'Show the deployment plan' });
+      expect(save).toHaveBeenCalledWith('stage', {
+        mode: 'onecli',
+        onecli: { project: 'harness', agent: 'vizoalica-deploy', gateway: '127.0.0.1:10255' }
+      });
+    });
+
+    it('keeps the raw error and a Check again when the failure is not recognized', async () => {
+      vi.spyOn(api, 'getDeployPreflight').mockRejectedValue(new Error('offline'));
+      render(<DeployWizard onDeployed={() => {}} />);
+      await screen.findByText(/could not be reached/);
+      expect(screen.getByRole('button', { name: 'Check again' })).toBeTruthy();
+    });
+  });
+
+  describe('when a step stops partway', () => {
+    const STOPPED: api.Issue = {
+      code: 'permission_missing',
+      title: 'The API token is missing a permission',
+      detail: 'It needs: Account → Workers R2 Storage → Edit.',
+      steps: [
+        'Edit the token in the Cloudflare dashboard.',
+        'Add Account → Workers R2 Storage → Edit.',
+        'Come back here and choose Check again (or Resume) — nothing is repeated.'
+      ]
+    };
+    const failedRun = (issue: api.Issue): api.DeployRun => ({
+      id: 'r1',
+      planId: 'p1',
+      mode: 'first-install',
+      environment: 'stage',
+      names: PREFLIGHT.names,
+      status: 'failed',
+      steps: [
+        { id: 'create-database', label: 'Creating the database', status: 'done' },
+        {
+          id: 'create-bucket',
+          label: 'Creating the storage bucket',
+          status: 'failed',
+          error: 'Authentication error [code: 10000]',
+          issue
+        }
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      error: 'Authentication error [code: 10000]',
+      issue
+    });
+
+    async function reachFailure(run: api.DeployRun) {
+      vi.spyOn(api, 'getDeployPreflight').mockResolvedValue(PREFLIGHT);
+      vi.spyOn(api, 'createDeployPlan').mockResolvedValue(PLAN);
+      vi.spyOn(api, 'startDeployRun').mockResolvedValue(run);
+      render(<DeployWizard onDeployed={() => {}} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Show the deployment plan' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Approve and deploy' }));
+    }
+
+    it('names the failed step, explains it with steps, and resumes from that step', async () => {
+      await reachFailure(failedRun(STOPPED));
+      const panel = await screen.findByRole('alert', { name: STOPPED.title });
+      expect(
+        within(panel)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent)
+      ).toEqual(STOPPED.steps);
+      // The raw output stays available, but is not the message.
+      expect(screen.getByText('Technical details')).toBeTruthy();
+      const resumed = { ...failedRun(STOPPED), status: 'done' as const, steps: [] };
+      const resume = vi.spyOn(api, 'resumeDeployRun').mockResolvedValue(resumed);
+      fireEvent.click(
+        within(panel).getByRole('button', { name: 'Resume from “Creating the storage bucket”' })
+      );
+      await waitFor(() => expect(resume).toHaveBeenCalledWith('r1'));
+    });
+
+    it('still offers cleanup beside the explanation', async () => {
+      await reachFailure(failedRun(STOPPED));
+      await screen.findByRole('alert', { name: STOPPED.title });
+      fireEvent.click(screen.getByRole('button', { name: 'Clean up…' }));
+      expect(screen.getByRole('alertdialog').textContent).toContain('stage-vizoalica-db');
+    });
+
+    it('changes the credential in place, then resumes the same run', async () => {
+      const invalid: api.Issue = {
+        code: 'token_invalid',
+        title: 'Cloudflare does not accept this API token',
+        detail: 'The token is unknown or expired.',
+        steps: ['Check the token.', 'Come back here and choose Check again (or Resume).'],
+        fix: 'credential'
+      };
+      await reachFailure(failedRun(invalid));
+      await screen.findByRole('alert', { name: invalid.title });
+      const save = vi
+        .spyOn(api, 'setEnvironmentCloudflare')
+        .mockResolvedValue({ active: 'stage', environments: [] });
+      const resume = vi
+        .spyOn(api, 'resumeDeployRun')
+        .mockResolvedValue({ ...failedRun(invalid), status: 'running' });
+      fireEvent.change(screen.getByLabelText('API token'), { target: { value: 'cf-new' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
+      await waitFor(() => expect(resume).toHaveBeenCalledWith('r1'));
+      expect(save).toHaveBeenCalledWith('stage', { mode: 'token', token: 'cf-new' });
+    });
+
+    it('explains a resume that cannot start, instead of a generic failure', async () => {
+      await reachFailure(failedRun(STOPPED));
+      const panel = await screen.findByRole('alert', { name: STOPPED.title });
+      const blocked: api.Issue = {
+        code: 'no_credential',
+        title: 'This environment has no Cloudflare credential',
+        detail: 'None is saved.',
+        steps: ['Save one below.', 'Then resume.'],
+        fix: 'credential'
+      };
+      vi.spyOn(api, 'listEnvironments').mockResolvedValue({ active: 'stage', environments: [] });
+      vi.spyOn(api, 'resumeDeployRun').mockRejectedValue(
+        new api.ApiError('backend_deploy_unavailable', 409, undefined, blocked)
+      );
+      fireEvent.click(
+        within(panel).getByRole('button', { name: 'Resume from “Creating the storage bucket”' })
+      );
+      await screen.findByRole('alert', { name: blocked.title });
+    });
+  });
 });

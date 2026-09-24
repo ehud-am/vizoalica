@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   cleanupDeployRun,
   createDeployPlan,
   getDeployPreflight,
@@ -9,12 +10,39 @@ import {
   startDeployRun,
   type DeployPlan,
   type DeployPreflight,
-  type DeployRun
+  type DeployRun,
+  type Issue
 } from '../api/local-operations.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { IssuePanel } from './IssuePanel.js';
 
 const POLL_MS = 1500;
+
+/** Shown when Cloudflare returned no account and nothing more specific is known. */
+const UNRECOGNIZED_CREDENTIAL: Issue = {
+  code: 'not_signed_in',
+  title: "Cloudflare did not recognize this environment's credential",
+  detail: 'Cloudflare did not return an account for this credential.',
+  steps: [
+    'Check the token (or OneCLI setup) this environment uses, and that it is active.',
+    'Come back here and choose Check again.'
+  ],
+  fix: 'credential'
+};
+
+/** Plain wording for the failures the server names by code but has no diagnosis for. */
+function messageFor(caught: unknown): string {
+  if (caught instanceof ApiError) {
+    if (caught.code === 'no_active_environment')
+      return 'No environment is selected. Choose or create one, then check again.';
+    if (caught.code === 'forbidden')
+      return 'Deploying a backend needs the administrator credential, which this environment does not use.';
+    if (caught.code === 'backend_deploy_unavailable')
+      return 'This console was started without the files it needs to deploy a backend. Start it with `vizoalica console` and check again.';
+  }
+  return 'The deployment tool could not be reached. Check again.';
+}
 
 /**
  * Deploys the selected environment's backend from the console: a plan shown and approved before
@@ -23,6 +51,8 @@ const POLL_MS = 1500;
  */
 export function DeployWizard({ onDeployed }: { onDeployed: () => void }) {
   const [preflight, setPreflight] = useState<DeployPreflight | undefined>();
+  const [blocking, setBlocking] = useState<Issue | undefined>();
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState('');
   const [plan, setPlan] = useState<DeployPlan | undefined>();
   const [run, setRun] = useState<DeployRun | undefined>();
@@ -32,10 +62,25 @@ export function DeployWizard({ onDeployed }: { onDeployed: () => void }) {
   const [secretsWiped, setSecretsWiped] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
+  /** Looks again at whether a deploy can start; used at first and after each thing the admin fixes. */
+  async function check() {
+    setChecking(true);
+    setError('');
+    try {
+      const result = await getDeployPreflight();
+      setPreflight(result);
+      setBlocking(result.issue ?? (result.signedIn ? undefined : UNRECOGNIZED_CREDENTIAL));
+    } catch (caught) {
+      setPreflight(undefined);
+      setBlocking(caught instanceof ApiError ? caught.issue : undefined);
+      setError(messageFor(caught));
+    } finally {
+      setChecking(false);
+    }
+  }
+
   useEffect(() => {
-    getDeployPreflight()
-      .then(setPreflight)
-      .catch(() => setError('The deployment tool could not be reached. Try again.'));
+    void check();
   }, []);
 
   useEffect(() => () => clearInterval(timer.current), []);
@@ -81,12 +126,16 @@ export function DeployWizard({ onDeployed }: { onDeployed: () => void }) {
   async function resume() {
     if (!run) return;
     setBusy(true);
+    setError('');
     try {
       const resumed = await resumeDeployRun(run.id);
       setRun(resumed);
       poll(resumed.id);
-    } catch {
-      setError('The deployment could not be resumed. Try again.');
+    } catch (caught) {
+      // A resume that cannot even start (for example the credential was removed) is explained the same way.
+      const issue = caught instanceof ApiError ? caught.issue : undefined;
+      if (issue && run) setRun({ ...run, issue });
+      else setError('The deployment could not be resumed. Try again.');
     } finally {
       setBusy(false);
     }
@@ -117,23 +166,37 @@ export function DeployWizard({ onDeployed }: { onDeployed: () => void }) {
     }
   }
 
-  if (error && !preflight)
-    return (
-      <p className="notice error" role="alert">
-        {error}
-      </p>
-    );
-  if (!preflight)
+  if (checking && !preflight && !run)
     return <p aria-live="polite">Checking this environment&rsquo;s Cloudflare access…</p>;
-
-  if (!preflight.signedIn)
+  if (!run && !plan && blocking)
     return (
-      <p className="notice error" role="alert">
-        Cloudflare did not recognize this environment&rsquo;s credential. Fix it from the
-        environment switcher (create it again with a valid token, or check its OneCLI setup), then
-        reload this page.
-      </p>
+      <IssuePanel
+        issue={blocking}
+        environment={preflight?.environment}
+        actionLabel="Check again"
+        onAction={() => void check()}
+        busy={checking}
+      />
     );
+  if (!preflight && !run)
+    return (
+      <>
+        <p className="notice error" role="alert">
+          {error}
+        </p>
+        <div className="form-actions">
+          <button
+            type="button"
+            className="primary"
+            disabled={checking}
+            onClick={() => void check()}
+          >
+            Check again
+          </button>
+        </div>
+      </>
+    );
+  if (!preflight) return null;
 
   if (secrets)
     return (
@@ -183,28 +246,64 @@ export function DeployWizard({ onDeployed }: { onDeployed: () => void }) {
                       : '·'}
               </span>{' '}
               {step.label}
-              {step.status === 'failed' && step.error && (
-                <p className="notice error" role="alert">
-                  {step.error}
-                </p>
-              )}
+              {step.status === 'failed' &&
+                step.error &&
+                (step.issue ? (
+                  <details>
+                    <summary>Technical details</summary>
+                    <pre>{step.error}</pre>
+                  </details>
+                ) : (
+                  <p className="notice error" role="alert">
+                    {step.error}
+                  </p>
+                ))}
             </li>
           ))}
         </ol>
         {run.status === 'failed' && (
-          <div className="form-actions">
-            <button type="button" className="primary" disabled={busy} onClick={() => void resume()}>
-              Resume
-            </button>
-            <button
-              type="button"
-              className="secondary danger"
-              disabled={busy}
-              onClick={() => setCleaningUp(true)}
-            >
-              Clean up…
-            </button>
-          </div>
+          <>
+            {run.issue ? (
+              <IssuePanel
+                issue={run.issue}
+                environment={run.environment}
+                actionLabel={`Resume from “${run.steps.find((step) => step.status === 'failed')?.label ?? 'where it stopped'}”`}
+                onAction={() => void resume()}
+                busy={busy}
+              >
+                <button
+                  type="button"
+                  className="secondary danger"
+                  disabled={busy}
+                  onClick={() => setCleaningUp(true)}
+                >
+                  Clean up…
+                </button>
+              </IssuePanel>
+            ) : (
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => void resume()}
+                >
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  className="secondary danger"
+                  disabled={busy}
+                  onClick={() => setCleaningUp(true)}
+                >
+                  Clean up…
+                </button>
+              </div>
+            )}
+            <p>
+              Resuming continues from the step that stopped; what was already created is reused.
+            </p>
+          </>
         )}
         {run.status === 'done' && run.canReveal && !secretsWiped && (
           <div className="form-actions">

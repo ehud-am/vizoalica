@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import type { Issue } from './diagnose.js';
 import type { Step } from './steps.js';
 
 export type RunMode = 'first-install' | 'update-backend';
@@ -34,6 +35,8 @@ export type RunRecord = {
   createdAt: string;
   finishedAt?: string;
   error?: string;
+  /** What went wrong in words an administrator can act on, when the failure was recognized. */
+  issue?: Issue;
   /** Only which secrets were generated, by name; never a value. */
   result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
   skippedBackup?: boolean;

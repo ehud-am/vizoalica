@@ -146,11 +146,50 @@ describe('first run', () => {
     await heading('Name your environment');
     await user.type(screen.getByLabelText('Environment name'), 'prod');
     await user.click(await screen.findByRole('button', { name: /I need a backend/ }));
+    await heading('Connect to Cloudflare');
+    expect(api.createEnvironment).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText(/Paste a Cloudflare API token/)).toBeTruthy();
+    await user.type(screen.getByLabelText('API token'), 'cf-token');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     await heading('Set up a backend');
-    expect(api.createEnvironment).toHaveBeenCalledWith('prod');
+    expect(api.createEnvironment).toHaveBeenCalledWith('prod', {
+      mode: 'token',
+      token: 'cf-token'
+    });
     await screen.findByRole('heading', { name: /Deploy this environment/ });
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await heading('Name your environment');
+  });
+
+  it('says a missing Cloudflare credential is missing, not that the tool is unreachable', async () => {
+    const user = userEvent.setup();
+    api.getDeployPreflight.mockRejectedValue(
+      new ApiError('backend_deploy_unavailable', 409, undefined, {
+        code: 'no_credential',
+        title: 'This environment has no Cloudflare credential',
+        detail: 'None is saved for this environment.',
+        steps: ['Save one below.', 'Then check again.'],
+        fix: 'credential'
+      })
+    );
+    render(<App />);
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    await heading('Name your environment');
+    await user.type(screen.getByLabelText('Environment name'), 'prod');
+    await user.click(await screen.findByRole('button', { name: /I need a backend/ }));
+    await heading('Connect to Cloudflare');
+    await user.click(screen.getByRole('button', { name: /OneCLI/ }));
+    await user.type(screen.getByLabelText('OneCLI project'), 'proj');
+    await user.type(screen.getByLabelText('OneCLI agent'), 'agent');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(api.createEnvironment).toHaveBeenCalledWith('prod', {
+      mode: 'onecli',
+      onecli: { project: 'proj', agent: 'agent', gateway: '127.0.0.1:10255' }
+    });
+    expect(await screen.findByText(/no Cloudflare credential/)).toBeTruthy();
+    expect(document.body.textContent).not.toContain('could not be reached');
   });
 
   it('takes an analyst straight to the address and access key', async () => {

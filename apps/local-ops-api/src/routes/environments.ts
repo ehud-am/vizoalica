@@ -34,6 +34,32 @@ function validCloudflare(value: unknown): CloudflareCredential | undefined | 'in
   return 'invalid';
 }
 
+/** What the console needs to draw its environment lists, plus whether OneCLI is already set up here. */
+function environmentsBody(store: SetupDeps['store']) {
+  return {
+    active: store.active() ?? null,
+    environments: store.list(),
+    onecliConfigured: store.onecliSettings() !== undefined
+  };
+}
+
+/** The OneCLI project, agent, and gateway a first-time OneCLI setup supplies; absent when none were sent. */
+function validOnecliSettings(
+  value: unknown
+): { project: string; agent: string; gateway: string } | undefined | 'invalid' {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null) return 'invalid';
+  const { project, agent, gateway } = value as Record<string, unknown>;
+  for (const field of [project, agent, gateway])
+    if (typeof field !== 'string' || !field.trim() || field.length > 256 || /\s/.test(field.trim()))
+      return 'invalid';
+  return {
+    project: (project as string).trim(),
+    agent: (agent as string).trim(),
+    gateway: (gateway as string).trim()
+  };
+}
+
 function errorReply(error: unknown): EnvironmentsReply {
   const code = error instanceof Error ? error.message : 'invalid_request';
   if (code === 'invalid_environment_name') return bad('name');
@@ -56,19 +82,44 @@ export async function handleEnvironments(
   const store = deps.store;
 
   if (method === 'GET' && pathname === '/api/environments')
-    return { status: 200, body: { active: store.active() ?? null, environments: store.list() } };
+    return { status: 200, body: environmentsBody(store) };
 
   if (method === 'POST' && pathname === '/api/environments') {
     const body = (await readBody()) as { name?: unknown; cloudflare?: unknown } | undefined;
     if (typeof body?.name !== 'string') return bad('name');
     const cloudflare = validCloudflare(body.cloudflare);
     if (cloudflare === 'invalid') return bad('cloudflare');
+    const onecli =
+      cloudflare?.mode === 'onecli'
+        ? validOnecliSettings((body.cloudflare as { onecli?: unknown }).onecli)
+        : undefined;
+    if (onecli === 'invalid') return bad('cloudflare');
     try {
       store.create(body.name, cloudflare);
+      if (onecli) store.saveOnecliSettings(onecli);
     } catch (error) {
       return errorReply(error);
     }
-    return { status: 200, body: { active: store.active() ?? null, environments: store.list() } };
+    return { status: 200, body: environmentsBody(store) };
+  }
+
+  const cloudflareMatch = /^\/api\/environments\/([^/]+)\/cloudflare$/.exec(pathname);
+  if (method === 'PUT' && cloudflareMatch) {
+    const body = (await readBody()) as { cloudflare?: unknown } | undefined;
+    const cloudflare = validCloudflare(body?.cloudflare);
+    if (cloudflare === undefined || cloudflare === 'invalid') return bad('cloudflare');
+    const onecli =
+      cloudflare.mode === 'onecli'
+        ? validOnecliSettings((body?.cloudflare as { onecli?: unknown }).onecli)
+        : undefined;
+    if (onecli === 'invalid') return bad('cloudflare');
+    try {
+      store.setCloudflareCredential(decodeURIComponent(cloudflareMatch[1]!), cloudflare);
+      if (onecli) store.saveOnecliSettings(onecli);
+    } catch (error) {
+      return errorReply(error);
+    }
+    return { status: 200, body: environmentsBody(store) };
   }
 
   const selectMatch = /^\/api\/environments\/([^/]+)\/select$/.exec(pathname);
@@ -151,7 +202,7 @@ export async function handleEnvironments(
     } catch (error) {
       return errorReply(error);
     }
-    return { status: 200, body: { active: store.active() ?? null, environments: store.list() } };
+    return { status: 200, body: environmentsBody(store) };
   }
 
   return undefined;

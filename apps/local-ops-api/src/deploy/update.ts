@@ -6,11 +6,11 @@ import {
   readdirSync,
   writeFileSync
 } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { defaultNames, parseAccounts, renderProductionConfig } from '@vizoalica/ops-core';
 import { schemaStatus, workerStatus } from '../compat.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
+import { diagnose } from './diagnose.js';
 import { StepTracker } from './steps.js';
 import { configPath, getRun, trackRun, type EngineDeps } from './engine.js';
 import type { Plan, RunRecord } from './runs.js';
@@ -211,7 +211,8 @@ export async function runUpdate(
       // Nothing pending: no change is about to happen, so there is nothing to back up before it.
       tracker.skip('backup');
     } else {
-      const backupDir = join(homedir(), '.config', 'vizoalica', 'backups');
+      // Beside the deploy folder (the environments home), so a test's temporary home never touches the real one.
+      const backupDir = join(dirname(deps.configBaseDir), 'backups');
       mkdirSync(backupDir, { recursive: true, mode: 0o700 });
       const backupPath = join(backupDir, `${run.names.database}-${Date.now()}.sql`);
       const exported = await deps.run([
@@ -286,9 +287,14 @@ export async function runUpdate(
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
     const running = tracker.steps.find((step) => step.status === 'running');
-    if (running) tracker.fail(running.id, failure);
+    const issue = diagnose(failure.message, {
+      mode: deps.environmentStore.cloudflareCredential(run.environment)?.mode,
+      ...(running ? { step: running.id } : {})
+    });
+    if (running) tracker.fail(running.id, failure, issue);
     run.status = 'failed';
     run.error = failure.message;
+    if (issue) run.issue = issue;
   } finally {
     run.steps = tracker.steps;
     run.finishedAt = new Date().toISOString();
@@ -353,6 +359,7 @@ export function resumeUpdateRun(deps: EngineDeps, runId: string): RunRecord {
   if (prior.status !== 'failed') throw new Error('run_not_resumable');
   const run: RunRecord = { ...prior, status: 'running' };
   delete run.error;
+  delete run.issue;
   delete run.finishedAt;
   trackRun(run);
   deps.store.saveRun(run);

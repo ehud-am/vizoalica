@@ -174,10 +174,11 @@ describe('preflight', () => {
       { worker: 'stage-w', database: 'stage-d', bucket: 'stage-b' }
     );
     expect(result.signedIn).toBe(true);
-    expect(signedOut).toEqual({
+    expect(signedOut).toMatchObject({
       signedIn: false,
       accounts: [],
-      existing: { database: false, bucket: false }
+      existing: { database: false, bucket: false },
+      issue: { code: 'not_signed_in' }
     });
     expect(fake.calls.some((call) => call[0] === 'd1' && call[1] === 'create')).toBe(false);
   });
@@ -227,6 +228,24 @@ describe('buildPlan', () => {
 });
 
 describe('a first-install run', () => {
+  it('fails at the health check, and does not connect, when the Worker never answers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('unreachable');
+      })
+    );
+    vi.useFakeTimers();
+    const engineDeps = deps();
+    const plan = buildPlan(engineDeps, { environment: 'stage' });
+    const run = startRun(engineDeps, plan.id);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const finished = getRun(engineDeps, run.id)!;
+    expect(finished.status).toBe('failed');
+    expect(finished.steps.find((s) => s.id === 'verify-health')?.status).toBe('failed');
+    expect(finished.steps.find((s) => s.id === 'connect')?.status).toBe('pending');
+  });
+
   it('runs every step in order, connects the environment, and never leaves a secret in the run record', async () => {
     const engineDeps = deps();
     const plan = buildPlan(engineDeps, { environment: 'stage' });

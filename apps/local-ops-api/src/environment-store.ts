@@ -61,7 +61,7 @@ function isRoleHint(value: unknown): value is RoleHint {
   return ROLE_HINTS.includes(value as RoleHint);
 }
 
-function replaceFile(path: string, values: Record<string, string>): void {
+function replaceFile(path: string, values: Record<string, unknown>): void {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   // A same-directory temporary file plus rename means a reader never sees a partial file.
   const temporary = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
@@ -184,6 +184,17 @@ class EnvironmentFile {
     this.write({ VIZOALICA_REMOTE_URL: REVOKED_URL, VIZOALICA_ADMIN_SECRET: '' });
     this.connection = undefined;
     this.revoked_ = this.path !== undefined;
+  }
+
+  /** Sets or clears fields that are not part of the connection, keeping the connection itself as it is. */
+  setExtras(values: Record<string, string | undefined>): void {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) delete this.extra[key];
+      else this.extra[key] = value;
+    }
+    if (this.connection) this.save(this.connection);
+    else if (this.revoked_) this.disconnect();
+    else this.write({});
   }
 
   setRoleHint(hint: RoleHint): void {
@@ -452,6 +463,29 @@ export class EnvironmentStore {
       }
     }
     this.revision_ += 1;
+  }
+
+  /** Replaces how one existing environment reaches Cloudflare, without touching its connection. */
+  setCloudflareCredential(name: string, cloudflare: CloudflareCredential): void {
+    if (!this.baseDir || !existsSync(this.envFilePath(name)))
+      throw new Error('environment_not_found');
+    this.fileFor(name).setExtras({
+      VIZOALICA_CF_MODE: cloudflare.mode,
+      VIZOALICA_CF_API_TOKEN: cloudflare.mode === 'token' ? cloudflare.token : undefined
+    });
+  }
+
+  /** Saves the machine-wide OneCLI settings, keeping whatever else `ops.json` already holds. */
+  saveOnecliSettings(settings: { project: string; agent: string; gateway: string }): void {
+    if (!this.baseDir) throw new Error('environments_not_supported');
+    const path = join(this.baseDir, 'ops.json');
+    let existing: Record<string, unknown> = {};
+    try {
+      existing = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    } catch {
+      // No usable file yet: start one.
+    }
+    replaceFile(path, { version: 1, ...existing, onecli: settings });
   }
 
   /** The machine-wide OneCLI settings (`ops.json`), used both to wrap the admin secret's whole process

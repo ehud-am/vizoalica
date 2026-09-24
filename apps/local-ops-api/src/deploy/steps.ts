@@ -1,5 +1,7 @@
+import type { Issue } from './diagnose.js';
+
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
-export type Step = { id: string; label: string; status: StepStatus; error?: string };
+export type Step = { id: string; label: string; status: StepStatus; error?: string; issue?: Issue };
 
 /** Builds a run's step list directly (not by parsing printed output), so it stays a plain, typed record. */
 export class StepTracker {
@@ -25,11 +27,12 @@ export class StepTracker {
     this.set(id, 'skipped');
   }
 
-  fail(id: string, error: Error): void {
+  fail(id: string, error: Error, issue?: Issue): void {
     const at = this.index.get(id);
     if (at === undefined) return;
     this.steps[at]!.status = 'failed';
     this.steps[at]!.error = error.message;
+    if (issue) this.steps[at]!.issue = issue;
   }
 
   private set(id: string, status: StepStatus): void {

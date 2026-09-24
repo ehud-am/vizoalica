@@ -119,7 +119,97 @@ describe('deploy routes', () => {
     const cookie = await api.session();
     const result = await api.call('/api/deploy/preflight', { cookie });
     expect(result.status).toBe(409);
-    expect(result.body).toMatchObject({ error: 'backend_deploy_unavailable' });
+    expect(result.body).toMatchObject({
+      error: 'backend_deploy_unavailable',
+      issue: { code: 'deploy_files_missing' }
+    });
+    expect(JSON.stringify(result.body)).toContain('pnpm package:build');
+  });
+
+  it('explains a missing credential, and continues once one is saved in place', async () => {
+    const api = start({ run: fakeWrangler().run });
+    const cookie = await api.session();
+    api.store.create('bare');
+    const blocked = await api.call('/api/deploy/preflight', { cookie });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body).toMatchObject({
+      error: 'backend_deploy_unavailable',
+      issue: { code: 'no_credential', fix: 'credential' }
+    });
+
+    const saved = await api.call('/api/environments/bare/cloudflare', {
+      method: 'PUT',
+      cookie,
+      body: { cloudflare: { mode: 'token', token: 'cf-new' } }
+    });
+    expect(saved.status).toBe(200);
+    expect(api.store.cloudflareCredential('bare')).toEqual({ mode: 'token', token: 'cf-new' });
+    const ready = await api.call('/api/deploy/preflight', { cookie });
+    expect(ready.status).toBe(200);
+    expect(ready.body).toMatchObject({ signedIn: true, environment: 'bare' });
+  });
+
+  it('explains missing OneCLI settings, and continues once they are saved in place', async () => {
+    const api = start();
+    const cookie = await api.session();
+    api.store.create('viaonecli', { mode: 'onecli' });
+    const blocked = await api.call('/api/deploy/preflight', { cookie });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body).toMatchObject({
+      error: 'onecli_settings_not_found',
+      issue: { code: 'onecli_settings_missing', fix: 'credential' }
+    });
+
+    const saved = await api.call('/api/environments/viaonecli/cloudflare', {
+      method: 'PUT',
+      cookie,
+      body: {
+        cloudflare: {
+          mode: 'onecli',
+          onecli: { project: 'harness', agent: 'vizoalica-deploy', gateway: '127.0.0.1:10255' }
+        }
+      }
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body).toMatchObject({ onecliConfigured: true });
+    expect(api.store.onecliSettings()).toEqual({
+      project: 'harness',
+      agent: 'vizoalica-deploy',
+      gateway: '127.0.0.1:10255'
+    });
+  });
+
+  it('keeps an environment connection when its Cloudflare credential is replaced', async () => {
+    const api = start({ run: fakeWrangler().run });
+    const cookie = await api.session();
+    api.store.save({
+      remoteUrl: 'https://w.test',
+      credential: 'admin-secret',
+      kind: 'admin-secret'
+    });
+    await api.call('/api/environments/stage/cloudflare', {
+      method: 'PUT',
+      cookie,
+      body: { cloudflare: { mode: 'onecli', onecli: { project: 'p', agent: 'a', gateway: 'g:1' } } }
+    });
+    expect(api.store.current()).toMatchObject({
+      remoteUrl: 'https://w.test',
+      credential: 'admin-secret'
+    });
+    expect(api.store.cloudflareCredential('stage')).toEqual({ mode: 'onecli' });
+  });
+
+  it('rejects a credential change for an unknown environment or an invalid body', async () => {
+    const api = start({ run: fakeWrangler().run });
+    const cookie = await api.session();
+    const put = (name: string, body: unknown) =>
+      api.call(`/api/environments/${name}/cloudflare`, { method: 'PUT', cookie, body });
+    expect((await put('nope', { cloudflare: { mode: 'token', token: 't' } })).status).toBe(404);
+    expect((await put('stage', {})).status).toBe(400);
+    expect((await put('stage', { cloudflare: { mode: 'token', token: ' ' } })).status).toBe(400);
+    expect(
+      (await put('stage', { cloudflare: { mode: 'onecli', onecli: { project: 'p' } } })).status
+    ).toBe(400);
   });
 
   it('refuses every deploy route for a non-admin connection', async () => {

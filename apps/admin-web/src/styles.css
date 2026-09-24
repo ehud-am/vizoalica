@@ -2489,6 +2489,10 @@ a.nav-item {
   box-shadow: 0 6px 20px rgb(var(--shadow-color) / 0.1);
   transform: translateY(-2px);
 }
+.choice-card[aria-pressed='true'] {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-brand);
+}
 .choice-icon {
   display: grid;
   place-items: center;
@@ -2528,4 +2532,36 @@ a.nav-item {
   .first-run {
     max-width: none;
   }
+}
+
+/* A recognized deploy problem: what happened, then numbered steps to fix it. */
+.issue-panel {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-warning-border);
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-notice-bg);
+  color: var(--color-warning-notice-text);
+}
+.issue-panel h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+}
+.issue-panel h4 {
+  margin: 20px 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.issue-panel p {
+  margin: 6px 0;
+}
+.issue-panel ol {
+  margin: 4px 0 12px;
+  padding-left: 22px;
+  list-style: decimal;
+}
+.issue-panel li {
+  margin: 4px 0;
 }

@@ -15,6 +15,11 @@ import { handleDeploy } from './routes/deploy.js';
 import { handleBackendMaintenance } from './routes/backend.js';
 import { RunStore } from './deploy/runs.js';
 import { SecretVault } from './deploy/vault.js';
+import {
+  deployFilesMissingIssue,
+  noCredentialIssue,
+  onecliSettingsMissingIssue
+} from './deploy/diagnose.js';
 import { runnerForCredential } from './deploy/wrangler.js';
 import type { EngineDeps } from './deploy/engine.js';
 import { backendState, expectedSchemaFrom } from './setup/state.js';
@@ -175,6 +180,38 @@ export function createLocalServer(input: Config | ServerOptions) {
       run: options.deployRun ?? runnerForCredential(homeDir, credential, store.onecliSettings())
     };
   };
+  /** The same, but a OneCLI-mode environment with no OneCLI settings on this computer is reported as
+   * such (409) instead of surfacing as a generic failure. */
+  const engineDepsOrReply = ():
+    { deps: EngineDeps } | { reply: { status: number; body: unknown } } => {
+    try {
+      const deps = engineDeps();
+      if (deps) return { deps };
+      // Nothing to deploy with: say which of the three reasons it is, so the console can act on it.
+      const environment = options.workerDir ? store.active() : undefined;
+      if (options.workerDir && !environment)
+        return { reply: { status: 409, body: { error: 'no_active_environment' } } };
+      return {
+        reply: {
+          status: 409,
+          body: {
+            error: 'backend_deploy_unavailable',
+            recovery: 'retry_safely',
+            issue: environment ? noCredentialIssue() : deployFilesMissingIssue()
+          }
+        }
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('onecli_settings_not_found'))
+        return {
+          reply: {
+            status: 409,
+            body: { error: 'onecli_settings_not_found', issue: onecliSettingsMissingIssue() }
+          }
+        };
+      throw error;
+    }
+  };
   return createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
@@ -227,12 +264,9 @@ export function createLocalServer(input: Config | ServerOptions) {
           : send(response, 404, { error: 'not_found' });
       }
       if (url.pathname === '/api/deploy' || url.pathname.startsWith('/api/deploy/')) {
-        const active = engineDeps();
-        if (!active)
-          return send(response, 409, {
-            error: 'backend_deploy_unavailable',
-            recovery: 'retry_safely'
-          });
+        const resolved = engineDepsOrReply();
+        if ('reply' in resolved) return send(response, resolved.reply.status, resolved.reply.body);
+        const active = resolved.deps;
         const reply = await handleDeploy(
           request.method ?? 'GET',
           url.pathname,
@@ -244,12 +278,9 @@ export function createLocalServer(input: Config | ServerOptions) {
           : send(response, 404, { error: 'not_found' });
       }
       if (url.pathname.startsWith('/api/backend/')) {
-        const active = engineDeps();
-        if (!active)
-          return send(response, 409, {
-            error: 'backend_deploy_unavailable',
-            recovery: 'retry_safely'
-          });
+        const resolved = engineDepsOrReply();
+        if ('reply' in resolved) return send(response, resolved.reply.status, resolved.reply.body);
+        const active = resolved.deps;
         const reply = await handleBackendMaintenance(
           request.method ?? 'GET',
           url.pathname,

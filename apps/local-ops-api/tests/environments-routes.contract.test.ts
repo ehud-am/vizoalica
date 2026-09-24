@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -25,13 +25,47 @@ function start(worker: StubOptions = {}) {
 const post = (api: ReturnType<typeof start>, cookie: string, path: string, body: unknown) =>
   api.call(path, { method: 'POST', cookie, body });
 
+describe('a OneCLI-mode environment', () => {
+  it('saves the OneCLI settings it was created with, privately, and reports them as configured', async () => {
+    const api = start();
+    const cookie = await api.session();
+    const created = await post(api, cookie, '/api/environments', {
+      name: 'dev',
+      cloudflare: {
+        mode: 'onecli',
+        onecli: { project: 'proj', agent: 'agent', gateway: '127.0.0.1:10255' }
+      }
+    });
+    expect(created.status).toBe(200);
+    expect(created.body).toMatchObject({ onecliConfigured: true });
+    const ops = JSON.parse(readFileSync(join(api.dir, 'ops.json'), 'utf8'));
+    expect(ops).toEqual({
+      version: 1,
+      onecli: { project: 'proj', agent: 'agent', gateway: '127.0.0.1:10255' }
+    });
+    expect(statSync(join(api.dir, 'ops.json')).mode & 0o777).toBe(0o600);
+    expect(api.store.cloudflareCredential('dev')).toEqual({ mode: 'onecli' });
+  });
+
+  it('rejects incomplete OneCLI settings without creating the environment', async () => {
+    const api = start();
+    const cookie = await api.session();
+    const rejected = await post(api, cookie, '/api/environments', {
+      name: 'dev',
+      cloudflare: { mode: 'onecli', onecli: { project: 'proj', agent: '', gateway: 'g:1' } }
+    });
+    expect(rejected.status).toBe(400);
+    expect(api.store.list()).toEqual([]);
+  });
+});
+
 describe('GET /api/environments', () => {
   it('lists nothing and no active environment when none exists', async () => {
     const api = start();
     const cookie = await api.session();
     const result = await api.call('/api/environments', { cookie });
     expect(result.status).toBe(200);
-    expect(result.body).toEqual({ active: null, environments: [] });
+    expect(result.body).toEqual({ active: null, environments: [], onecliConfigured: false });
   });
 
   it('is available without a role or a backend connection', async () => {
