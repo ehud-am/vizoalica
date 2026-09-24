@@ -1,9 +1,16 @@
-import { consoleCommand, serveCommand, type ConsoleDeps } from './console-command.js';
+import { consoleCommand, type ConsoleDeps } from './console-command.js';
+import { deployCommand } from './deploy-command.js';
+import { envCommand, type EnvDeps } from './env-command.js';
 
-export type MainDeps = ConsoleDeps & {
-  nodeVersion: string;
-  platform: NodeJS.Platform;
-};
+export type MainDeps = ConsoleDeps &
+  Pick<EnvDeps, 'interactive' | 'ask' | 'readStdin' | 'vault' | 'fetch'> & {
+    /** Tests replace Wrangler and waiting for the deploy command. */
+    deployTestHooks?: Partial<
+      Pick<import('./deploy-command.js').DeployDeps, 'run' | 'sleep' | 'healthAttempts'>
+    >;
+    nodeVersion: string;
+    platform: NodeJS.Platform;
+  };
 
 /** Commands that still need a source checkout of the repository. */
 const CHECKOUT_COMMANDS = new Set([
@@ -27,12 +34,17 @@ export function help(): string {
     '',
     'Usage: vizoalica <command>',
     '',
-    '  console [--no-open]   Start the console. It asks a few questions the first time and',
-    '                        guides the rest: backend, websites, and results',
+    '  env <command>         Manage your environments (dev, stage, prod, ...): list, add,',
+    '                        update, remove, check. Run "vizoalica env" for details',
+    '  deploy <name>         Create a backend for an environment in your Cloudflare account',
+    '                        (--apply to create it). Run "vizoalica deploy" for details',
+    '  console [--no-open]   Start the console: websites, results, and access for the',
+    '                        environment you pick',
     '  help                  Show this help',
     '  --version             Print the installed version',
     '',
-    'Start with: vizoalica console',
+    'Start with: vizoalica deploy <name> --apply (or vizoalica env add <name> for a backend you have),',
+    'then: vizoalica console',
     'Documentation: https://vizoalica.dev'
   ].join('\n');
 }
@@ -66,10 +78,12 @@ export async function main(argv: readonly string[], deps: MainDeps): Promise<num
     }
     return consoleCommand({ open: !rest.includes('--no-open') }, deps);
   }
-  if (command === 'serve') return serveCommand(rest[0], deps);
+  if (command === 'env') return envCommand(rest, deps);
+  if (command === 'deploy')
+    return deployCommand(rest, { ...deps, ...(deps.deployTestHooks ?? {}) });
   if (CHECKOUT_COMMANDS.has(command)) {
     deps.err(
-      `"vizoalica ${command}" is not part of the installed package yet.\nRun "vizoalica console"; it guides setup. To use this command now, work from a source checkout:\n  git clone https://github.com/ehud-am/vizoalica && cd vizoalica && pnpm install && pnpm vizoalica ${command}\n`
+      `"vizoalica ${command}" is not part of the installed package yet.\nTo use this command now, work from a source checkout:\n  git clone https://github.com/ehud-am/vizoalica && cd vizoalica && pnpm install && pnpm vizoalica ${command}\n`
     );
     return 2;
   }

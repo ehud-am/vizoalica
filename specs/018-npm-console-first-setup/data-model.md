@@ -1,30 +1,37 @@
 # Data Model: Install from npm, a Console-First Setup, and Multiple Backend Environments
 
+> Revision 3 (2026-09-24): environments are one editable file managed by `vizoalica env`; the deployment run
+> record, per-environment files, active pointer, and connection-file fields are gone.
+
 Phase 1 output for [plan.md](./plan.md). Decisions are in [research.md](./research.md).
 
-## Environment (this computer, `~/.config/vizoalica/environments/<name>.json`, mode 0600, and
-`~/.config/vizoalica/active-environment.json`)
+## Environments file (this computer, `~/.config/vizoalica/environments.json`, mode 0600) — Revision 3
 
-A named, independent backend (R24). Not a Worker or database concept: isolation between environments comes
-from each one being its own Cloudflare deployment, never from a shared row. One file per environment, same
-shape as the pre-0.7.0 single connection file (see "Environment connection file" below) plus:
+Replaces the per-environment files, `active-environment.json`, and the pending role hint of the earlier
+design (R24, R25). One JSON object, edited by `vizoalica env` or by hand, read (never written) by the service:
 
-| Key                     | Meaning                                                                               |
-| ------------------------ | -------------------------------------------------------------------------------------- |
-| `VIZOALICA_ENV_NAME`     | The environment's name; also its Cloudflare resource-name prefix (R26)                 |
-| `VIZOALICA_CF_MODE`      | `token` or `onecli` (R25); how this environment's deploy and update runs reach Cloudflare |
-| `VIZOALICA_CF_API_TOKEN` | Present only in `token` mode; the Cloudflare API token for this environment's Wrangler runs |
+```json
+{ "version": 1, "environments": { "<name>": { "url": "…", "role": "admin", "secret": "…", "cloudflare": { "token": "…" } } } }
+```
 
-`~/.config/vizoalica/active-environment.json` holds `{ "active": "<name>" }`, the one environment every route
-and screen currently reflects (FR-050). Creating the first environment sets it active automatically.
+| Field              | Meaning                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| key (`<name>`)     | The environment's name; also its Cloudflare resource-name prefix (R26): lowercase letters, digits, dashes, starting with a letter |
+| `url`              | The Worker's https origin: `workers.dev` or a custom domain; no path, query, or credentials; loopback http allowed |
+| `role`             | `admin`, `owner`, or `analyst`; must equal the role the Worker reports for `secret` (checked)         |
+| `secret`           | The administrator secret (admin) or access key (owner, analyst): a string, or `{ "onecli": { "workspace", "agent", "gateway" } }` (OneCLI as a local vault) |
+| `cloudflare.token` | Admin only, optional: a Cloudflare API token, a string or the same OneCLI form; checked active with Cloudflare |
 
-**Validation** (`assertEnvironmentName`, R26): lowercase letters, digits, and dashes, starting with a letter,
-short enough that `<name>-vizoalica-worker` stays within Cloudflare's resource-name limit. Must be unique
-among environments already saved on this computer (FR-047).
+A missing file or empty map means no environments. A file that is not JSON, has the wrong shape, an unknown
+`version`, is a symbolic link, or is readable by other users is **broken** (reason and path shown). One
+invalid entry does not break the file: it is listed as unusable with its reason, and `vizoalica env` refuses to
+rewrite the file while an entry would be dropped. The selected environment is stored separately in
+`preferences.json` as `environment`.
 
-**Deleting an environment** (FR-052) removes its file and, if it was active, clears the active pointer (the
-console falls back to the picker or first run). It never touches Cloudflare; a confirmation names the
-environment and says so plainly.
+**Environment state** (derived, never stored, never contains a secret): `name`, `url`, `role`, `secretSource`
+(`file`/`onecli`), `cloudflare` (`none`/`file`/`onecli`), `usable`, and `problems[]` (`code`, `message`).
+Usable means: the secret resolves, the Worker accepts it, its reported role equals `role`, versions are
+compatible, and any Cloudflare token is active.
 
 ## Access key (backend, D1 table `access_keys`, added by migration `0002_access_keys.sql`)
 
@@ -92,32 +99,13 @@ requires a confirmed backup.
 | `unknown`          | No version reported (older Worker) or no `d1_migrations` table                                |
 | `unsupported`      | Applied schema below 1 or a database older than the 0.5.2 schema: in-place update refused     |
 
-## Environment connection file (per environment, same file the "Environment" section names)
-
-The per-environment file's connection fields, unchanged in shape from the pre-0.7.0 single connection file
-(only the location — one file per environment now, not `~/.config/vizoalica/local-operations.json` — and the
-addition of the environment and Cloudflare fields above are new):
-
-| Key                        | Meaning                                                                             |
-| -------------------------- | ----------------------------------------------------------------------------------- |
-| `VIZOALICA_REMOTE_URL`     | The backend's https origin (loopback http allowed for local development)            |
-| `VIZOALICA_ADMIN_SECRET`   | The administrator secret, or the placeholder `onecli-managed` in OneCLI mode        |
-| `VIZOALICA_READ_KEY`       | An access key, valid only for this environment's backend. Exactly one of this and the administrator secret is present |
-| `VIZOALICA_ROLE_HINT`      | Optional: `admin`, `website-owner`, or `analyst`; only remembers the first-run choice and grants nothing |
-
-Validation: the pair is verified against the backend (`whoami`) before it is saved; a file with both
-credentials, or neither, is invalid; a placeholder is only valid under the OneCLI wrapper. A key or secret is
-always verified against the environment it is being saved for; since one Worker's credentials do not exist in
-another Worker's database, presenting the wrong environment's key or secret fails `whoami` outright (FR-051).
-
 ## Setup state (derived on demand by the local service)
 
 | Field        | Meaning                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `version`    | The installed package version                                                                                      |
-| `needsFirstRun` | `true` when no environment exists yet                                                                           |
-| `environment` | The active environment's name, and the full list of saved environments' names and connection statuses (for the switcher) |
-| `connection` | The active environment's connection: `status`: `none`, `connected`, `unreachable`, `revoked`, `incompatible`; `workerHost`; `mode`: `file` or `onecli` |
+| `environment` | The selected environment's name (the list of environments comes from `GET /api/environments`)                     |
+| `connection` | The selected environment's connection: `status`: `connected`, `unreachable`, `revoked`, `incompatible`; `workerHost` |
 | `principal`  | The role, scope, and key label reported by the backend, when connected                                             |
 | `backend`    | `workerVersion`, the applied and expected schema versions, a `status` for each of the Worker and the schema (see Version status), and a plain message |
 | `stages[]`   | Four entries: `id`, `label`, `status` (`done`, `current`, `todo`, `blocked`), and for the current one a `next` action |
@@ -126,37 +114,6 @@ Stage rules: **console running** is always done; **backend connected** when the 
 compatible enough to use; **website configured** when the principal can see at least one website; **data arriving**
 when any visible website reports accepted data. The current stage is the first not done; a stage is `blocked`
 when an earlier one is not done and the principal could not act on it anyway.
-
-## Deployment run (local, `~/.config/vizoalica/deployments/<runId>.json`, no secrets)
-
-| Field         | Meaning                                                                                                     |
-| ------------- | ----------------------------------------------------------------------------------------------------------- |
-| `id`          | Random, `[a-z0-9]{16}`                                                                                      |
-| `environment` | The environment this run belongs to (its name); the run's own Wrangler invocations use only that environment's Cloudflare credential (R25) |
-| `mode`        | `first-install` or `update-backend` (Worker and database, with backup and migrations)                      |
-| `names`       | `worker`, `database`, `bucket`, each starting with `<environment>-` and otherwise 3 to 63 lowercase letters, digits, or dashes (R26) |
-| `accountId`, `accountName` | The Cloudflare account chosen, under this environment's credential                             |
-| `plan[]`      | Each resource: `kind`, `name`, `purpose`; shown before approval                                             |
-| `approvedAt`  | Set when the admin approves the plan; nothing runs before                                                |
-| `steps[]`     | `id`, `label`, `status` (`pending`, `running`, `done`, `failed`, `skipped`), times, `error` text, `created` list |
-| `result`      | `workerUrl`, `healthy`, and which secrets were generated by name only                                        |
-| `versions`    | For updates: the Worker and schema versions before and after, the migrations applied, and the backup path (or that it was declined) |
-
-Steps for an **update of the Worker and database**, in order: `prepare-tool`, `check-signin`, `read-versions`, `backup`,
-`migrate` (skipped when the schema is current), `deploy-worker` (skipped when the Worker is current), `verify`, `record`.
-The `backup` step writes `~/.config/vizoalica/backups/<database>-<timestamp>.sql` (mode 0600) and records its path
-and size, or records that it was declined after explicit confirmation.
-
-Steps for a first install, in order: `prepare-tool`, `check-signin`, `detect`, `create-database`,
-`create-bucket`, `write-config`, `create-tables`, `deploy-worker`, `store-secrets`, `verify-health`,
-`connect`. The existing `backend` CLI command keeps its own Worker-only update for scripts. A run can be resumed: steps already `done` are not repeated, and `detect` refuses resources
-this run did not create unless the admin chose to connect to them.
-
-**Secrets of a run** live only in memory: the three generated values, a single-use reveal that returns them
-once and then wipes them, expiring after 10 minutes if never revealed. The administrator secret is also
-written to the run's environment's connection file when the run connects. Deploying and updating read the
-prebundled Worker, its Wrangler configuration template, and the packaged migrations from the installed
-package's own files (R27), never from a source checkout.
 
 ## Website setup details (produced by the admin's "Share setup", never stored by the service)
 

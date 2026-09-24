@@ -36,36 +36,17 @@ website-owner roles) and an `actor` column on the audit log. Because two of 0.6.
 existing databases before they were folded into `0001`, it creates both with `IF NOT EXISTS`, so
 either a stock 0.5.2 database or one with those tables already present reaches the same schema.
 
-## Updating from the console
+## Updating a backend
 
-An admin updates the selected environment's backend from the Backend screen: **Show the update
-plan** displays the Worker's and the schema's current and expected versions, every pending
-migration with its plain description, and whether each one is purely additive. Nothing runs until
-**Approve and update**. The run then, in order:
-
-1. Checks Cloudflare access for this environment's credential.
-2. Reads the current versions again (refusing to proceed if the backend is newer than this console
-   — this never downgrades a backend — or if its schema predates what this console can update in
-   place).
-3. Backs up the database (`wrangler d1 export --remote`), unless declined (see below) or nothing is
-   pending.
-4. Applies pending migrations (`wrangler d1 migrations apply --remote`), skipped if the schema is
-   already current.
-5. Redeploys the Worker with this console's bundle, skipped if the Worker is already current.
-6. Verifies the backend answers with the new versions.
-
-A failed step stops the run there; **Resume** repeats no step already done. The backup, if taken, is
-saved under `~/.config/vizoalica/backups/` and its path is shown in the result.
-
-**Skip the database backup** is available only when every pending migration is purely additive; it
-is refused (both in the UI and by the console's local service) the moment any pending change carries
-the `-- vizoalica:non-additive` marker, since declining a backup before a destructive change is not
-safe.
+The console shows the Worker's and the schema's current and expected versions on the Backend screen, for every
+role, and tells you when the backend is behind (or newer than the console). It does not change the backend.
+Update it from the checkout that installed it with `pnpm vizoalica backend` (answer "update"), or by hand as
+below. An environment whose database is newer than the console expects is not usable until you update the
+console (`npm update -g vizoalica`); `vizoalica env check` says so.
 
 ## Applying a migration by hand
 
-If you would rather not use the console (or are recovering outside it), the same two steps work
-directly. Take a backup first:
+Take a backup first:
 
 ```sh
 wrangler d1 export <database> --remote --output backup.sql

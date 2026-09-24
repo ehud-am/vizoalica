@@ -60,12 +60,11 @@ test('marks stages blocked and says so when the backend stops answering', async 
         status: 'blocked',
         next: {
           id: 'check-backend',
-          label: 'The backend is not answering. Check it and retry.',
-          href: '#/setup'
+          label: 'The backend is not answering. Check it and retry.'
         }
       },
       {
-        connection: { status: 'unreachable', workerHost: 'worker.test', mode: 'file' }
+        connection: { status: 'unreachable', workerHost: 'worker.test' }
       }
     )
   });

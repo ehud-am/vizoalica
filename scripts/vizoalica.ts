@@ -433,24 +433,6 @@ export function oneCliNodeOptions(existing = process.env.NODE_OPTIONS): string {
   return [existing, SILENCE_ENV_PROXY_WARNING].filter(Boolean).join(' ');
 }
 
-export function consoleArguments(config: OpsConfig): string[] {
-  return [
-    'run',
-    '--project',
-    config.onecli.project,
-    '--agent',
-    config.onecli.agent,
-    '--gateway',
-    config.onecli.gateway,
-    '--',
-    'env',
-    'VIZOALICA_ONECLI_WRAPPED=1',
-    `NODE_OPTIONS=${oneCliNodeOptions()}`,
-    'pnpm',
-    ...localApiArguments({ path: config.consoleConfigPath })
-  ];
-}
-
 export function verifyArguments(config: OpsConfig): string[] {
   return [
     'run',
@@ -624,7 +606,10 @@ async function rotateCommand(
 }
 
 function installCommand(): never {
-  throw new OpsError('vizoalica install was retired. Run `vizoalica console`; it guides setup.', 2);
+  throw new OpsError(
+    'vizoalica install was retired. Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.',
+    2
+  );
 }
 
 async function status(options: Options, dependencies: Dependencies): Promise<void> {
@@ -637,10 +622,6 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       .then((response) => response.ok)
       .catch(() => false)
   ]);
-  const processList = dependencies.spawnSync('ps', ['-axo', 'command='], { encoding: 'utf8' });
-  const commands = typeof processList.stdout === 'string' ? processList.stdout : '';
-  const throughOneCli =
-    client.mode === 'OneCLI' && commands.includes('onecli run') && commands.includes(client.path);
   let authenticated = false;
   if (client.mode === 'OneCLI') {
     authenticated =
@@ -659,49 +640,16 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       `Credential mode: ${client.mode}`,
       `Worker hostname: ${new URL(client.workerUrl).hostname}`,
       `Config file: ${client.path} (${client.permissions})`,
-      'Expected startup: pnpm vizoalica console',
+      'Expected startup: pnpm vizoalica console (environments: pnpm vizoalica env)',
       `Port 4318 occupied: ${apiPort ? 'yes' : 'no'}`,
       `Port 5173 occupied: ${webPort ? 'yes' : 'no'}`,
-      `API running through OneCLI: ${throughOneCli ? 'yes' : 'no'}`,
       `Public health: ${publicHealth ? 'passed' : 'failed'}`,
       `Authenticated access: ${authenticated ? 'passed' : 'failed'}`
     ].join('\n') + '\n'
   );
 }
 
-/**
- * `serve` takes the environments home directory, not a file. A pre-0.7.0 connection file sits in that
- * directory, where the API finds it and offers to import it; with no file at all the API uses its
- * default home and the console starts at first-run setup.
- */
-export function localApiArguments(client?: { path: string }): string[] {
-  return client ? ['local-ops-api:dev', 'serve', dirname(client.path)] : ['local-ops-api:dev'];
-}
-
-/**
- * Whether `path` is a complete pre-0.7.0 setup file (it names a Worker). The console now also keeps just
- * the OneCLI project, agent, and gateway in this same file, with no Worker; that is not a legacy setup,
- * and treating it as one would fail with "Invalid URL".
- */
-function hasLegacyOpsConfig(path: string): boolean {
-  try {
-    const value = JSON.parse(readFileSync(path, 'utf8')) as { workerUrl?: unknown };
-    return typeof value.workerUrl === 'string';
-  } catch {
-    return existsSync(path);
-  }
-}
-
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
-  // A new install has no connection file yet; the console then starts at first-run setup.
-  const fresh =
-    !text(options, 'console-config') &&
-    !text(options, 'config') &&
-    !existsSync(DEFAULT_CLIENT_CONFIG) &&
-    !hasLegacyOpsConfig(DEFAULT_CONFIG);
-  const { client, ops } = fresh
-    ? { client: undefined, ops: undefined }
-    : resolveClientConfig(options);
   // A second console cannot bind the same ports and would die with a raw EADDRINUSE trace.
   const inUse = dependencies.portInUse ?? portOccupied;
   const busy = (
@@ -711,21 +659,14 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
     throw new OpsError(
       `${busy.length > 1 ? 'Ports' : 'Port'} ${busy.join(' and ')} ${busy.length > 1 ? 'are' : 'is'} already in use, so a console is probably running already.\nOpen ${CONSOLE_URL}, or stop the other console first (Ctrl+C in its terminal) and run this again.`
     );
-  const viaOneCli = client?.mode === 'OneCLI';
   stdout.write(
-    (viaOneCli
-      ? `Starting the private API through OneCLI (${ops!.onecli.gateway}) and the web console.\n`
-      : client
-        ? 'Starting the private API with the local administrator secret file and the web console.\n'
-        : 'Starting the private API and the web console.\n') +
+    'Starting the private API and the web console. Environments come from ~/.config/vizoalica/environments.json (manage them with: pnpm vizoalica env).\n' +
       `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );
   if (options.open === true) setTimeout(() => openBrowser(CONSOLE_URL), 3000);
   const children: ChildProcess[] = [
-    viaOneCli
-      ? dependencies.spawn('onecli', consoleArguments(ops!), { stdio: 'inherit' })
-      : dependencies.spawn('pnpm', localApiArguments(client), { stdio: 'inherit' }),
+    dependencies.spawn('pnpm', ['local-ops-api:dev'], { stdio: 'inherit' }),
     dependencies.spawn('pnpm', ['admin-web:dev'], { stdio: 'inherit' })
   ];
   const stop = () => children.forEach((child) => child.kill('SIGTERM'));
@@ -827,6 +768,8 @@ export function help(): string {
     '',
     'Get going',
     ...rows([
+      ['env', 'List, add, update, remove, and check environments (dev, stage, prod)'],
+      ['deploy', 'Create a backend for an environment in your Cloudflare account (--apply)'],
       ['console', 'Start the private API and the web console (alias: run)'],
       ['backend', 'Install or update the Cloudflare backend (asks first install or update)'],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
@@ -880,7 +823,62 @@ const dependencies: Dependencies = {
   isTTY: Boolean(stdin.isTTY && stdout.isTTY)
 };
 
+/**
+ * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
+ * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
+ */
+async function packagedCommand(command: 'env' | 'deploy', args: readonly string[]): Promise<void> {
+  const { envCommand } = await import('../apps/cli/src/env-command.js');
+  const { deployCommand } = await import('../apps/cli/src/deploy-command.js');
+  const { Vault } = await import('../apps/local-ops-api/src/environments/vault.js');
+  const { createInterface: readline } = await import('node:readline/promises');
+  const { Writable } = await import('node:stream');
+  const vault = new Vault(spawn);
+  const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+  const deps = {
+    home: homedir(),
+    version,
+    assetDir: resolve('apps', 'cli', 'package', 'dist'),
+    env: process.env,
+    out: (message: string) => void stdout.write(message),
+    err: (message: string) => void process.stderr.write(message),
+    interactive: Boolean(stdin.isTTY && stdout.isTTY),
+    ask: async (question: string, options?: { secret?: boolean }) => {
+      // Secrets are read without echo.
+      const mute = options?.secret === true;
+      const output = new Writable({
+        write(chunk, _encoding, callback) {
+          if (!mute) stdout.write(chunk);
+          callback();
+        }
+      });
+      stdout.write(question);
+      const prompt = readline({ input: stdin, output, terminal: true });
+      try {
+        const answer = await prompt.question('');
+        if (mute) stdout.write('\n');
+        return answer;
+      } finally {
+        prompt.close();
+      }
+    },
+    readStdin: async () => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stdin) chunks.push(Buffer.from(chunk));
+      return Buffer.concat(chunks).toString('utf8');
+    },
+    vault
+  };
+  try {
+    process.exitCode =
+      command === 'env' ? await envCommand(args, deps) : await deployCommand(args, deps);
+  } finally {
+    vault.close();
+  }
+}
+
 export async function run(argv: readonly string[], injected = dependencies): Promise<void> {
+  if (argv[0] === 'env' || argv[0] === 'deploy') return packagedCommand(argv[0], argv.slice(1));
   if (argv[0] === 'rotate') {
     // `rotate` takes one positional word (admin, token, digest, or all) before any flags.
     const kind = argv[1]?.startsWith('--') ? undefined : argv[1];

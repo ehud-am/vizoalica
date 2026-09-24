@@ -7,9 +7,9 @@ will not manage the administrator credential. Do not combine the two methods.
 
 If this machine is already configured with OneCLI, use the one-terminal commands in
 [Start the local operator console](operator-local.md): run `pnpm vizoalica verify`, then
-`pnpm vizoalica console`. Keep that terminal open and press Ctrl+C once to stop both processes. Never
-start `pnpm local-ops-api:dev` directly when the file contains `onecli-managed`, and do not switch
-modes merely by changing the startup command.
+`pnpm vizoalica console`. Keep that terminal open and press Ctrl+C once to stop both processes. The
+console is not started under OneCLI: an environment whose secret OneCLI holds is reached through a small
+helper that runs under `onecli run` for that environment alone (see [Environments](environments.md)).
 
 ## Prerequisites
 
@@ -34,9 +34,10 @@ OneCLI injects the real credential only into HTTPS requests to the exact Worker 
 stores only the literal placeholder `onecli-managed`. The browser talks only to the loopback API.
 Missing OneCLI access must fail closed; never copy the credential into local configuration.
 
-> **Important:** If `local-operations.json` contains `onecli-managed`, the API must be launched
-> with `pnpm vizoalica console`. Starting `pnpm local-ops-api:dev` directly sends the placeholder and results
-> in HTTP 401. The API refuses this direct launch when it can identify the placeholder.
+> **In the console:** add the environment with `pnpm vizoalica env add NAME --role admin --secret-onecli
+--onecli-workspace WORKSPACE --onecli-agent AGENT --onecli-gateway 127.0.0.1:10255`. The console sends
+> `onecli-managed` as the placeholder through the helper, OneCLI supplies the real secret, and the console
+> verifies it like any other environment. Nothing needs to be restarted to switch environments.
 
 ## 1. Verify the handoff and checkout
 

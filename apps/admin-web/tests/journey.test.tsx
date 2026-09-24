@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SetupState } from '../src/api/local-operations.js';
 import { AnalyticsSetupHint, Journey } from '../src/setup/Journey.js';
 import { SetupProvider } from '../src/setup/SetupProvider.js';
-import { connectedState, DONE, firstRunState, stages } from './fixtures/setup.js';
+import { connectedState, DONE, unfinishedState, stages } from './fixtures/setup.js';
 
 const api = vi.hoisted(() => ({ getSetupState: vi.fn() }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
@@ -24,7 +24,7 @@ const showHint = (state: SetupState | undefined) => show(state, <AnalyticsSetupH
 
 describe('Journey', () => {
   it('shows the four stages in order, marking the current one', () => {
-    show(firstRunState());
+    show(unfinishedState());
     const list = screen.getByRole('list');
     const items = within(list).getAllByRole('listitem');
     expect(items).toHaveLength(4);
@@ -36,29 +36,31 @@ describe('Journey', () => {
           ).textContent
       )
     ).toEqual(['Console running', 'Backend connected', 'Website configured', 'Data arriving']);
-    expect(items[1]!.getAttribute('aria-current')).toBe('step');
+    expect(items[2]!.getAttribute('aria-current')).toBe('step');
     expect(items[0]!.getAttribute('aria-current')).toBeNull();
   });
 
   it('says each status in words as well as with an icon', () => {
-    show(firstRunState());
+    show(unfinishedState());
     const items = screen.getAllByRole('listitem');
     expect(items[0]!.textContent).toContain('Done');
-    expect(items[1]!.textContent).toContain('Current step');
-    expect(items[2]!.textContent).toContain('To do');
+    expect(items[2]!.textContent).toContain('Current step');
+    expect(items[3]!.textContent).toContain('To do');
     show({
-      ...firstRunState(),
+      ...unfinishedState(),
       stages: stages(['done', 'blocked', 'blocked', 'blocked'], { id: 'check-backend', label: 'x' })
     });
     expect(screen.getAllByText('Blocked').length).toBeGreaterThan(0);
   });
 
   it('offers exactly one next action, as a link when there is somewhere to go', () => {
-    show(firstRunState());
+    show(unfinishedState());
     const next = screen.getByText('Next:').parentElement!;
     expect(
-      within(next).getByRole('link', { name: 'Deploy or connect a backend' }).getAttribute('href')
-    ).toBe('#/setup');
+      within(next)
+        .getByRole('link', { name: 'Create a project and add a website' })
+        .getAttribute('href')
+    ).toBe('#/manage/projects');
   });
 
   it('shows plain text when the next step has nowhere to go', () => {
@@ -181,7 +183,7 @@ describe('SetupProvider', () => {
   it('keeps what it knew when asking fails', async () => {
     vi.useFakeTimers();
     api.getSetupState.mockRejectedValue(new Error('offline'));
-    show(firstRunState());
+    show(unfinishedState());
     await act(async () => void (await vi.advanceTimersByTimeAsync(30_000)));
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
   });
@@ -189,7 +191,7 @@ describe('SetupProvider', () => {
   it('does not ask while the page is hidden', async () => {
     vi.useFakeTimers();
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
-    show(firstRunState());
+    show(unfinishedState());
     await act(async () => void (await vi.advanceTimersByTimeAsync(60_000)));
     expect(api.getSetupState).not.toHaveBeenCalled();
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });

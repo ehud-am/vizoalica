@@ -1,27 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { dirname, join } from 'node:path';
-import { defaultHomeDir, type Config, type Settings } from './config.js';
-import { resolvePreferencesPath } from './config.js';
-import { EnvironmentStore } from './environment-store.js';
+import { resolvePreferencesPath, type Settings } from './config.js';
+import type { Registry } from './environments/registry.js';
 import { isStaticRequest, serveStatic, type StaticDirs } from './static.js';
-import { readPreferences, writePreferences } from './preferences.js';
+import { readPreferences, updatePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
 import { checkReachability } from './routes/reachability.js';
-import { handleSetup } from './routes/setup.js';
 import { handleEnvironments } from './routes/environments.js';
-import { handleDeploy } from './routes/deploy.js';
-import { handleBackendMaintenance } from './routes/backend.js';
-import { RunStore } from './deploy/runs.js';
-import { SecretVault } from './deploy/vault.js';
-import {
-  deployFilesMissingIssue,
-  noCredentialIssue,
-  onecliSettingsMissingIssue
-} from './deploy/diagnose.js';
-import { runnerForCredential } from './deploy/wrangler.js';
-import type { EngineDeps } from './deploy/engine.js';
 import { backendState, expectedSchemaFrom } from './setup/state.js';
 import {
   issueAccessKey,
@@ -96,36 +82,13 @@ function requestOrigin(request: IncomingMessage): string | undefined {
 
 export type ServerOptions = StaticDirs & {
   settings: Settings;
-  /** The backend connection; it may be empty, and the console then guides first run. */
-  store: EnvironmentStore;
+  /** The environments; the console only serves data while one of them is usable and selected. */
+  registry: Registry;
   /** The installed package version, shown by the console and compared with the backend's. */
   version?: string;
   /** Where the packaged database changes live; the highest number is the expected schema. */
   schemaDir?: string | undefined;
-  /** Where the packaged Worker bundle and its Wrangler config template live (`dist/worker`). Deploying
-   * and updating are unavailable (backend_deploy_unavailable) when this is not given. */
-  workerDir?: string | undefined;
-  /** A test replaces the pinned-Wrangler-by-credential runner with a fake one. */
-  deployRun?: import('@vizoalica/ops-core').Run | undefined;
 };
-
-/** Older callers pass one fixed connection; that is the same thing with a store that never changes. */
-function optionsFromConfig(config: Config): ServerOptions {
-  return {
-    settings: {
-      port: config.port,
-      consoleOrigin: config.consoleOrigin,
-      allowedOrigins: [...new Set([config.consoleOrigin, `http://127.0.0.1:${config.port}`])],
-      sessionTtlMs: config.sessionTtlMs,
-      ...(config.configFilePath ? { homeDir: dirname(config.configFilePath) } : {})
-    },
-    store: EnvironmentStore.fromConnection('default', {
-      remoteUrl: config.remoteUrl,
-      credential: config.adminSecret,
-      kind: 'admin-secret'
-    })
-  };
-}
 
 function sendStatic(
   request: IncomingMessage,
@@ -138,19 +101,18 @@ function sendStatic(
   response.end(result.body);
 }
 
-export function createLocalServer(input: Config | ServerOptions) {
-  const options = 'settings' in input ? input : optionsFromConfig(input);
-  const { settings, store } = options;
+export function createLocalServer(options: ServerOptions) {
+  const { settings, registry } = options;
   const staticDirs: StaticDirs = { consoleDir: options.consoleDir, sdkDir: options.sdkDir };
   let cached: { revision: number; client: WorkerClient } | undefined;
   /** The client for the current connection; rebuilt when the connection changes, absent before first run. */
   const currentClient = (): WorkerClient => {
-    const connection = store.current();
+    const connection = registry.current();
     if (!connection) throw new Error('backend_not_connected');
-    if (!cached || cached.revision !== store.revision)
+    if (!cached || cached.revision !== registry.revision)
       cached = {
-        revision: store.revision,
-        client: new WorkerClient(connection.remoteUrl, connection.credential)
+        revision: registry.revision,
+        client: new WorkerClient(connection.remoteUrl, connection.credential, connection.fetch)
       };
     return cached.client;
   };
@@ -158,60 +120,6 @@ export function createLocalServer(input: Config | ServerOptions) {
   const expectedSchema = expectedSchemaFrom(options.schemaDir);
   const sessions = new Map<string, number>();
   const preferencesPath = resolvePreferencesPath(settings);
-  const homeDir = settings.homeDir ?? defaultHomeDir();
-  const runStore = new RunStore(join(homeDir, 'deployments'));
-  const vault = new SecretVault();
-  /** Built fresh per request: the active environment's Cloudflare credential can change between calls. */
-  const engineDeps = (): EngineDeps | undefined => {
-    if (!options.workerDir) return undefined;
-    const environment = store.active();
-    if (!environment) return undefined;
-    const credential = store.cloudflareCredential(environment);
-    if (!credential) return undefined;
-    return {
-      configBaseDir: join(homeDir, 'deploy'),
-      workerBundle: join(options.workerDir, 'index.mjs'),
-      wranglerTemplate: join(options.workerDir, 'wrangler.template.toml'),
-      schemaDir: options.schemaDir ?? join(options.workerDir, '..', 'schema'),
-      consoleVersion: version,
-      store: runStore,
-      vault,
-      environmentStore: store,
-      run: options.deployRun ?? runnerForCredential(homeDir, credential, store.onecliSettings())
-    };
-  };
-  /** The same, but a OneCLI-mode environment with no OneCLI settings on this computer is reported as
-   * such (409) instead of surfacing as a generic failure. */
-  const engineDepsOrReply = ():
-    { deps: EngineDeps } | { reply: { status: number; body: unknown } } => {
-    try {
-      const deps = engineDeps();
-      if (deps) return { deps };
-      // Nothing to deploy with: say which of the three reasons it is, so the console can act on it.
-      const environment = options.workerDir ? store.active() : undefined;
-      if (options.workerDir && !environment)
-        return { reply: { status: 409, body: { error: 'no_active_environment' } } };
-      return {
-        reply: {
-          status: 409,
-          body: {
-            error: 'backend_deploy_unavailable',
-            recovery: 'retry_safely',
-            issue: environment ? noCredentialIssue() : deployFilesMissingIssue()
-          }
-        }
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('onecli_settings_not_found'))
-        return {
-          reply: {
-            status: 409,
-            body: { error: 'onecli_settings_not_found', issue: onecliSettingsMissingIssue() }
-          }
-        };
-      throw error;
-    }
-  };
   return createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
@@ -241,52 +149,17 @@ export function createLocalServer(input: Config | ServerOptions) {
     }
 
     try {
-      if (url.pathname.startsWith('/api/setup/')) {
-        const reply = await handleSetup(
-          request.method ?? 'GET',
-          url.pathname,
-          () => requestJson(request),
-          { store, version, expectedSchema }
-        );
-        return reply
-          ? send(response, reply.status, reply.body)
-          : send(response, 404, { error: 'not_found' });
-      }
-      if (url.pathname === '/api/environments' || url.pathname.startsWith('/api/environments/')) {
-        const reply = await handleEnvironments(
-          request.method ?? 'GET',
-          url.pathname,
-          () => requestJson(request),
-          { store, version, expectedSchema }
-        );
-        return reply
-          ? send(response, reply.status, reply.body)
-          : send(response, 404, { error: 'not_found' });
-      }
-      if (url.pathname === '/api/deploy' || url.pathname.startsWith('/api/deploy/')) {
-        const resolved = engineDepsOrReply();
-        if ('reply' in resolved) return send(response, resolved.reply.status, resolved.reply.body);
-        const active = resolved.deps;
-        const reply = await handleDeploy(
-          request.method ?? 'GET',
-          url.pathname,
-          () => requestJson(request),
-          active
-        );
-        return reply
-          ? send(response, reply.status, reply.body)
-          : send(response, 404, { error: 'not_found' });
-      }
-      if (url.pathname.startsWith('/api/backend/')) {
-        const resolved = engineDepsOrReply();
-        if ('reply' in resolved) return send(response, resolved.reply.status, resolved.reply.body);
-        const active = resolved.deps;
-        const reply = await handleBackendMaintenance(
-          request.method ?? 'GET',
-          url.pathname,
-          () => requestJson(request),
-          active
-        );
+      await registry.refresh();
+      if (
+        url.pathname === '/api/environments' ||
+        url.pathname.startsWith('/api/environments/') ||
+        url.pathname === '/api/setup/state'
+      ) {
+        const reply = await handleEnvironments(request.method ?? 'GET', url.pathname, {
+          registry,
+          version,
+          expectedSchema
+        });
         return reply
           ? send(response, reply.status, reply.body)
           : send(response, 404, { error: 'not_found' });
@@ -315,9 +188,9 @@ export function createLocalServer(input: Config | ServerOptions) {
               message: 'theme must be "light" or "dark".'
             });
           const theme: 'light' | 'dark' = body.theme;
-          const saved = { theme, updatedAt: new Date().toISOString() };
+          let saved;
           try {
-            writePreferences(preferencesPath, saved);
+            saved = updatePreferences(preferencesPath, { theme });
           } catch {
             return send(response, 503, {
               error: 'preferences_unavailable',
@@ -425,7 +298,7 @@ export function createLocalServer(input: Config | ServerOptions) {
           const role = body?.role === 'analyst' ? 'analyst' : 'owner';
           const details = await shareWebsite(
             client,
-            store.current()!.remoteUrl,
+            registry.current()!.remoteUrl,
             item[1]!,
             item[2]!,
             role
@@ -438,7 +311,7 @@ export function createLocalServer(input: Config | ServerOptions) {
             response,
             200,
             item[3] === 'snippet'
-              ? integrationSnippet(metadata, store.current()!.remoteUrl, item[1]!, item[2]!)
+              ? integrationSnippet(metadata, registry.current()!.remoteUrl, item[1]!, item[2]!)
               : metadata
           );
         }
@@ -463,7 +336,7 @@ export function createLocalServer(input: Config | ServerOptions) {
         return send(response, 200, await revokeAccessKey(client, keyItem[1]!));
       }
       if (request.method === 'GET' && url.pathname === '/api/backend') {
-        return send(response, 200, await backendState({ store, version, expectedSchema }));
+        return send(response, 200, await backendState({ registry, version, expectedSchema }));
       }
       return send(response, 404, { error: 'not_found' });
     } catch (error) {

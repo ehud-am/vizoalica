@@ -64,11 +64,28 @@ describe('install from npm', () => {
     expect(text).toContain('~/.config/vizoalica/');
   });
 
-  it('is honest that this release installs everything, including deploying a backend, with no source checkout', () => {
-    expect(read('README.md')).toMatch(
-      /installs everything the console needs, including deploying a backend/
-    );
+  it('is honest that the console needs no checkout but does not create a backend', () => {
+    expect(read('README.md')).toMatch(/does not deploy or\s+update a backend/);
+    expect(read('README.md')).toContain('vizoalica deploy prod --apply');
     expect(read('docs/get-started.md')).toMatch(/You do not need a checkout at all/);
+  });
+
+  it('documents creating a backend with vizoalica deploy', () => {
+    const text = read('docs/operations/deploy.md');
+    for (const phrase of ['--apply', '--resume', '--secrets-file', '--account'])
+      expect(text, phrase).toContain(phrase);
+    expect(text).not.toMatch(/terraform/i);
+    expect(read('README.md')).toContain('docs/operations/deploy.md');
+    expect(read('llms.txt')).toContain('vizoalica deploy');
+  });
+
+  it('documents the environments file and the env command', () => {
+    const text = read('docs/operations/environments.md');
+    expect(text).toContain('~/.config/vizoalica/environments.json');
+    for (const command of ['list', 'add', 'update', 'remove', 'check'])
+      expect(text).toContain(`vizoalica env ${command}`);
+    expect(text).toMatch(/custom domain/i);
+    expect(read('README.md')).toContain('docs/operations/environments.md');
   });
 
   it('documents managing multiple environments from the same console', () => {

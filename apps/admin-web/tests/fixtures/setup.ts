@@ -23,8 +23,8 @@ export function connectedState(
 ): SetupState {
   return {
     version: '0.6.3',
-    needsFirstRun: false,
-    connection: { status: 'connected', workerHost: 'w.example.workers.dev', mode: 'file' },
+    environment: 'dev',
+    connection: { status: 'connected', workerHost: 'w.example.workers.dev' },
     principal: {
       role,
       scope: { projectId: null, sourceId: null },
@@ -47,16 +47,15 @@ export function connectedState(
   };
 }
 
-export const firstRunState = (overrides: Partial<SetupState> = {}): SetupState => ({
-  version: '0.6.3',
-  needsFirstRun: true,
-  connection: { status: 'none' },
-  stages: stages(['done', 'current', 'todo', 'todo'], {
-    id: 'connect-backend',
-    label: 'Deploy or connect a backend',
-    href: '#/setup'
-  }),
-  ...overrides
-});
+/** A console with a backend but no project yet: the journey is unfinished and the next step is a link. */
+export const unfinishedState = (overrides: Partial<SetupState> = {}): SetupState =>
+  connectedState('admin', {
+    stages: stages(['done', 'done', 'current', 'todo'], {
+      id: 'create-project',
+      label: 'Create a project and add a website',
+      href: '#/manage/projects'
+    }),
+    ...overrides
+  });
 
 export { stages };

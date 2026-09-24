@@ -1,82 +1,114 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { mockConsole, setupState } from './mock-console.js';
+import { mockConsole, mockEnvironment, setupState } from './mock-console.js';
 
+const file = { status: 'ok' as const, path: '/home/test/.config/vizoalica/environments.json' };
 const two = {
-  active: 'prod',
-  environments: [
-    { name: 'prod', hasConnection: true, mode: 'file' as const },
-    { name: 'dev', hasConnection: true, mode: 'file' as const }
-  ]
+  file,
+  environments: [mockEnvironment('dev'), mockEnvironment('prod')],
+  selected: 'prod'
 };
+const none = { file, environments: [], selected: null };
 
 test('a single environment shows only a small, unobtrusive label', async ({ page }) => {
   await mockConsole(page, { setup: setupState('admin') });
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
-  await expect(page.locator('.environment-label')).toHaveText('prod');
-  await expect(page.getByRole('button', { name: /Environment: prod/ })).toHaveCount(0);
+  await expect(page.locator('.environment-label')).toContainText('prod');
+  await expect(page.getByRole('combobox', { name: 'Environment' })).toHaveCount(0);
 });
 
-test('a website owner never sees the switcher', async ({ page }) => {
-  await mockConsole(page, { setup: setupState('owner'), environments: two });
-  await page.goto('/');
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
-  await expect(page.locator('.environment-switcher, .environment-label')).toHaveCount(0);
-});
-
-test('switching environments reflects on the next screen', async ({ page }) => {
-  await mockConsole(page, { setup: setupState('admin'), environments: two });
-  await page.goto('/');
-  const summary = page.locator('.environment-switcher > summary');
-  await summary.click();
-  await expect(page.locator('.environment-switcher-panel')).toBeVisible();
-  await page.getByRole('button', { name: 'dev', exact: true }).click();
-  await expect(summary).toHaveText('dev');
-});
-
-test('creates a new environment with a validated name', async ({ page }) => {
-  await mockConsole(page, { setup: setupState('admin'), environments: two });
-  await page.goto('/');
-  await page.locator('.environment-switcher > summary').click();
-  await page.getByRole('button', { name: 'New environment' }).click();
-  await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('alert')).toContainText('lowercase');
-  await page.getByLabel('New environment name').fill('stage');
-  await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.locator('.environment-switcher-panel')).toBeHidden();
-});
-
-test('removes an environment with a named confirmation that says Cloudflare is untouched', async ({
+test('with several environments, the picker opens on the selected one and lists them all', async ({
   page
 }) => {
   await mockConsole(page, { setup: setupState('admin'), environments: two });
   await page.goto('/');
-  await page.locator('.environment-switcher > summary').click();
-  await page.getByRole('button', { name: 'Remove environment dev' }).click();
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText('dev');
-  await expect(dialog).toContainText('not');
-  await dialog.getByRole('button', { name: 'Remove' }).click();
-  await expect(dialog).toHaveCount(0);
+  const picker = page.getByRole('combobox', { name: 'Environment' });
+  await expect(picker).toHaveValue('prod');
+  await expect(picker.getByRole('option')).toHaveText(['dev (admin)', 'prod (admin)']);
 });
 
-test('the switcher passes accessibility checks in both themes', async ({ page }) => {
-  for (const scheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: scheme });
-    await mockConsole(page, { setup: setupState('admin'), environments: two });
-    await page.goto('/');
-    await page.locator('.environment-switcher > summary').click();
-    await expect(page.locator('.environment-switcher-panel')).toBeVisible();
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+test('an environment that is not usable is shown disabled with the reason', async ({ page }) => {
+  await mockConsole(page, {
+    setup: setupState('admin'),
+    environments: {
+      file,
+      environments: [
+        mockEnvironment('dev', 'admin', 'The Worker rejected this administrator secret.'),
+        mockEnvironment('prod')
+      ],
+      selected: 'prod'
+    }
+  });
+  await page.goto('/');
+  const option = page.getByRole('combobox', { name: 'Environment' }).getByRole('option').first();
+  await expect(option).toBeDisabled();
+  await expect(option).toContainText('rejected this administrator secret');
+});
+
+test('choosing another environment reloads the console for it and sends nothing else', async ({
+  page
+}) => {
+  const writes: string[] = [];
+  await mockConsole(page, { setup: setupState('admin'), environments: two, writes });
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Environment' }).selectOption('dev');
+  await expect(page.getByRole('combobox', { name: 'Environment' })).toHaveValue('dev');
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+  expect(writes).toEqual(['POST /api/environments/dev/select']);
+});
+
+test('there is no way to add, edit, or remove an environment in the console', async ({ page }) => {
+  await mockConsole(page, { setup: setupState('admin'), environments: two });
+  for (const route of ['/', '/#/manage/backend', '/#/manage/projects']) {
+    await page.goto(route);
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+    for (const name of [/new environment/i, /add environment/i, /remove environment/i, /deploy/i])
+      await expect(page.getByRole('button', { name })).toHaveCount(0);
   }
 });
 
-test('is keyboard operable', async ({ page }) => {
-  await mockConsole(page, { setup: setupState('admin'), environments: two });
+test('with no environment the welcome page explains it and names the command', async ({ page }) => {
+  await mockConsole(page, { environments: none });
   await page.goto('/');
-  const summary = page.locator('.environment-switcher > summary');
-  await summary.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.environment-switcher-panel')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeVisible();
+  await expect(page.getByText('vizoalica env add <name>')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toHaveCount(0);
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('the welcome page says what is wrong with each environment, and re-checks on request', async ({
+  page
+}) => {
+  await mockConsole(page, {
+    environments: {
+      file,
+      environments: [
+        mockEnvironment('prod', 'admin', 'The Worker rejected this administrator secret.')
+      ],
+      selected: null
+    }
+  });
+  await page.goto('/');
+  await expect(page.getByText('rejected this administrator secret')).toBeVisible();
+  await expect(page.getByText('vizoalica env update prod')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check again' })).toBeVisible();
+});
+
+test('a broken environments file is reported with its path', async ({ page }) => {
+  await mockConsole(page, {
+    environments: {
+      file: {
+        status: 'broken',
+        path: '/home/test/.config/vizoalica/environments.json',
+        reason: 'The file is not valid JSON.'
+      },
+      environments: [],
+      selected: null
+    }
+  });
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('The file is not valid JSON.');
+  await expect(page.getByText('/home/test/.config/vizoalica/environments.json')).toBeVisible();
 });

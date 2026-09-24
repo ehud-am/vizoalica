@@ -238,7 +238,7 @@ describe('vizoalica install (retired)', () => {
     const path = consoleConfig(generateSecret());
     spawns.length = 0;
     await expect(run(['install', '--console-config', path], deps())).rejects.toThrow(
-      'vizoalica install was retired. Run `vizoalica console`; it guides setup.'
+      'vizoalica install was retired. Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.'
     );
     expect(spawns).toHaveLength(0);
   });
@@ -253,11 +253,13 @@ describe('vizoalica install (retired)', () => {
     expect(seen).toBe(2);
   });
 
-  it('is no longer listed under "Get going", where console is now first', () => {
+  it('is no longer listed under "Get going", where env, deploy, and then console come first', () => {
     const goGoing = help()
       .split('\n\n')
       .find((section) => section.includes('Get going'))!;
     expect(goGoing).not.toContain('pnpm vizoalica install');
-    expect(goGoing.split('\n')[1]).toContain('console');
+    expect(goGoing.split('\n')[1]).toContain('env');
+    expect(goGoing.split('\n')[2]).toContain('deploy');
+    expect(goGoing.split('\n')[3]).toContain('console');
   });
 });

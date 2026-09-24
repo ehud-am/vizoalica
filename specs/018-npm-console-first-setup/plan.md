@@ -4,6 +4,19 @@
 
 **Input**: Feature specification from `/specs/018-npm-console-first-setup/spec.md`
 
+## Revision 3 (2026-09-24): environments managed outside the console
+
+Supersedes R24, R25, R27, R9 (deploy engine), and the first-run design (see spec "Revision 3").
+
+**Design**
+- `apps/local-ops-api/src/environments/`: `file.ts` (read/validate/atomic write of `environments.json`), `verify.ts` (Worker whoami + role + version; Cloudflare token verify), `vault.ts` (OneCLI helper process per environment: `onecli run --project <workspace> ... -- node helper`, JSON lines over stdio, restarts on exit), `registry.ts` (reads the file per request, caches verification for a short time, remembers the selection in `preferences.json`).
+- The service holds a `Registry` instead of `EnvironmentStore`; `store.current()` becomes `registry.selected()` returning `{ remoteUrl, credential/fetch }` so route code changes little. Requests for a OneCLI-held secret go through the helper's `fetch`.
+- `apps/cli/src/env-command.ts`: `vizoalica env list|add|update|remove|check` on top of the same file and verify modules (moved into a small shared package `packages/ops-core` neighbour if needed by both; otherwise imported from local-ops-api as `console-command` already does).
+- Console: `Welcome` page (nothing usable), top-bar `EnvironmentPicker` (select only), read-only backend page. Deleted: FirstRun, SetupPage, ConnectForm, CloudflareCredentialForm, EnvironmentSwitcher, DeployWizard, UpdatePanel, IssuePanel.
+- API: `GET /api/environments` (states, selected), `POST /api/environments/:name/select`, `POST /api/environments/recheck`. Everything else in environments/setup/deploy/backend-maintenance is deleted.
+
+**Delivery order**: (1) file+verify+vault modules with tests, (2) registry and service, (3) `vizoalica env`, (4) console API and web, (5) delete dead code and tests, (6) docs and contracts, (7) gates.
+
 ## Summary
 
 Make Vizoalica installable with `npm install -g vizoalica`, start it with one command that works before any

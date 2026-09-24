@@ -1,61 +1,53 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createService, listenLoopback } from '../src/service.js';
+import { stubWorker } from './worker-stub.js';
+
+afterEach(() => vi.unstubAllGlobals());
 
 const dir = () => mkdtempSync(join(tmpdir(), 'vizoalica-service-'));
 
-/** Writes an environment file directly and makes it active, without going through EnvironmentStore. */
-function seedEnvironment(homeDir: string, name: string, values: Record<string, string>): void {
-  mkdirSync(join(homeDir, 'environments'), { recursive: true, mode: 0o700 });
-  writeFileSync(join(homeDir, 'environments', `${name}.json`), JSON.stringify(values), {
-    mode: 0o600
-  });
-  writeFileSync(join(homeDir, 'active-environment.json'), JSON.stringify({ active: name }), {
-    mode: 0o600
-  });
-}
-
 describe('createService', () => {
-  it('starts with an environments directory that does not exist yet', () => {
-    const { store, settings } = createService({ homeDir: join(dir(), 'nope'), env: {} });
-    expect(store.current()).toBeUndefined();
+  it('starts with a home directory that does not exist yet, and with no environment', async () => {
+    const { registry, settings } = createService({ homeDir: join(dir(), 'nope'), env: {} });
+    await registry.refresh();
+    expect(registry.current()).toBeUndefined();
+    expect(registry.snapshot.file.status).toBe('ok');
+    expect(registry.snapshot.environments).toEqual([]);
     expect(settings.port).toBe(4318);
     expect(settings.homeDir).toContain('nope');
   });
 
-  it('loads a saved environment', () => {
+  it('loads environments.json, verifying each against its Worker', async () => {
+    stubWorker({ role: 'admin', workerVersion: '0.7.0', schemaApplied: 1, accept: ['a'] });
     const home = dir();
-    seedEnvironment(home, 'dev', {
-      VIZOALICA_ENV_NAME: 'dev',
-      VIZOALICA_REMOTE_URL: 'https://w.test',
-      VIZOALICA_ADMIN_SECRET: 'a'
-    });
-    expect(createService({ homeDir: home, env: {} }).store.current()?.credential).toBe('a');
+    const path = join(home, 'environments.json');
+    writeFileSync(
+      path,
+      JSON.stringify({
+        environments: { dev: { url: 'https://w.test', role: 'admin', secret: 'a' } }
+      }),
+      { mode: 0o600 }
+    );
+    const { registry } = createService({ homeDir: home, env: {}, version: '0.7.0' });
+    await registry.refresh();
+    expect(registry.current()).toMatchObject({ name: 'dev', credential: 'a' });
   });
 
-  it('refuses an environment file others can read', () => {
+  it('reports, rather than throws on, an environments file others can read', async () => {
     const home = dir();
-    mkdirSync(join(home, 'environments'), { recursive: true, mode: 0o700 });
-    const path = join(home, 'environments', 'dev.json');
+    const path = join(home, 'environments.json');
     writeFileSync(path, '{}');
     chmodSync(path, 0o644);
-    writeFileSync(join(home, 'active-environment.json'), JSON.stringify({ active: 'dev' }), {
-      mode: 0o600
+    const { registry } = createService({ homeDir: home, env: {} });
+    await registry.refresh();
+    expect(registry.snapshot.file).toMatchObject({
+      status: 'broken',
+      reason: expect.stringContaining('chmod 600')
     });
-    expect(() => createService({ homeDir: home, env: {} }).store.current()).toThrow(
-      'config_permissions_must_be_0600'
-    );
-  });
-
-  it('uses a connection from the environment when no directory is configured', () => {
-    const { store, settings } = createService({
-      env: { VIZOALICA_REMOTE_URL: 'https://w.test', VIZOALICA_ADMIN_SECRET: 'env-secret' }
-    });
-    expect(store.current()).toMatchObject({ credential: 'env-secret', kind: 'admin-secret' });
-    expect(settings.homeDir).toBeUndefined();
   });
 
   it('falls back to the default directory under the home directory', () => {
@@ -63,13 +55,20 @@ describe('createService', () => {
     const previous = process.env.HOME;
     process.env.HOME = home;
     try {
-      const { settings, store } = createService({ env: {} });
-      expect(store.current()).toBeUndefined();
+      const { settings } = createService({ env: {} });
       expect(settings.homeDir).toMatch(/\.config\/vizoalica$/);
     } finally {
       if (previous === undefined) delete process.env.HOME;
       else process.env.HOME = previous;
     }
+  });
+
+  it('stops its OneCLI helpers when the server closes', async () => {
+    const { server, vault } = createService({ homeDir: dir(), env: {} });
+    const close = vi.spyOn(vault, 'close');
+    await listenLoopback(server, 0);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    expect(close).toHaveBeenCalled();
   });
 });
 

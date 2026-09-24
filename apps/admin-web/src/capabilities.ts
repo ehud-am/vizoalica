@@ -4,7 +4,7 @@
  * ActionButton), and tests verify the placement stays consistent.
  *
  * `view` reads analytics and configuration. `operate` creates and manages projects and websites.
- * `backend` changes the Worker or database, secrets, purging, sample data, or access keys.
+ * `backend` changes who has access to the backend (access keys and shared setup details).
  */
 export type CapabilityClass = 'view' | 'operate' | 'backend';
 export type Area = 'analytics' | 'manage' | 'shell';
@@ -60,26 +60,6 @@ export const CAPABILITIES = [
   },
   { id: 'delete-website', class: 'operate', area: 'manage', description: 'Delete a website' },
   { id: 'delete-project', class: 'operate', area: 'manage', description: 'Delete a project' },
-  {
-    id: 'deploy-backend',
-    class: 'backend',
-    area: 'manage',
-    description: 'Deploy a backend to Cloudflare'
-  },
-  {
-    id: 'update-backend',
-    class: 'backend',
-    area: 'manage',
-    description: 'Update the Worker and database'
-  },
-  { id: 'rotate-secret', class: 'backend', area: 'manage', description: 'Replace a secret' },
-  {
-    id: 'purge-deleted',
-    class: 'backend',
-    area: 'manage',
-    description: 'Permanently remove deleted data'
-  },
-  { id: 'manage-demo', class: 'backend', area: 'manage', description: 'Add or remove sample data' },
   {
     id: 'manage-access-keys',
     class: 'backend',

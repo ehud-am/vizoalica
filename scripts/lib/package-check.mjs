@@ -47,6 +47,7 @@ export function compareFileList(actual, allowed = ALLOWED_FILES, required = REQU
 const SECRET_FILE = [
   /\.production\.toml$/,
   /(^|\/)\.env(\..*)?$/,
+  /(^|\/)environments\.json$/,
   /(^|\/)local-operations\.json$/,
   /(^|\/)ops\.json$/,
   /\.pem$/,

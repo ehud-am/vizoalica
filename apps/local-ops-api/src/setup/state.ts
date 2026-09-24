@@ -1,26 +1,19 @@
 import { readdirSync } from 'node:fs';
 import { presetRange } from '../../../ingest-api/src/analytics/range.js';
 import { isIncompatible, versionStatus, type ComponentStatus } from '../compat.js';
-import type { Connection, EnvironmentStore, RoleHint } from '../environment-store.js';
+import type { Connection, Registry } from '../environments/registry.js';
 import { analyticsOverview } from '../routes/analytics.js';
 import { workerJson } from '../routes/websites.js';
 import { WorkerClient, type BackendInfo, type Principal } from '../remote-client/worker-client.js';
-import {
-  computeStages,
-  roleFromBackend,
-  viewRole,
-  type ConnectionStatus,
-  type Stage
-} from './stages.js';
+import { computeStages, type ConnectionStatus, type Stage } from './stages.js';
 
 export type SetupState = {
   version: string;
-  needsFirstRun: boolean;
+  /** The selected environment; the console only runs with one. */
+  environment: string;
   connection: {
     status: ConnectionStatus;
     workerHost?: string;
-    mode?: 'file' | 'onecli';
-    roleHint?: RoleHint;
   };
   principal?: {
     role: Principal['role'];
@@ -36,14 +29,10 @@ export type SetupState = {
     message: string;
   };
   stages: Stage[];
-  /** Set only on the answer to a connect that used a credential of a different role than chosen. */
-  notice?: 'administrator_secret_used' | 'role_corrected';
-  /** A pre-0.7.0 single connection file waiting to be named and imported as the first environment. */
-  legacySetup?: { workerHost: string; mode: 'file' | 'onecli' };
 };
 
 export type SetupDeps = {
-  store: EnvironmentStore;
+  registry: Registry;
   version: string;
   /** The highest database change this console carries, or null when it does not know. */
   expectedSchema: number | null;
@@ -64,6 +53,9 @@ export function expectedSchemaFrom(schemaDir: string | undefined): number | null
     return null;
   }
 }
+
+const clientOf = (connection: Connection): WorkerClient =>
+  new WorkerClient(connection.remoteUrl, connection.credential, connection.fetch);
 
 const MAX_PROJECTS = 20;
 const MAX_DATA_CHECKS = 5;
@@ -161,39 +153,14 @@ export async function backendSummary(
 
 /** The setup state, worked out from the live backend on every call and never stored. */
 export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
-  const connection = deps.store.current();
-  const hint = deps.store.hint();
-  const base = { version: deps.version };
-  if (!connection) {
-    const legacySetup = deps.store.legacyPreview?.();
-    return {
-      ...base,
-      // First run is "no environment exists yet", not merely "the active one has no connection"
-      // (an environment can exist, freshly created, with nothing deployed or connected to it yet).
-      needsFirstRun: deps.store.active() === undefined,
-      connection: { status: 'none', ...(hint ? { roleHint: hint } : {}) },
-      ...(legacySetup ? { legacySetup } : {}),
-      stages: computeStages({
-        connection: 'none',
-        role: viewRole(undefined, hint),
-        canCreate: false,
-        websites: 0,
-        dataArriving: false
-      })
-    };
-  }
-  const shared = {
-    workerHost: hostOf(connection.remoteUrl),
-    mode: deps.store.mode()!,
-    ...(connection.roleHint ? { roleHint: connection.roleHint } : {})
-  };
-  const client = (deps.clientFor ?? ((c) => new WorkerClient(c.remoteUrl, c.credential)))(
-    connection
-  );
-  const fallbackRole = viewRole(undefined, connection.roleHint);
+  const connection = deps.registry.current();
+  if (!connection) throw new Error('backend_not_connected');
+  const base = { version: deps.version, environment: connection.name };
+  const shared = { workerHost: hostOf(connection.remoteUrl) };
+  const client = (deps.clientFor ?? clientOf)(connection);
+  const fallbackRole = connection.role;
   const withoutBackend = (status: ConnectionStatus, principal?: Principal): SetupState => ({
     ...base,
-    needsFirstRun: false,
     connection: { status, ...shared },
     ...(principal
       ? {
@@ -250,7 +217,6 @@ export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
   }
   return {
     ...base,
-    needsFirstRun: false,
     connection: { status: 'connected', ...shared },
     principal: {
       role: principal.role,
@@ -270,8 +236,6 @@ export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
   };
 }
 
-export { roleFromBackend };
-
 export type BackendState = {
   workerVersion: string | null;
   consoleVersion: string;
@@ -284,13 +248,11 @@ export type BackendState = {
 
 /** The versions and health for the backend screen; every role may read it. */
 export async function backendState(
-  deps: Pick<SetupDeps, 'store' | 'version' | 'expectedSchema' | 'clientFor'>
+  deps: Pick<SetupDeps, 'registry' | 'version' | 'expectedSchema' | 'clientFor'>
 ): Promise<BackendState> {
-  const connection = deps.store.current();
+  const connection = deps.registry.current();
   if (!connection) throw new Error('backend_not_connected');
-  const client = (deps.clientFor ?? ((c) => new WorkerClient(c.remoteUrl, c.credential)))(
-    connection
-  );
+  const client = (deps.clientFor ?? clientOf)(connection);
   const principal = await client.whoami();
   const info = await client.backendInfo();
   const workerVersion = info.workerVersion ?? principal.workerVersion;

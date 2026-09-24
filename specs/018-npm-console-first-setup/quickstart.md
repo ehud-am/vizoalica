@@ -33,8 +33,8 @@ HOME="$TMPDIR/vz-home" "$TMPDIR/vz-prefix/bin/vizoalica" console --no-open
 ```
 
 **Expect:** the version prints; the console starts and prints `http://127.0.0.1:4318`; `curl` of that address
-returns the console page; `curl http://127.0.0.1:4318/api/setup/state` (after the session call) reports
-`needsFirstRun: true`; `curl http://127.0.0.1:4318/api/sdk/vizoalica.js` returns the SDK; a request for
+returns the console page; `curl http://127.0.0.1:4318/api/environments` (after the session call) lists none and
+selects none, and `/api/setup/state` answers `409`; `vizoalica env list` says how to add one; `curl http://127.0.0.1:4318/api/sdk/vizoalica.js` returns the SDK; a request for
 `/../../etc/passwd` and its encoded forms is refused; one interrupt stops the process; the tarball lists only
 the files in [contracts/package-and-cli.md](./contracts/package-and-cli.md).
 
@@ -48,17 +48,18 @@ pnpm --filter @vizoalica/admin-web exec playwright test e2e/footer.spec.ts
 connection-error screens at phone and desktop widths in both themes; every link has a distinct accessible
 name; no network request is made by the footer; axe reports nothing.
 
-## 4. First run and the journey (Stories 3 and 4, SC-003, SC-004)
+## 4. The welcome page, the picker, and the journey (Revision 3, Stories R3-3 and 4)
 
 ```sh
-pnpm --filter @vizoalica/admin-web exec playwright test e2e/first-run.spec.ts e2e/journey.spec.ts
-pnpm vitest run apps/admin-web/tests/first-run.test.tsx apps/admin-web/tests/journey.test.tsx apps/admin-web/tests/availability.test.ts apps/admin-web/tests/setup-experience.test.tsx
+pnpm vitest run apps/admin-web/tests/environments-ui.test.tsx apps/admin-web/tests/journey.test.tsx apps/admin-web/tests/availability.test.ts
+pnpm --filter @vizoalica/admin-web exec playwright test e2e/environments.spec.ts e2e/journey.spec.ts
 ```
 
-**Expect:** for each role and situation the first-run flow asks at most three questions and lands on the right
-next step; with no backend every create and change control is unavailable with a reason and a next step and
-sends no request; the journey shows the current stage and one next action at each of the four stages and hides
-when data arrives; the answers can be changed from settings.
+**Expect:** with no usable environment the console shows only the welcome page (no data screen, no forms), with
+the reason for each environment and the exact `vizoalica env` command; with one or more usable it opens on the
+selected one and the picker lists all, unusable ones disabled with their reason; choosing one reloads every
+screen and sends only the select request; nothing in the console can add, edit, or remove an environment; the
+journey shows the current stage and one next action and hides when data arrives.
 
 ## 5. Roles are enforced by the Worker (Stories 6 and 7, SC-005, SC-006)
 
@@ -74,18 +75,7 @@ scope everything, websites only with scope everything or that project) and are r
 and the automation interface; out-of-scope resources are not found; stored keys are hashes; owner writes are
 audited with the key id; a Worker without the table still serves the administrator.
 
-## 6. Deploying from the console, against a fake Wrangler (Story 5, SC-002, SC-007)
-
-```sh
-pnpm vitest run apps/local-ops-api -t "deploy"
-```
-
-**Expect:** the plan is shown and nothing is created before approval; steps run in order; a failed step stops
-with what exists; a resumed run repeats nothing; a resource the run did not create blocks the flow; cleanup
-needs confirmation and removes only what the run created; secrets are revealed once and then gone; no secret
-is in a log, a run record, or a saved file other than the 0600 connection file.
-
-## 7. Versions and updates (Story 9, SC-012, SC-013, SC-014)
+## 6. Versions (Story 9, read-only after Revision 3)
 
 ```sh
 pnpm vitest run apps/ingest-worker apps/local-ops-api apps/cli -t "schema|migration|update"
@@ -96,52 +86,50 @@ pnpm --filter @vizoalica/admin-web test:e2e -- --grep "versions|update"
 identical schemas; a database with hand-added tables is adopted; a migration file with a destructive statement
 and no annotation fails the check; the Worker reports its version and the applied and expected schema versions;
 the console shows the three versions with the right status for a current, a one-release-behind, a newer, an
-unknown, and an unsupported backend, to every role; an update run against a fake Wrangler shows the plan first,
-takes the backup before migrating, migrates before deploying the Worker, skips what is current, stops on a failed
-step and resumes without repeating, refuses a downgrade, and records what changed; a probe posting events during
-the update loses none.
+unknown, and an unsupported backend, to every role, with no control that changes the backend; an environment
+whose database is newer than the console expects is unusable.
 
-## 8. Multiple environments, against a fake Wrangler (Story 10 and Story 11, SC-015, SC-016, SC-017)
+## 7. Environments and `vizoalica env` (Revision 3, Stories R3-1 and R3-2, FR-R1 to FR-R6)
 
 ```sh
-pnpm vitest run apps/local-ops-api -t "environment"
-pnpm --filter @vizoalica/admin-web test:e2e -- --grep "environment"
-pnpm vitest run apps/cli -t "worker-bundle"
+pnpm vitest run apps/local-ops-api/tests/environments-*.test.ts apps/local-ops-api/tests/vault.test.ts apps/cli/tests/env-command.test.ts
 ```
 
-**Expect:** creating two environments ("dev" and "stage") in the console, each with its own Cloudflare
-credential configuration (one `token` mode, one `onecli` mode against the fake tool), produces two plans
-whose every resource name starts with that environment's prefix; deploying both against the fake Wrangler
-never lets one environment's detect or cleanup step see the other's resources; an access key issued from
-"dev" is refused when "stage" is selected and when presented directly to "stage"'s fake backend; switching
-the active environment replaces every screen's data with no leftover from the previous one; removing an
-environment forgets its local file without any Cloudflare call; naming a second environment the same as the
-first is refused before anything is saved; and the packaged Worker bundle (`dist/worker/index.mjs` plus
-`dist/worker/wrangler.template.toml`) passes a `wrangler deploy --dry-run` with the repository's own Wrangler,
-using only files under `apps/cli/package/dist/`, never a repository-relative source path.
-
-## 9. Existing setups keep working (Story 8, SC-009)
+Then, by hand, against a real Worker (or a throwaway local stub) with a scratch `HOME`:
 
 ```sh
-pnpm vitest run apps/local-ops-api apps/deploy-cli -t "existing setup|retired"
+export HOME=$(mktemp -d)
+echo "$ANALYST_KEY" | vizoalica env add dev --url https://your-worker.example.com --role admin --secret-stdin   # refused: it is an analyst key
+echo "$ADMIN_SECRET" | vizoalica env add dev --url https://your-worker.example.com --role admin --secret-stdin  # saved
+vizoalica env list
+vizoalica console --no-open
 ```
 
-**Expect:** a saved file-mode connection and a saved OneCLI-mode connection are recognized with no first-run
-questions; `vizoalica install` deploys nothing, prints where to go, and exits with code 2.
+**Expect:** the wrong-role credential is refused with what it really is and nothing is written; the correct one
+is saved to a `0600` `environments.json`; `list` shows `✓`/`✗` with reasons and never a secret; hand-editing
+the file changes the console without a restart; a custom domain works like a `workers.dev` address; a secret in
+OneCLI is used through the helper (`onecli run --project <workspace> …`) and the console process is not
+wrapped; a selection is remembered across restarts; the console and the API expose no route that changes an
+environment.
 
-## 10. Rehearsal on a real account (optional, isolated)
+## 8. Existing setups (Revision 3)
 
-In a separate `git worktree`, with scratch names and a scratch Cloudflare account or resources named
-`vizoalica-rehearsal-*`, run the console from the built package, create an environment named
-`vizoalica-rehearsal` (so every resource it creates carries that prefix), deploy from the console, share a website,
-connect as an analyst and as an owner on a second `HOME`, check the refusals, then install the previous release
-first and update it from the console, watching versions, the backup file, and a loop of test events. Tear down in the order in
-`docs/operations/cloudflare.md`, only names that start with `vizoalica-rehearsal-`. Never point it at the
-production database or the production Wrangler configuration.
+The earlier per-environment layout never shipped and is not read. `vizoalica install` prints where to go and
+exits with code 2; `vizoalica serve` no longer exists.
 
-## 11. The maintainer's running backend (compatibility, R12, and its first update)
+## 9. Rehearsal on a real account (optional, isolated)
 
-With the console from this release against the existing 0.6.2 backend: it connects with no first-run
-questions, shows the backend as older-but-working, keeps analytics working, shows its versions as unknown, and offers the update; running the update from the console
-backs up the database, applies `0002` (adopting the tables that were added by hand), deploys the Worker, and ends
-with matching versions and key management available.
+In a separate `git worktree`, with a scratch `HOME`, scratch Cloudflare resources named `vizoalica-rehearsal-*`
+(created with `pnpm vizoalica backend` in that worktree), and an environment named `vizoalica-rehearsal` added
+with `vizoalica env add`: run the console from the built package, share a website, add an analyst and an owner
+environment on a second `HOME`, check the refusals (including a credential saved with the wrong role), and
+try a custom domain and a OneCLI-held secret. Tear down in the order in `docs/operations/cloudflare.md`, only
+names that start with `vizoalica-rehearsal-`. Never point it at the production database or the production
+Wrangler configuration, or at your real `~/.config/vizoalica`.
+
+## 10. The maintainer's running backend (compatibility)
+
+With the console from this release against the existing backend, add it with `vizoalica env add` (OneCLI:
+`--secret-onecli --onecli-workspace … --onecli-agent … --onecli-gateway …`). It should verify, appear in the
+picker, keep analytics working, and show its versions. The backend is updated as before (`pnpm vizoalica
+backend`), not from the console.

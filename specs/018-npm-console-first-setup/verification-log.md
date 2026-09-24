@@ -153,3 +153,34 @@ pre-0.7.0 legacy connection is offered once, named, and imported without disturb
 Section 10 (real-account rehearsal) and section 11 (the maintainer's own running 0.6.2 backend) are
 deliberately not run here: both need a real Cloudflare account and are left for the maintainer,
 per T098.
+
+
+## Revision 3 (2026-09-24): environments managed outside the console
+
+Verified after the change (see spec "Revision 3", research R28, tasks R301–R310):
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: clean.
+- `pnpm vitest run --coverage`: 1406 tests pass; 95% lines, 91% branches (threshold 90%). Two pre-existing
+  README-shape tests fail independently of this change (`deployment-docs.contract.test.ts` "three parts"
+  headings, which the README no longer has; they already failed before this revision).
+- `pnpm --filter @vizoalica/admin-web test:e2e`: 71 of 72 pass. The one failure
+  (`website-pages.spec.ts` install steps, 5 vs 4) predates this revision (it follows the SDK download step
+  added to the Install page in the previous commit).
+- `pnpm package:build && pnpm package:check`: pass, including `vizoalica env list` on an empty home, the
+  console listing no environments and answering 409 for the setup state, and no Worker bundle in the tarball.
+- By hand, built package against a local stub Worker with a scratch `HOME`: an analyst key saved as `admin`
+  was refused and nothing written; admin and analyst environments saved to a `0600` file; `env list` showed
+  a rejected secret as unusable without printing it; the console listed all three, selected the first usable,
+  selected another, refused the unusable one (409), and proxied the selected environment's data.
+- Not run: a real Cloudflare account, a real OneCLI gateway (the OneCLI helper is covered by unit tests with a
+  fake `onecli`; only the argument shape was checked against the installed OneCLI 2.11 help), and a custom
+  domain on a real Worker (custom-domain URLs are covered by the file and verification tests).
+
+
+## Feature 019 (`vizoalica deploy`)
+
+See [../019-deploy-command](../019-deploy-command/spec.md). Verified: unit tests for the plan, Wrangler runner
+(token only in the environment, OneCLI wrapping), error explanations, the apply steps against a Wrangler with
+memory (order, refusal of existing names, `--resume`, failures, account choice, secret handling, environment
+registration). Terraform generation was built and then removed (deferred). **Not run:** a real Cloudflare
+deploy.

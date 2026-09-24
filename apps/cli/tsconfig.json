@@ -1,6 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "composite": true, "outDir": "dist", "types": ["node"] },
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "types": ["node"]
+  },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../local-ops-api" }]
+  "references": [
+    {
+      "path": "../local-ops-api"
+    },
+    {
+      "path": "../../packages/ops-core"
+    }
+  ]
 }

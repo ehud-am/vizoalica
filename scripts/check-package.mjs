@@ -118,6 +118,24 @@ try {
   const reported = run(bin, ['--version']);
   check(reported.stdout.trim() === manifest.version, `--version prints ${manifest.version}`);
   check(run(bin, ['help']).stdout.includes('vizoalica console'), 'help names the console command');
+  check(run(bin, ['help']).stdout.includes('env <command>'), 'help names the env command');
+  check(run(bin, ['help']).stdout.includes('deploy <name>'), 'help names the deploy command');
+  const planned = run(bin, ['deploy', 'smoke'], { env });
+  check(
+    planned.status === 0 &&
+      planned.stdout.includes('smoke-vizoalica-worker') &&
+      planned.stdout.includes('Nothing was created'),
+    '`deploy` without --apply shows the resources without creating anything'
+  );
+  check(
+    !existsSync(join(home, '.config', 'vizoalica', 'environments.json')),
+    'a plan writes no environment'
+  );
+  const listed = run(bin, ['env', 'list'], { env });
+  check(
+    listed.status === 0 && listed.stdout.includes('vizoalica env add'),
+    'env list works with no environments and says how to add one'
+  );
 
   // 3. The console starts from the installed package with no saved settings and serves what a new user needs.
   const port = await freePort();
@@ -167,9 +185,14 @@ try {
       session.status === 204 && cookie !== '',
       'a session can be opened from the console address'
     );
+    const listing = await fetch(`${base}/api/environments`, { headers: { origin: base, cookie } });
+    const body = listing.status === 200 ? await listing.json() : {};
+    check(
+      body.selected === null && Array.isArray(body.environments) && body.environments.length === 0,
+      'with no environments, the console lists none and selects none'
+    );
     const state = await fetch(`${base}/api/setup/state`, { headers: { origin: base, cookie } });
-    const body = state.status === 200 ? await state.json() : {};
-    check(body.needsFirstRun === true, 'the setup state says first run is needed');
+    check(state.status === 409, 'no data screen is served without a usable environment');
     for (const name of ['vizoalica.js', 'vizoalica-loader.js']) {
       const sdk = await fetch(`${base}/api/sdk/${name}`);
       check(
@@ -189,8 +212,9 @@ try {
       'the console refuses writes to a page'
     );
     check(
-      !existsSync(join(home, '.config', 'vizoalica', 'local-operations.json')),
-      'starting the console writes no credential'
+      !existsSync(join(home, '.config', 'vizoalica', 'local-operations.json')) &&
+        !existsSync(join(home, '.config', 'vizoalica', 'environments.json')),
+      'starting the console writes no credential and no environment'
     );
     child.kill('SIGINT');
     const result = await Promise.race([

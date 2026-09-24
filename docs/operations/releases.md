@@ -88,11 +88,9 @@ data-preserving migration, backfill, or schema rollback.
 screen reports the applied and expected schema versions and the Worker's version to every role. See
 [Database and Worker versions](schema-versions.md) for what changed and how to author a migration.
 
-**Since 0.7.0**, the console updates a backend in place itself: an admin approves a plan (the
-Worker's and the schema's versions and every pending migration), the console backs up the database,
-applies pending migrations, and redeploys the Worker, all per selected environment (see
-[Updating from the console](schema-versions.md#updating-from-the-console)). Applying a migration by
-hand (`wrangler d1 migrations apply <database> --remote --config <config>`) remains available; see
+**Since 0.7.0**, the console only reads a backend's versions (per selected environment); it does not update
+one. Update a backend with `pnpm vizoalica backend` (answer "update") from the checkout that installed it, or
+apply a migration by hand (`wrangler d1 migrations apply <database> --remote --config <config>`); see
 [Update an existing backend](cloudflare.md#update-an-existing-backend).
 
 Shipping a newer Worker build to an installation that already has data is supported when the

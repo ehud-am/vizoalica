@@ -36,6 +36,102 @@ different credential. A key issued in one environment never works in another.
 
 ## User Scenarios & Testing *(mandatory)*
 
+## Revision 3 (2026-09-24): environments are managed outside the console
+
+**Follow-up**: "the current approach does not work well and is instable by nature. Let's go back to the spec and revise it ... environments are stored in ~/.config/vizoalica ... allow manual editing of the list of environments (similar to how Claude allows to view and edit their mcp list) ... a separate CLI command: `vizoalica env` to provide list, add, remove, and update ... each env will have its own selection of role (admin, analyst, or owner), each env will have its own vizoalica secrets, or cloudflare api key if needed ... the configuration will also verify that each token is good and support the requirements of the selected role ... the console can start when there is at least one env active ... All console elements related to management of envs should be removed." Follow-ups: secrets may be written in the file or held in OneCLI as a local vault (OneCLI calls a "project" a **workspace**; rename it everywhere); "remove all deploy and update" from the console; "add support for custom domains for the worker url".
+
+**This revision supersedes** Story 3 (first-run questions), Story 5 (deploy from the console), Story 8 Part C (legacy import), Story 9's update actions, Story 10 (environments in the console), and Story 11 (deploying from the package), and every requirement that depends on them. Where the text below still describes them, this section wins. The Worker, database, access keys, roles, analytics, website management, and footer stories are unchanged.
+
+### Story R3-1 - Environments live in one editable file, managed by `vizoalica env` (P1)
+
+Environments are stored in `~/.config/vizoalica/environments.json` (mode 0600), one JSON object whose
+`environments` map is keyed by environment name, in the same spirit as the `mcpServers` map in Claude's
+own configuration. The file is documented and may be edited by hand; `vizoalica env` is the guided way.
+
+```json
+{
+  "version": 1,
+  "environments": {
+    "prod": {
+      "url": "https://analytics.example.com",
+      "role": "admin",
+      "secret": "…",
+      "cloudflare": { "token": "…" }
+    },
+    "dev": {
+      "url": "https://dev-vizoalica-ingest.example.workers.dev",
+      "role": "analyst",
+      "secret": { "onecli": { "workspace": "acme", "agent": "vizoalica", "gateway": "localhost:10255" } }
+    }
+  }
+}
+```
+
+- `url`: the Worker's https origin. A `workers.dev` address **or a custom domain** are equally valid; no
+  path, query, or credentials (loopback `http` is allowed for local development).
+- `role`: `admin`, `owner`, or `analyst`. `secret` is the administrator secret for `admin`, and an access
+  key for `owner` and `analyst`.
+- `secret` (and `cloudflare.token`, admin only, optional) is either the literal value or
+  `{ "onecli": { "workspace", "agent", "gateway" } }`, meaning OneCLI holds it as a local vault. The
+  console is never started under OneCLI: the service asks a small helper process, run under `onecli run`
+  for that one environment, to make its requests. Switching environments never needs a restart.
+- The selected environment is remembered in `preferences.json` (`environment`), not in this file.
+- Names follow the existing prefix rules (lowercase letters, digits, dashes, starting with a letter).
+
+**Acceptance**:
+1. Hand-editing the file changes what `vizoalica env list` and the console show, with no other step.
+2. A missing file, or an empty `environments` map, is "no environments"; a file that is not valid JSON, has
+   the wrong shape, or is readable by other users is "the environments file is broken", with the reason and
+   the path.
+3. The service never writes to this file. Only `vizoalica env` (and the person editing) do, atomically.
+
+### Story R3-2 - `vizoalica env` (P1)
+
+`vizoalica env list | add <name> | update <name> | remove <name> | check [name]`.
+- `list` shows each environment: name, url, role, secret source (file or OneCLI, never the value), and its
+  last check result (live).
+- `add` and `update` take flags (`--url`, `--role`, `--secret-stdin` or `--onecli-workspace/--onecli-agent/--onecli-gateway`, `--cloudflare-token-stdin`) and ask for anything missing when run in a terminal. Secrets are read hidden or from stdin, never from an argument.
+- Both **verify before saving**: the Worker must answer for the credential, and the role it reports must be
+  the role chosen (a mismatch is refused, saying what the credential actually is); a Cloudflare token, when
+  given, must be reported active by Cloudflare. `--no-verify` saves anyway, for an offline edit, and says so.
+- `remove` asks for confirmation (`--yes` skips it) and states that nothing in Cloudflare is deleted.
+- `check` re-verifies every environment (or one) and exits non-zero if any is not usable.
+
+### Story R3-3 - The console starts with at least one usable environment (P1)
+
+Before serving, the console verifies every environment (concurrently, with a short timeout). An environment
+is **usable** when its secret resolves, the Worker accepts it, the Worker's reported role equals the chosen
+role, the Worker and console versions are compatible, and (if present) its Cloudflare token is active.
+- With no usable environment, the console does not show any data screen. It shows a welcome page that says
+  what is wrong for each environment (none configured, file broken, token rejected or revoked, wrong role,
+  unreachable, incompatible version, OneCLI unavailable) and asks the person to fix it with `vizoalica env`
+  (naming the exact command), then to reload. The page offers a re-check button and changes nothing else.
+- With at least one usable environment, the console opens the previously selected one (from
+  `preferences.json`); if that one is unusable or this is the first run, the first usable environment (by
+  name) is selected. A picker in the top bar lists all environments with their state; unusable ones are shown
+  disabled with their reason. Choosing one is the only environment action in the console.
+- The console has no first-run questions, no connect or disconnect forms, no environment creation, deletion,
+  or credential editing, and no deploy or update actions. The backend screen is read-only (versions, health).
+
+### Story R3-4 - Removals (P1)
+
+Removed entirely: the first-run flow, legacy single-file import, pending role hint, the environment routes
+that write, `/api/setup/connect|disconnect|role|import-legacy`, the deploy engine, deploy and update routes
+and screens, run history, the pinned Wrangler runner, the packaged Worker bundle for deployment, whole-process
+OneCLI wrapping and the `serve` command, and the `onecli-managed` placeholder. Anything now unused (styles,
+tests, fixtures, docs, contracts) is deleted. First-time backend creation is out of scope for this feature; it is the separate command specified in
+[../019-deploy-command/spec.md](../019-deploy-command/spec.md) (`vizoalica deploy`).
+
+### Revised requirements
+
+- **FR-R1**: The environments file is the only store of environment definitions; the service reads it on
+  every request that needs it (so a manual edit is seen without a restart) and never writes it.
+- **FR-R2**: Secrets are never returned by any API, printed by any command, or written to logs.
+- **FR-R3**: `vizoalica env` and the console use the same verification code.
+- **FR-R4**: A OneCLI-held secret is used only through a helper run under `onecli run --project <w> --agent <a> --gateway <g>` (the installed OneCLI 2.11.0 still names the flag `--project`; one function maps our `workspace` to it); if OneCLI is missing or refuses, that environment is unusable with a plain reason.
+- **FR-R5**: Our configuration and messages say `workspace` wherever they used to say OneCLI `project`. (`ops.json` is no longer used.)
+- **FR-R6**: Custom-domain URLs are accepted, verified like any other, and used for install snippets and ingestion addresses.
+
 ### User Story 1 - A Footer That Points Home and to the Project (Priority: P1)
 
 As anyone using the console, I see a footer on every screen that tells me what this is and where to

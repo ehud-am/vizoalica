@@ -1,9 +1,7 @@
-import type { RoleHint } from '../environment-store.js';
-
 export type ViewRole = 'admin' | 'owner' | 'analyst';
 export type StageId = 'console' | 'backend' | 'website' | 'data';
 export type StageStatus = 'done' | 'current' | 'todo' | 'blocked';
-export type ConnectionStatus = 'none' | 'connected' | 'unreachable' | 'revoked' | 'incompatible';
+export type ConnectionStatus = 'connected' | 'unreachable' | 'revoked' | 'incompatible';
 export type NextAction = { id: string; label: string; href?: string };
 export type Stage = { id: StageId; label: string; status: StageStatus; next?: NextAction };
 
@@ -24,44 +22,20 @@ const LABELS: Record<StageId, string> = {
   data: 'Data arriving'
 };
 
-/** Before a backend answers, the remembered first-run choice is the best guess at who this is. */
-export function viewRole(actual: ViewRole | undefined, hint: RoleHint | undefined): ViewRole {
-  if (actual) return actual;
-  return hint === 'website-owner' ? 'owner' : hint === 'analyst' ? 'analyst' : 'admin';
-}
-
-export function roleFromBackend(role: 'admin' | 'analyst' | 'owner'): RoleHint {
-  return role === 'owner' ? 'website-owner' : role;
-}
-
 function backendAction(input: StageInput): NextAction {
-  const href = '#/setup';
   if (input.connection === 'unreachable')
-    return {
-      id: 'check-backend',
-      label: 'The backend is not answering. Check it and retry.',
-      href
-    };
+    return { id: 'check-backend', label: 'The backend is not answering. Check it and retry.' };
   if (input.connection === 'incompatible')
     return {
       id: 'update-console',
       label:
         'This backend does not work with this console. Update the console: npm update -g vizoalica'
     };
-  if (input.connection === 'revoked')
-    return {
-      id: 'reconnect',
-      label:
-        input.role === 'admin'
-          ? 'The backend rejected the saved credential. Enter the administrator secret again.'
-          : 'Your access was revoked. Ask your admin for a new key.',
-      href
-    };
-  if (input.role === 'owner')
-    return { id: 'enter-setup-details', label: 'Enter the setup details you were given', href };
-  if (input.role === 'analyst')
-    return { id: 'enter-access-key', label: 'Enter the access key you were given', href };
-  return { id: 'connect-backend', label: 'Deploy or connect a backend', href };
+  return {
+    id: 'fix-environment',
+    label:
+      'The backend rejected the saved credential. Fix this environment with: vizoalica env update <name>'
+  };
 }
 
 function websiteAction(input: StageInput): NextAction {

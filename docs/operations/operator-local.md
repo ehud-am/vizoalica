@@ -1,35 +1,42 @@
 # Start the local operator console
 
-Returning operators start here. One command starts the console in either credential mode:
+Returning operators start here. The console works on **environments** (`dev`, `stage`, `prod`, or any
+names you chose), which you add once with `vizoalica env` and can review or edit any time. Then one
+command starts the console:
 
 ```sh
-cd /path/to/reviewed/vizoalica
+cd /path/to/reviewed/vizoalica      # a source checkout; with the npm package, run `vizoalica` directly
+pnpm vizoalica env list             # what is configured, and whether each one works
 pnpm vizoalica console
 ```
 
-It reads `~/.config/vizoalica/local-operations.json` to decide how to start the private API, then
-starts the web console beside it. Open `http://127.0.0.1:5173` (or the URL Vite prints). Keep the
-terminal open and press Ctrl+C once to stop both processes. Keep only one console instance
-running. `pnpm vizoalica run` is an alias for the same command.
+It starts the private API and the web console beside it. Open `http://127.0.0.1:5173` (or the URL Vite
+prints). Keep the terminal open and press Ctrl+C once to stop both processes. Keep only one console
+instance running. `pnpm vizoalica run` is an alias for the same command.
 
-| Mode           | The local file contains   | What `pnpm vizoalica console` does                                  |
-| -------------- | ------------------------- | ------------------------------------------------------------------- |
-| Without OneCLI | Real administrator secret | Starts the API with that file, then the web console                 |
-| With OneCLI    | Literal `onecli-managed`  | Starts the API inside `onecli run` so OneCLI injects the credential |
+Environments are never managed inside the console. When none is usable (none added yet, a token that was
+revoked, a wrong role, an unreachable Worker), the console opens a welcome page that says what is wrong
+with each one and which `vizoalica env` command fixes it. With at least one usable environment it opens on
+the one you used last; the picker in the top bar switches between them. See
+[Environments](environments.md) for the file, the commands, and what is checked.
 
-Never start the API yourself with `pnpm local-ops-api:dev` when the file contains
-`onecli-managed`: it would send the placeholder and get HTTP 401, and the API refuses that launch
-when it can identify the placeholder.
+| Where the secret lives | In `environments.json`                            | What happens on a request                                                        |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| In the file            | `"secret": "…"` (mode `0600`)                     | The console calls the Worker directly                                            |
+| In OneCLI              | `"secret": { "onecli": { workspace, agent, … } }` | A small helper started under `onecli run` for that environment makes the request |
+
+The console itself is never started under OneCLI, so switching environments, or between the two ways of
+holding a secret, needs no restart.
 
 ## From the npm package
 
 If you installed the package with `npm install -g vizoalica`, there is no checkout and no separate web server.
 `vizoalica console` starts the private API and serves the console itself on `http://127.0.0.1:4318`, opens
-it in your browser, and stops on one Ctrl+C. It reads the same `~/.config/vizoalica/local-operations.json`, so
-a setup made with `pnpm vizoalica connect` (in either credential mode) is recognized with no questions. With no
-saved connection it starts anyway and the console asks a few first-run questions. If the file can be read by
-other users, or is damaged, it tells you the one command that fixes it and prints nothing from inside the file.
-Update with `npm update -g vizoalica`. `--no-open` skips opening the browser.
+it in your browser, and stops on one Ctrl+C. Add your environments first with `vizoalica env add <name>`;
+without any, it starts anyway and shows the welcome page explaining that. If the environments file can be
+read by other users, or is damaged, the welcome page (and `vizoalica env list`) says so and prints the one
+command that fixes it, and nothing from inside the file. Update with `npm update -g vizoalica`. `--no-open`
+skips opening the browser.
 
 ## Check the mode and status
 
@@ -38,8 +45,8 @@ pnpm vizoalica status
 ```
 
 This reports the credential mode, Worker hostname, configuration path and permissions, whether
-ports 4318 and 5173 are occupied, whether the API appears to be running through OneCLI, and the
-public-health and authenticated-access results. It never prints the configuration or a credential.
+ports 4318 and 5173 are occupied, and the public-health and authenticated-access results of the direct
+operator credential. It never prints the configuration or a credential.
 `pnpm vizoalica verify` runs only the authenticated check.
 
 ## Using the console

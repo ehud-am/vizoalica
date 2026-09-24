@@ -9,30 +9,49 @@ All notable changes to Vizoalica are documented in this file.
 ### Added
 
 - **Install and run the console from npm, with no source checkout.** `npm install -g vizoalica` then
-  `vizoalica console` starts a console that carries everything it needs, including a pre-bundled Worker
-  and its migrations, so deploying a brand-new backend no longer needs a repository checkout or
-  `pnpm build`.
-- **Deploy and update a backend from the console.** An admin approves a plan before anything is
-  created (or before an update runs), watches ordered step-by-step progress, resumes a failed run, and
-  sees generated secrets exactly once. Updating an existing backend backs up the database, applies
-  pending additive migrations, and redeploys the Worker, with a plan shown first and a backup that can
-  only be declined when every pending change is purely additive.
-- **Multiple backend environments.** One console installation now manages several independent
-  backends side by side — for example `dev`, `stage`, and `prod`, or any names an admin chooses. Each
-  environment has its own Worker, D1 database, R2 bucket, Cloudflare credential (a plain token or
-  OneCLI, chosen independently per environment), administrator secret, access keys, and list of
-  projects and websites. Every resource an environment creates is named `<environment>-something`, so
-  environments never collide even inside one Cloudflare account. An environment switcher appears once
-  more than one is saved; a website owner's or analyst's access key always fixes their one environment,
-  so they never see it.
-- A pre-0.7.0 single-backend setup is offered, once, to become the first named environment (its
-  address, credential, and role hint move across unchanged); the old connection file is never deleted.
+  `vizoalica console` starts a console that carries everything it needs, and shows the same three
+  areas (analytics, websites and projects, backend versions) to an admin, a website owner, and an analyst.
+- **Environments, managed outside the console.** `vizoalica env list | add | update | remove | check`
+  manages the list of backends you work with (`dev`, `stage`, `prod`, or any names). They are kept in one
+  editable file, `~/.config/vizoalica/environments.json` (mode `0600`), like Claude's own list of MCP
+  servers. Each environment has its own Worker address (a `workers.dev` address or a **custom domain**),
+  role (`admin`, `owner`, or `analyst`), and secret, written in the file or held by OneCLI as a local vault,
+  plus an optional Cloudflare API token for admins. Every environment is verified against its Worker,
+  including that the credential really has the chosen role, before it is saved and every time the console
+  starts.
+- **`vizoalica deploy <name>` creates a backend from the installed package.** With `--apply` it creates the
+  D1 database, R2 bucket, and Worker (asking first, never touching what exists, resumable with `--resume`)
+  and adds the environment; without it, it only shows what would be created. See
+  `docs/operations/deploy.md`.
+- **A welcome page instead of a broken console.** With no usable environment (none yet, a broken file, a
+  rejected or revoked secret, a wrong role, an unreachable Worker, an incompatible version, OneCLI
+  unavailable) the console explains what is wrong with each environment and the `vizoalica env` command that
+  fixes it. With at least one usable environment it opens on the one you used last, and a picker in the top
+  bar switches between them. The console has no environment forms of its own.
+- **Multiple backend environments.** Each environment is an independent backend with its own Worker, D1
+  database, R2 bucket, secrets, access keys, projects, and websites; resource names are
+  `<environment>-something`, so environments can share one Cloudflare account.
 
 ### Changed
 
-- This is a minor release: the environment model is a genuine redesign of the console's connection and
-  deploy machinery, with no backward-compatibility constraint, since nothing built on the previous
-  in-development shape had shipped.
+- OneCLI now says **workspace** where Vizoalica used to say project (OneCLI's installed `run` command still
+  calls the flag `--project`; Vizoalica maps it in one place).
+- The console is never started under OneCLI any more. An environment whose secret OneCLI holds is reached
+  through a small helper started under `onecli run` for that environment, so switching environments needs no
+  restart.
+- The console's backend page is read-only: the three versions and the backend's health.
+
+### Removed
+
+- The console's first-run questions, connect and disconnect forms, and environment creation, deletion, and
+  Cloudflare-credential forms.
+- Deploying, updating, rotating secrets, and purging deleted data from the console, and the Worker bundle and
+  in-console screens. Backend creation moved to `vizoalica deploy`; updating an existing backend stays
+  `pnpm vizoalica backend` from a source checkout.
+- Whole-process OneCLI wrapping, the `vizoalica serve` command, the `onecli-managed` placeholder in the
+  console's own files, and the per-environment file layout (`environments/<name>.json`,
+  `active-environment.json`) of the in-development build. Nothing had shipped in that layout, so there is no
+  migration: add your environments with `vizoalica env add`.
 
 ## [0.6.2] - 2026-09-21
 

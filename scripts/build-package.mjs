@@ -51,7 +51,7 @@ await build({
 });
 chmodSync(join(dist, 'cli.mjs'), 0o755);
 
-// 1b. The Worker, prebundled with no_bundle so the console can deploy it without a checkout (R27).
+// 1b. The Worker, prebundled with no_bundle so `vizoalica deploy` can deploy it without a checkout.
 await build({
   absWorkingDir: root,
   entryPoints: ['apps/ingest-worker/src/index.ts'],

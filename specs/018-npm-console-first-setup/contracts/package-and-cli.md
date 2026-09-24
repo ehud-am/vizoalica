@@ -30,10 +30,15 @@ identifier.
 
 | Command                | Status                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
-| `console`              | The front door. Starts the service and console as one process, prints the address, opens the browser (`--no-open` to skip), stops everything on one interrupt. Starts with no environment yet; every environment, deploy, update, and role action happens inside it |
-| `status`, `doctor`, `verify` | From the package these print where to go (`vizoalica console`, or a source checkout) and exit 2; unchanged in a checkout |
-| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout for scripts and advanced use (single-environment, checkout-native, unrelated to the console's environment model); from the package they print where to go and exit 2 |
-| `install`              | **Retired**: prints "vizoalica install was retired. Run `vizoalica console`; it guides setup.", does nothing else, exit code 2 |
+| `env`                  | `list`, `add`, `update`, `remove`, `check` for `~/.config/vizoalica/environments.json` (Revision 3). Verifies before saving; secrets only from a hidden prompt or stdin; never prints a secret |
+| `console`              | Starts the service and console as one process, prints the address and the selected environment, opens the browser (`--no-open` to skip), stops everything on one interrupt. Always starts, even with no usable environment (the console then shows the welcome page) |
+| `status`, `doctor`, `verify` | From the package these print where to go and exit 2; unchanged in a checkout |
+| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout (they keep their own direct-credential file and are unrelated to the console's environments, except that `connect` suggests `vizoalica env add`); from the package they print where to go and exit 2 |
+| `install`              | **Retired**: prints that it was retired and to add an environment with `vizoalica env add <name>` then run `vizoalica console`; exit code 2 |
+| `deploy`               | Creates a backend with `--apply`; without it, shows the plan (feature 019) |
+| `serve`                | **Removed** (it existed only to run the service under `onecli run`)                            |
+
+In a checkout, `pnpm vizoalica env ...` runs the same code.
 
 ### `vizoalica console` behavior
 
@@ -41,23 +46,20 @@ identifier.
 | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Node older than 22, or unsupported OS    | One plain message naming the requirement and the fix; exit code 1; no stack trace           |
 | Port 4318 busy                           | "A console is probably running already. Open http://127.0.0.1:4318, or stop it (Ctrl+C in its terminal)." exit code 1 |
-| No saved environment                     | Starts the service unconfigured; the console shows first run, including naming the first environment |
-| One or more saved environments           | Starts with the previously active one selected; the console's switcher shows the rest              |
-| Any environment in OneCLI mode           | That environment's routes are wrapped through `onecli run …` as today; other environments are unaffected |
+| No environments, a broken file, or none usable | Starts; prints that no environment is usable and to check `vizoalica env list`; the console shows the welcome page |
+| At least one usable environment          | Starts on the previously selected one (`preferences.json`) or the first usable by name; prints `Environment: <name> (n of m usable)` |
+| An environment whose secret is in OneCLI | Reached through a helper started under `onecli run` for that environment; the console process is never wrapped |
 | No display / cannot open a browser       | Prints the address                                                                          |
 
-Process environment variables (distinct from Vizoalica "environments" above, which are console-managed, not
-process-managed): `VIZOALICA_WRANGLER` overrides the deployment tool command for every Vizoalica environment;
-`NODE_OPTIONS` under OneCLI keeps the existing warning suppression. A Cloudflare API token for a `token`-mode
-Vizoalica environment is entered once in the console and saved in that environment's own file (R25), not read
-from the process environment, so that two environments never share one ambient `CLOUDFLARE_API_TOKEN`.
+The package ships the prebundled Worker and its Wrangler template (`dist/worker/*`) for `vizoalica deploy`
+(feature 019); the console itself does not deploy.
 
 ## Build and checks
 
 `pnpm package:build` assembles `apps/cli/package` and a publishable `package.json`; `pnpm package:check` runs
 `npm pack`, compares the file list to the allowlist, installs the tarball into a temporary prefix, starts
 `vizoalica console` on a spare port, and asserts: `--version`, `GET /` returns the console, `GET
-/api/setup/state` says `needsFirstRun`, `/api/sdk/vizoalica.js` is served, a path-traversal request is
+/api/environments` lists none and selects none, `GET /api/setup/state` is `409`, `/api/sdk/vizoalica.js` is served, a path-traversal request is
 refused, and the process stops on interrupt. CI runs it on every pull request.
 
 ## Publishing

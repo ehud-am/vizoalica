@@ -2,31 +2,41 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadSettings } from '../src/config.js';
-import { EnvironmentStore } from '../src/environment-store.js';
-import { createLocalServer } from '../src/server.js';
+import { createService } from '../src/service.js';
 import { callerFor } from './support.js';
 import { stubWorker } from './worker-stub.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
 function start(role: 'admin' | 'analyst' | 'owner' = 'admin') {
-  const dir = mkdtempSync(join(tmpdir(), 'vizoalica-keys-'));
-  const store = EnvironmentStore.fromConnection('default', {
-    remoteUrl: 'https://worker.example.workers.dev',
-    credential: 'secret',
-    kind: role === 'admin' ? 'admin-secret' : 'access-key'
-  });
   const stub = stubWorker({
     role,
     projects: [{ id: 'p1', name: 'Site' }],
     sources: { p1: [{ id: 's1' }] }
   });
-  const server = createLocalServer({
-    settings: { ...loadSettings({}), homeDir: dir },
-    store,
+  const { server } = createService({
+    homeDir: mkdtempSync(join(tmpdir(), 'vizoalica-keys-')),
     version: '0.6.4',
-    schemaDir: undefined
+    registry: {
+      load: () => ({
+        status: 'ok',
+        path: '',
+        entries: [
+          {
+            name: 'default',
+            def: { url: 'https://worker.example.workers.dev', role, secret: 'secret' }
+          }
+        ]
+      }),
+      verify: async (name, def) => ({
+        name,
+        url: def.url,
+        role: def.role,
+        cloudflare: 'none',
+        usable: true,
+        problems: []
+      })
+    }
   });
   return { stub, ...callerFor(server) };
 }
@@ -138,9 +148,11 @@ describe('GET /api/backend', () => {
   });
 
   it('answers 409 with no connection', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'vizoalica-keys-'));
-    const store = EnvironmentStore.fromDirectory(dir);
-    const server = createLocalServer({ settings: loadSettings({}), store, version: '0.6.4' });
+    const { server } = createService({
+      homeDir: mkdtempSync(join(tmpdir(), 'vizoalica-keys-')),
+      env: {},
+      version: '0.6.4'
+    });
     const api = callerFor(server);
     const cookie = await api.session();
     const result = await api.call('/api/backend', { cookie });

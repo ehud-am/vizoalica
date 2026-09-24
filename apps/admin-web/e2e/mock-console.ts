@@ -202,8 +202,8 @@ export function setupState(
   const ids = ['console', 'backend', 'website', 'data'];
   return {
     version: '0.6.3',
-    needsFirstRun: false,
-    connection: { status: 'connected', workerHost: 'worker.test', mode: 'file' },
+    environment: 'prod',
+    connection: { status: 'connected', workerHost: 'worker.test' },
     principal: {
       role,
       scope: { projectId: null, sourceId: null },
@@ -237,38 +237,36 @@ export function setupState(
   };
 }
 
-export const firstRunSetup = (): MockSetup => ({
-  version: '0.6.3',
-  needsFirstRun: true,
-  connection: { status: 'none' },
-  stages: ['console', 'backend', 'website', 'data'].map((id, index) =>
-    stage(
-      id,
-      STAGE_LABELS[index]!,
-      index === 0 ? 'done' : index === 1 ? 'current' : 'todo',
-      index === 1
-        ? { id: 'connect-backend', label: 'Deploy or connect a backend', href: '#/setup' }
-        : undefined
-    )
-  )
+/** One environment of the shape the console lists; usable unless it is given a problem. */
+export const mockEnvironment = (
+  name: string,
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  problem?: string
+) => ({
+  name,
+  url: `https://${name}.example.com`,
+  role,
+  secretSource: 'file' as const,
+  cloudflare: 'none' as const,
+  usable: problem === undefined,
+  problems: problem === undefined ? [] : [{ code: 'unauthorized', message: problem }]
 });
+
+export type MockEnvironments = {
+  file: { status: 'ok' | 'broken'; path: string; reason?: string };
+  environments: Array<ReturnType<typeof mockEnvironment>>;
+  selected: string | null;
+};
 
 export interface MockOptions {
   projects?: unknown[];
   /** The setup state to report; connected with nothing left to do when omitted. */
   setup?: MockSetup;
-  /** What a successful connect reports next. */
-  afterConnect?: MockSetup;
   /** Records every request that is not a read, so tests can prove a control sent nothing. */
   writes?: string[];
-  /** Answer a connect with this status instead of connecting. */
-  connectFails?: number;
-  /** The environments list; a single "prod" connected environment when omitted. */
-  environments?: {
-    active: string | null;
-    environments: Array<{ name: string; hasConnection: boolean; mode?: 'file' | 'onecli' }>;
-  };
-  /** Reports the Worker and schema as one release behind, so the update flow has something to do. */
+  /** The environments the console lists; one usable "prod" environment when omitted. */
+  environments?: MockEnvironments;
+  /** Reports the Worker and schema as one release behind; the backend screen only shows it. */
   backendBehind?: boolean;
 }
 
@@ -277,6 +275,11 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
   // Websites created during a test are listed afterwards, so create-then-open flows work.
   const created: Array<Record<string, unknown>> = [];
   let setup: MockSetup = options.setup ?? setupState();
+  let environments: MockEnvironments = options.environments ?? {
+    file: { status: 'ok', path: '/home/test/.config/vizoalica/environments.json' },
+    environments: [mockEnvironment('prod')],
+    selected: 'prod'
+  };
   await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -286,39 +289,16 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       options.writes?.push(`${request.method()} ${path}`);
     if (path === '/api/session') return route.fulfill({ status: 204 });
     if (path === '/api/setup/state') return route.fulfill({ json: setup });
-    if (path === '/api/setup/connect') {
-      if (options.connectFails)
-        return route.fulfill({ status: options.connectFails, json: { error: 'failed' } });
-      setup = options.afterConnect ?? setupState();
-      return route.fulfill({ json: setup });
-    }
-    if (path === '/api/setup/disconnect') {
-      setup = firstRunSetup();
-      return route.fulfill({ json: setup });
-    }
-    if (path === '/api/setup/role') return route.fulfill({ json: setup });
-    if (path === '/api/setup/import-legacy') {
-      setup = options.afterConnect ?? setupState();
-      return route.fulfill({ json: setup });
-    }
     if (path === '/api/environments' && request.method() === 'GET')
-      return route.fulfill({
-        json: options.environments ?? {
-          active: 'prod',
-          environments: [{ name: 'prod', hasConnection: true, mode: 'file' }]
-        }
-      });
-    if (path === '/api/environments' && request.method() === 'POST')
-      return route.fulfill({
-        json: { active: 'prod', environments: [{ name: 'prod', hasConnection: false }] }
-      });
-    if (/^\/api\/environments\/[^/]+\/select$/.test(path)) return route.fulfill({ json: setup });
-    if (/^\/api\/environments\/[^/]+\/connect$/.test(path)) {
-      setup = options.afterConnect ?? setupState();
+      return route.fulfill({ json: environments });
+    if (path === '/api/environments/recheck' && request.method() === 'POST')
+      return route.fulfill({ json: environments });
+    const select = /^\/api\/environments\/([^/]+)\/select$/.exec(path);
+    if (select && request.method() === 'POST') {
+      environments = { ...environments, selected: decodeURIComponent(select[1]!) };
+      setup = { ...setup, environment: decodeURIComponent(select[1]!) };
       return route.fulfill({ json: setup });
     }
-    if (/^\/api\/environments\/[^/]+$/.test(path) && request.method() === 'DELETE')
-      return route.fulfill({ json: { active: null, environments: [] } });
     if (path === '/api/access-keys' && request.method() === 'GET')
       return route.fulfill({ json: [] });
     if (path === '/api/access-keys' && request.method() === 'POST')
@@ -390,157 +370,6 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               health: { database: 'ok', storage: 'ok' },
               featuresAccessKeys: true
             }
-      });
-    if (path === '/api/backend/purge-deleted' && request.method() === 'POST') {
-      const applyPurge = (request.postDataJSON() as { apply?: boolean })?.apply === true;
-      return route.fulfill({
-        json: { dryRun: !applyPurge, complete: true, rows: { projects: 0 }, objects: 0 }
-      });
-    }
-    if (/^\/api\/backend\/rotate\/[^/]+$/.test(path) && request.method() === 'POST')
-      return route.fulfill({ json: { kind: path.split('/').pop(), value: 'new-secret-value' } });
-    if (path === '/api/deploy/preflight' && request.method() === 'GET')
-      return route.fulfill({
-        json: {
-          environment: 'prod',
-          names: {
-            worker: 'prod-vizoalica-worker',
-            database: 'prod-vizoalica-db',
-            bucket: 'prod-vizoalica-bucket'
-          },
-          signedIn: true,
-          accounts: [{ id: 'a'.repeat(32), name: 'Acme' }],
-          existing: { database: false, bucket: false }
-        }
-      });
-    if (path === '/api/deploy/plan' && request.method() === 'POST')
-      return route.fulfill({
-        json: {
-          id: 'plan-1',
-          mode: 'first-install',
-          environment: 'prod',
-          names: {
-            worker: 'prod-vizoalica-worker',
-            database: 'prod-vizoalica-db',
-            bucket: 'prod-vizoalica-bucket'
-          },
-          resources: [
-            { kind: 'd1', name: 'prod-vizoalica-db', purpose: 'Stores aggregates.' },
-            { kind: 'r2', name: 'prod-vizoalica-bucket', purpose: 'Stores raw batches.' },
-            { kind: 'worker', name: 'prod-vizoalica-worker', purpose: 'Serves the admin API.' }
-          ],
-          createdAt: '2026-01-01T00:00:00.000Z'
-        }
-      });
-    if (path === '/api/deploy/runs' && request.method() === 'POST')
-      return route.fulfill({
-        json: {
-          id: 'run-1',
-          planId: 'plan-1',
-          mode: 'first-install',
-          environment: 'prod',
-          names: {
-            worker: 'prod-vizoalica-worker',
-            database: 'prod-vizoalica-db',
-            bucket: 'prod-vizoalica-bucket'
-          },
-          status: 'done',
-          steps: [{ id: 'deploy-worker', label: 'Deploying the Worker', status: 'done' }],
-          createdAt: '2026-01-01T00:00:00.000Z',
-          result: { workerUrl: 'https://prod-vizoalica-worker.example.workers.dev', healthy: true },
-          canReveal: true
-        }
-      });
-    if (/^\/api\/deploy\/runs\/[^/]+$/.test(path) && request.method() === 'GET')
-      return route.fulfill({
-        json: {
-          id: 'run-1',
-          status: 'done',
-          steps: [{ id: 'deploy-worker', label: 'Deploying the Worker', status: 'done' }],
-          result: { workerUrl: 'https://prod-vizoalica-worker.example.workers.dev', healthy: true },
-          canReveal: true
-        }
-      });
-    if (/^\/api\/deploy\/runs\/[^/]+\/reveal$/.test(path) && request.method() === 'POST')
-      return route.fulfill({
-        json: { secrets: { VIZOALICA_ADMIN_SECRET: 'shown-once-secret' } }
-      });
-    if (path === '/api/deploy/update/preview' && request.method() === 'GET')
-      return route.fulfill({
-        json: {
-          environment: 'prod',
-          worker: {
-            current: '0.6.2',
-            expected: '0.7.0',
-            status: 'update-available',
-            message: 'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.'
-          },
-          schema: {
-            applied: 1,
-            expected: 2,
-            status: 'update-available',
-            message: 'The database schema (1) is behind what this console expects (2).'
-          },
-          pending: [
-            { name: '0002_access_keys.sql', description: 'adds access keys', nonAdditive: false }
-          ],
-          upToDate: false
-        }
-      });
-    if (path === '/api/deploy/update/plan' && request.method() === 'POST')
-      return route.fulfill({
-        json: {
-          id: 'update-plan-1',
-          mode: 'update-backend',
-          environment: 'prod',
-          names: {
-            worker: 'prod-vizoalica-worker',
-            database: 'prod-vizoalica-db',
-            bucket: 'prod-vizoalica-bucket'
-          },
-          resources: [],
-          createdAt: '2026-01-01T00:00:00.000Z',
-          update: {
-            worker: {
-              current: '0.6.2',
-              expected: '0.7.0',
-              status: 'update-available',
-              message: 'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.'
-            },
-            schema: {
-              applied: 1,
-              expected: 2,
-              status: 'update-available',
-              message: 'The database schema (1) is behind what this console expects (2).'
-            },
-            pending: [
-              { name: '0002_access_keys.sql', description: 'adds access keys', nonAdditive: false }
-            ]
-          }
-        }
-      });
-    if (path === '/api/deploy/update/runs' && request.method() === 'POST')
-      return route.fulfill({
-        json: {
-          id: 'update-run-1',
-          planId: 'update-plan-1',
-          mode: 'update-backend',
-          environment: 'prod',
-          names: {
-            worker: 'prod-vizoalica-worker',
-            database: 'prod-vizoalica-db',
-            bucket: 'prod-vizoalica-bucket'
-          },
-          status: 'done',
-          steps: [{ id: 'migrate', label: 'Applying database changes', status: 'done' }],
-          createdAt: '2026-01-01T00:00:00.000Z',
-          versions: {
-            before: { worker: '0.6.2', schema: 1 },
-            after: { worker: '0.7.0', schema: 2 },
-            migrationsApplied: ['0002_access_keys.sql'],
-            backupPath: '/home/.config/vizoalica/backups/prod-vizoalica-db-1.sql'
-          }
-        }
       });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;

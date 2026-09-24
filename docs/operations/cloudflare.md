@@ -512,11 +512,11 @@ pnpm vizoalica rotate admin     # or: token | digest | all
 It shows what the rotation will break, asks before changing anything, generates a new value,
 stores it on the Worker, shows it once, and updates what it can:
 
-| Secret   | What changes                                                                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `pnpm vizoalica connect`; a OneCLI console needs its credential card updated. |
-| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                             |
-| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                           |
+| Secret   | What changes                                                                                                                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `vizoalica env update NAME --secret-stdin`; a OneCLI console needs its credential card updated. |
+| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                                               |
+| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                                             |
 
 Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`.
 If a secret may have been exposed, rotate it at once; see the recovery notes below.

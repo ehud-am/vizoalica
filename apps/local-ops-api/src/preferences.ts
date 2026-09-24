@@ -5,10 +5,12 @@ export type ThemePreference = 'light' | 'dark';
 
 export interface PreferencesRecord {
   theme?: ThemePreference;
+  /** The environment the console had selected last, so it opens on it next time. */
+  environment?: string;
   updatedAt?: string;
 }
 
-const ALLOWED_KEYS = new Set(['theme', 'updatedAt']);
+const ALLOWED_KEYS = new Set(['theme', 'environment', 'updatedAt']);
 
 function isThemePreference(value: unknown): value is ThemePreference {
   return value === 'light' || value === 'dark';
@@ -37,6 +39,8 @@ export function readPreferences(path: string): PreferencesRecord | undefined {
   const record = parsed as Record<string, unknown>;
   if (record.theme !== undefined && !isThemePreference(record.theme))
     throw new Error('preferences_invalid');
+  if (record.environment !== undefined && typeof record.environment !== 'string')
+    throw new Error('preferences_invalid');
   if (record.updatedAt !== undefined && typeof record.updatedAt !== 'string')
     throw new Error('preferences_invalid');
   return record as PreferencesRecord;
@@ -49,4 +53,17 @@ export function writePreferences(path: string, record: PreferencesRecord): void 
   writeFileSync(temporaryPath, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
   chmodSync(temporaryPath, 0o600);
   renameSync(temporaryPath, path);
+}
+
+/** Changes some preferences and keeps the others; an unreadable file is replaced. */
+export function updatePreferences(path: string, patch: PreferencesRecord): PreferencesRecord {
+  let existing: PreferencesRecord = {};
+  try {
+    existing = readPreferences(path) ?? {};
+  } catch {
+    existing = {};
+  }
+  const next = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+  writePreferences(path, next);
+  return next;
 }

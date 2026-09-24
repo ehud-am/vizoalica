@@ -10,41 +10,19 @@ test('shows the three versions and their status to every role', async ({ page })
   }
 });
 
-test('an admin with no connection lands in the deploy wizard from the backend screen', async ({
+test('an update that is available is only reported, for every role, with nothing to change it', async ({
   page
 }) => {
-  await mockConsole(page, {
-    setup: setupState('admin', undefined, { connection: { status: 'none' } })
-  });
-  await page.goto('/#/manage/backend');
-  await expect(page.getByRole('heading', { name: /Deploy this environment/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Show the deployment plan' }).click();
-  await page.getByRole('button', { name: 'Approve and deploy' }).click();
-  await expect(page.getByRole('button', { name: 'Show the generated secrets' })).toBeVisible();
-  await page.getByRole('button', { name: 'Show the generated secrets' }).click();
-  await expect(page.getByText('shown-once-secret')).toBeVisible();
-});
-
-test('an admin rotates a secret and purges deleted data with named confirmations', async ({
-  page
-}) => {
-  await mockConsole(page, { setup: setupState('admin') });
-  await page.goto('/#/manage/backend');
-  await page.getByRole('button', { name: 'Rotate analytics digest secret' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText('Unique-visitor counts restart');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Rotate' }).click();
-  await expect(page.getByText('new-secret-value')).toBeVisible();
-
-  await page.getByRole('button', { name: 'Purge now' }).click();
-  await expect(page.getByRole('alertdialog')).toContainText('permanently removes');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Purge' }).click();
-  await expect(page.getByText(/Removed 0 stored object/)).toBeVisible();
-});
-
-test('an owner sees no rotate or purge controls', async ({ page }) => {
-  await mockConsole(page, { setup: setupState('owner') });
-  await page.goto('/#/manage/backend');
-  await expect(page.getByRole('heading', { name: 'Rotate a secret' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Purge deleted data' })).toHaveCount(0);
-  await expect(page.getByText('Only an admin can change the backend.')).toBeVisible();
+  const writes: string[] = [];
+  for (const role of ['admin', 'owner', 'analyst'] as const) {
+    await mockConsole(page, { setup: setupState(role), backendBehind: true, writes });
+    await page.goto('/#/manage/backend');
+    await expect(page.getByText('Update available').first()).toBeVisible();
+    await expect(page.getByRole('button')).toHaveCount(
+      await page.locator('header button, footer button').count()
+    );
+    for (const name of [/update/i, /deploy/i, /rotate/i, /purge/i])
+      await expect(page.getByRole('button', { name })).toHaveCount(0);
+  }
+  expect(writes).toEqual([]);
 });

@@ -18,7 +18,7 @@ const no = (reason: string, next?: Availability['next']): Availability => ({
 });
 
 /** Screens and controls a role can never use are absent, not merely disabled. */
-const ADMIN_ONLY_SURFACES: readonly CapabilityId[] = ['deploy-backend', 'manage-access-keys'];
+const ADMIN_ONLY_SURFACES: readonly CapabilityId[] = ['manage-access-keys'];
 export function isAbsent(state: SetupState | undefined, capability: CapabilityId): boolean {
   const role = state?.principal?.role;
   return role !== undefined && role !== 'admin' && ADMIN_ONLY_SURFACES.includes(capability);
@@ -37,22 +37,12 @@ export function availability(
   if (!state || !definition || definition.class === 'view') return YES;
 
   const { status } = state.connection;
-  if (status === 'none')
-    return no('Connect or deploy a backend first.', {
-      label: 'Connect a backend',
-      href: '#/setup'
-    });
-  if (status === 'unreachable')
-    return no('The backend is not answering. Check it and retry.', {
-      label: 'Check the connection',
-      href: '#/setup'
-    });
+  if (status === 'unreachable') return no('The backend is not answering. Check it and retry.');
   if (status === 'revoked')
     return no(
-      state.principal?.role === 'admin' || state.connection.roleHint === 'admin'
-        ? 'The saved credential was rejected. Connect again.'
-        : 'Your access was revoked. Ask your admin for a new key.',
-      { label: 'Connect again', href: '#/setup' }
+      state.principal?.role === 'admin'
+        ? 'The saved secret was rejected. Fix it with: vizoalica env update <name>'
+        : 'Your access was revoked. Ask your admin for a new key, then run: vizoalica env update <name>'
     );
   if (status === 'incompatible')
     return no(

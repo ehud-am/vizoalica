@@ -18,8 +18,6 @@ and `delete-project` move to `operate`.
 | `add-website`                                    | operate | ✓     | -       | ✓ (scope everything or that project) |
 | `edit-website`, `toggle-website`, `delete-website` | operate | ✓   | -       | ✓ (in scope)          |
 | `delete-project`                                 | operate | ✓     | -       | ✓ (project in scope)  |
-| `deploy-backend`, `update-backend`               | backend | ✓     | -       | -                     |
-| `rotate-secret`, `purge-deleted`, `manage-demo`  | backend | ✓     | -       | -                     |
 | `manage-access-keys`, `share-website-setup`      | backend | ✓     | -       | -                     |
 | `manage-environments` (create, remove)           | backend | ✓     | -       | -                     |
 
@@ -67,8 +65,8 @@ Reasons (exact wording is UI copy; the meaning is the contract):
 Three rows: **Console** (installed version), **Worker** (running version), **Database schema** (applied version).
 Each shows the current version, the version this console carries, and a status with text and an icon:
 *Up to date*, *Update available*, *Console is older* (with "Update the console: npm update -g vizoalica"),
-*Unknown* (with why), or *Unsupported* (with what to do). The admin sees an **Update backend** control when the
-Worker or the schema is behind; everyone else sees it unavailable with the role's reason.
+*Unknown* (with why), or *Unsupported* (with what to do). Every role sees the same read-only statuses; nothing on this screen changes the backend (updating is
+`pnpm vizoalica backend` in a checkout).
 
 ## Journey
 
@@ -77,32 +75,26 @@ current stage, what is done, and one next action. Next actions by role and state
 
 | State                                   | Admin                                | Website owner                               | Analyst                                   |
 | --------------------------------------- | --------------------------------------- | ------------------------------------------- | ----------------------------------------- |
-| No backend                              | Deploy or connect a backend             | Enter the setup details you were given      | Enter the access key you were given       |
 | Backend, no project or website          | Create a project and add a website      | Ask your admin to register your website  | "Nothing to see yet." Ask your admin   |
 | Website registered, no data             | Follow the install steps, then Check    | Follow the install steps, then Check        | "Waiting for the first data."             |
 | Data arriving                           | Journey hides                           | Journey hides                               | -                                         |
 
-## First-run questions (in the console)
+## Welcome page (Revision 3; replaces the first-run questions)
 
-At most three per path. Q1 role: **Admin** ("I look after the backend"), **Website owner** ("I need to make a
-website send data"), **Analyst** ("I only look at results"), each with one sentence on what it allows and does
-not. For an admin, naming the first environment happens alongside Q2 (one combined step: name it, then "I
-need a backend" or "I already have one"), not as a fourth question, since a single default name (for example
-the environment's own suggestion) is offered and can be accepted with one action. Q3 the credential needed:
-for an existing backend the address and administrator secret; for an owner the setup details (paste or file);
-for an analyst the address and key. Deploying needs no Q3: it goes to the deployment flow. A website owner or
-analyst never names an environment; their key already determines it.
+Shown instead of any console screen when no environment is usable. It asks nothing. It says: what an
+environment is (one sentence); then, depending on the case, **no environments yet** (with
+`vizoalica env add <name>`), **the file is broken** (its reason and path), or, for each environment, the
+problems found (rejected or revoked secret, wrong role, unreachable Worker, incompatible version, OneCLI not
+usable) with `vizoalica env update <name>`; and where to see everything (`vizoalica env list`). One button,
+**Check again**, re-verifies. It offers no field or control that changes an environment.
 
-## Environment switcher
+## Environment picker
 
-Shown once more than one environment is saved (a single environment shows only a small, unobtrusive label,
-per the "one environment is the common case" assumption); present in the shell alongside the footer, visible
-from every screen. Lists every saved environment by name with its connection status; selecting one calls
-`POST /api/environments/:name/select` and every screen's data (journey, versions, projects, websites,
-analytics, access keys) refreshes to the newly selected environment with no leftover data from the previous
-one. An admin can create a new environment or remove an existing one from the same control (removal needs a
-confirmation naming the environment and stating that this does not delete its Cloudflare resources). A
-website owner or analyst never sees the switcher: their key fixes their environment.
+The only environment control in the console. With one usable environment, a small label; with more, a select in
+the top bar listing every environment by name and role. Unusable ones are shown disabled with their first
+problem. Choosing one calls `POST /api/environments/:name/select` and the console reloads every screen for it
+with nothing left over from the previous one. There is no creation, removal, or credential control anywhere in
+the console. A website owner or analyst sees the picker only if their file lists more than one environment.
 
 ## Footer
 

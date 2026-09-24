@@ -3,7 +3,10 @@ import {
   ApiError,
   bootstrapSession,
   getSetupState,
+  listEnvironments,
   listProjects,
+  recheckEnvironments,
+  type EnvironmentsList,
   type Project,
   type SetupState
 } from './api/local-operations.js';
@@ -44,10 +47,9 @@ import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
 import { AccessPage } from './manage/AccessPage.js';
 import { BackendPage } from './manage/BackendPage.js';
-import { EnvironmentSwitcher } from './setup/EnvironmentSwitcher.js';
-import { FirstRun } from './setup/FirstRun.js';
+import { EnvironmentPicker } from './setup/EnvironmentPicker.js';
 import { Journey } from './setup/Journey.js';
-import { SetupPage } from './setup/SetupPage.js';
+import { Welcome } from './setup/Welcome.js';
 import { SetupProvider, useSetup } from './setup/SetupProvider.js';
 import { useTheme } from './theme.js';
 
@@ -84,11 +86,9 @@ function AnalyticsRoute({ route }: { route: Route }) {
   }
 }
 
-function ManageRoute({ route, onReconnect }: { route: Route; onReconnect: () => void }) {
+function ManageRoute({ route }: { route: Route }) {
   const websiteId = route.websiteId ?? '';
   switch (route.path) {
-    case 'setup':
-      return <SetupPage onChanged={onReconnect} />;
     case 'manage/websites':
       return <WebsitesPage />;
     case 'manage/websites/new':
@@ -102,7 +102,7 @@ function ManageRoute({ route, onReconnect }: { route: Route; onReconnect: () => 
     case 'manage/health':
       return <HealthPage />;
     case 'manage/backend':
-      return <BackendPage onDeployed={onReconnect} />;
+      return <BackendPage />;
     case 'manage/access':
       return <AccessGate />;
     default:
@@ -120,12 +120,12 @@ function BackendNotice() {
       <button className="link-button" type="button" onClick={() => void refresh()}>
         Try again
       </button>{' '}
-      <a href="#/setup">Check the connection</a>
+      Check it with <code>vizoalica env check</code>.
     </p>
   );
 }
 
-function Console({ route, onReconnect }: { route: Route; onReconnect: () => void }) {
+function Console({ route }: { route: Route }) {
   const area = routeArea(route.path);
   const controls = scopeControls(route.path);
   return (
@@ -152,7 +152,7 @@ function Console({ route, onReconnect }: { route: Route; onReconnect: () => void
                 <AnalyticsRoute route={route} />
               </AnalyticsProvider>
             ) : (
-              <ManageRoute route={route} onReconnect={onReconnect} />
+              <ManageRoute route={route} />
             )}
           </main>
           <AppFooter />
@@ -166,9 +166,11 @@ export function App() {
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [session, setSession] = useState(0);
   const [setupState, setSetupState] = useState<SetupState | undefined>();
-  const [access, setAccess] = useState<
-    'loading' | 'ready' | 'denied' | 'offline' | 'first-run' | 'setup'
-  >('loading');
+  const [environments, setEnvironments] = useState<EnvironmentsList | undefined>();
+  const [rechecking, setRechecking] = useState(false);
+  const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline' | 'welcome'>(
+    'loading'
+  );
   const [denialReason, setDenialReason] = useState<
     'session_expired' | 'worker_authorization' | undefined
   >();
@@ -181,17 +183,16 @@ export function App() {
     try {
       await bootstrapSession();
       setSessionStarted(true);
+      const list = await listEnvironments();
+      setEnvironments(list);
+      if (!list.selected) {
+        setSetupState(undefined);
+        setAccess('welcome');
+        return;
+      }
       // A console that cannot ask how far along it is carries on as before rather than blocking.
       const state = await getSetupState().catch(() => undefined);
       setSetupState(state);
-      if (state?.needsFirstRun) {
-        setAccess('first-run');
-        return;
-      }
-      if (state?.connection.status === 'incompatible') {
-        setAccess('setup');
-        return;
-      }
       if (state?.connection.status === 'revoked') {
         setDenialReason('worker_authorization');
         setAccess('denied');
@@ -209,6 +210,15 @@ export function App() {
     }
   }, []);
   useEffect(() => void connect(), [connect]);
+  const recheck = useCallback(async () => {
+    setRechecking(true);
+    try {
+      await recheckEnvironments();
+    } finally {
+      setRechecking(false);
+    }
+    await connect();
+  }, [connect]);
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -216,10 +226,9 @@ export function App() {
           <BrandLogo theme={theme.theme} />
         </a>
         <div className="topbar-actions">
-          <EnvironmentSwitcher
-            role={setupState?.principal?.role}
-            onChanged={() => void connect()}
-          />
+          {access === 'ready' && (
+            <EnvironmentPicker list={environments} onChanged={() => void connect()} />
+          )}
           <ThemeToggle
             theme={theme.theme}
             saving={theme.saving}
@@ -231,32 +240,21 @@ export function App() {
       {access === 'ready' ? (
         <SetupProvider key={session} initial={setupState}>
           <ScopeProvider key={session} initialProjects={initialProjects}>
-            <Console route={route} onReconnect={() => void connect()} />
+            <Console route={route} />
           </ScopeProvider>
         </SetupProvider>
       ) : (
         <div className="workspace workspace-single">
           <div className="content-column">
             <main id="main" tabIndex={-1}>
-              {access === 'first-run' ? (
-                <FirstRun legacySetup={setupState?.legacySetup} onDone={() => void connect()} />
-              ) : access === 'setup' ? (
-                <SetupProvider key={session} initial={setupState}>
-                  <SetupPage onChanged={() => void connect()} />
-                </SetupProvider>
+              {access === 'welcome' ? (
+                <Welcome
+                  list={environments}
+                  checking={rechecking}
+                  onRecheck={() => void recheck()}
+                />
               ) : (
-                <>
-                  <AccessState
-                    state={access}
-                    reason={denialReason}
-                    onRetry={() => void connect()}
-                  />
-                  {setupState && access !== 'loading' && (
-                    <SetupProvider initial={setupState}>
-                      <SetupPage onChanged={() => void connect()} />
-                    </SetupProvider>
-                  )}
-                </>
+                <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
               )}
             </main>
             <AppFooter />

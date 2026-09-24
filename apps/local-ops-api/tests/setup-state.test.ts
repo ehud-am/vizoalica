@@ -2,51 +2,22 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EnvironmentStore } from '../src/environment-store.js';
+import type { Registry } from '../src/environments/registry.js';
 import { buildSetupState, expectedSchemaFrom } from '../src/setup/state.js';
+import { connectedRegistry } from './support.js';
 import { stubWorker, type StubOptions } from './worker-stub.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
-const connect = (
-  kind: 'admin-secret' | 'access-key' = 'admin-secret',
-  hint?: 'admin' | 'website-owner' | 'analyst'
-) =>
-  EnvironmentStore.fromConnection('default', {
-    remoteUrl: 'https://worker.example.workers.dev',
-    credential: 'the-credential',
-    kind,
-    ...(hint ? { roleHint: hint } : {})
-  });
-const state = (store: EnvironmentStore, expectedSchema: number | null = 1, version = '0.6.3') =>
-  buildSetupState({ store, version, expectedSchema });
+const connect = (role: 'admin' | 'owner' | 'analyst' = 'admin') => connectedRegistry({ role });
+const state = async (
+  registry: Registry | Promise<Registry>,
+  expectedSchema: number | null = 1,
+  version = '0.6.3'
+) => buildSetupState({ registry: await registry, version, expectedSchema });
 const withWorker = (options: StubOptions) => stubWorker(options);
 const stageStatuses = (result: Awaited<ReturnType<typeof state>>) =>
   result.stages.map((item) => item.status);
-
-describe('with no connection', () => {
-  it('needs first run and offers the first step for the remembered role', async () => {
-    const store = EnvironmentStore.fromDirectory(mkdtempSync(join(tmpdir(), 'vizoalica-state-')));
-    const result = await state(store);
-    expect(result).toMatchObject({
-      version: '0.6.3',
-      needsFirstRun: true,
-      connection: { status: 'none' }
-    });
-    expect(result.principal).toBeUndefined();
-    expect(result.stages[1]!.next?.id).toBe('connect-backend');
-    store.setRoleHint('analyst');
-    const hinted = await state(store);
-    expect(hinted.connection.roleHint).toBe('analyst');
-    expect(hinted.stages[1]!.next?.id).toBe('enter-access-key');
-  });
-
-  it('does not contact anything', async () => {
-    const { fetchMock } = withWorker({});
-    await state(EnvironmentStore.fromDirectory(mkdtempSync(join(tmpdir(), 'vizoalica-state-'))));
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
 
 describe('with a connection', () => {
   it('reports a connected admin, the principal, and the backend versions', async () => {
@@ -58,13 +29,11 @@ describe('with a connection', () => {
       sources: { p1: [{ id: 's1', status: 'active' }] },
       pageViews: 12
     });
-    const result = await state(connect('admin-secret', 'admin'));
-    expect(result.needsFirstRun).toBe(false);
+    const result = await state(connect('admin'));
+    expect(result.environment).toBe('default');
     expect(result.connection).toEqual({
       status: 'connected',
-      workerHost: 'worker.example.workers.dev',
-      mode: 'file',
-      roleHint: 'admin'
+      workerHost: 'worker.example.workers.dev'
     });
     expect(result.principal).toMatchObject({ role: 'admin', keyLabel: null });
     expect(result.backend).toMatchObject({
@@ -126,9 +95,9 @@ describe('with a connection', () => {
     expect(result.backend?.worker.update).toBe('backend');
   });
 
-  it('reports an analyst and owner from what the backend says, not from the remembered choice', async () => {
+  it('reports an analyst and owner from what the backend says', async () => {
     withWorker({ role: 'analyst', workerVersion: '0.6.3', schemaApplied: 1 });
-    const analyst = await state(connect('access-key', 'admin'));
+    const analyst = await state(connect('analyst'));
     expect(analyst.principal?.role).toBe('analyst');
     expect(analyst.stages[2]!.next?.id).toBe('nothing-yet');
     withWorker({
@@ -137,7 +106,7 @@ describe('with a connection', () => {
       workerVersion: '0.6.3',
       schemaApplied: 1
     });
-    const owner = await state(connect('access-key'));
+    const owner = await state(connect('owner'));
     expect(owner.principal).toMatchObject({
       role: 'owner',
       scope: { projectId: 'p1', sourceId: 's1' }
@@ -149,7 +118,6 @@ describe('with a connection', () => {
     withWorker({ fail: 'network' });
     const down = await state(connect());
     expect(down.connection.status).toBe('unreachable');
-    expect(down.needsFirstRun).toBe(false);
     expect(stageStatuses(down)).toEqual(['done', 'blocked', 'blocked', 'blocked']);
     withWorker({ fail: 500 });
     expect((await state(connect())).connection.status).toBe('unreachable');
@@ -157,7 +125,7 @@ describe('with a connection', () => {
     const revoked = await state(connect());
     expect(revoked.connection.status).toBe('revoked');
     expect(revoked.stages[1]!.status).toBe('current');
-    expect(revoked.stages[1]!.next?.id).toBe('reconnect');
+    expect(revoked.stages[1]!.next?.id).toBe('fix-environment');
   });
 
   it('turns a credential that stops working mid-check into revoked, and an outage into unreachable', async () => {
@@ -197,27 +165,9 @@ describe('with a connection', () => {
     expect(result.backend?.message).toContain('Update the backend');
   });
 
-  it('shows the OneCLI mode without ever exposing the credential', async () => {
+  it('never exposes the credential', async () => {
     withWorker({});
-    const store = EnvironmentStore.fromConnection('default', {
-      remoteUrl: 'https://w.example.workers.dev',
-      credential: 'onecli-managed',
-      kind: 'admin-secret'
-    });
-    const result = await state(store);
-    expect(result.connection.mode).toBe('onecli');
-    expect(JSON.stringify(result)).not.toContain('onecli-managed');
     expect(JSON.stringify(await state(connect()))).not.toContain('the-credential');
-  });
-
-  it('survives an unparsable address', async () => {
-    withWorker({});
-    const store = EnvironmentStore.fromConnection('default', {
-      remoteUrl: 'nonsense',
-      credential: 'c',
-      kind: 'admin-secret'
-    });
-    expect((await state(store)).connection.workerHost).toBe('');
   });
 
   it('carries on when only the version route fails', async () => {

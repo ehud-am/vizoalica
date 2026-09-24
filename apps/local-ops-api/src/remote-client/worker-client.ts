@@ -1,3 +1,5 @@
+import { VaultError, type FetchLike } from '../environments/vault.js';
+
 export type Role = 'admin' | 'analyst' | 'owner';
 export type Principal = {
   role: Role;
@@ -26,12 +28,14 @@ const numberOrNull = (value: unknown): number | null =>
 export class WorkerClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly secret: string
+    private readonly secret: string,
+    /** Requests for a OneCLI-held secret are made through OneCLI instead of directly. */
+    private readonly fetchImpl: FetchLike = fetch
   ) {}
   async request(path: string, init: RequestInit = {}): Promise<Response> {
     const signal = AbortSignal.timeout(10_000);
     try {
-      return await fetch(new URL(path, this.baseUrl), {
+      return await this.fetchImpl(new URL(path, this.baseUrl), {
         ...init,
         signal,
         redirect: 'error',
@@ -41,7 +45,9 @@ export class WorkerClient {
           ...init.headers
         }
       });
-    } catch {
+    } catch (error) {
+      // A OneCLI problem has its own plain explanation; anything else is just "not reachable".
+      if (error instanceof VaultError) throw error;
       throw new Error('remote_unavailable');
     }
   }

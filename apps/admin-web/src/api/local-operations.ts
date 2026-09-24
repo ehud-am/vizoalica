@@ -124,22 +124,11 @@ export type ActionsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
-/** A recognized problem with what was asked: what happened, and ordered steps to fix it. */
-export type Issue = {
-  code: string;
-  title: string;
-  detail: string;
-  steps: string[];
-  /** Set when the Cloudflare credential form can fix it without leaving the console. */
-  fix?: 'credential';
-};
-
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
     public readonly status: number,
-    public readonly recovery?: string,
-    public readonly issue?: Issue
+    public readonly recovery?: string
   ) {
     super(
       code === 'access_revoked' || code === 'session_expired'
@@ -160,14 +149,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const details = (await response.json().catch(() => ({}))) as {
       error?: string;
       recovery?: string;
-      issue?: Issue;
     };
-    throw new ApiError(
-      details.error ?? 'request_failed',
-      response.status,
-      details.recovery,
-      details.issue
-    );
+    throw new ApiError(details.error ?? 'request_failed', response.status, details.recovery);
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
@@ -259,8 +242,7 @@ export const putThemePreference = (theme: Theme) =>
   request<{ theme: Theme; updatedAt: string }>('/api/preferences/theme', json('PUT', { theme }));
 
 export type ViewRole = 'admin' | 'owner' | 'analyst';
-export type RoleHint = 'admin' | 'website-owner' | 'analyst';
-export type ConnectionStatus = 'none' | 'connected' | 'unreachable' | 'revoked' | 'incompatible';
+export type ConnectionStatus = 'connected' | 'unreachable' | 'revoked' | 'incompatible';
 export type StageId = 'console' | 'backend' | 'website' | 'data';
 export type NextAction = { id: string; label: string; href?: string };
 export type Stage = {
@@ -276,12 +258,11 @@ export type VersionStatus = {
 };
 export type SetupState = {
   version: string;
-  needsFirstRun: boolean;
+  /** The selected environment. */
+  environment: string;
   connection: {
     status: ConnectionStatus;
     workerHost?: string;
-    mode?: 'file' | 'onecli';
-    roleHint?: RoleHint;
   };
   principal?: {
     role: ViewRole;
@@ -297,60 +278,30 @@ export type SetupState = {
     message: string;
   };
   stages: Stage[];
-  notice?: 'administrator_secret_used' | 'role_corrected';
-  /** A pre-0.7.0 single connection file waiting to be named and imported as the first environment. */
-  legacySetup?: { workerHost: string; mode: 'file' | 'onecli' };
 };
 export const getSetupState = () => request<SetupState>('/api/setup/state');
-export const connectBackend = (input: {
-  workerUrl: string;
-  credential: string;
-  roleHint?: RoleHint;
-}) => request<SetupState>('/api/setup/connect', json('POST', input));
-export const disconnectBackend = () => request<SetupState>('/api/setup/disconnect', json('POST'));
-export const setRoleHint = (roleHint: RoleHint) =>
-  request<SetupState>('/api/setup/role', json('POST', { roleHint }));
-export const importLegacySetup = (name: string) =>
-  request<SetupState>('/api/setup/import-legacy', json('POST', { name }));
 
-export type OnecliSettings = { project: string; agent: string; gateway: string };
-/** OneCLI's `settings` are needed only when this computer has none saved yet (`onecliConfigured`). */
-export type EnvironmentCloudflareCredential =
-  { mode: 'token'; token: string } | { mode: 'onecli'; onecli?: OnecliSettings };
-export type EnvironmentSummary = {
+export type EnvironmentProblem = { code: string; message: string };
+/** What the console knows about one environment; it never includes a secret. */
+export type EnvironmentState = {
   name: string;
-  hasConnection: boolean;
-  mode?: 'file' | 'onecli';
+  url?: string;
+  role?: ViewRole;
+  secretSource?: 'file' | 'onecli';
+  cloudflare: 'none' | 'file' | 'onecli';
+  usable: boolean;
+  problems: EnvironmentProblem[];
 };
 export type EnvironmentsList = {
-  active: string | null;
-  environments: EnvironmentSummary[];
-  onecliConfigured?: boolean;
+  file: { status: 'ok' | 'broken'; path: string; reason?: string };
+  environments: EnvironmentState[];
+  selected: string | null;
 };
 export const listEnvironments = () => request<EnvironmentsList>('/api/environments');
-export const createEnvironment = (name: string, cloudflare?: EnvironmentCloudflareCredential) =>
-  request<EnvironmentsList>('/api/environments', json('POST', { name, cloudflare }));
-/** Replaces how one existing environment reaches Cloudflare, keeping its connection. */
-export const setEnvironmentCloudflare = (
-  name: string,
-  cloudflare: EnvironmentCloudflareCredential
-) =>
-  request<EnvironmentsList>(
-    `/api/environments/${encodeURIComponent(name)}/cloudflare`,
-    json('PUT', { cloudflare })
-  );
+export const recheckEnvironments = () =>
+  request<EnvironmentsList>('/api/environments/recheck', json('POST'));
 export const selectEnvironment = (name: string) =>
   request<SetupState>(`/api/environments/${encodeURIComponent(name)}/select`, json('POST'));
-export const connectEnvironment = (
-  name: string,
-  input: { workerUrl: string; credential: string; roleHint?: RoleHint }
-) =>
-  request<SetupState>(`/api/environments/${encodeURIComponent(name)}/connect`, json('POST', input));
-export const removeEnvironment = (name: string) =>
-  request<EnvironmentsList>(
-    `/api/environments/${encodeURIComponent(name)}`,
-    json('DELETE', { confirm: true })
-  );
 
 export type AccessKeyRole = 'analyst' | 'owner';
 export type AccessKeySummary = {
@@ -397,118 +348,3 @@ export type BackendState = {
   featuresAccessKeys: boolean;
 };
 export const getBackendState = () => request<BackendState>('/api/backend');
-
-export type DeployPreflight = {
-  environment: string;
-  names: { worker: string; database: string; bucket: string };
-  signedIn: boolean;
-  accounts: Array<{ id: string; name: string }>;
-  existing: { database: boolean; bucket: boolean };
-  /** Set when something stops a deploy from starting. */
-  issue?: Issue;
-};
-export const getDeployPreflight = () => request<DeployPreflight>('/api/deploy/preflight');
-
-export type DeployPlanResource = { kind: 'd1' | 'r2' | 'worker'; name: string; purpose: string };
-export type DeployPlan = {
-  id: string;
-  mode: 'first-install' | 'update-backend';
-  environment: string;
-  names: { worker: string; database: string; bucket: string };
-  accountId?: string;
-  accountName?: string;
-  resources: DeployPlanResource[];
-  createdAt: string;
-};
-export const createDeployPlan = (input: { accountId?: string; accountName?: string } = {}) =>
-  request<DeployPlan>('/api/deploy/plan', json('POST', input));
-
-export type DeployStep = {
-  id: string;
-  label: string;
-  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
-  error?: string;
-  issue?: Issue;
-};
-export type DeployRun = {
-  id: string;
-  planId: string;
-  mode: 'first-install' | 'update-backend';
-  environment: string;
-  names: { worker: string; database: string; bucket: string };
-  status: 'running' | 'done' | 'failed';
-  steps: DeployStep[];
-  createdAt: string;
-  finishedAt?: string;
-  error?: string;
-  issue?: Issue;
-  result?: { workerUrl?: string; healthy?: boolean; secretNames?: string[] };
-  canReveal?: boolean;
-  versions?: {
-    before: { worker: string | null; schema: number | null };
-    after: { worker: string | null; schema: number | null };
-    migrationsApplied: string[];
-    backupPath?: string;
-    backupDeclined?: boolean;
-  };
-};
-export const startDeployRun = (planId: string) =>
-  request<DeployRun>('/api/deploy/runs', json('POST', { planId }));
-export const getDeployRun = (runId: string) =>
-  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}`);
-export const resumeDeployRun = (runId: string) =>
-  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}/resume`, json('POST'));
-export const cleanupDeployRun = (runId: string) =>
-  request<{ removed: string[] }>(
-    `/api/deploy/runs/${encodeURIComponent(runId)}/cleanup`,
-    json('POST', { confirm: true })
-  );
-export const revealDeploySecrets = (runId: string) =>
-  request<{ secrets: Record<string, string> }>(
-    `/api/deploy/runs/${encodeURIComponent(runId)}/reveal`,
-    json('POST')
-  );
-
-export type PendingMigration = { name: string; description: string; nonAdditive: boolean };
-export type UpdateComponent = {
-  current?: string | null;
-  applied?: number | null;
-  expected: string | number | null;
-  status: string;
-  message: string;
-};
-export type UpdatePreview = {
-  environment: string;
-  worker: UpdateComponent;
-  schema: UpdateComponent;
-  pending: PendingMigration[];
-  upToDate: boolean;
-};
-export const getUpdatePreview = () => request<UpdatePreview>('/api/deploy/update/preview');
-export const createUpdatePlan = () =>
-  request<
-    DeployPlan & {
-      update: { worker: UpdateComponent; schema: UpdateComponent; pending: PendingMigration[] };
-    }
-  >('/api/deploy/update/plan', json('POST', {}));
-export const startUpdateRun = (planId: string, skipBackup?: boolean) =>
-  request<DeployRun>(
-    '/api/deploy/update/runs',
-    json('POST', skipBackup ? { planId, skipBackup: true } : { planId })
-  );
-export const resumeUpdateRun = (runId: string) =>
-  request<DeployRun>(`/api/deploy/runs/${encodeURIComponent(runId)}/resume`, json('POST'));
-
-export const rotateBackendSecret = (kind: 'admin' | 'token' | 'digest') =>
-  request<{ kind: string; value: string }>(
-    `/api/backend/rotate/${encodeURIComponent(kind)}`,
-    json('POST')
-  );
-export type PurgeSummary = {
-  dryRun: boolean;
-  complete: boolean;
-  rows: Record<string, number>;
-  objects: number;
-};
-export const purgeDeleted = (apply: boolean) =>
-  request<PurgeSummary>('/api/backend/purge-deleted', json('POST', { apply }));

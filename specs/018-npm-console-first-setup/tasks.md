@@ -52,6 +52,21 @@ pnpm monorepo. Paths are from the repository root:
 
 ---
 
+## Phase R3: Environments managed outside the console (Revision 3, supersedes Phases 5 (first run), 7, 8, 9 (update actions), 12 Part C) — DONE
+
+The phases below that describe first run, environment management in the console, deploy, update, and the legacy import are **superseded by this phase**; their code, routes, screens, and tests were deleted. Their task lines are kept only as history.
+
+- [x] R301 environments file: `environments/file.ts` + tests (shape, 0600, atomic write, custom-domain urls, roles, secret forms)
+- [x] R302 verification: `environments/verify.ts` + tests (whoami, role match, version compat, Cloudflare token active, timeouts, reasons)
+- [x] R303 OneCLI vault helper: `environments/vault.ts` + tests (workspace mapped to `--project`, restart, unavailable reasons)
+- [x] R304 registry: `environments/registry.ts` + tests (live re-read, selection in preferences, default rules)
+- [x] R305 service, server, routes moved onto the registry; delete EnvironmentStore, setup mutations, deploy, backend maintenance, wrangler, runs, vault, diagnose
+- [x] R306 `vizoalica env` command + tests; remove `serve`, whole-process OneCLI wrapping
+- [x] R307 console: Welcome page, EnvironmentPicker, read-only backend page; delete first-run, setup, deploy, update, environment management UI and their tests
+- [x] R308 package: drop the Worker bundle and Wrangler template from the package and build; update package checks
+- [x] R309 docs, contracts, quickstart, CHANGELOG; ripgrep for dead references
+- [x] R310 gates: typecheck, lint, format, unit, e2e, coverage
+
 ## Phase 1: Setup — DONE
 
 - [X] T001 Confirm the branch is green before any change and record the baseline in `specs/018-npm-console-first-setup/verification-log.md`

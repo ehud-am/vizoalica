@@ -26,7 +26,7 @@ const good = [
 describe('compareFileList', () => {
   it('accepts exactly the allowlist', () => {
     expect(compareFileList(good)).toEqual({ extra: [], missing: [] });
-    expect(compareFileList([...good, 'dist/schema/0002_x.sql', 'dist/worker/index.mjs'])).toEqual({
+    expect(compareFileList([...good, 'dist/schema/0002_x.sql'])).toEqual({
       extra: [],
       missing: []
     });

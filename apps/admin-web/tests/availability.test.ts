@@ -5,7 +5,7 @@ import { availability, isAbsent } from '../src/setup/availability.js';
 
 const state = (overrides: Partial<SetupState> = {}, role: ViewRole = 'admin'): SetupState => ({
   version: '0.6.3',
-  needsFirstRun: false,
+  environment: 'dev',
   connection: { status: 'connected' },
   principal: {
     role,
@@ -34,7 +34,7 @@ describe('availability', () => {
       for (const s of [
         state(),
         state({}, 'analyst'),
-        state({ connection: { status: 'none' } }),
+        state({ connection: { status: 'unreachable' } }),
         state({}, 'owner')
       ])
         expect(of(id as CapabilityId, s).available, id).toBe(true);
@@ -45,31 +45,16 @@ describe('availability', () => {
       expect(of(capability.id).available, capability.id).toBe(true);
   });
 
-  it('says to connect a backend first, with where to go, before one exists', () => {
-    for (const id of [...ids('operate'), ...ids('backend')] as CapabilityId[]) {
-      const result = of(id, state({ connection: { status: 'none' } }));
-      expect(result.available).toBe(false);
-      expect(result.reason).toBe('Connect or deploy a backend first.');
-      expect(result.next).toEqual({ label: 'Connect a backend', href: '#/setup' });
-    }
-  });
-
   it('explains an unreachable, revoked, or incompatible backend', () => {
     expect(of('create-project', state({ connection: { status: 'unreachable' } })).reason).toBe(
       'The backend is not answering. Check it and retry.'
     );
     expect(
       of('create-project', state({ connection: { status: 'revoked' } }, 'analyst')).reason
-    ).toBe('Your access was revoked. Ask your admin for a new key.');
+    ).toContain('Your access was revoked. Ask your admin for a new key');
     expect(of('create-project', state({ connection: { status: 'revoked' } })).reason).toContain(
-      'credential was rejected'
+      'vizoalica env update'
     );
-    expect(
-      of(
-        'create-project',
-        state({ connection: { status: 'revoked', roleHint: 'admin' } }, 'analyst')
-      ).reason
-    ).toContain('credential was rejected');
     const incompatible = of('create-project', state({ connection: { status: 'incompatible' } }));
     expect(incompatible.reason).toContain('npm update -g vizoalica');
     expect(incompatible.next).toBeUndefined();
@@ -142,7 +127,7 @@ describe('availability', () => {
         message: ''
       }
     });
-    expect(of('update-backend', newer).reason).toContain('npm update -g vizoalica');
+    expect(of('manage-access-keys', newer).reason).toContain('npm update -g vizoalica');
     expect(of('create-project', newer).available).toBe(true);
   });
 
@@ -154,13 +139,11 @@ describe('availability', () => {
 
 describe('isAbsent', () => {
   it('removes the surfaces only an admin can use for other roles', () => {
-    expect(isAbsent(state({}, 'analyst'), 'deploy-backend')).toBe(true);
+    expect(isAbsent(state({}, 'analyst'), 'manage-access-keys')).toBe(true);
     expect(isAbsent(state({}, 'owner'), 'manage-access-keys')).toBe(true);
-    expect(isAbsent(state({}, 'admin'), 'deploy-backend')).toBe(false);
-    expect(isAbsent(state({}, 'analyst'), 'rotate-secret')).toBe(false);
-    expect(isAbsent(undefined, 'deploy-backend')).toBe(false);
-    expect(
-      isAbsent(state({ connection: { status: 'none' }, principal: undefined }), 'deploy-backend')
-    ).toBe(false);
+    expect(isAbsent(state({}, 'admin'), 'manage-access-keys')).toBe(false);
+    expect(isAbsent(state({}, 'analyst'), 'share-website-setup')).toBe(false);
+    expect(isAbsent(undefined, 'manage-access-keys')).toBe(false);
+    expect(isAbsent(state({ principal: undefined }), 'manage-access-keys')).toBe(false);
   });
 });

@@ -343,6 +343,43 @@ environment's saved settings.
 the point of the npm package); shipping the Worker's TypeScript source in the package and building it on the
 admin's machine (adds a build step and a toolchain dependency to every deploy, which R1 explicitly avoids).
 
+## R28. Environments are a file managed outside the console (2026-09-24; supersedes R24, R25, R27, and R9)
+
+**Decision.** Environments are entries in `~/.config/vizoalica/environments.json`, edited by `vizoalica env` or
+by hand, read by the service on demand and never written by it. Each entry carries its own url, role, secret,
+and optional Cloudflare token; every entry is verified (secret resolves, Worker accepts it, reported role equals
+chosen role, versions compatible, Cloudflare token active). The console opens only with a usable environment
+selected, shows a welcome page otherwise, and has one environment control: a picker. The console does not
+deploy or update a backend.
+
+**Why.** The previous design put environment creation, credentials, connection, deployment, and OneCLI wrapping
+inside the console. Its state lived in several files (per-environment files, an active pointer, a pending role
+hint, a legacy file), it needed the whole process wrapped in `onecli run` for OneCLI secrets (so switching
+environments could need a restart), and a first-run flow had to guess the role. Moving environments before the
+console starts means the console can rely on a verified connection instead of guessing, and everything can be
+inspected and repaired with a plain file and one command.
+
+**OneCLI as a local vault.** A secret may be `{ "onecli": { workspace, agent, gateway } }`. The console process
+is never wrapped. A small helper runs under `onecli run --project <workspace> --agent <agent> --gateway <gateway>`
+(the installed OneCLI 2.11 still names the flag `--project`; one function maps `workspace` to it), started on
+first use per workspace/agent/gateway, and makes that environment's requests over stdin/stdout JSON lines. The
+request carries the placeholder `onecli-managed`, which the gateway replaces. If OneCLI is missing, stops, or
+times out, that environment is unusable with a plain reason, and the next request starts a fresh helper.
+Alternative rejected: reading the proxy variables `onecli run --dry-run` reports (only their names are
+printed, not values) and using them in-process; it depends on OneCLI internals.
+
+**Custom domains.** `url` is any https origin, verified by calling the Worker; nothing assumes `workers.dev`.
+Install snippets and ingestion addresses use the origin as given.
+
+**Removed with it.** First-run flow, legacy import, deploy engine and runs, deploy/update/rotate/purge routes and
+screens, the pinned Wrangler runner, the packaged Worker bundle, `serve`, and the `onecli-managed` placeholder
+in the console's own files. First-time backend creation is out of scope for the console; it is the
+`vizoalica deploy` command (feature 019), which restores the packaged Worker bundle for that command only.
+
+**Alternatives considered.** Keeping deploy in the console behind an "add an environment with no backend yet"
+state: rejected, since it would reintroduce the unverified states this change removes. A per-environment
+directory of files: rejected in favor of one file that can be read at a glance and diffed.
+
 ## R19. Test strategy
 
 - **Worker**: authorization matrix (every admin route against admin, analyst, owner, revoked, and bad keys),

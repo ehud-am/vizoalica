@@ -106,152 +106,60 @@ describe('actions report client', () => {
 });
 
 describe('setup client calls', () => {
-  it('reads the state and posts connect, disconnect, and role changes', async () => {
-    const fetch = vi.fn(
-      async (_path: string, init?: RequestInit) =>
-        new Response(JSON.stringify({ needsFirstRun: false, method: init?.method ?? 'GET' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    );
+  it('only reads the state', async () => {
+    const fetch = vi.fn(async (_path: string, _init?: RequestInit) => Response.json({}));
     vi.stubGlobal('fetch', fetch);
     await api.getSetupState();
-    await api.connectBackend({ workerUrl: 'https://w.test', credential: 'c', roleHint: 'analyst' });
-    await api.disconnectBackend();
-    await api.setRoleHint('website-owner');
     expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
-      'GET /api/setup/state',
-      'POST /api/setup/connect',
-      'POST /api/setup/disconnect',
-      'POST /api/setup/role'
+      'GET /api/setup/state'
     ]);
-    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({
-      workerUrl: 'https://w.test',
-      credential: 'c',
-      roleHint: 'analyst'
-    });
-    expect(JSON.parse(String(fetch.mock.calls[3]![1]!.body))).toEqual({
-      roleHint: 'website-owner'
-    });
   });
 
-  it('carries the error code and status of a refused connect', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        Response.json({ error: 'unauthorized', recovery: 'reauthorize' }, { status: 401 })
-      )
-    );
-    await expect(
-      api.connectBackend({ workerUrl: 'https://w.test', credential: 'c' })
-    ).rejects.toMatchObject({
-      code: 'unauthorized',
-      status: 401
-    });
-  });
-
-  it('imports a pre-0.7.0 single connection file as the first environment', async () => {
-    const fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ needsFirstRun: false }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    );
-    vi.stubGlobal('fetch', fetch);
-    await api.importLegacySetup('prod');
-    expect(fetch.mock.calls[0]![0]).toBe('/api/setup/import-legacy');
-    expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({ name: 'prod' });
+  it('has no way to connect, disconnect, deploy, or edit environments from the console', () => {
+    for (const removed of [
+      'connectBackend',
+      'disconnectBackend',
+      'setRoleHint',
+      'importLegacySetup',
+      'createEnvironment',
+      'connectEnvironment',
+      'removeEnvironment',
+      'setEnvironmentCloudflare',
+      'startDeployRun',
+      'createUpdatePlan',
+      'rotateBackendSecret',
+      'purgeDeleted'
+    ])
+      expect(api, removed).not.toHaveProperty(removed);
   });
 });
 
 describe('environment client calls', () => {
-  it('lists, creates, selects, connects, and removes environments', async () => {
-    const fetch = vi.fn(
-      async (_path: string, _init?: RequestInit) =>
-        new Response(JSON.stringify({ active: null, environments: [] }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
+  it('lists, rechecks, and selects environments, and nothing else', async () => {
+    const fetch = vi.fn(async (_path: string, _init?: RequestInit) =>
+      Response.json({ file: { status: 'ok', path: '' }, environments: [], selected: null })
     );
     vi.stubGlobal('fetch', fetch);
     await api.listEnvironments();
-    await api.createEnvironment('stage', { mode: 'token', token: 'cf-tok' });
+    await api.recheckEnvironments();
     await api.selectEnvironment('dev');
-    await api.connectEnvironment('dev', { workerUrl: 'https://w.test', credential: 'c' });
-    await api.removeEnvironment('dev');
+    await api.selectEnvironment('needs space');
     expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
       'GET /api/environments',
-      'POST /api/environments',
+      'POST /api/environments/recheck',
       'POST /api/environments/dev/select',
-      'POST /api/environments/dev/connect',
-      'DELETE /api/environments/dev'
+      'POST /api/environments/needs%20space/select'
     ]);
-    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({
-      name: 'stage',
-      cloudflare: { mode: 'token', token: 'cf-tok' }
+  });
+
+  it('carries the error code and status of a refused selection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'environment_unusable' }, { status: 409 }))
+    );
+    await expect(api.selectEnvironment('prod')).rejects.toMatchObject({
+      code: 'environment_unusable',
+      status: 409
     });
-    expect(JSON.parse(String(fetch.mock.calls[4]![1]!.body))).toEqual({ confirm: true });
-  });
-
-  it('creates an environment with no Cloudflare credential', async () => {
-    const fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ active: 'x', environments: [] }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    );
-    vi.stubGlobal('fetch', fetch);
-    await api.createEnvironment('x');
-    expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({ name: 'x' });
-  });
-});
-
-describe('deploy and backend maintenance client calls', () => {
-  it('drives preflight, plan, run polling, resume, reveal, and cleanup', async () => {
-    const fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ id: 'r1' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    );
-    vi.stubGlobal('fetch', fetch);
-    await api.getDeployPreflight();
-    await api.createDeployPlan({ accountId: 'a'.repeat(32) });
-    await api.startDeployRun('p1');
-    await api.getDeployRun('r1');
-    await api.resumeDeployRun('r1');
-    await api.cleanupDeployRun('r1');
-    await api.revealDeploySecrets('r1');
-    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
-      'GET /api/deploy/preflight',
-      'POST /api/deploy/plan',
-      'POST /api/deploy/runs',
-      'GET /api/deploy/runs/r1',
-      'POST /api/deploy/runs/r1/resume',
-      'POST /api/deploy/runs/r1/cleanup',
-      'POST /api/deploy/runs/r1/reveal'
-    ]);
-    expect(JSON.parse(String(fetch.mock.calls[5]![1]!.body))).toEqual({ confirm: true });
-  });
-
-  it('rotates a secret and purges deleted data', async () => {
-    const fetch = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ kind: 'token', value: 'x' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-    );
-    vi.stubGlobal('fetch', fetch);
-    await api.rotateBackendSecret('token');
-    await api.purgeDeleted(false);
-    expect(fetch.mock.calls.map(([path]) => path)).toEqual([
-      '/api/backend/rotate/token',
-      '/api/backend/purge-deleted'
-    ]);
-    expect(JSON.parse(String(fetch.mock.calls[1]![1]!.body))).toEqual({ apply: false });
   });
 });

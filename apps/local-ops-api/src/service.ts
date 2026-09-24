@@ -1,56 +1,61 @@
+import type { spawn as spawnFn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type { Server } from 'node:http';
-import { defaultHomeDir, loadConfig, loadSettings, type Settings } from './config.js';
-import { EnvironmentStore } from './environment-store.js';
+import { defaultHomeDir, loadSettings, resolvePreferencesPath, type Settings } from './config.js';
+import { Registry, type RegistryOptions } from './environments/registry.js';
+import { Vault } from './environments/vault.js';
 import { createLocalServer } from './server.js';
+import { expectedSchemaFrom } from './setup/state.js';
 
 export type ServiceOptions = {
-  /** The environments home directory (holds `environments/` and `active-environment.json`). Without
-   * one, and without VIZOALICA_REMOTE_URL/VIZOALICA_ADMIN_SECRET set, the default home directory is used. */
+  /** Holds `environments.json` and `preferences.json`. Defaults to `~/.config/vizoalica`. */
   homeDir?: string | undefined;
   consoleDir?: string | undefined;
   sdkDir?: string | undefined;
   schemaDir?: string | undefined;
-  /** Where the packaged Worker bundle and its Wrangler config template live (`dist/worker`). */
-  workerDir?: string | undefined;
   version?: string | undefined;
   env?: NodeJS.ProcessEnv | undefined;
+  /** Replaces the session lifetime without the bounds the environment variable is held to (tests). */
+  sessionTtlMs?: number | undefined;
+  /** Tests replace how OneCLI helpers are started, how time passes, and the network. */
+  spawn?: typeof spawnFn | undefined;
+  registry?: Pick<RegistryOptions, 'load' | 'fetch' | 'verify' | 'ttlMs' | 'now'> | undefined;
 };
 
-/**
- * Builds the local service from the environment and an environments home directory that may not exist
- * yet. Throws the store's plain error codes for an unreadable or over-permissive environment file.
- */
+/** Builds the local service. It starts with no usable environment; the console then says what to fix. */
 export function createService(options: ServiceOptions = {}): {
   server: Server;
-  store: EnvironmentStore;
+  registry: Registry;
+  vault: Vault;
   settings: Settings;
 } {
-  const env = options.env ?? process.env;
-  const base = loadSettings(env);
-  let store: EnvironmentStore;
-  let homeDir: string | undefined;
-  if (env.VIZOALICA_REMOTE_URL && env.VIZOALICA_ADMIN_SECRET) {
-    const config = loadConfig(env);
-    store = EnvironmentStore.fromConnection('default', {
-      remoteUrl: config.remoteUrl,
-      credential: config.adminSecret,
-      kind: 'admin-secret'
-    });
-  } else {
-    homeDir = options.homeDir ?? defaultHomeDir();
-    store = EnvironmentStore.fromDirectory(homeDir, env);
-  }
-  const settings: Settings = { ...base, ...(homeDir ? { homeDir } : {}) };
+  const base = loadSettings(options.env ?? process.env);
+  const homeDir = options.homeDir ?? defaultHomeDir();
+  const settings: Settings = {
+    ...base,
+    homeDir,
+    ...(options.sessionTtlMs !== undefined ? { sessionTtlMs: options.sessionTtlMs } : {})
+  };
+  const version = options.version ?? 'dev';
+  const vault = new Vault(options.spawn ?? spawn);
+  const registry = new Registry({
+    homeDir,
+    preferencesPath: resolvePreferencesPath(settings),
+    version,
+    expectedSchema: expectedSchemaFrom(options.schemaDir),
+    vault,
+    ...options.registry
+  });
   const server = createLocalServer({
     settings,
-    store,
-    ...(options.version ? { version: options.version } : {}),
+    registry,
+    version,
     consoleDir: options.consoleDir,
     sdkDir: options.sdkDir,
-    schemaDir: options.schemaDir,
-    workerDir: options.workerDir
+    schemaDir: options.schemaDir
   });
-  return { server, store, settings };
+  server.on('close', () => vault.close());
+  return { server, registry, vault, settings };
 }
 
 /** Listens on loopback only; rejects with `port_in_use` when something else holds the port. */

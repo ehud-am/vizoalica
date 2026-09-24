@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { Vault } from '../../local-ops-api/src/environments/vault.js';
 import { help, main, type MainDeps } from '../src/main.js';
 import { fakeDeps } from './support.js';
 
 function deps(overrides: Partial<MainDeps> = {}) {
   return Object.assign(fakeDeps(), {
+    interactive: false,
+    ask: async () => '',
+    readStdin: async () => '',
+    vault: new Vault(vi.fn() as never),
     nodeVersion: '22.12.0',
     platform: 'darwin' as NodeJS.Platform,
     ...overrides
@@ -55,12 +60,11 @@ describe('main', () => {
     expect(d.errors.join('')).toContain('vizoalica help');
   });
 
-  it('points commands that need a checkout at the console and the checkout', async () => {
+  it('points commands that need a checkout at the checkout', async () => {
     for (const command of ['install', 'backend', 'rotate', 'deploy-pages']) {
       const d = deps();
       expect(await main([command], d)).toBe(2);
       expect(d.errors.join('')).toContain(`vizoalica ${command}`);
-      expect(d.errors.join('')).toContain('vizoalica console');
       expect(d.errors.join('')).toContain('git clone');
     }
   });

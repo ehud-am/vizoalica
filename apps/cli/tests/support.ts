@@ -21,7 +21,6 @@ export type Recorded = ConsoleDeps & {
   output: string[];
   errors: string[];
   opened: string[];
-  spawned: Array<{ command: string; args: readonly string[] }>;
   stop: () => void;
   closed: { value: boolean };
 };
@@ -31,7 +30,6 @@ export function fakeDeps(overrides: Partial<ConsoleDeps> = {}): Recorded {
   const output: string[] = [];
   const errors: string[] = [];
   const opened: string[] = [];
-  const spawned: Array<{ command: string; args: readonly string[] }> = [];
   const closed = { value: false };
   let release: () => void = () => undefined;
   const stopped = new Promise<void>((resolve) => (release = resolve));
@@ -47,20 +45,20 @@ export function fakeDeps(overrides: Partial<ConsoleDeps> = {}): Recorded {
     home: tempHome(),
     version: '9.9.9',
     assetDir: '/assets/dist',
-    cliPath: '/assets/dist/cli.mjs',
     out: (text) => void output.push(text),
     err: (text) => void errors.push(text),
-    spawn: ((command: string, args: readonly string[]) => {
-      spawned.push({ command, args });
-      const child = Object.assign(new EventEmitter(), { kill: () => true });
-      queueMicrotask(() => child.emit('exit', 0));
-      return child;
-    }) as never,
     openBrowser: (url) => void opened.push(url),
     waitForStop: () => stopped,
-    createService: (() => ({ server, store: {}, settings: {} })) as never,
+    createService: (() => ({
+      server,
+      registry: {
+        refresh: async () => undefined,
+        snapshot: { environments: [], selected: undefined }
+      },
+      settings: {}
+    })) as never,
     listen: async () => undefined,
     ...overrides
   };
-  return Object.assign(deps, { output, errors, opened, spawned, stop: release, closed });
+  return Object.assign(deps, { output, errors, opened, stop: release, closed });
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStages, roleFromBackend, viewRole, type StageInput } from '../src/setup/stages.js';
+import { computeStages, type StageInput } from '../src/setup/stages.js';
 
 const base: StageInput = {
   connection: 'connected',
@@ -13,18 +13,9 @@ const stage = (input: Partial<StageInput>, id: string) =>
 
 describe('computeStages', () => {
   it('always lists the four stages in order with the console running', () => {
-    const stages = computeStages({ ...base, connection: 'none' });
+    const stages = computeStages({ ...base, connection: 'unreachable' });
     expect(stages.map((item) => item.id)).toEqual(['console', 'backend', 'website', 'data']);
     expect(stages[0]!.status).toBe('done');
-  });
-
-  it('makes the backend the current stage until one is connected', () => {
-    expect(computeStages({ ...base, connection: 'none' }).map((item) => item.status)).toEqual([
-      'done',
-      'current',
-      'todo',
-      'todo'
-    ]);
   });
 
   it('moves on to the website, then to data, then finishes', () => {
@@ -67,18 +58,6 @@ describe('computeStages', () => {
 });
 
 describe('next actions', () => {
-  it('follows the contract for no backend, by role', () => {
-    expect(stage({ connection: 'none', role: 'admin' }, 'backend').next?.label).toBe(
-      'Deploy or connect a backend'
-    );
-    expect(stage({ connection: 'none', role: 'owner' }, 'backend').next?.label).toBe(
-      'Enter the setup details you were given'
-    );
-    expect(stage({ connection: 'none', role: 'analyst' }, 'backend').next?.label).toBe(
-      'Enter the access key you were given'
-    );
-  });
-
   it('follows the contract when there is a backend but no website', () => {
     expect(stage({}, 'website').next).toMatchObject({
       id: 'create-project',
@@ -111,23 +90,8 @@ describe('next actions', () => {
     expect(stage({ connection: 'incompatible' }, 'backend').next?.label).toContain(
       'npm update -g vizoalica'
     );
-    expect(stage({ connection: 'revoked', role: 'admin' }, 'backend').next?.label).toContain(
-      'administrator secret'
+    expect(stage({ connection: 'revoked' }, 'backend').next?.label).toContain(
+      'vizoalica env update'
     );
-    expect(stage({ connection: 'revoked', role: 'analyst' }, 'backend').next?.label).toBe(
-      'Your access was revoked. Ask your admin for a new key.'
-    );
-  });
-});
-
-describe('roles', () => {
-  it('uses the backend role, else the remembered choice, else admin', () => {
-    expect(viewRole('analyst', 'admin')).toBe('analyst');
-    expect(viewRole(undefined, 'website-owner')).toBe('owner');
-    expect(viewRole(undefined, 'analyst')).toBe('analyst');
-    expect(viewRole(undefined, undefined)).toBe('admin');
-    expect(roleFromBackend('owner')).toBe('website-owner');
-    expect(roleFromBackend('analyst')).toBe('analyst');
-    expect(roleFromBackend('admin')).toBe('admin');
   });
 });

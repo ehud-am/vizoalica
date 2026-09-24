@@ -25,6 +25,8 @@ export const sidebar: NavGroup[] = [
       { text: 'Deploy the backend', link: '/operations/cloudflare' },
       { text: 'Set up the console', link: '/operations/local-analytics' },
       { text: 'Set up the console with OneCLI', link: '/operations/onecli' },
+      { text: 'Environments and `vizoalica env`', link: '/operations/environments' },
+      { text: 'Create a backend with `vizoalica deploy`', link: '/operations/deploy' },
       { text: 'Start the console day to day', link: '/operations/operator-local' },
       { text: 'Activate a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
