@@ -3,7 +3,9 @@ import { createService, listenLoopback } from './service.js';
 import { Writable } from 'node:stream';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 async function readCredential(): Promise<string> {
   let value: string;
@@ -60,9 +62,40 @@ async function main(): Promise<void> {
     );
     console.log(`Local authorization revoked: ${path}`);
   } else {
-    const { server, settings } = createService({ homeDir: path });
+    // From a source checkout the deploy files (Worker bundle, database changes) come from the built
+    // package, `pnpm package:build`. Without it the console still runs but cannot deploy a backend.
+    const packaged = fileURLToPath(new URL('../../cli/package/dist', import.meta.url));
+    const canDeploy = existsSync(join(packaged, 'worker', 'index.mjs'));
+    const version = (() => {
+      try {
+        const root = fileURLToPath(new URL('../../../package.json', import.meta.url));
+        return (JSON.parse(readFileSync(root, 'utf8')) as { version?: string }).version;
+      } catch {
+        return undefined;
+      }
+    })();
+    const { server, settings } = createService({
+      homeDir: path,
+      ...(canDeploy
+        ? { workerDir: join(packaged, 'worker'), schemaDir: join(packaged, 'schema') }
+        : {}),
+      // The SDK files the console offers for download.
+      ...(existsSync(join(packaged, 'sdk')) ? { sdkDir: join(packaged, 'sdk') } : {}),
+      ...(version ? { version } : {})
+    });
+    if (!canDeploy)
+      console.log(
+        'Note: deploying a backend from the console needs the packaged files. Run `pnpm package:build`, then restart this.'
+      );
     await listenLoopback(server, settings.port);
     console.log(`Vizoalica local API listening on http://127.0.0.1:${settings.port}`);
+    // Ctrl+C is how this is meant to be stopped, so it ends cleanly instead of as a failed command.
+    const stop = () => {
+      server.close(() => process.exit(0));
+      server.closeAllConnections();
+    };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
   }
 }
 

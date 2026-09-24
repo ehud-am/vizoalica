@@ -678,13 +678,27 @@ export function localApiArguments(client?: { path: string }): string[] {
   return client ? ['local-ops-api:dev', 'serve', dirname(client.path)] : ['local-ops-api:dev'];
 }
 
+/**
+ * Whether `path` is a complete pre-0.7.0 setup file (it names a Worker). The console now also keeps just
+ * the OneCLI project, agent, and gateway in this same file, with no Worker; that is not a legacy setup,
+ * and treating it as one would fail with "Invalid URL".
+ */
+function hasLegacyOpsConfig(path: string): boolean {
+  try {
+    const value = JSON.parse(readFileSync(path, 'utf8')) as { workerUrl?: unknown };
+    return typeof value.workerUrl === 'string';
+  } catch {
+    return existsSync(path);
+  }
+}
+
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
   // A new install has no connection file yet; the console then starts at first-run setup.
   const fresh =
     !text(options, 'console-config') &&
     !text(options, 'config') &&
     !existsSync(DEFAULT_CLIENT_CONFIG) &&
-    !existsSync(DEFAULT_CONFIG);
+    !hasLegacyOpsConfig(DEFAULT_CONFIG);
   const { client, ops } = fresh
     ? { client: undefined, ops: undefined }
     : resolveClientConfig(options);

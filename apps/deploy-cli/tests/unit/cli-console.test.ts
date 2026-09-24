@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -78,6 +78,31 @@ describe('pnpm vizoalica console', () => {
     const { calls, dependencies } = fakeSpawn();
     const realHome = process.env.HOME;
     process.env.HOME = home; // the default paths are read when the module loads
+    vi.resetModules();
+    try {
+      const fresh = await import('../../../../scripts/vizoalica.js');
+      await fresh.run(['console'], dependencies);
+    } finally {
+      process.env.HOME = realHome;
+      vi.resetModules();
+    }
+    expect(calls).toEqual([
+      { command: 'pnpm', args: ['local-ops-api:dev'] },
+      { command: 'pnpm', args: ['admin-web:dev'] }
+    ]);
+  });
+
+  it('still starts at first-run setup when the only file is the OneCLI settings the console saved', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'vizoalica-onecli-only-home-'));
+    mkdirSync(join(home, '.config', 'vizoalica'), { recursive: true });
+    // What the console writes when OneCLI is chosen in the browser: no Worker address, no connection file.
+    privateJson(join(home, '.config', 'vizoalica'), 'ops.json', {
+      version: 1,
+      onecli: { project: 'harness', agent: 'vizoalica-deploy', gateway: '127.0.0.1:10255' }
+    });
+    const { calls, dependencies } = fakeSpawn();
+    const realHome = process.env.HOME;
+    process.env.HOME = home;
     vi.resetModules();
     try {
       const fresh = await import('../../../../scripts/vizoalica.js');
