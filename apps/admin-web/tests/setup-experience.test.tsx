@@ -328,7 +328,7 @@ describe('the Connection screen', () => {
     await user.click(
       within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Disconnect' })
     );
-    expect(await screen.findByRole('heading', { level: 1, name: 'Who are you?' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeTruthy();
   });
 
   it('says when disconnecting failed', async () => {

@@ -39,6 +39,8 @@ function errorReply(error: unknown): EnvironmentsReply {
   if (code === 'invalid_environment_name') return bad('name');
   if (code === 'environment_name_taken')
     return { status: 409, body: { error: 'environment_name_taken' } };
+  if (code === 'environments_not_supported')
+    return { status: 409, body: { error: 'environments_not_supported' } };
   if (code === 'environment_not_found')
     return { status: 404, body: { error: 'environment_not_found' } };
   throw error;

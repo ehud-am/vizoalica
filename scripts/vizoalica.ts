@@ -447,9 +447,7 @@ export function consoleArguments(config: OpsConfig): string[] {
     'VIZOALICA_ONECLI_WRAPPED=1',
     `NODE_OPTIONS=${oneCliNodeOptions()}`,
     'pnpm',
-    'local-ops-api:dev',
-    'serve',
-    config.consoleConfigPath
+    ...localApiArguments({ path: config.consoleConfigPath })
   ];
 }
 
@@ -671,12 +669,25 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
   );
 }
 
-export function localApiArguments(client: { path: string }): string[] {
-  return ['local-ops-api:dev', 'serve', client.path];
+/**
+ * `serve` takes the environments home directory, not a file. A pre-0.7.0 connection file sits in that
+ * directory, where the API finds it and offers to import it; with no file at all the API uses its
+ * default home and the console starts at first-run setup.
+ */
+export function localApiArguments(client?: { path: string }): string[] {
+  return client ? ['local-ops-api:dev', 'serve', dirname(client.path)] : ['local-ops-api:dev'];
 }
 
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
-  const { client, ops } = resolveClientConfig(options);
+  // A new install has no connection file yet; the console then starts at first-run setup.
+  const fresh =
+    !text(options, 'console-config') &&
+    !text(options, 'config') &&
+    !existsSync(DEFAULT_CLIENT_CONFIG) &&
+    !existsSync(DEFAULT_CONFIG);
+  const { client, ops } = fresh
+    ? { client: undefined, ops: undefined }
+    : resolveClientConfig(options);
   // A second console cannot bind the same ports and would die with a raw EADDRINUSE trace.
   const inUse = dependencies.portInUse ?? portOccupied;
   const busy = (
@@ -686,11 +697,13 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
     throw new OpsError(
       `${busy.length > 1 ? 'Ports' : 'Port'} ${busy.join(' and ')} ${busy.length > 1 ? 'are' : 'is'} already in use, so a console is probably running already.\nOpen ${CONSOLE_URL}, or stop the other console first (Ctrl+C in its terminal) and run this again.`
     );
-  const viaOneCli = client.mode === 'OneCLI';
+  const viaOneCli = client?.mode === 'OneCLI';
   stdout.write(
     (viaOneCli
       ? `Starting the private API through OneCLI (${ops!.onecli.gateway}) and the web console.\n`
-      : 'Starting the private API with the local administrator secret file and the web console.\n') +
+      : client
+        ? 'Starting the private API with the local administrator secret file and the web console.\n'
+        : 'Starting the private API and the web console.\n') +
       `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );

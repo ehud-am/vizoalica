@@ -1777,7 +1777,7 @@ a.nav-item {
   margin-top: 8px;
 }
 .form-panel {
-  max-width: 640px;
+  max-width: 760px;
 }
 .form-panel .website-form {
   display: grid;
@@ -2259,7 +2259,7 @@ a.nav-item {
 
 /* Setup: first run, the journey, the connection form, and controls that cannot be used yet. */
 .first-run {
-  max-width: 640px;
+  max-width: 760px;
   margin: 8vh auto 0;
   text-align: left;
 }
@@ -2433,5 +2433,99 @@ a.nav-item {
   .detail-list > div {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
+  }
+}
+
+/* First run: the welcome mark and click-through choice cards. */
+.welcome-mark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-hover));
+  color: var(--color-text-inverse);
+  box-shadow: 0 8px 24px rgb(var(--shadow-color) / 0.18);
+}
+.first-run h1 {
+  margin: 0 0 8px;
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+.welcome-lead {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 17px;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+.choice-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.choice-card {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.choice-card:hover:not(:disabled) {
+  border-color: var(--color-brand);
+  box-shadow: 0 6px 20px rgb(var(--shadow-color) / 0.1);
+  transform: translateY(-2px);
+}
+.choice-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-accent);
+  color: var(--color-text-brand);
+}
+.choice-title {
+  font-size: 17px;
+  font-weight: 650;
+}
+.choice-text {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.name-field {
+  display: block;
+  margin: 28px 0 6px;
+  font-weight: 600;
+}
+.name-input {
+  width: 100%;
+  font-size: 16px;
+}
+.first-run .name-input + .notice {
+  margin-top: 12px;
+}
+@media (max-width: 720px) {
+  .choice-grid,
+  .choice-grid.two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .first-run {
+    max-width: none;
   }
 }

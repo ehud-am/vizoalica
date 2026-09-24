@@ -71,7 +71,7 @@ describe('operations CLI safety', () => {
       'pnpm',
       'local-ops-api:dev',
       'serve',
-      '/tmp/vizoalica/local-operations.json'
+      '/tmp/vizoalica'
     ]);
   });
 

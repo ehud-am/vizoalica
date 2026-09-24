@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica.js';
 
 const workerUrl = 'https://analytics.example.workers.dev';
@@ -53,7 +53,7 @@ describe('pnpm vizoalica console', () => {
     const { calls, dependencies } = fakeSpawn();
     await run(['console', '--console-config', consoleConfig], dependencies);
     expect(calls).toEqual([
-      { command: 'pnpm', args: ['local-ops-api:dev', 'serve', consoleConfig] },
+      { command: 'pnpm', args: ['local-ops-api:dev', 'serve', directory] },
       { command: 'pnpm', args: ['admin-web:dev'] }
     ]);
     expect(localApiArguments({ path: consoleConfig })).toEqual(calls[0]!.args);
@@ -69,6 +69,25 @@ describe('pnpm vizoalica console', () => {
     await run(['console', '--config', opsPath], dependencies);
     expect(calls).toEqual([
       { command: 'onecli', args: consoleArguments(ops) },
+      { command: 'pnpm', args: ['admin-web:dev'] }
+    ]);
+  });
+
+  it('starts at first-run setup when no connection file exists yet', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'vizoalica-fresh-home-'));
+    const { calls, dependencies } = fakeSpawn();
+    const realHome = process.env.HOME;
+    process.env.HOME = home; // the default paths are read when the module loads
+    vi.resetModules();
+    try {
+      const fresh = await import('../../../../scripts/vizoalica.js');
+      await fresh.run(['console'], dependencies);
+    } finally {
+      process.env.HOME = realHome;
+      vi.resetModules();
+    }
+    expect(calls).toEqual([
+      { command: 'pnpm', args: ['local-ops-api:dev'] },
       { command: 'pnpm', args: ['admin-web:dev'] }
     ]);
   });

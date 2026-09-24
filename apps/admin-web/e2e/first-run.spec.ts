@@ -5,7 +5,7 @@ import { firstRunSetup, mockConsole, setupState } from './mock-console.js';
 async function toRole(page: import('@playwright/test').Page, options = {}) {
   await mockConsole(page, { setup: firstRunSetup(), ...options });
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Who are you?' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeVisible();
 }
 
 test('shows first run first, with the footer and no navigation', async ({ page }) => {
@@ -16,15 +16,15 @@ test('shows first run first, with the footer and no navigation', async ({ page }
 
 test('an admin with a backend connects and lands in the console', async ({ page }) => {
   await toRole(page, { afterConnect: setupState('admin') });
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Admin/ }).click();
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Name your environment, and do you have a backend?'
+      name: 'Name your environment'
     })
   ).toBeVisible();
   await page.getByLabel('Environment name').fill('prod');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /I already have one/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Connect your backend' })).toBeVisible();
   await page.getByLabel('Backend address').fill('https://worker.test');
   await page.getByLabel('Administrator secret').fill('the-secret');
@@ -34,10 +34,9 @@ test('an admin with a backend connects and lands in the console', async ({ page 
 
 test('an admin who needs a backend deploys from the console', async ({ page }) => {
   await toRole(page);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Admin/ }).click();
   await page.getByLabel('Environment name').fill('prod');
-  await page.getByRole('radio', { name: /I need a backend/ }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /I need a backend/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Deploy this environment/ })).toBeVisible();
   await page.getByRole('button', { name: 'Show the deployment plan' }).click();
@@ -47,8 +46,7 @@ test('an admin who needs a backend deploys from the console', async ({ page }) =
 
 test('Analyst goes straight to the address and access key', async ({ page }) => {
   await toRole(page, { afterConnect: setupState('analyst') });
-  await page.getByRole('radio', { name: /Analyst/ }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Analyst/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Connect as analyst' })).toBeVisible();
   await expect(page.getByLabel('Access key')).toBeVisible();
   await page.getByLabel('Backend address').fill('https://worker.test');
@@ -61,8 +59,7 @@ test('Website owner pastes setup details and connects with no separate address f
   page
 }) => {
   await toRole(page, { afterConnect: setupState('owner') });
-  await page.getByRole('radio', { name: /Website owner/ }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Website owner/ }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Connect as website owner' })
   ).toBeVisible();
@@ -81,8 +78,7 @@ test('shows a one-line notice when an administrator secret was entered as an ana
   await toRole(page, {
     afterConnect: { ...setupState('admin'), notice: 'administrator_secret_used' }
   });
-  await page.getByRole('radio', { name: /Analyst/ }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Analyst/ }).click();
   await page.getByLabel('Backend address').fill('https://worker.test');
   await page.getByLabel('Access key').fill('the-admin-secret');
   await page.getByRole('button', { name: 'Connect' }).click();
@@ -92,9 +88,9 @@ test('shows a one-line notice when an administrator secret was entered as an ana
 
 test('says in words when the backend refuses the credential', async ({ page }) => {
   await toRole(page, { connectFails: 401 });
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Admin/ }).click();
   await page.getByLabel('Environment name').fill('prod');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /I already have one/ }).click();
   await page.getByLabel('Backend address').fill('https://worker.test');
   await page.getByLabel('Administrator secret').fill('wrong');
   await page.getByRole('button', { name: 'Connect' }).click();
@@ -104,14 +100,13 @@ test('says in words when the backend refuses the credential', async ({ page }) =
 
 test('can be completed with the keyboard alone', async ({ page }) => {
   await toRole(page, { afterConnect: setupState('analyst') });
-  // The heading takes focus first; the radio group and the button follow in reading order.
-  await expect(page.getByRole('heading', { level: 1, name: 'Who are you?' })).toBeFocused();
+  // The heading takes focus first; the role cards follow in reading order.
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('radio', { name: /Admin/ })).toBeFocused();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('radio', { name: /Analyst/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: /Admin/ })).toBeFocused();
   await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: /Analyst/ })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Connect as analyst' })).toBeFocused();
   await page.keyboard.press('Tab');
@@ -129,17 +124,16 @@ for (const scheme of ['light', 'dark'] as const) {
     const audit = async () =>
       expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     await audit();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: /Admin/ }).click();
     await expect(
       page.getByRole('heading', {
         level: 1,
-        name: 'Name your environment, and do you have a backend?'
+        name: 'Name your environment'
       })
     ).toBeVisible();
     await audit();
     await page.getByLabel('Environment name').fill('prod');
-    await page.getByRole('radio', { name: /I need a backend/ }).check();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: /I need a backend/ }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Set up a backend' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Deploy this environment/ })).toBeVisible();
     await audit();
@@ -162,7 +156,7 @@ test('the Connection screen reviews and changes the connection', async ({ page }
   await expect(page.getByText('Website owner (Jane)')).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect…' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Who are you?' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeVisible();
 });
 
 test('stays usable at phone width without overflow', async ({ page }) => {

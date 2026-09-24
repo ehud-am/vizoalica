@@ -277,3 +277,29 @@ describe('DELETE /api/environments/:name', () => {
     expect(result.status).toBe(404);
   });
 });
+
+describe('POST /api/environments on a service with one fixed connection', () => {
+  it('says environments are not supported instead of failing with a server error', async () => {
+    const store = EnvironmentStore.fromConnection('default', {
+      remoteUrl: 'https://w.example.workers.dev',
+      credential: 'secret',
+      kind: 'admin-secret'
+    });
+    const api = callerFor(
+      createLocalServer({
+        settings: loadSettings({}),
+        store,
+        version: '0.7.0',
+        schemaDir: undefined
+      })
+    );
+    const cookie = await api.session();
+    const result = await api.call('/api/environments', {
+      method: 'POST',
+      cookie,
+      body: { name: 'prod' }
+    });
+    expect(result.status).toBe(409);
+    expect(result.body).toEqual({ error: 'environments_not_supported' });
+  });
+});

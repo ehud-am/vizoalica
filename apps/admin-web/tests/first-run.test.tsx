@@ -58,7 +58,7 @@ const heading = (name: string) => screen.findByRole('heading', { level: 1, name 
 describe('first run', () => {
   it('is shown before anything else, with no navigation and no data requests', async () => {
     render(<App />);
-    await heading('Who are you?');
+    await heading('Welcome to Vizoalica');
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
     expect(api.listProjects).not.toHaveBeenCalled();
     expect(api.getAnalyticsOverview).not.toHaveBeenCalled();
@@ -66,29 +66,25 @@ describe('first run', () => {
     expect(screen.getByRole('contentinfo')).toBeTruthy();
   });
 
-  it('offers the three roles in a labeled radio group with what each allows', async () => {
+  it('offers the three roles as cards, each with a short description', async () => {
     render(<App />);
-    await heading('Who are you?');
-    const group = screen.getByRole('group', { name: 'Who are you?' });
-    const radios = within(group).getAllByRole('radio');
-    expect(radios).toHaveLength(3);
-    expect(within(group).getByText(/I look after the backend/)).toBeTruthy();
-    expect(within(group).getByText(/I need to make a website send data/)).toBeTruthy();
-    expect(within(group).getByText(/I only look at results/)).toBeTruthy();
-    expect(within(group).getByText(/Cannot change the backend/)).toBeTruthy();
-    expect(within(group).getByText(/Changes nothing/)).toBeTruthy();
-    expect((radios[0] as HTMLInputElement).checked).toBe(true);
+    await heading('Welcome to Vizoalica');
+    const group = screen.getByRole('group', { name: /What role will this machine play\?/ });
+    expect(within(group).getAllByRole('button')).toHaveLength(3);
+    expect(within(group).queryByRole('radio')).toBeNull();
+    expect(within(group).getByText('Set up and run the backend')).toBeTruthy();
+    expect(within(group).getByText('Connect my websites to Vizoalica')).toBeTruthy();
+    expect(within(group).getByText('Just look at the results')).toBeTruthy();
   });
 
   it('takes an admin with a backend to the address and administrator secret, in three questions or fewer', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?'); // question 1
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading('Name your environment, and do you have a backend?'); // question 2
+    await heading('Welcome to Vizoalica'); // question 1
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    await heading('Name your environment'); // question 2
     await user.type(screen.getByLabelText('Environment name'), 'prod');
-    await user.click(screen.getByRole('radio', { name: /I already have one/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: /I already have one/ }));
     await heading('Connect your backend'); // question 3: the credential
     expect(screen.getByLabelText('Backend address')).toBeTruthy();
     expect(screen.getByLabelText('Administrator secret').getAttribute('type')).toBe('password');
@@ -99,11 +95,11 @@ describe('first run', () => {
   it('refuses to continue past naming an environment with an invalid name', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading('Name your environment, and do you have a backend?');
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    await heading('Name your environment');
     await user.type(screen.getByLabelText('Environment name'), 'Not Valid');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: /I already have one/ }));
     expect(screen.getByRole('alert').textContent).toContain('lowercase');
     expect(api.createEnvironment).not.toHaveBeenCalled();
   });
@@ -112,11 +108,11 @@ describe('first run', () => {
     const user = userEvent.setup();
     api.connectBackend.mockResolvedValue(connectedState());
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading('Name your environment, and do you have a backend?');
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    await heading('Name your environment');
     await user.type(screen.getByLabelText('Environment name'), 'prod');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: /I already have one/ }));
     await heading('Connect your backend');
     await user.type(screen.getByLabelText('Backend address'), 'https://w.example.workers.dev');
     await user.type(screen.getByLabelText('Administrator secret'), 'the-secret');
@@ -145,53 +141,50 @@ describe('first run', () => {
       existing: { database: false, bucket: false }
     });
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await heading('Name your environment, and do you have a backend?');
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    await heading('Name your environment');
     await user.type(screen.getByLabelText('Environment name'), 'prod');
-    await user.click(await screen.findByRole('radio', { name: /I need a backend/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: /I need a backend/ }));
     await heading('Set up a backend');
     expect(api.createEnvironment).toHaveBeenCalledWith('prod');
     await screen.findByRole('heading', { name: /Deploy this environment/ });
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    await heading('Name your environment, and do you have a backend?');
+    await heading('Name your environment');
   });
 
   it('takes an analyst straight to the address and access key', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('radio', { name: /Analyst/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Analyst/ }));
     await heading('Connect as analyst');
     expect(screen.getByLabelText('Access key').getAttribute('type')).toBe('password');
     expect(screen.queryByLabelText('Administrator secret')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await heading('Who are you?');
+    await heading('Welcome to Vizoalica');
   });
 
   it('takes a website owner straight to pasting or uploading their setup details', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('radio', { name: /Website owner/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Website owner/ }));
     await heading('Connect as website owner');
     expect(screen.getByLabelText('Setup details')).toBeTruthy();
     expect(screen.queryByLabelText('Access key')).toBeNull();
     expect(screen.queryByLabelText('Administrator secret')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await heading('Who are you?');
+    await heading('Welcome to Vizoalica');
   });
 
   it('moves focus to each step heading', async () => {
     const user = userEvent.setup();
     render(<App />);
-    const first = await heading('Who are you?');
+    const first = await heading('Welcome to Vizoalica');
     await waitFor(() => expect(document.activeElement).toBe(first));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    const second = await heading('Name your environment, and do you have a backend?');
+    await user.click(screen.getByRole('button', { name: /Admin/ }));
+    const second = await heading('Name your environment');
     await waitFor(() => expect(document.activeElement).toBe(second));
   });
 
@@ -199,7 +192,7 @@ describe('first run', () => {
     api.getSetupState.mockResolvedValue(connectedState());
     render(<App />);
     await screen.findByRole('navigation', { name: 'Primary navigation' });
-    expect(screen.queryByRole('heading', { name: 'Who are you?' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Welcome to Vizoalica' })).toBeNull();
   });
 
   it('offers a found pre-0.7.0 setup to name and import before the usual questions', async () => {
@@ -226,7 +219,7 @@ describe('first run', () => {
     render(<App />);
     await heading('We found an existing setup');
     await user.click(screen.getByRole('button', { name: 'Set up something else instead' }));
-    await heading('Who are you?');
+    await heading('Welcome to Vizoalica');
     expect(api.importLegacySetup).not.toHaveBeenCalled();
   });
 
@@ -234,9 +227,8 @@ describe('first run', () => {
     api.setRoleHint.mockRejectedValue(new Error('offline'));
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('radio', { name: /Analyst/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Analyst/ }));
     await heading('Connect as analyst');
   });
 });
@@ -245,9 +237,8 @@ describe('connecting', () => {
   async function toForm() {
     const user = userEvent.setup();
     render(<App />);
-    await heading('Who are you?');
-    await user.click(screen.getByRole('radio', { name: /Analyst/ }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await heading('Welcome to Vizoalica');
+    await user.click(screen.getByRole('button', { name: /Analyst/ }));
     await heading('Connect as analyst');
     await user.type(screen.getByLabelText('Backend address'), 'https://w.example.workers.dev');
     await user.type(screen.getByLabelText('Access key'), 'vzk_key');
