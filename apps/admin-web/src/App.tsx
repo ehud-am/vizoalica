@@ -173,12 +173,14 @@ export function App() {
     'session_expired' | 'worker_authorization' | undefined
   >();
   const route = useRoute();
-  const theme = useTheme();
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const theme = useTheme(sessionStarted);
   const connect = useCallback(async () => {
     setAccess('loading');
     setDenialReason(undefined);
     try {
       await bootstrapSession();
+      setSessionStarted(true);
       // A console that cannot ask how far along it is carries on as before rather than blocking.
       const state = await getSetupState().catch(() => undefined);
       setSetupState(state);

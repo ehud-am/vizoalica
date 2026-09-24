@@ -47,6 +47,19 @@ afterEach(() => {
 });
 
 describe('useTheme', () => {
+  it('does not read the saved preference until the console session exists, then applies it', async () => {
+    api.getThemePreference.mockResolvedValue({ theme: 'dark' });
+    const { result, rerender } = renderHook(({ ready }) => useTheme(ready), {
+      initialProps: { ready: false }
+    });
+    await act(async () => {});
+    expect(api.getThemePreference).not.toHaveBeenCalled();
+    expect(result.current.explicit).toBeNull();
+    rerender({ ready: true });
+    await waitFor(() => expect(result.current.explicit).toBe('dark'));
+    expect(api.getThemePreference).toHaveBeenCalledTimes(1);
+  });
+
   it('defaults to the system theme when no explicit preference is stored', async () => {
     const { result } = renderHook(() => useTheme());
     await waitFor(() => expect(api.getThemePreference).toHaveBeenCalled());
