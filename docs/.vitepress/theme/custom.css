@@ -94,3 +94,13 @@
     transition: none !important;
   }
 }
+
+/* Inline code inside tip, info, and warning boxes: the default brand-coloured text on the box's tint
+   falls below 4.5:1 (axe color-contrast), so it uses the body text colour, which passes in both themes. */
+.vp-doc .custom-block.info code,
+.vp-doc .custom-block.note code,
+.vp-doc .custom-block.tip code,
+.vp-doc .custom-block.warning code,
+.vp-doc .custom-block.danger code {
+  color: var(--vp-c-text-1);
+}

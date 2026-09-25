@@ -22,14 +22,14 @@ export const sidebar: NavGroup[] = [
   {
     text: 'Set it up',
     items: [
-      { text: 'Deploy the backend', link: '/operations/cloudflare' },
-      { text: 'Set up the console', link: '/operations/local-analytics' },
-      { text: 'Set up the console with OneCLI', link: '/operations/onecli' },
+      { text: 'Create a backend, rotate secrets', link: '/operations/deploy' },
       { text: 'Environments and `vizoalica env`', link: '/operations/environments' },
-      { text: 'Create a backend with `vizoalica deploy`', link: '/operations/deploy' },
       { text: 'Start the console day to day', link: '/operations/operator-local' },
+      { text: 'Keep secrets in OneCLI', link: '/operations/onecli' },
       { text: 'Activate a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
+      { text: 'Backend from a source checkout', link: '/operations/cloudflare' },
+      { text: 'Console from a source checkout', link: '/operations/local-analytics' },
       { text: 'Database and Worker versions', link: '/operations/schema-versions' },
       { text: 'Troubleshooting', link: '/operations/troubleshooting' }
     ]
@@ -75,7 +75,7 @@ export const sidebar: NavGroup[] = [
 export const nav = [
   { text: 'Get started', link: '/get-started' },
   { text: 'Tour', link: '/tour' },
-  { text: 'Docs', link: '/operations/cloudflare' },
+  { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
   { text: 'Releases', link: '/releases/v0.7.0' }

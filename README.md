@@ -26,7 +26,7 @@ devices, unique visitors, and where they are (countries on a world map). Visitor
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
 - **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
 - **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
-- **Setup:** `npm install -g vizoalica`, `vizoalica deploy prod --apply` (creates the backend in your Cloudflare account), then `vizoalica console`. You need Node.js 22 or newer and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
+- **Setup:** `npm install -g vizoalica`, `vizoalica env add prod` (deploys the backend to your Cloudflare account, explaining each question), then `vizoalica console`. You need Node.js 22 or newer and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
 - **License:** MIT.
 
 ## Deployment in four steps
@@ -79,6 +79,8 @@ with, and its secret. You create them in the terminal **before** the console ope
 vizoalica env add prod
 ```
 
+To deploy, have a Cloudflare API token ready with **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and
+Account Settings: Read** (My Profile → API Tokens → Create Token → Custom token), and R2 enabled on the account.
 It asks, in order, explaining each question above its prompt:
 
 1. **Deploy a new backend for "prod" now?** Yes creates it in your Cloudflare account and adds `prod` as an
@@ -104,8 +106,7 @@ vizoalica env add prod --connect --url https://prod.example.workers.dev --role a
 ```
 
 **Deploying is also a step of its own.** Run it directly whenever you like, for example to create the backend
-later or from a script. Make a Cloudflare API token with Workers Scripts: Edit, D1: Edit, Workers R2 Storage:
-Edit, and Account Settings: Read, and make sure R2 is enabled on the account.
+later or from a script, with the same token:
 
 ```sh
 export CLOUDFLARE_API_TOKEN=...
@@ -150,15 +151,15 @@ can share one Cloudflare account without colliding, or each point at a different
 **Another computer, another admin.** Install the command there (step 1) and add your existing backend with
 `vizoalica env add`. The secret is saved in a private file (`0600`) on that computer, after being checked.
 
-> **OneCLI is the recommended, more secure option, and `vizoalica env add` offers it as a question.** With
+> **OneCLI is the more secure option if you use it, and `vizoalica env add` asks about it.** With
 > [OneCLI](https://onecli.sh) the secret is held by a gateway and injected into requests to your Worker, so it
-> is never written to a file on the operator's computer. Answer yes and give the workspace, agent, and gateway,
-> or pass `--secret-onecli` (and `--cloudflare-onecli` for `deploy`) yourself; the console is not started any
-> differently. Answer no to keep the secret in a private file (`0600`) instead.
+> is never written to a file on the operator's computer. Answer yes only if OneCLI already holds the secret, and
+> give the workspace, agent, and gateway, or pass `--secret-onecli` (and `--cloudflare-onecli` for `deploy`)
+> yourself; the console is not started any differently. Answer no (the default when connecting) to keep the
+> secret in a private file (`0600`) instead.
 
-Guides: **[without OneCLI](docs/operations/local-analytics.md)** (the default) or
-**[with OneCLI](docs/operations/onecli.md)**. Returning operators:
-[Start the local operator console](docs/operations/operator-local.md).
+Guides: **[Environments](docs/operations/environments.md)** and **[with OneCLI](docs/operations/onecli.md)**.
+Returning operators: [Start the local operator console](docs/operations/operator-local.md).
 
 ## Step 3: add your websites
 
@@ -170,7 +171,9 @@ website's **Install** page, which asks how the site is deployed and then gives n
    GitHub Actions workflow, and the repository variables and secrets it needs (in GitHub, or with
    the `gh` command), then push. The workflow deploys the site to Cloudflare Pages together with
    Vizoalica's loader and its configuration and token endpoints. The token endpoint needs
-   `VIZOALICA_TOKEN_SECRET`, the secret you saved when you set up the backend.
+   `VIZOALICA_TOKEN_SECRET`, the secret you saved when you set up the backend (lost it?
+   `vizoalica rotate <name> token` makes a new one; websites already installed then need it too). The
+   Install page says where to find each value, and the Cloudflare token it needs only Cloudflare Pages: Edit.
 2. **Paste a snippet**: add one script tag to your pages and host the SDK file and a token endpoint
    yourself. Works with any host, including Direct Upload and Git-connected Pages.
 
@@ -193,7 +196,8 @@ deletes them).
 
 _The console showing sample data sent through your own backend._
 
-If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step.
+If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step. A website
+whose events are rejected with `invalid_signature` has a different `VIZOALICA_TOKEN_SECRET` from its Worker.
 
 ## For contributors: build from source
 
@@ -299,8 +303,10 @@ goes.
 
 | Topic                                                              | Guide                                                                                          |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Deploy, update, rotate, and maintain the backend                   | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
-| Console, default (private credential file)                         | [Without OneCLI](docs/operations/local-analytics.md)                                           |
+| Create a backend, and replace its secrets (`deploy`, `rotate`)     | [Create a backend](docs/operations/deploy.md)                                                  |
+| Environments and `vizoalica env`                                   | [Environments](docs/operations/environments.md)                                                |
+| Deploy, update, and maintain the backend from a source checkout    | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
+| Console from a checkout, private credential file                   | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                                 | [With OneCLI](docs/operations/onecli.md)                                                       |
 | Daily console startup and mode check                               | [Start the console](docs/operations/operator-local.md)                                         |
 | Using the console: Analytics, Manage, Geography                    | [Using the console](docs/operations/operator-local.md#using-the-console)                       |

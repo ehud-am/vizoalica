@@ -5,12 +5,12 @@ names you chose), which you add once with `vizoalica env` and can review or edit
 command starts the console:
 
 ```sh
-cd /path/to/reviewed/vizoalica      # a source checkout; with the npm package, run `vizoalica` directly
-pnpm vizoalica env list             # what is configured, and whether each one works
-pnpm vizoalica console
+vizoalica env list        # what is configured, and whether each one works
+vizoalica console         # from a source checkout: pnpm vizoalica env list, pnpm vizoalica console
 ```
 
-It starts the private API and the web console beside it. Open `http://127.0.0.1:5173` (or the URL Vite
+With the npm package it opens `http://127.0.0.1:4318` (see [From the npm package](#from-the-npm-package)). From a
+checkout it starts the private API and the web console beside it; open `http://127.0.0.1:5173` (or the URL Vite
 prints). Keep the terminal open and press Ctrl+C once to stop both processes. Keep only one console
 instance running. `pnpm vizoalica run` is an alias for the same command.
 

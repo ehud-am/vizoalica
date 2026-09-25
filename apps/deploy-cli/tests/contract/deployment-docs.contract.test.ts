@@ -57,9 +57,11 @@ describe('deployment documentation contract', () => {
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/onecli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    // OneCLI is offered as a question and recommended; the private file is the alternative.
-    expect(readme).toMatch(/OneCLI is the recommended, more secure option/);
-    expect(readme).toMatch(/Answer no to keep the secret in a private file/);
+    // OneCLI is offered as a question, for those who use it; the private file is the default when connecting.
+    expect(readme).toMatch(/OneCLI is the more secure option if you use it/);
+    expect(readme).toMatch(
+      /Answer no \(the default when connecting\) to keep the[\s>]+secret in a private file/
+    );
     expect(readme).not.toContain('## Try it');
   });
 

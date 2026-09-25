@@ -156,7 +156,7 @@ test('reads without JavaScript: content, links, and the tour images are all ther
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Vizoalica');
   await expect(page.getByRole('link', { name: 'Get started' }).first()).toBeVisible();
-  await expect(page.getByText('pnpm vizoalica backend').first()).toBeVisible();
+  await expect(page.getByText('npm install -g vizoalica').first()).toBeVisible();
   await page.goto('/tour');
   const images = page.locator('.vp-doc img');
   await expect(images).toHaveCount(6);

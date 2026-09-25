@@ -2,7 +2,8 @@
 
 `vizoalica deploy <name> --apply` creates the backend for an [environment](environments.md): a D1 database, an R2 bucket,
 and a Worker in your Cloudflare account, all named `<name>-vizoalica-…` so several environments can share one
-account. It works from the installed package (no source checkout).
+account. It works from the installed package (no source checkout). Most people never type it:
+`vizoalica env add <name>` asks whether to deploy a new backend and runs it for you.
 
 | You want to…          | Run                             | What happens                                              |
 | --------------------- | ------------------------------- | --------------------------------------------------------- |

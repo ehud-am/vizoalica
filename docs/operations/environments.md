@@ -47,15 +47,29 @@ environment you selected is remembered separately, in `preferences.json`.
 | Command                   | What it does                                                             |
 | ------------------------- | ------------------------------------------------------------------------ |
 | `vizoalica env list`      | Show each environment, its role, where its secret lives, and if it works |
-| `vizoalica env add N`     | Add one; asks for anything you did not give as an option                 |
+| `vizoalica env add [N]`   | Add one: deploy a new backend for it, or connect one that exists         |
 | `vizoalica env update N`  | Change one; whatever you do not mention is kept                          |
 | `vizoalica env remove N`  | Forget one on this computer (nothing in Cloudflare is deleted)           |
 | `vizoalica env check [N]` | Verify all (or one); exits non-zero if any is unusable                   |
 
+In a terminal, `add` asks for everything you did not give as an option, one question at a time, each explained
+above its prompt: the name (when not given), whether to **deploy** a new backend now (then it runs
+[`vizoalica deploy`](deploy.md) for you) or **connect** to one that exists, and, when connecting, the Worker
+address, your role, whether OneCLI holds the secret, the secret itself (hidden), and, for an admin, an optional
+Cloudflare API token. An answer it cannot use is asked again with the reason. If the environment does not
+verify, it offers to save it anyway. Ctrl-C stops without changing anything.
+
 Options for `add` and `update`: `--url`, `--role`, `--secret-stdin` (the secret is never an argument, so it
 stays out of your shell history), `--secret-onecli` with `--onecli-workspace`, `--onecli-agent`, and
 `--onecli-gateway`, `--cloudflare-token-stdin`, `--cloudflare-onecli`, `--no-cloudflare`, and `--no-verify`.
-In a checkout, run it as `pnpm vizoalica env`.
+Only for `add`: `--deploy` or `--connect`, `--onecli` or `--no-onecli`, and, with `--deploy`, the
+[`deploy` options](deploy.md) `--yes`, `--account`, `--secrets-file`, `--resume`, and `--save-cloudflare`.
+Without a terminal, every question must be given as an option; contradictory options are refused before
+anything is asked. Add `--verbose` to see each step (never a secret or an answer). In a checkout, run it as
+`pnpm vizoalica env`.
+
+Lost a secret, or think one was exposed? [`vizoalica rotate NAME token`](deploy.md#replace-a-secret-vizoalica-rotate)
+(or `admin`, `digest`, `all`) replaces it on the Worker and, for `admin`, in this file.
 
 ## What is checked
 

@@ -1,5 +1,9 @@
 # Deploy the Vizoalica backend on Cloudflare
 
+> **Installed from npm?** `vizoalica env add NAME` (or `vizoalica deploy NAME --apply`) creates the backend and
+> adds it as an environment in one step: see [Create a backend](deploy.md). This guide is for deploying and
+> maintaining a backend from a reviewed source checkout.
+
 Run this guide **once per customer environment**. It creates and verifies the shared ingestion
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
@@ -17,7 +21,7 @@ the inputs for [operator setup without OneCLI](local-analytics.md),
 
 ## Automated install (recommended)
 
-From a checkout of this repository (see [Build from source](../../README.md#build-from-source)),
+From a checkout of this repository (see [Build from source](../../README.md#for-contributors-build-from-source)),
 one command deploys the backend:
 
 ```sh
@@ -518,7 +522,10 @@ stores it on the Worker, shows it once, and updates what it can:
 | `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                                               |
 | `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                                             |
 
-Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`.
+Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`. For a
+backend created with `vizoalica deploy` (or `env add`), or any environment on this computer, use
+`vizoalica rotate NAME admin` (or `token`, `digest`, `all`) instead; see
+[Replace a secret](deploy.md#replace-a-secret-vizoalica-rotate).
 If a secret may have been exposed, rotate it at once; see the recovery notes below.
 
 ## Recovery and removal

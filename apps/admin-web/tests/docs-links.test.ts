@@ -67,7 +67,7 @@ describe('install from npm', () => {
   it('is honest that the console needs no checkout but does not create a backend', () => {
     expect(read('README.md')).toMatch(/does not deploy or\s+update a backend/);
     expect(read('README.md')).toContain('vizoalica deploy prod --apply');
-    expect(read('docs/get-started.md')).toMatch(/You do not need a checkout at all/);
+    expect(read('docs/get-started.md')).toMatch(/No source checkout is needed/);
   });
 
   it('documents creating a backend with vizoalica deploy', () => {
