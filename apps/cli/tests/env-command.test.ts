@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Vault } from '../../local-ops-api/src/environments/vault.js';
 import { envCommand, type EnvDeps } from '../src/env-command.js';
+import { Cancelled } from '../src/prompt.js';
 import { stubWorker } from '../../local-ops-api/tests/worker-stub.js';
 import { makeTrace } from '../../local-ops-api/src/trace.js';
 import { tempHome, writePrivate } from './support.js';
@@ -22,8 +23,10 @@ function setup(answers: string[] = [], stdin = '') {
     err: (text) => void err.push(text),
     interactive: answers.length > 0,
     ask: async (question) => {
-      asked.push(question);
-      return answers.shift() ?? '';
+      asked.push(question.split('\n').pop()!);
+      const answer = answers.shift();
+      if (answer === undefined) throw new Error(`No answer left for: ${question}`);
+      return answer;
     },
     readStdin: async () => stdin,
     vault: new Vault(vi.fn() as never)
@@ -35,8 +38,15 @@ function setup(answers: string[] = [], stdin = '') {
     };
   const seed = (environments: Record<string, unknown>) =>
     writePrivate(home, 'environments.json', { version: 1, environments });
+  const full: string[] = [];
+  const ask = deps.ask;
+  deps.ask = (question, options) => {
+    full.push(question);
+    return ask(question, options);
+  };
   return {
     deps,
+    full,
     home,
     file,
     out,
@@ -52,36 +62,51 @@ const worker = (accept = ['good']) =>
   stubWorker({ role: 'admin', workerVersion: '0.7.0', schemaApplied: 1, accept });
 const admin = { url: 'https://w.example.com', role: 'admin', secret: 'good' };
 
+const onecli = { workspace: 'acme', agent: 'vz', gateway: 'localhost:10255' };
+const onecliArgs = [
+  '--onecli-workspace',
+  'acme',
+  '--onecli-agent',
+  'vz',
+  '--onecli-gateway',
+  'localhost:10255'
+];
+
 describe('vizoalica env add offers to deploy', () => {
   it('deploys the backend when asked, passing OneCLI along', async () => {
-    const t = setup(['y', 'y', 'acme', 'vz', 'localhost:10255']);
+    const t = setup(['y', 'y', 'acme', 'vz', '']);
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add', 'prod'], { ...t.deps, deploy })).toBe(0);
-    expect(t.asked[0]).toContain('Deploy the backend for "prod" now?');
-    expect(deploy).toHaveBeenCalledWith([
-      'prod',
-      '--apply',
-      '--cloudflare-onecli',
-      '--onecli-workspace',
-      'acme',
-      '--onecli-agent',
-      'vz',
-      '--onecli-gateway',
-      'localhost:10255'
+    expect(t.asked).toEqual([
+      'Deploy a new backend for "prod" now? (Y/n): ',
+      'Should OneCLI hold your Cloudflare API token? (Y/n): ',
+      'OneCLI workspace: ',
+      'OneCLI agent: ',
+      'OneCLI gateway (host:port) [localhost:10255]: '
     ]);
+    expect(deploy).toHaveBeenCalledWith(['prod', '--apply', '--cloudflare-onecli', ...onecliArgs]);
     expect(() => t.read()).toThrow();
   });
 
   it('connects to an existing backend, with the secret held by OneCLI, when deploy is declined', async () => {
-    worker(['onecli-managed']);
-    const t = setup(['n', 'y', 'acme', 'vz', 'localhost:10255', 'https://w.example.com', 'admin']);
+    const t = setup([
+      'n',
+      'https://w.example.com',
+      'admin',
+      'y',
+      'acme',
+      'vz',
+      'localhost:10255',
+      'n'
+    ]);
     const deploy = vi.fn(async () => 0);
     const code = await envCommand(['add', 'prod', '--no-verify'], { ...t.deps, deploy });
     expect(code).toBe(0);
     expect(deploy).not.toHaveBeenCalled();
-    expect(t.read().environments.prod).toMatchObject({
+    expect(t.read().environments.prod).toEqual({
       url: 'https://w.example.com',
-      secret: { onecli: { workspace: 'acme', agent: 'vz', gateway: 'localhost:10255' } }
+      role: 'admin',
+      secret: { onecli }
     });
   });
 
@@ -92,7 +117,7 @@ describe('vizoalica env add offers to deploy', () => {
       ['add', 'prod', '--url', 'https://w.example.com', '--role', 'analyst', '--no-verify'],
       { ...t.deps, deploy }
     );
-    expect(t.asked.join('')).not.toContain('Deploy the backend');
+    expect(t.asked.join('')).not.toContain('Deploy a new backend');
   });
 });
 
@@ -102,23 +127,129 @@ describe('vizoalica env add: every question, or only options', () => {
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
     expect(t.asked).toEqual([
-      'Environment name (for example dev, stage, prod): ',
-      'Deploy the backend for "prod" now? (Y/n): ',
-      'Should OneCLI hold your Cloudflare token (recommended)? (Y/n): '
+      'Environment name: ',
+      'Deploy a new backend for "prod" now? (Y/n): ',
+      'Should OneCLI hold your Cloudflare API token? (Y/n): '
     ]);
     expect(deploy).toHaveBeenCalledWith(['prod', '--apply']);
   });
 
+  it('explains every question on the lines above its prompt', async () => {
+    worker(['good']);
+    const t = setup(['prod', 'n', 'https://w.example.com', 'admin', 'n', 'good', '']);
+    expect(await envCommand(['add'], { ...t.deps, deploy: async () => 0 })).toBe(0);
+    expect(t.full).toHaveLength(7);
+    for (const question of t.full) {
+      const lines = question.split('\n');
+      expect(lines.length).toBeGreaterThan(2);
+      expect(lines[1]!.length).toBeGreaterThan(20);
+    }
+  });
+
   it('asks the connect questions, name first, when the backend already exists', async () => {
     worker(['good']);
-    const t = setup(['prod', 'n', 'n', 'https://w.example.com', 'admin', 'good', '']);
+    const t = setup(['prod', 'n', 'https://w.example.com', 'admin', 'n', 'good', '']);
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
     expect(deploy).not.toHaveBeenCalled();
-    expect(t.read().environments.prod).toMatchObject({
+    expect(t.asked).toEqual([
+      'Environment name: ',
+      'Deploy a new backend for "prod" now? (Y/n): ',
+      'Worker address (https://…): ',
+      'Role (1-3, or admin, owner, analyst): ',
+      'Does OneCLI hold the administrator secret? (Y/n): ',
+      'Administrator secret (hidden): ',
+      'Cloudflare API token (hidden, Enter to skip): '
+    ]);
+    expect(t.read().environments.prod).toEqual({
       url: 'https://w.example.com',
+      role: 'admin',
       secret: 'good'
     });
+  });
+
+  it('asks again after an answer that cannot be used, saying why', async () => {
+    worker(['key']);
+    const t = setup([
+      'Bad Name',
+      'prod',
+      'maybe',
+      'n',
+      'http://w.example.com',
+      'https://w.example.com/path',
+      'https://w.example.com',
+      'boss',
+      '3',
+      'n',
+      '',
+      'key'
+    ]);
+    const code = await envCommand(['add', '--no-verify'], { ...t.deps, deploy: async () => 0 });
+    expect(code).toBe(0);
+    const errors = t.errors();
+    expect(errors).toContain('must start with a lowercase letter');
+    expect(errors).toContain('Answer y or n.');
+    expect(errors).toContain('The address must start with https://');
+    expect(errors).toContain('no path');
+    expect(errors).toContain('Type 1, 2, or 3');
+    expect(errors).toContain('An answer is needed.');
+    expect(t.read().environments.prod).toEqual({
+      url: 'https://w.example.com',
+      role: 'analyst',
+      secret: 'key'
+    });
+  });
+
+  it('asks for another name when the one typed already exists', async () => {
+    const t = setup(['dev', 'prod', '--nothing--']);
+    t.seed({ dev: admin });
+    await envCommand(['add'], { ...t.deps, deploy: async () => 0 }).catch(() => undefined);
+    expect(t.errors()).toContain('"dev" already exists');
+    expect(t.asked.slice(0, 3)).toEqual([
+      'Environment name: ',
+      'Environment name: ',
+      'Deploy a new backend for "prod" now? (Y/n): '
+    ]);
+  });
+
+  it('gives up after five unusable answers', async () => {
+    const t = setup(['x y', 'x y', 'x y', 'x y', 'x y']);
+    expect(await envCommand(['add'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('No usable answer for the environment name');
+  });
+
+  it('offers to save an environment that does not verify, and saves nothing on no', async () => {
+    worker(['other']);
+    const no = setup(['', 'n'], 'good\n');
+    const args = [
+      'add',
+      'prod',
+      '--url',
+      'https://w.example.com',
+      '--role',
+      'admin',
+      '--secret-stdin'
+    ];
+    no.deps.interactive = true;
+    expect(await envCommand(args, no.deps)).toBe(1);
+    expect(no.errors()).toContain('rejected');
+    expect(no.asked).toEqual([
+      'Cloudflare API token (hidden, Enter to skip): ',
+      'Save "prod" anyway? (y/N): '
+    ]);
+    expect(() => no.read()).toThrow();
+    const yes = setup(['', 'y'], 'good\n');
+    expect(await envCommand(args, yes.deps)).toBe(0);
+    expect(yes.read().environments.prod).toMatchObject({ secret: 'good' });
+  });
+
+  it('stops with 130 and saves nothing when a question is cancelled', async () => {
+    const t = setup(['prod']);
+    t.deps.ask = async () => {
+      throw new Cancelled();
+    };
+    expect(await envCommand(['add'], t.deps)).toBe(130);
+    expect(t.errors()).toContain('Cancelled');
   });
 
   it('deploys from options alone, passing the deploy options and OneCLI along', async () => {
@@ -135,12 +266,7 @@ describe('vizoalica env add: every question, or only options', () => {
         '--secrets-file',
         '/tmp/s',
         '--onecli',
-        '--onecli-workspace',
-        'acme',
-        '--onecli-agent',
-        'vz',
-        '--onecli-gateway',
-        'localhost:10255'
+        ...onecliArgs
       ],
       { ...t.deps, deploy }
     );
@@ -155,16 +281,11 @@ describe('vizoalica env add: every question, or only options', () => {
       '--secrets-file',
       '/tmp/s',
       '--cloudflare-onecli',
-      '--onecli-workspace',
-      'acme',
-      '--onecli-agent',
-      'vz',
-      '--onecli-gateway',
-      'localhost:10255'
+      ...onecliArgs
     ]);
   });
 
-  it('connects from options alone, and rejects contradictory options', async () => {
+  it('connects from options alone, and rejects contradictory options before asking anything', async () => {
     worker(['good']);
     const t = setup([], 'good\n');
     expect(
@@ -187,12 +308,56 @@ describe('vizoalica env add: every question, or only options', () => {
     for (const args of [
       ['--deploy', '--connect'],
       ['--deploy', '--url', 'https://w.example.com'],
-      ['--onecli', '--no-onecli']
+      ['--onecli', '--no-onecli'],
+      ['--no-onecli', '--secret-onecli'],
+      ['--secret-stdin', '--secret-onecli'],
+      ['--deploy', '--role', 'analyst'],
+      ['--deploy', '--secret-stdin'],
+      ['--connect', '--account', 'acc']
     ]) {
       t.err.length = 0;
       expect(await envCommand(['add', 'other', ...args], t.deps)).toBe(1);
-      expect(t.errors()).toMatch(/Choose one|no --url/);
+      expect(t.errors()).toMatch(
+        /Choose one|no --url|role is admin|takes no|only used with --deploy/
+      );
     }
+  });
+
+  it('checks an address or role given as an option before asking anything else', async () => {
+    const t = setup(['unused']);
+    expect(await envCommand(['add', 'prod', '--url', 'w.example.com'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('--url: The address is not a web address');
+    expect(
+      await envCommand(['add', 'prod', '--url', 'https://w.example.com', '--role', 'boss'], t.deps)
+    ).toBe(1);
+    expect(t.errors()).toContain('--role must be');
+    expect(t.asked).toEqual([]);
+  });
+
+  it('keeps only the Cloudflare token in OneCLI with --cloudflare-onecli', async () => {
+    const t = setup([], 'good\n');
+    const args = ['--cloudflare-onecli', ...onecliArgs, '--no-verify'];
+    expect(
+      await envCommand(
+        [
+          'add',
+          'prod',
+          '--url',
+          'https://w.example.com',
+          '--role',
+          'admin',
+          '--secret-stdin',
+          ...args
+        ],
+        t.deps
+      )
+    ).toBe(0);
+    expect(t.read().environments.prod).toEqual({ ...admin, cloudflare: { token: { onecli } } });
+    t.seed({ dev: admin });
+    expect(await envCommand(['update', 'dev', ...args], t.deps)).toBe(0);
+    expect(t.read().environments.dev).toEqual({ ...admin, cloudflare: { token: { onecli } } });
+    expect(await envCommand(['update', 'dev', ...onecliArgs], t.deps)).toBe(1);
+    expect(t.errors()).toContain('Say what OneCLI holds');
   });
 });
 
@@ -217,7 +382,7 @@ describe('vizoalica env --verbose', () => {
     expect(code).toBe(0);
     const text = t.text();
     expect(text).toContain('Connecting "prod" to an existing backend');
-    expect(text).toContain('Secrets are kept in a private file');
+    expect(text).toContain('The secret is kept in the private file');
     expect(text).toMatch(/GET https:\/\/w\.example\.com\/\S+ -> 200 \(\d+ms\)/);
     expect(text).toContain('"prod" is usable');
     expect(text).toContain('Wrote ');
@@ -229,15 +394,16 @@ describe('vizoalica env --verbose', () => {
     const t = setup([
       'prod',
       'n',
-      'n',
       'https://w.example.com',
       'admin',
+      'n',
       'answer-that-is-secret',
       ''
     ]);
     worker(['answer-that-is-secret']);
     await envCommand(['add'], { ...t.deps, deploy: async () => 0, trace: makeTrace(t.deps.out) });
     const text = t.text();
+    expect(text).toContain('Asking: Environment name:');
     expect(text).toContain('Asking: Administrator secret (hidden): (answer hidden)');
     expect(text).not.toContain('answer-that-is-secret');
   });
@@ -334,10 +500,11 @@ describe('vizoalica env add', () => {
         ? Response.json({ result: { status: 'active' } })
         : cf(input, init)
     );
-    const t = setup(['https://w.example.com', 'admin', 'good', 'cf-token']);
+    const t = setup(['https://w.example.com', 'admin', 'n', 'good', 'cf-token']);
     const ask = vi.spyOn(t.deps, 'ask');
-    expect(await envCommand(['add', 'prod'], t.deps)).toBe(0);
+    expect(await envCommand(['add', 'prod', '--connect'], t.deps)).toBe(0);
     expect(ask.mock.calls.map((call) => Boolean(call[1]?.secret))).toEqual([
+      false,
       false,
       false,
       true,

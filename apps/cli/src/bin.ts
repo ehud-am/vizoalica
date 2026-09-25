@@ -1,11 +1,10 @@
 import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline/promises';
-import { Writable } from 'node:stream';
 import { Vault } from '../../local-ops-api/src/environments/vault.js';
 import { homedir } from 'node:os';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { main } from './main.js';
+import { Cancelled, terminalAsk } from './prompt.js';
 import { VERSION } from './version.js';
 
 function openBrowser(url: string): void {
@@ -23,27 +22,6 @@ function openBrowser(url: string): void {
 
 const cliPath = fileURLToPath(import.meta.url);
 
-async function ask(question: string, options: { secret?: boolean } = {}): Promise<string> {
-  let muted = false;
-  const output = new Writable({
-    write(chunk, _encoding, callback) {
-      if (!muted) process.stdout.write(chunk);
-      callback();
-    }
-  });
-  const prompt = createInterface({ input: process.stdin, output, terminal: true });
-  try {
-    process.stdout.write(question);
-    muted = options.secret === true;
-    const answer = await prompt.question('');
-    muted = false;
-    if (options.secret) process.stdout.write('\n');
-    return answer;
-  } finally {
-    prompt.close();
-  }
-}
-
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
@@ -59,7 +37,7 @@ process.exitCode = await main(process.argv.slice(2), {
   out: (text) => void process.stdout.write(text),
   err: (text) => void process.stderr.write(text),
   interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
-  ask,
+  ask: terminalAsk(),
   readStdin,
   vault,
   openBrowser,
@@ -73,6 +51,10 @@ process.exitCode = await main(process.argv.slice(2), {
 })
   .finally(() => vault.close())
   .catch((error: unknown) => {
+    if (error instanceof Cancelled) {
+      process.stderr.write(`${error.message}\n`);
+      return 130;
+    }
     process.stderr.write(`${error instanceof Error ? error.message : 'Something went wrong.'}\n`);
     return 1;
   });

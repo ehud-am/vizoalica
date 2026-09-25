@@ -79,12 +79,15 @@ with, and its secret. You create them in the terminal **before** the console ope
 vizoalica env add prod
 ```
 
-It asks, in order:
+It asks, in order, explaining each question above its prompt:
 
-1. **Deploy the backend for "prod" now?** Yes creates it in your Cloudflare account and adds `prod` as an
+1. **Deploy a new backend for "prod" now?** Yes creates it in your Cloudflare account and adds `prod` as an
    environment. No connects `prod` to a backend that **already exists** (yours, or a teammate's): it asks for the
    Worker address, your role, and the secret, and checks them against the Worker before saving.
 2. **Should OneCLI hold your secrets?** Yes is recommended, and it is the default (see below).
+
+An answer that cannot be used (a name that is taken, an address with a path, a role that does not exist) is
+asked again with the reason. Ctrl-C stops without changing anything. Add `--verbose` to see each step.
 
 Run it with no name and it asks for that too, so `vizoalica env add` alone walks through every question. To skip
 the questions, give the answers as options; a script needs no terminal:

@@ -35,7 +35,7 @@ describe('deployment documentation contract', () => {
     );
     expect(step2).toContain('vizoalica deploy prod --apply');
     expect(step2).toContain('vizoalica env add prod');
-    expect(step2).toContain('Deploy the backend for "prod" now?');
+    expect(step2).toContain('Deploy a new backend for "prod" now?');
     expect(step2).toMatch(/already exists/);
     expect(step2.indexOf('vizoalica deploy prod --apply')).toBeLessThan(
       step2.indexOf('vizoalica console')

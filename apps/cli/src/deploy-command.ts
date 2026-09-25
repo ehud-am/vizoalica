@@ -12,6 +12,7 @@ import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import type { FetchLike, Vault } from '../../local-ops-api/src/environments/vault.js';
 import { verifyEnvironment } from '../../local-ops-api/src/environments/verify.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
+import { tracedAsk } from './prompt.js';
 import { applyDeploy, checkAccess, DeployError } from './deploy/apply.js';
 import { buildPlan, describePlan } from './deploy/plan.js';
 import { wranglerCommand, wranglerFor, type CloudflareAccess } from './deploy/wrangler.js';
@@ -105,18 +106,7 @@ function assertAssets(assetDir: string): void {
 }
 
 export async function deployCommand(args: readonly string[], deps: DeployDeps): Promise<number> {
-  if (deps.trace) {
-    // Say which question is being asked, never what the answer was.
-    const ask = deps.ask;
-    const trace = deps.trace;
-    deps = {
-      ...deps,
-      ask: (question, options) => {
-        trace(`Asking: ${question.trim()}${options?.secret ? ' (answer hidden)' : ''}`);
-        return ask(question, options);
-      }
-    };
-  }
+  if (deps.trace) deps = { ...deps, ask: tracedAsk(deps.ask, deps.trace) };
   if (args.length === 0 || args[0] === 'help' || args[0] === '--help') {
     deps.out(`${USAGE}\n`);
     return args.length === 0 ? 1 : 0;
@@ -220,7 +210,12 @@ async function applyCommand(
       trace('Cloudflare credential: the CLOUDFLARE_API_TOKEN environment variable');
       token = deps.env.CLOUDFLARE_API_TOKEN.trim();
     } else if (deps.interactive)
-      token = (await deps.ask('Cloudflare API token (hidden): ', { secret: true })).trim();
+      token = (
+        await deps.ask(
+          '\nDeploying needs a Cloudflare API token with Workers Scripts: Edit, D1: Edit,\nWorkers R2 Storage: Edit, and Account Settings: Read. Paste it here; it is not shown.\nCloudflare API token: ',
+          { secret: true }
+        )
+      ).trim();
     if (!token) {
       deps.err(
         'A Cloudflare API token is needed: pipe it with --cloudflare-token-stdin, set CLOUDFLARE_API_TOKEN, or use --cloudflare-onecli.\n'
@@ -253,10 +248,17 @@ async function applyCommand(
         const list = accounts
           .map((account, index) => `  ${index + 1}) ${account.name} (${account.id})`)
           .join('\n');
-        const picked = Number(
-          (await deps.ask(`This token can see several accounts:\n${list}\nChoose one: `)).trim()
-        );
-        accountId = accounts[picked - 1]?.id;
+        for (let attempt = 0; attempt < 5 && !accountId; attempt += 1) {
+          const answer = (
+            await deps.ask(
+              attempt === 0
+                ? `\nThis token can see several Cloudflare accounts. Which one gets the backend?\n${list}\nAccount number: `
+                : 'Account number: '
+            )
+          ).trim();
+          accountId = accounts[Number(answer) - 1]?.id;
+          if (!accountId) deps.err(`  Type a number from 1 to ${accounts.length}.\n`);
+        }
       } else {
         deps.err(
           `This token can see several accounts; choose one with --account: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}\n`
