@@ -6,7 +6,7 @@ import { createServer, connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkManifest, compareFileList, scanPackage } from './lib/package-check.mjs';
+import { checkManifest, compareFileList, packedEntry, scanPackage } from './lib/package-check.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const packageDir = join(root, 'apps', 'cli', 'package');
@@ -75,7 +75,7 @@ try {
   const packed = run('npm', ['pack', '--json', '--pack-destination', scratch], { cwd: packageDir });
   check(packed.status === 0, 'npm pack succeeds');
   if (packed.status !== 0) throw new Error(packed.stderr);
-  const [{ filename, files }] = JSON.parse(packed.stdout);
+  const { filename, files } = packedEntry(JSON.parse(packed.stdout));
   const tarball = join(scratch, filename);
   const names = files.map((file) => file.path);
   const { extra, missing } = compareFileList(names);

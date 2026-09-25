@@ -4,6 +4,7 @@ import {
   REQUIRED_FILES,
   checkManifest,
   compareFileList,
+  packedEntry,
   scanPackage
 } from '../../../scripts/lib/package-check.mjs';
 
@@ -134,5 +135,19 @@ describe('checkManifest', () => {
       'engines.node must be ">=22"'
     );
     expect(checkManifest({ ...manifest, dependencies: {}, scripts: {} })).toEqual([]);
+  });
+});
+
+describe('packedEntry', () => {
+  const entry = { filename: 'vizoalica-0.7.1.tgz', files: [{ path: 'package.json' }] };
+
+  it('reads the array npm 10 prints and the object npm 12 prints, keyed by the package name', () => {
+    expect(packedEntry([entry])).toBe(entry);
+    expect(packedEntry({ vizoalica: entry })).toBe(entry);
+  });
+
+  it('refuses output that does not describe a packed file', () => {
+    for (const bad of [[], {}, null, [{ filename: 'x.tgz' }], { vizoalica: { files: [] } }])
+      expect(() => packedEntry(bad)).toThrow(/did not describe/);
   });
 });

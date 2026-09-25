@@ -4,6 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-25
+
+### Fixed
+
+- **The release workflow's package check works with the latest npm.** The workflow installs the newest npm
+  before packing, and npm 12 prints `npm pack --json` as an object keyed by the package name instead of an
+  array, which the check could not read, so 0.7.1 could not be published either. The check now reads both
+  shapes, and CI installs the latest npm before the package check, as the release workflow does, so this is
+  caught on the pull request. 0.7.2 is 0.7.0 as it was meant to ship; nothing else changed.
+
 ## [0.7.1] - 2026-09-25
 
 ### Fixed

@@ -107,3 +107,15 @@ export function checkManifest(manifest) {
   if (manifest.license !== 'MIT') problems.push('license must be MIT');
   return problems;
 }
+
+/**
+ * The one entry `npm pack --json` prints for the packed package. npm up to 10 prints an array of entries;
+ * npm 12 prints an object keyed by the package name. The publish workflow installs the latest npm, so both
+ * shapes must work.
+ */
+export function packedEntry(json) {
+  const entry = Array.isArray(json) ? json[0] : Object.values(json ?? {})[0];
+  if (!entry || typeof entry.filename !== 'string' || !Array.isArray(entry.files))
+    throw new Error('npm pack --json did not describe a packed file with its file list');
+  return entry;
+}

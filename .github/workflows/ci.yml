@@ -59,6 +59,11 @@ jobs:
       - name: Build the standalone browser SDK
         run: pnpm browser-sdk:build
 
+      # The publish workflow installs the latest npm before packing; npm 12 changed the shape of
+      # `npm pack --json`, which this check tripped over only at release time. Do the same here.
+      - name: Use the latest npm, as the publish workflow does
+        run: npm install --global npm@latest
+
       # Packs what npm would publish, installs it into an empty prefix and home, and starts the console from it.
       - name: Build and check the npm package
         run: pnpm package:build && pnpm package:check
