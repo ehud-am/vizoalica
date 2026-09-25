@@ -827,51 +827,44 @@ const dependencies: Dependencies = {
  * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
  * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
  */
-async function packagedCommand(command: 'env' | 'deploy', args: readonly string[]): Promise<void> {
+async function packagedCommand(command: 'env' | 'deploy', argv: readonly string[]): Promise<void> {
   const { envCommand } = await import('../apps/cli/src/env-command.js');
   const { deployCommand } = await import('../apps/cli/src/deploy-command.js');
+  const { Cancelled, terminalAsk } = await import('../apps/cli/src/prompt.js');
+  const { makeTrace } = await import('../apps/local-ops-api/src/trace.js');
   const { Vault } = await import('../apps/local-ops-api/src/environments/vault.js');
-  const { createInterface: readline } = await import('node:readline/promises');
-  const { Writable } = await import('node:stream');
   const vault = new Vault(spawn);
   const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+  const args = argv.filter((item) => item !== '--verbose');
+  const out = (message: string) => void stdout.write(message);
+  const trace = args.length < argv.length ? makeTrace(out) : undefined;
+  trace?.(`vizoalica ${version} (checkout), Node.js ${process.versions.node}, ${process.platform}`);
+  trace?.(`Command: ${command} ${args.join(' ')}`);
   const deps = {
     home: homedir(),
     version,
     assetDir: resolve('apps', 'cli', 'package', 'dist'),
     env: process.env,
-    out: (message: string) => void stdout.write(message),
+    out,
     err: (message: string) => void process.stderr.write(message),
     interactive: Boolean(stdin.isTTY && stdout.isTTY),
-    ask: async (question: string, options?: { secret?: boolean }) => {
-      // Secrets are read without echo.
-      const mute = options?.secret === true;
-      const output = new Writable({
-        write(chunk, _encoding, callback) {
-          if (!mute) stdout.write(chunk);
-          callback();
-        }
-      });
-      stdout.write(question);
-      const prompt = readline({ input: stdin, output, terminal: true });
-      try {
-        const answer = await prompt.question('');
-        if (mute) stdout.write('\n');
-        return answer;
-      } finally {
-        prompt.close();
-      }
-    },
+    ask: terminalAsk(),
     readStdin: async () => {
       const chunks: Buffer[] = [];
       for await (const chunk of stdin) chunks.push(Buffer.from(chunk));
       return Buffer.concat(chunks).toString('utf8');
     },
-    vault
+    vault,
+    ...(trace ? { trace } : {})
   };
+  const deploy = (deployArgs: readonly string[]) => deployCommand(deployArgs, deps);
   try {
     process.exitCode =
-      command === 'env' ? await envCommand(args, deps) : await deployCommand(args, deps);
+      command === 'env' ? await envCommand(args, { ...deps, deploy }) : await deploy(args);
+  } catch (error) {
+    if (!(error instanceof Cancelled)) throw error;
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 130;
   } finally {
     vault.close();
   }
