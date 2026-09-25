@@ -18,3 +18,4 @@ apps/admin-web/src/geo/world-paths.ts
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/public/_headers
+apps/cli/package/

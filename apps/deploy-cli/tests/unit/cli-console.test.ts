@@ -2,8 +2,8 @@ import { EventEmitter } from 'node:events';
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { consoleArguments, localApiArguments, run } from '../../../../scripts/vizoalica.js';
+import { describe, expect, it, vi } from 'vitest';
+import { run } from '../../../../scripts/vizoalica.js';
 
 const workerUrl = 'https://analytics.example.workers.dev';
 
@@ -37,69 +37,50 @@ function fakeSpawn() {
 }
 
 describe('pnpm vizoalica console', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'vizoalica-console-'));
-  const ops = {
-    version: 1,
-    workerUrl,
-    consoleConfigPath: join(directory, 'console-onecli.json'),
-    onecli: { project: 'example-project', agent: 'example-agent', gateway: '127.0.0.1:10255' }
-  };
-
-  it('starts the API and the web console with a local administrator secret file', async () => {
-    const consoleConfig = privateJson(directory, 'console-file.json', {
-      VIZOALICA_REMOTE_URL: workerUrl,
-      VIZOALICA_ADMIN_SECRET: 'not-a-real-secret'
-    });
+  it('starts the API and the web console, needing no connection file and no OneCLI', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'vizoalica-fresh-home-'));
     const { calls, dependencies } = fakeSpawn();
-    await run(['console', '--console-config', consoleConfig], dependencies);
+    const realHome = process.env.HOME;
+    process.env.HOME = home; // the default paths are read when the module loads
+    vi.resetModules();
+    try {
+      const fresh = await import('../../../../scripts/vizoalica.js');
+      await fresh.run(['console'], dependencies);
+    } finally {
+      process.env.HOME = realHome;
+      vi.resetModules();
+    }
     expect(calls).toEqual([
-      { command: 'pnpm', args: ['local-ops-api:dev', 'serve', consoleConfig] },
+      { command: 'pnpm', args: ['local-ops-api:dev'] },
       { command: 'pnpm', args: ['admin-web:dev'] }
     ]);
-    expect(localApiArguments({ path: consoleConfig })).toEqual(calls[0]!.args);
   });
 
-  it('wraps only the API in OneCLI when the console config is OneCLI-managed', async () => {
-    const opsPath = privateJson(directory, 'ops.json', ops);
-    privateJson(directory, 'console-onecli.json', {
+  it('starts the same way even when an old console file or OneCLI settings exist', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'vizoalica-console-'));
+    const consoleConfig = privateJson(directory, 'console-file.json', {
       VIZOALICA_REMOTE_URL: workerUrl,
       VIZOALICA_ADMIN_SECRET: 'onecli-managed'
     });
     const { calls, dependencies } = fakeSpawn();
-    await run(['console', '--config', opsPath], dependencies);
-    expect(calls).toEqual([
-      { command: 'onecli', args: consoleArguments(ops) },
-      { command: 'pnpm', args: ['admin-web:dev'] }
-    ]);
+    await run(['console', '--console-config', consoleConfig], dependencies);
+    expect(calls.map((call) => call.command)).toEqual(['pnpm', 'pnpm']);
+    expect(calls[0]!.args).toEqual(['local-ops-api:dev']);
   });
 
   it('keeps run as an alias', async () => {
-    const consoleConfig = privateJson(directory, 'console-alias.json', {
-      VIZOALICA_REMOTE_URL: workerUrl,
-      VIZOALICA_ADMIN_SECRET: 'not-a-real-secret'
-    });
     const { calls, dependencies } = fakeSpawn();
-    await run(['run', '--console-config', consoleConfig], dependencies);
+    await run(['run'], dependencies);
     expect(calls).toHaveLength(2);
   });
 
   it('refuses to start a second console when its ports are taken, and does not spawn anything', async () => {
-    const consoleConfig = privateJson(directory, 'console-busy.json', {
-      VIZOALICA_REMOTE_URL: workerUrl,
-      VIZOALICA_ADMIN_SECRET: 'not-a-real-secret'
-    });
     const { calls, dependencies } = fakeSpawn();
     await expect(
-      run(['console', '--console-config', consoleConfig], {
-        ...dependencies,
-        portInUse: async (port) => port === 5173
-      })
+      run(['console'], { ...dependencies, portInUse: async (port) => port === 5173 })
     ).rejects.toThrow(/Port 5173 is already in use[\s\S]*stop the other console/);
     await expect(
-      run(['console', '--console-config', consoleConfig], {
-        ...dependencies,
-        portInUse: async () => true
-      })
+      run(['console'], { ...dependencies, portInUse: async () => true })
     ).rejects.toThrow(/Ports 4318 and 5173 are already in use/);
     expect(calls).toHaveLength(0);
   });

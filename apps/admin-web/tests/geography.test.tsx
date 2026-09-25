@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
+import { DEFAULT_ENVIRONMENTS } from './setup.js';
 import type { CountItem } from '../src/api/local-operations.js';
 import { COUNTRIES } from '../src/geo/countries.js';
 import { stepFor } from '../src/analytics/geo/WorldMap.js';
@@ -11,6 +12,7 @@ import { makeOverview } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
+  listEnvironments: vi.fn(),
   listProjects: vi.fn(),
   listWebsites: vi.fn(),
   getAnalyticsOverview: vi.fn()
@@ -36,6 +38,7 @@ beforeEach(() => {
   window.location.hash = '#/analytics/geography';
   vi.stubGlobal('fetch', fetchSpy);
   api.bootstrapSession.mockResolvedValue(undefined);
+  api.listEnvironments.mockResolvedValue(DEFAULT_ENVIRONMENTS);
   api.listProjects.mockResolvedValue([{ id: 'p1', name: 'Acme' }]);
   api.listWebsites.mockResolvedValue([]);
 });
@@ -134,8 +137,9 @@ describe('Geography view', () => {
     // The only requests are same-origin calls to the local API (for example the theme preference).
     for (const [target] of fetchSpy.mock.calls) expect(String(target)).toMatch(/^\/api\//);
     expect(document.querySelectorAll('iframe, script[src], link[href]')).toHaveLength(0);
+    // Images are only the bundled brand assets (the header and footer marks).
     for (const image of Array.from(document.querySelectorAll('img')))
-      expect(image.closest('.brand')).toBeTruthy();
+      expect(image.getAttribute('src')).toMatch(/^\/brand\//);
   });
 
   it('reads out the hovered or focused country, and clears it again', async () => {

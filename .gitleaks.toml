@@ -1,5 +1,6 @@
 # Secret-scanning configuration (https://github.com/gitleaks/gitleaks).
-# Run before a release: gitleaks detect --source . --config .gitleaks.toml
+# CI runs it on every push and pull request (.github/workflows/ci.yml). Locally:
+#   gitleaks git --config .gitleaks.toml .
 title = "vizoalica"
 
 [extend]

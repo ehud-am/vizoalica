@@ -2,7 +2,7 @@ import { eventsBatchResponseForBody } from '../../../ingest-api/src/http/events.
 import { healthResponse } from '../../../ingest-api/src/http/health.js';
 import type { PipelineDependencies } from '../../../ingest-api/src/ingestion/pipeline.js';
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
-import { handleAdminRequest } from './admin-adapter.js';
+import { handleAdminRequest, type BackendInfo } from './admin-adapter.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { handleMcpRequest } from './mcp-adapter.js';
 import { classifyRequest } from '../analytics/classifier.js';
@@ -67,6 +67,7 @@ export async function handleWorkerRequest(
     adminSecret?: string;
     adminRepositories?: AdminRepository;
     purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
+    backendInfo?: () => Promise<BackendInfo>;
     rateLimiter?: RateLimiter;
   },
   maxRequestBytes: number
@@ -82,7 +83,8 @@ export async function handleWorkerRequest(
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,
       repositories: dependencies.adminRepositories,
-      ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {})
+      ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {}),
+      ...(dependencies.backendInfo ? { backendInfo: dependencies.backendInfo } : {})
     });
     if (adminResponse) return adminResponse;
   }

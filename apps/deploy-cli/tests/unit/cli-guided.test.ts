@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { run } from '../../../../scripts/vizoalica.js';
+import { help, main, run } from '../../../../scripts/vizoalica.js';
 import { generateSecret } from '../../../../scripts/cli/secrets.js';
 import {
   D1_LIST,
@@ -44,7 +44,7 @@ const deps = (guided?: () => ReturnType<typeof fakeCtx>['ctx'], isTTY = true) =>
 });
 
 describe('guided commands need an interactive terminal', () => {
-  it.each(['install', 'backend', 'connect', 'demo', 'rotate admin'])(
+  it.each(['backend', 'connect', 'demo', 'rotate admin'])(
     '%s refuses to run without one',
     async (line) => {
       const path = consoleConfig(generateSecret());
@@ -233,80 +233,33 @@ describe('pnpm vizoalica connect and demo', () => {
   });
 });
 
-describe('pnpm vizoalica install', () => {
-  it('offers to start the console, and starts it (opening the browser) when accepted', async () => {
-    const secret = generateSecret();
-    const path = consoleConfig(secret);
-    const wrangler = fakeRun({
-      whoami: { stdout: WHOAMI },
-      'd1 list': { stdout: D1_LIST },
-      'r2 bucket list': { stdout: R2_LIST },
-      deploy: { stdout: DEPLOY_OUT },
-      'secret list': {
-        stdout: JSON.stringify(
-          [
-            'VIZOALICA_ADMIN_SECRET',
-            'VIZOALICA_TOKEN_SECRET',
-            'VIZOALICA_ANALYTICS_DIGEST_SECRET'
-          ].map((name) => ({ name }))
-        )
-      }
-    });
-    const fetcher = (async (input: string | URL | Request, init?: RequestInit) =>
-      String(input).endsWith('/healthz')
-        ? Response.json({ ok: true })
-        : new Headers(init?.headers).get('authorization') === `Bearer ${secret}`
-          ? Response.json([])
-          : new Response('', { status: 401 })) as typeof fetch;
+describe('vizoalica install (retired)', () => {
+  it('deploys and configures nothing, prints where to go, and exits with code 2', async () => {
+    const path = consoleConfig(generateSecret());
     spawns.length = 0;
-    const { ctx } = fakeCtx({ cwd: tempCheckout(), run: wrangler.run, fetch: fetcher });
-    await run(
-      ['install', '--console-config', path],
-      deps(() => ctx)
-    );
-    expect(spawns.map((entry) => `${entry.command} ${entry.args.join(' ')}`)).toEqual(
-      expect.arrayContaining(['pnpm admin-web:dev'])
-    );
-  });
-
-  it('just prints how to start later when the operator declines', async () => {
-    const secret = generateSecret();
-    const path = consoleConfig(secret);
-    const wrangler = fakeRun({
-      whoami: { stdout: WHOAMI },
-      'd1 list': { stdout: D1_LIST },
-      'r2 bucket list': { stdout: R2_LIST },
-      deploy: { stdout: DEPLOY_OUT },
-      'secret list': {
-        stdout: JSON.stringify(
-          [
-            'VIZOALICA_ADMIN_SECRET',
-            'VIZOALICA_TOKEN_SECRET',
-            'VIZOALICA_ANALYTICS_DIGEST_SECRET'
-          ].map((name) => ({ name }))
-        )
-      }
-    });
-    const fetcher = (async (input: string | URL | Request, init?: RequestInit) =>
-      String(input).endsWith('/healthz')
-        ? Response.json({ ok: true })
-        : new Headers(init?.headers).get('authorization') === `Bearer ${secret}`
-          ? Response.json([])
-          : new Response('', { status: 401 })) as typeof fetch;
-    spawns.length = 0;
-    const { ctx, output } = fakeCtx({
-      cwd: tempCheckout(),
-      run: wrangler.run,
-      fetch: fetcher,
-      prompt: fakePrompt({
-        confirm: (q, fallback) => (q.includes('Start the console') ? false : fallback)
-      }).prompt
-    });
-    await run(
-      ['install', '--console-config', path],
-      deps(() => ctx)
+    await expect(run(['install', '--console-config', path], deps())).rejects.toThrow(
+      'vizoalica install was retired. Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.'
     );
     expect(spawns).toHaveLength(0);
-    expect(output()).toContain('pnpm vizoalica console');
+  });
+
+  it('exits with code 2 through main()', async () => {
+    const path = consoleConfig(generateSecret());
+    const before = process.exitCode;
+    process.exitCode = undefined;
+    await main(['install', '--console-config', path]);
+    const seen = process.exitCode;
+    process.exitCode = before;
+    expect(seen).toBe(2);
+  });
+
+  it('is no longer listed under "Get going", where env, deploy, and then console come first', () => {
+    const goGoing = help()
+      .split('\n\n')
+      .find((section) => section.includes('Get going'))!;
+    expect(goGoing).not.toContain('pnpm vizoalica install');
+    expect(goGoing.split('\n')[1]).toContain('env');
+    expect(goGoing.split('\n')[2]).toContain('deploy');
+    expect(goGoing.split('\n')[3]).toContain('console');
   });
 });

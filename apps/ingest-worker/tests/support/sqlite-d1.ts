@@ -5,13 +5,29 @@ import type { D1Database, D1Statement } from '../../src/env.js';
 
 const migrations = join(process.cwd(), 'deploy/cloudflare/migrations');
 
-/** An in-memory SQLite database with the real schema (every migration file, in name order). */
-export function freshDatabase(): DatabaseSync {
+export function migrationFiles(): string[] {
+  return readdirSync(migrations)
+    .filter((name) => /^\d{4}_.+\.sql$/.test(name))
+    .sort();
+}
+
+/**
+ * An in-memory SQLite database with the real schema, applying every migration file in name order
+ * (or only those up to `upTo`, to build a database stopped at an earlier release) and recording
+ * each one in `d1_migrations`, the same table Wrangler keeps, so schema-version reads it for real.
+ */
+export function freshDatabase(options: { upTo?: number } = {}): DatabaseSync {
   const sqlite = new DatabaseSync(':memory:');
-  for (const file of readdirSync(migrations)
-    .filter((name) => name.endsWith('.sql'))
-    .sort())
+  sqlite.exec(
+    'CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TEXT)'
+  );
+  const insert = sqlite.prepare('INSERT INTO d1_migrations (name, applied_at) VALUES (?, ?)');
+  for (const file of migrationFiles()) {
+    const number = Number(/^(\d{4})_/.exec(file)?.[1]);
+    if (options.upTo !== undefined && number > options.upTo) break;
     sqlite.exec(readFileSync(join(migrations, file), 'utf8'));
+    insert.run(file, new Date().toISOString());
+  }
   return sqlite;
 }
 

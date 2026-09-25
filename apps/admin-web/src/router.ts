@@ -135,6 +135,22 @@ export const ROUTES = define([
     nav: true,
     scope: 'project-website',
     range: false
+  },
+  {
+    path: 'manage/backend',
+    area: 'manage',
+    label: 'Backend',
+    nav: true,
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/access',
+    area: 'manage',
+    label: 'Access',
+    nav: true,
+    scope: 'none',
+    range: false
   }
 ]);
 

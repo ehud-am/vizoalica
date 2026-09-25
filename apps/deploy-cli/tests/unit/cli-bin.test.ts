@@ -23,7 +23,7 @@ describe('the vizoalica command', () => {
   it('runs from any directory, not just the checkout', () => {
     const result = runBin(['help'], mkdtempSync(join(tmpdir(), 'vizoalica-elsewhere-')));
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('pnpm vizoalica install');
+    expect(result.stdout).toContain('pnpm vizoalica console');
     expect(result.stdout).not.toContain('pnpm ops');
   });
 

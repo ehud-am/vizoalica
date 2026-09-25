@@ -1,0 +1,64 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build, check, and publish the vizoalica package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # id-token: write is what lets the publish step below attest this build without a long-lived
+    # npm token; it is requested even when that step skips, since permissions are static per job.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Trusted publishing (OIDC, no token) needs a recent npm CLI; the one bundled with a given
+      # Node.js release can lag behind. This is a no-op once the runner image catches up.
+      - name: Update npm for OIDC trusted publishing
+        if: vars.VIZOALICA_NPM_PUBLISH == 'true'
+        run: npm install --global npm@latest
+
+      - name: Build the browser SDK (the npm package embeds it)
+        run: pnpm browser-sdk:build
+
+      - name: Build and check the npm package
+        run: pnpm package:build && pnpm package:check
+
+      # With a trusted publisher configured on the npm package (Settings → Trusted Publisher →
+      # GitHub Actions → this repository and workflow), npm authenticates via this job's OIDC
+      # token (id-token: write, above) and needs no secret. If trusted publishing is not set up
+      # yet, set the repository secret NPM_TOKEN as a fallback; an empty NODE_AUTH_TOKEN is
+      # ignored by npm, so trusted publishing still takes over once configured.
+      - name: Publish to npm with provenance
+        if: vars.VIZOALICA_NPM_PUBLISH == 'true'
+        working-directory: apps/cli/package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Report that publishing is not set up
+        if: vars.VIZOALICA_NPM_PUBLISH != 'true'
+        run: |
+          echo "::notice::Publishing is not set up. Set the repository variable VIZOALICA_NPM_PUBLISH to \"true\" once the vizoalica package has been claimed on npm (see docs/operations/releases.md)." >> "$GITHUB_STEP_SUMMARY"

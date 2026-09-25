@@ -216,6 +216,7 @@ export function WebsiteForm({
       <div className="form-actions">
         <ActionButton
           capability={creating ? 'add-website' : 'edit-website'}
+          context={{ hasProject: !creating || projects.length > 0 }}
           type="submit"
           className="primary"
           disabled={busy || (creating ? false : !dirty)}

@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, bootstrapSession, listProjects, type Project } from './api/local-operations.js';
+import {
+  ApiError,
+  bootstrapSession,
+  getSetupState,
+  listEnvironments,
+  listProjects,
+  recheckEnvironments,
+  type EnvironmentsList,
+  type Project,
+  type SetupState
+} from './api/local-operations.js';
 import { AccessState } from './components/AccessState.js';
 import { AppFooter } from './components/AppFooter.js';
 import { BrandLogo } from './components/BrandLogo.js';
+import { ConnectionNotice } from './components/ConnectionNotice.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
@@ -21,12 +32,42 @@ import { WebsiteAddPage } from './manage/WebsiteAddPage.js';
 import { WebsiteEditPage } from './manage/WebsiteEditPage.js';
 import { WebsitePage } from './manage/WebsitePage.js';
 import { WebsitesPage } from './manage/WebsitesPage.js';
-import { hrefFor, routeArea, scopeControls, showsRange, useRoute, type Route } from './router.js';
+import {
+  hrefFor,
+  navigate,
+  routeArea,
+  scopeControls,
+  showsRange,
+  useRoute,
+  type Route
+} from './router.js';
 import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
 import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
+import { AccessPage } from './manage/AccessPage.js';
+import { BackendPage } from './manage/BackendPage.js';
+import { EnvironmentPicker } from './setup/EnvironmentPicker.js';
+import { Journey } from './setup/Journey.js';
+import { Welcome } from './setup/Welcome.js';
+import { SetupProvider, useSetup } from './setup/SetupProvider.js';
 import { useTheme } from './theme.js';
+
+/** Only the admin may use this screen; anyone else is sent home with a notice. */
+function AccessGate() {
+  const { state } = useSetup();
+  if (state && state.principal?.role !== 'admin') {
+    useEffect(() => {
+      navigate('analytics/overview');
+    }, []);
+    return (
+      <p className="notice" role="status">
+        Only an admin can manage access keys.
+      </p>
+    );
+  }
+  return <AccessPage />;
+}
 
 function AnalyticsRoute({ route }: { route: Route }) {
   switch (route.path) {
@@ -60,9 +101,28 @@ function ManageRoute({ route }: { route: Route }) {
       return <InstallPage websiteId={websiteId} />;
     case 'manage/health':
       return <HealthPage />;
+    case 'manage/backend':
+      return <BackendPage />;
+    case 'manage/access':
+      return <AccessGate />;
     default:
       return <ProjectsPage />;
   }
+}
+
+/** Shown on every screen when the backend cannot be reached, so stale results are never mistaken for live ones. */
+function BackendNotice() {
+  const { state, refresh } = useSetup();
+  if (!state || state.connection.status !== 'unreachable') return null;
+  return (
+    <p className="notice error backend-notice" role="alert">
+      The backend is not answering. Your websites keep collecting; results will return when it does.{' '}
+      <button className="link-button" type="button" onClick={() => void refresh()}>
+        Try again
+      </button>{' '}
+      Check it with <code>vizoalica env check</code>.
+    </p>
+  );
 }
 
 function Console({ route }: { route: Route }) {
@@ -80,6 +140,9 @@ function Console({ route }: { route: Route }) {
             showWebsite={controls === 'project-website'}
             showRange={showsRange(route.path)}
           />
+          <ConnectionNotice />
+          <BackendNotice />
+          <Journey />
           <main id="main" tabIndex={-1} data-area={area} data-route={route.path}>
             {route.path === 'analytics/actions' ? (
               // Its own data: it never needs the overview, so it does not fetch it.
@@ -102,17 +165,39 @@ function Console({ route }: { route: Route }) {
 export function App() {
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [session, setSession] = useState(0);
-  const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline'>('loading');
+  const [setupState, setSetupState] = useState<SetupState | undefined>();
+  const [environments, setEnvironments] = useState<EnvironmentsList | undefined>();
+  const [rechecking, setRechecking] = useState(false);
+  const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'offline' | 'welcome'>(
+    'loading'
+  );
   const [denialReason, setDenialReason] = useState<
     'session_expired' | 'worker_authorization' | undefined
   >();
   const route = useRoute();
-  const theme = useTheme();
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const theme = useTheme(sessionStarted);
   const connect = useCallback(async () => {
     setAccess('loading');
     setDenialReason(undefined);
     try {
       await bootstrapSession();
+      setSessionStarted(true);
+      const list = await listEnvironments();
+      setEnvironments(list);
+      if (!list.selected) {
+        setSetupState(undefined);
+        setAccess('welcome');
+        return;
+      }
+      // A console that cannot ask how far along it is carries on as before rather than blocking.
+      const state = await getSetupState().catch(() => undefined);
+      setSetupState(state);
+      if (state?.connection.status === 'revoked') {
+        setDenialReason('worker_authorization');
+        setAccess('denied');
+        return;
+      }
       setInitialProjects(await listProjects());
       setSession((value) => value + 1);
       setAccess('ready');
@@ -125,6 +210,15 @@ export function App() {
     }
   }, []);
   useEffect(() => void connect(), [connect]);
+  const recheck = useCallback(async () => {
+    setRechecking(true);
+    try {
+      await recheckEnvironments();
+    } finally {
+      setRechecking(false);
+    }
+    await connect();
+  }, [connect]);
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -132,6 +226,9 @@ export function App() {
           <BrandLogo theme={theme.theme} />
         </a>
         <div className="topbar-actions">
+          {access === 'ready' && (
+            <EnvironmentPicker list={environments} onChanged={() => void connect()} />
+          )}
           <ThemeToggle
             theme={theme.theme}
             saving={theme.saving}
@@ -141,14 +238,24 @@ export function App() {
         </div>
       </header>
       {access === 'ready' ? (
-        <ScopeProvider key={session} initialProjects={initialProjects}>
-          <Console route={route} />
-        </ScopeProvider>
+        <SetupProvider key={session} initial={setupState}>
+          <ScopeProvider key={session} initialProjects={initialProjects}>
+            <Console route={route} />
+          </ScopeProvider>
+        </SetupProvider>
       ) : (
         <div className="workspace workspace-single">
           <div className="content-column">
             <main id="main" tabIndex={-1}>
-              <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
+              {access === 'welcome' ? (
+                <Welcome
+                  list={environments}
+                  checking={rechecking}
+                  onRecheck={() => void recheck()}
+                />
+              ) : (
+                <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
+              )}
             </main>
             <AppFooter />
           </div>

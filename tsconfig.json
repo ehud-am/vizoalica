@@ -22,9 +22,17 @@
     {
       "path": "apps/local-ops-api"
     },
-    { "path": "apps/admin-web" },
+    {
+      "path": "apps/admin-web"
+    },
     {
       "path": "apps/token-demo"
+    },
+    {
+      "path": "apps/cli"
+    },
+    {
+      "path": "packages/ops-core"
     }
   ]
 }

@@ -186,3 +186,7 @@ docs/.vitepress/dist/
 # Generated when the docs site is published with analytics (docs/scripts/prepare-analytics.mjs)
 docs/functions/
 docs/wrangler.toml
+
+# Assembled npm package (scripts/build-package.mjs)
+apps/cli/package/
+*.tgz

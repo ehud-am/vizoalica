@@ -63,7 +63,7 @@ function cloudflareGuidance(
     setupCommands,
     warnings: [
       'The listed repository variables are public browser configuration, not secrets.',
-      'CF_API_TOKEN and VIZOALICA_TOKEN_SECRET are secrets: generate them yourself and set them with gh secret set (or the GitHub UI), never paste a real value into this console.',
+      'CF_API_TOKEN and VIZOALICA_TOKEN_SECRET are secrets: set them with gh secret set (or the GitHub UI), and never paste a real value into this console.',
       'Scope CF_API_TOKEN to Cloudflare Pages: Edit on this account only.',
       'Enable only one installation mode so Vizoalica initializes once.'
     ]

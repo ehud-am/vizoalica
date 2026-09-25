@@ -78,9 +78,12 @@ describe('single scope control', () => {
           controls === 'project-website' ? 1 : 0
         );
       }
-      // Outside the shell there is at most the add-website form's explicit project field.
+      // Outside the shell there is at most the add-website form's explicit project field, or the
+      // Access page's own project selector for a key scoped to one project or website.
       const outside = Array.from(document.querySelectorAll('main select')).filter(
-        (select) => !select.closest('form[aria-label="Add website"]')
+        (select) =>
+          !select.closest('form[aria-label="Add website"]') &&
+          !select.closest('[data-page="access"]')
       );
       expect(outside).toHaveLength(0);
     }
@@ -151,7 +154,11 @@ describe('single scope control', () => {
 
   it('offers a path to create a project from every screen that needs one when none exists', async () => {
     api.listProjects.mockResolvedValue([]);
-    for (const route of concrete.filter((item) => item.address !== 'manage/projects')) {
+    // The Connection, Backend, and Access screens are about the backend, not about a project.
+    for (const route of concrete.filter(
+      (item) =>
+        !['manage/projects', 'setup', 'manage/backend', 'manage/access'].includes(item.address)
+    )) {
       window.location.hash = `#/${route.address}`;
       render(<App />);
       const link = await screen.findByRole('link', { name: 'Create a project' });

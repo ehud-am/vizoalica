@@ -178,20 +178,199 @@ function actionsReport(url: URL) {
 const staticSnippet =
   '<script async src="/vizoalica.js" data-source="public-key" data-project="project-1"></script>';
 
+export type MockSetup = Record<string, unknown>;
+
+const stage = (id: string, label: string, status: string, next?: unknown) => ({
+  id,
+  label,
+  status,
+  ...(next ? { next } : {})
+});
+export const STAGE_LABELS = [
+  'Console running',
+  'Backend connected',
+  'Website configured',
+  'Data arriving'
+];
+
+/** The setup state a console would report; every stage is done unless `current` names one that is not. */
+export function setupState(
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  current?: { at: 1 | 2 | 3; next: { id: string; label: string; href?: string }; status?: string },
+  overrides: Record<string, unknown> = {}
+): MockSetup {
+  const ids = ['console', 'backend', 'website', 'data'];
+  return {
+    version: '0.6.3',
+    environment: 'prod',
+    connection: { status: 'connected', workerHost: 'worker.test' },
+    principal: {
+      role,
+      scope: { projectId: null, sourceId: null },
+      keyLabel: role === 'admin' ? null : 'Jane',
+      features: { accessKeys: true, versions: true }
+    },
+    backend: {
+      workerVersion: '0.6.3',
+      schema: { applied: 1, expected: 1 },
+      worker: { status: 'current', message: 'The Worker matches this console.', update: null },
+      schemaStatus: {
+        status: 'current',
+        message: 'The database schema is up to date.',
+        update: null
+      },
+      message: 'The database schema is up to date.'
+    },
+    stages: ids.map((id, index) =>
+      stage(
+        id,
+        STAGE_LABELS[index]!,
+        !current || index < current.at
+          ? 'done'
+          : index === current.at
+            ? (current.status ?? 'current')
+            : 'todo',
+        current && index === current.at ? current.next : undefined
+      )
+    ),
+    ...overrides
+  };
+}
+
+/** One environment of the shape the console lists; usable unless it is given a problem. */
+export const mockEnvironment = (
+  name: string,
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  problem?: string
+) => ({
+  name,
+  url: `https://${name}.example.com`,
+  role,
+  secretSource: 'file' as const,
+  cloudflare: 'none' as const,
+  usable: problem === undefined,
+  problems: problem === undefined ? [] : [{ code: 'unauthorized', message: problem }]
+});
+
+export type MockEnvironments = {
+  file: { status: 'ok' | 'broken'; path: string; reason?: string };
+  environments: Array<ReturnType<typeof mockEnvironment>>;
+  selected: string | null;
+};
+
 export interface MockOptions {
   projects?: unknown[];
+  /** The setup state to report; connected with nothing left to do when omitted. */
+  setup?: MockSetup;
+  /** Records every request that is not a read, so tests can prove a control sent nothing. */
+  writes?: string[];
+  /** The environments the console lists; one usable "prod" environment when omitted. */
+  environments?: MockEnvironments;
+  /** Reports the Worker and schema as one release behind; the backend screen only shows it. */
+  backendBehind?: boolean;
 }
 
 /** Answers every console API call locally; nothing reaches a real backend. */
 export async function mockConsole(page: Page, options: MockOptions = {}) {
   // Websites created during a test are listed afterwards, so create-then-open flows work.
   const created: Array<Record<string, unknown>> = [];
+  let setup: MockSetup = options.setup ?? setupState();
+  let environments: MockEnvironments = options.environments ?? {
+    file: { status: 'ok', path: '/home/test/.config/vizoalica/environments.json' },
+    environments: [mockEnvironment('prod')],
+    selected: 'prod'
+  };
   await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
     let body: unknown = {};
+    if (request.method() !== 'GET' && path !== '/api/session')
+      options.writes?.push(`${request.method()} ${path}`);
     if (path === '/api/session') return route.fulfill({ status: 204 });
+    if (path === '/api/setup/state') return route.fulfill({ json: setup });
+    if (path === '/api/environments' && request.method() === 'GET')
+      return route.fulfill({ json: environments });
+    if (path === '/api/environments/recheck' && request.method() === 'POST')
+      return route.fulfill({ json: environments });
+    const select = /^\/api\/environments\/([^/]+)\/select$/.exec(path);
+    if (select && request.method() === 'POST') {
+      environments = { ...environments, selected: decodeURIComponent(select[1]!) };
+      setup = { ...setup, environment: decodeURIComponent(select[1]!) };
+      return route.fulfill({ json: setup });
+    }
+    if (path === '/api/access-keys' && request.method() === 'GET')
+      return route.fulfill({ json: [] });
+    if (path === '/api/access-keys' && request.method() === 'POST')
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 'k1',
+          label: 'x',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null,
+          key: 'vzk_test_key'
+        }
+      });
+    if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'DELETE')
+      return route.fulfill({ json: { status: 'revoked' } });
+    if (path.endsWith('/share') && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          workerUrl: 'https://worker.test',
+          projectId: project.id,
+          sourceId: website.id,
+          publicSourceKey: website.publicSourceKey,
+          allowedOrigins: website.allowedOrigins,
+          readKey: 'vzk_test_key',
+          guidance: 'Paste these details into the console.'
+        }
+      });
+    if (path === '/api/backend' && request.method() === 'GET')
+      return route.fulfill({
+        json: options.backendBehind
+          ? {
+              workerVersion: '0.6.2',
+              consoleVersion: '0.7.0',
+              schema: { applied: 1, expected: 2, appliedNames: ['0001_initial.sql'] },
+              worker: {
+                status: 'update-available',
+                message:
+                  'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.',
+                update: 'backend'
+              },
+              schemaStatus: {
+                status: 'update-available',
+                message: 'The database schema (1) is behind what this console expects (2).',
+                update: 'backend'
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
+          : {
+              workerVersion: '0.6.4',
+              consoleVersion: '0.6.4',
+              schema: {
+                applied: 2,
+                expected: 2,
+                appliedNames: ['0001_initial.sql', '0002_access_keys.sql']
+              },
+              worker: {
+                status: 'current',
+                message: 'The Worker matches this console.',
+                update: null
+              },
+              schemaStatus: {
+                status: 'current',
+                message: 'The database schema is up to date.',
+                update: null
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
+      });
     if (path.endsWith('/websites') && request.method() === 'POST') {
       const projectId = path.split('/')[3]!;
       const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };

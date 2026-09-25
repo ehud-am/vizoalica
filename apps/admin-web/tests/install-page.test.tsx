@@ -204,6 +204,16 @@ describe('GitHub → Cloudflare Pages path', () => {
     );
     expect(screen.queryByRole('list', { name: 'Other settings to add' })).toBeNull();
     expect(screen.getByText(/ask for the value/)).toBeTruthy();
+    // The gh placeholders and secrets each say where their value comes from.
+    const where = within(screen.getByRole('list', { name: 'Where to find each value' }))
+      .getAllByRole('listitem')
+      .map((row) => row.textContent);
+    expect(where).toEqual([
+      expect.stringContaining('dash.cloudflare.com/'),
+      expect.stringContaining('pages project create'),
+      expect.stringContaining('profile/api-tokens'),
+      expect.stringContaining('--secrets-file')
+    ]);
   });
 
   it('names a secret without ever showing one, and lists identifiers only in a collapsed reference', async () => {
@@ -237,17 +247,40 @@ describe('Paste a snippet path', () => {
     return user;
   }
 
-  it('is four numbered steps: snippet, SDK and token endpoint, deploy, check', async () => {
+  it('is five numbered steps: snippet, SDK file, token endpoint, deploy, check', async () => {
     await openSnippet();
     expect(stepTitles()).toEqual([
       'Add the snippet to your pages',
-      'Host the SDK and a token endpoint',
+      'Save the SDK file on your site',
+      'Add a token endpoint',
       'Deploy your website',
       'Check that it works'
     ]);
     expect(screen.getByRole('region', { name: 'Snippet' }).textContent).toBe(staticMode.snippet);
     for (const step of Array.from(document.querySelectorAll('.install-step')))
       expect(step.querySelectorAll('.code-block').length).toBeLessThanOrEqual(1);
+  });
+
+  it('says where to get the SDK file and where to save it, with a download that keeps its name', async () => {
+    await openSnippet();
+    const step = screen
+      .getByRole('heading', { name: 'Save the SDK file on your site' })
+      .closest('li')!;
+    const download = within(step).getByRole('link', { name: 'Download vizoalica.js' });
+    expect(download.getAttribute('href')).toBe('/api/sdk/vizoalica.js');
+    expect(download.getAttribute('download')).toBe('vizoalica.js');
+    expect(step.textContent).toContain('root folder');
+    expect(step.textContent).toContain('/vizoalica.js');
+  });
+
+  it('gives the generic loader its own download and destination in the disclosure', async () => {
+    await openSnippet();
+    const more = screen
+      .getByText(/Using another host, or keeping settings out of your pages/)
+      .closest('details')!;
+    const download = within(more).getByRole('link', { name: 'Download vizoalica-loader.js' });
+    expect(download.getAttribute('href')).toBe('/api/sdk/vizoalica-loader.js');
+    expect(more.textContent).toContain('/vizoalica-loader.js');
   });
 
   it('states the token endpoint requirement and the secret rule, with identifiers to copy and the guide', async () => {

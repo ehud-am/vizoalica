@@ -8,7 +8,7 @@ import {
   type Status,
   type Website
 } from '../api/local-operations.js';
-import { ActionButton } from '../components/ActionButton.js';
+import { ActionButton, ActionLink } from '../components/ActionButton.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { IdentifierList, identifiersFor } from '../components/IdentifierList.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
@@ -17,7 +17,9 @@ import { WebsiteReachability } from '../components/WebsiteReachability.js';
 import { hrefFor, navigate } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
 import { FlashMessage, useFlash } from '../shell/FlashProvider.js';
+import { useSetup } from '../setup/SetupProvider.js';
 import { DangerZone } from './DangerZone.js';
+import { SharePanel } from './SharePanel.js';
 import { nextStep } from './HealthPage.js';
 import { WebsiteGate } from './WebsiteGate.js';
 
@@ -25,6 +27,7 @@ type Pending = 'disable' | 'delete';
 
 function WebsiteHub({ website }: { website: Website }) {
   const scope = useScope();
+  const setup = useSetup();
   const flash = useFlash();
   const [status, setStatus] = useState<Status>();
   const [reachability, setReachability] = useState<Reachability>();
@@ -79,12 +82,14 @@ function WebsiteHub({ website }: { website: Website }) {
         `Website ${website.name} ${next === 'active' ? 'enabled' : 'disabled'} and audit recorded.`
       );
       await scope.refreshWebsites();
+      void setup.refresh();
     });
 
   const remove = () =>
     run(async () => {
       await deleteWebsite(projectId, website.id);
       await scope.refreshWebsites();
+      void setup.refresh();
       flash.carry(
         `Website ${website.name} deleted. Its data will be permanently removed within a day.`
       );
@@ -103,12 +108,13 @@ function WebsiteHub({ website }: { website: Website }) {
         status={<span className={`status ${website.status} title-status`}>{website.status}</span>}
         actions={
           <>
-            <a
+            <ActionLink
+              capability="edit-website"
               className="secondary button-link"
               href={hrefFor('manage/websites/:id/edit', website.id)}
             >
               Edit
-            </a>
+            </ActionLink>
             <a
               className="secondary button-link"
               href={hrefFor('analytics/overview')}
@@ -192,6 +198,10 @@ function WebsiteHub({ website }: { website: Website }) {
           )}
         </section>
       </div>
+
+      {setup.state?.principal?.role === 'admin' && (
+        <SharePanel projectId={projectId} websiteId={website.id} />
+      )}
 
       <DangerZone
         target={website.name}

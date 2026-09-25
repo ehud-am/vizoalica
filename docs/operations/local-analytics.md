@@ -4,6 +4,11 @@ Run this guide **once per operator or data analyst** who will store the Vizoalic
 credential in a private local file. Use [the OneCLI setup](onecli.md) instead when OneCLI manages
 the credential. Do not complete both paths on the same machine.
 
+> **Without a checkout (recommended):** `npm install -g vizoalica`, then `vizoalica env add NAME` replaces
+> steps 1 to 3 below: it asks for the Worker address, your role, and the secret (hidden), checks them against
+> the Worker, and saves them privately (`0600`). Then run `vizoalica console`. See
+> [Environments](environments.md). This page is for running the console from a reviewed source checkout.
+
 ## Returning operator: start here
 
 If this machine is already configured without OneCLI, run `pnpm vizoalica console` from your checkout
@@ -51,8 +56,7 @@ Confirm that `git rev-parse HEAD` matches the backend handoff.
 
 **Fast path:** `pnpm vizoalica connect` does this step and verifies the secret before saving it. It asks
 for the Worker address and the administrator secret (hidden), checks them against your Worker,
-and writes the file with the right permissions. On the computer that ran `pnpm vizoalica install` this
-is already done. The commands below are the manual equivalent.
+and writes the file with the right permissions. The commands below are the manual equivalent.
 
 Run the configuration command in an interactive terminal. It reads the administrator secret from
 a hidden prompt; the secret is never a command argument:

@@ -78,7 +78,8 @@ test('install: choose a path with the keyboard, copy, and check that data arrive
     'aria-selected',
     'true'
   );
-  await expect(page.locator('.install-step')).toHaveCount(4);
+  // The snippet path has a step for downloading the SDK file.
+  await expect(page.locator('.install-step')).toHaveCount(5);
   // The choice is remembered for this website.
   await page.reload();
   await expect(page.getByRole('tab', { name: 'Paste a snippet' })).toHaveAttribute(

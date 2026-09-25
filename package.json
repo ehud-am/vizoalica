@@ -1,6 +1,6 @@
 {
-  "name": "vizoalica",
-  "version": "0.6.2",
+  "name": "vizoalica-workspace",
+  "version": "0.7.0",
   "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
   "keywords": [
     "analytics",
@@ -59,6 +59,8 @@
     "admin-web:build": "pnpm --filter @vizoalica/admin-web build",
     "coverage": "vitest run --coverage",
     "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
+    "package:build": "node scripts/build-package.mjs",
+    "package:check": "node scripts/check-package.mjs",
     "website:verify": "node --import tsx scripts/verify-website.ts",
     "vizoalica": "node bin/vizoalica.mjs",
     "typecheck:examples": "tsc --noEmit --ignoreConfig --types node --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",

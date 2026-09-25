@@ -1,6 +1,5 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { writeConfigFile } from '../../apps/local-ops-api/src/config.js';
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { type Ctx, OpsError, checkAdminAccess, done, normalizeWorkerUrl, step } from './context.js';
 import { SECRETS, isValidSecret } from './secrets.js';
 
@@ -15,6 +14,13 @@ export type ConnectResult = {
   adminSecret: string | undefined;
   changed: boolean;
 };
+
+/** Replaces the file atomically, with owner-only permissions. */
+function writeConfigFile(path: string, values: Record<string, string>): void {
+  const temporary = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
+  writeFileSync(temporary, `${JSON.stringify(values, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+  renameSync(temporary, path);
+}
 
 function readExisting(path: string): { url?: string; secret?: string } {
   if (!existsSync(path)) return {};
@@ -72,14 +78,14 @@ export async function connectConsole(ctx: Ctx, options: ConnectOptions): Promise
   const directory = dirname(options.configPath);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   chmodSync(directory, 0o700);
-  writeConfigFile(
-    options.configPath,
-    { VIZOALICA_REMOTE_URL: workerUrl, VIZOALICA_ADMIN_SECRET: adminSecret },
-    { replace: existsSync(options.configPath) }
-  );
+  writeConfigFile(options.configPath, {
+    VIZOALICA_REMOTE_URL: workerUrl,
+    VIZOALICA_ADMIN_SECRET: adminSecret
+  });
   done(
     ctx,
     `This computer is connected. The secret is in ${options.configPath}, readable only by you.`
   );
+  ctx.out('To use this backend in the console, add it as an environment: vizoalica env add <name>');
   return { workerUrl, adminSecret, changed: true };
 }

@@ -11,6 +11,7 @@ export default [
       'playwright-report/**',
       'test-results/**',
       'blob-report/**',
+      'apps/cli/package/**',
       'docs/.vitepress/cache/**',
       'docs/.vitepress/dist/**',
       '*.min.js'

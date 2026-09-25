@@ -11,50 +11,58 @@ function expectJourney(content: string, frequency: RegExp, requiredSections: str
 }
 
 describe('deployment documentation contract', () => {
-  it('explains the three parts first, then a quick start for a demo, then production deployment', async () => {
+  it('explains the three parts first, then the four steps in order, with the environment set up before the console', async () => {
     const readme = await text('README.md');
-    for (const heading of [
-      '## The three parts, in order',
-      '## Quick start',
-      '## Production deployment, part by part',
-      '### 1. Backend',
-      '### 2. Console',
-      '### 3. Website',
-      '## Keep it running',
-      '## Build from source'
-    ])
-      expect(readme).toContain(heading);
-    const at = (heading: string) => readme.indexOf(heading);
-    // Concepts before the command that uses them, and the demo before the production path.
-    expect(at('## The three parts, in order')).toBeLessThan(at('## Quick start'));
-    expect(at('## Quick start')).toBeLessThan(at('## Production deployment, part by part'));
-    expect(at('### 1. Backend')).toBeLessThan(at('### 2. Console'));
-    expect(at('### 2. Console')).toBeLessThan(at('### 3. Website'));
-    expect(at('## Production deployment, part by part')).toBeLessThan(at('## Build from source'));
-    expect(readme).not.toContain('## Try it');
+    const headings = [
+      '## Deployment in four steps',
+      '## Step 1: Install the vizoalica cli',
+      '## Step 2: Create and deploy your first environment',
+      '## Step 3: add your websites',
+      '## Step 4: verify it works',
+      '## For contributors: build from source'
+    ];
+    for (const heading of headings) expect(readme).toContain(heading);
+    const positions = headings.map((heading) => readme.indexOf(heading));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
     // The diagram states the sequence explicitly.
-    expect(readme).toMatch(/1\. BACKEND[\s\S]*2\. CONSOLE[\s\S]*3\. WEBSITE/);
-    // The quick start is one command, says what it covers, and points on to production.
-    const quick = readme.slice(at('## Quick start'), at('## Production deployment, part by part'));
-    expect(quick).toContain('pnpm vizoalica install');
-    expect(quick).toMatch(/demo app/);
-    expect(quick).toMatch(/Ready for production\?/);
+    expect(readme).toContain('Step 1: install the vizoalica cli');
+    expect(readme).toContain('Step 2: create and deploy your first environment');
+    expect(readme).toContain('Step 3: define websites in the console');
+    // Step 2 creates or adds the environment before the console starts, and says what the console does not do.
+    const step2 = readme.slice(
+      readme.indexOf('## Step 2: Create and deploy your first environment'),
+      readme.indexOf('## Step 3: add your websites')
+    );
+    expect(step2).toContain('vizoalica deploy prod --apply');
+    expect(step2).toContain('vizoalica env add prod');
+    expect(step2).toContain('Deploy a new backend for "prod" now?');
+    expect(step2).toMatch(/already exists/);
+    expect(step2.indexOf('vizoalica deploy prod --apply')).toBeLessThan(
+      step2.indexOf('vizoalica console')
+    );
+    expect(step2).toMatch(/never creates, edits, or removes environments/);
+    expect(step2).toContain('environments.json');
     for (const command of [
+      'vizoalica deploy',
+      'vizoalica env',
+      'vizoalica console',
       'pnpm vizoalica backend',
-      'pnpm vizoalica connect',
-      'pnpm vizoalica console',
-      'pnpm vizoalica rotate',
       'pnpm vizoalica demo'
     ])
       expect(readme).toContain(command);
-    // Each part ends by pointing at its full guide.
+    // Each part points at its full guide.
+    expect(readme).toContain('(docs/operations/deploy.md)');
+    expect(readme).toContain('(docs/operations/environments.md)');
     expect(readme).toContain('(docs/operations/cloudflare.md)');
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/onecli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    // The default console setup is the private file; OneCLI is supported but opt-in.
-    expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
-    expect(readme).toMatch(/not\s+(?:>\s+)?the default/);
+    // OneCLI is offered as a question, for those who use it; the private file is the default when connecting.
+    expect(readme).toMatch(/OneCLI is the more secure option if you use it/);
+    expect(readme).toMatch(
+      /Answer no \(the default when connecting\) to keep the[\s>]+secret in a private file/
+    );
+    expect(readme).not.toContain('## Try it');
   });
 
   it('describes the project in plain, findable terms for people, search, and agents', async () => {
@@ -63,7 +71,7 @@ describe('deployment documentation contract', () => {
       description: string;
       keywords: string[];
     };
-    const intro = readme.slice(0, readme.indexOf('## The three parts, in order'));
+    const intro = readme.slice(0, readme.indexOf('## Deployment in four steps'));
     for (const phrase of [
       'open-source',
       'self-hosted',
@@ -165,7 +173,7 @@ describe('deployment documentation contract', () => {
       guide.indexOf('## Quick command reference')
     );
     for (const command of [
-      'pnpm vizoalica install',
+      'pnpm vizoalica backend',
       'pnpm vizoalica backend --update',
       'pnpm vizoalica rotate admin'
     ])
@@ -233,14 +241,15 @@ describe('deployment documentation contract', () => {
     expect(guide).not.toMatch(/onecli run/i);
   });
 
-  it('gives returning operators an unambiguous mode selector and startup path', async () => {
+  it('gives returning operators an unambiguous place for secrets and a startup path', async () => {
     const guide = await text('docs/operations/operator-local.md');
-    expect(guide).toMatch(/\| Without OneCLI\s+\| Real administrator secret/);
-    expect(guide).toMatch(/\| With OneCLI\s+\| Literal `onecli-managed`/);
+    expect(guide).toMatch(/\| In the file\s+\| `"secret": "…"`/);
+    expect(guide).toMatch(/\| In OneCLI\s+\| `"secret": \{ "onecli"/);
     expect(guide).toContain('pnpm vizoalica status');
+    expect(guide).toContain('pnpm vizoalica env list');
     expect(guide).toContain('pnpm vizoalica console');
-    expect(guide).toMatch(/never start the API yourself with `pnpm local-ops-api:dev`/i);
-    expect(guide).toMatch(/do not switch modes merely by changing the startup command/i);
+    expect(guide).toMatch(/never started under OneCLI/i);
+    expect(guide).toMatch(/never managed inside the console/i);
   });
 
   it('defines the complete OneCLI workstation journey', async () => {

@@ -1,5 +1,9 @@
 # Deploy the Vizoalica backend on Cloudflare
 
+> **Installed from npm?** `vizoalica env add NAME` (or `vizoalica deploy NAME --apply`) creates the backend and
+> adds it as an environment in one step: see [Create a backend](deploy.md). This guide is for deploying and
+> maintaining a backend from a reviewed source checkout.
+
 Run this guide **once per customer environment**. It creates and verifies the shared ingestion
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
@@ -17,14 +21,8 @@ the inputs for [operator setup without OneCLI](local-analytics.md),
 
 ## Automated install (recommended)
 
-From a checkout of this repository (see [Build from source](../../README.md#build-from-source)),
-one command does the whole first install and the first console setup:
-
-```sh
-pnpm vizoalica install
-```
-
-Or, for the backend alone (for example when another person will set up the console):
+From a checkout of this repository (see [Build from source](../../README.md#for-contributors-build-from-source)),
+one command deploys the backend:
 
 ```sh
 pnpm vizoalica backend
@@ -44,9 +42,9 @@ What it does, in order:
    standard input, never as a command argument or a file. It never asks you to invent or paste a key.
 5. Checks the Worker's `/healthz`, and prints its address.
 
-`pnpm vizoalica install` then continues: it offers to set up this computer as an operator console (using
-the administrator secret it just generated, so you paste nothing), to send sample data through the
-new backend, and to start the console.
+Next, run `pnpm vizoalica connect` to set up this computer as an operator console (pasting the
+administrator secret it just showed you), then `pnpm vizoalica demo` to send sample data through the
+new backend if you want something to see, and `pnpm vizoalica console` to start the console.
 
 Names default to `vizoalica-ingest`, `vizoalica-config`, and `vizoalica-events`. Override them with
 `--worker-name`, `--database`, and `--bucket`, and skip the question with `--first-run` or
@@ -518,13 +516,16 @@ pnpm vizoalica rotate admin     # or: token | digest | all
 It shows what the rotation will break, asks before changing anything, generates a new value,
 stores it on the Worker, shows it once, and updates what it can:
 
-| Secret   | What changes                                                                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `pnpm vizoalica connect`; a OneCLI console needs its credential card updated. |
-| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                             |
-| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                           |
+| Secret   | What changes                                                                                                                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`  | Every console stops working until it has the new value. This computer's file is updated for you; other computers run `vizoalica env update NAME --secret-stdin`; a OneCLI console needs its credential card updated. |
+| `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                                               |
+| `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                                             |
 
-Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`.
+Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`. For a
+backend created with `vizoalica deploy` (or `env add`), or any environment on this computer, use
+`vizoalica rotate NAME admin` (or `token`, `digest`, `all`) instead; see
+[Replace a secret](deploy.md#replace-a-secret-vizoalica-rotate).
 If a secret may have been exposed, rotate it at once; see the recovery notes below.
 
 ## Recovery and removal

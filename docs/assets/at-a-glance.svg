@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 380" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">Vizoalica at a glance</title>
+  <desc id="d">Many websites send privacy-filtered events to a backend in your Cloudflare account, which stores raw events in R2 and summaries in D1. Analyst consoles on their own computers read the results from that backend.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#168bff"/></marker>
+  </defs>
+  <rect width="900" height="380" rx="16" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="105" y="52" text-anchor="middle" font-size="18" font-weight="700" fill="#1f2328">Your websites</text>
+  <text x="450" y="52" text-anchor="middle" font-size="18" font-weight="700" fill="#1f2328">Your Cloudflare account</text>
+  <text x="795" y="52" text-anchor="middle" font-size="18" font-weight="700" fill="#1f2328">Analyst consoles</text>
+
+  <g fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5">
+    <rect x="35" y="80" width="140" height="62" rx="8"/><rect x="35" y="164" width="140" height="62" rx="8"/><rect x="35" y="248" width="140" height="62" rx="8"/>
+  </g>
+  <g fill="#8c959f"><rect x="35" y="80" width="140" height="16" rx="8"/><rect x="35" y="164" width="140" height="16" rx="8"/><rect x="35" y="248" width="140" height="16" rx="8"/></g>
+  <g font-size="14" fill="#57606a" text-anchor="middle"><text x="105" y="126">shop.example</text><text x="105" y="210">blog.example</text><text x="105" y="294">app.example</text></g>
+
+  <rect x="285" y="75" width="330" height="245" rx="14" fill="#eaf4ff" stroke="#168bff" stroke-width="2"/>
+  <rect x="325" y="100" width="250" height="90" rx="10" fill="#fff" stroke="#168bff"/>
+  <text x="450" y="135" text-anchor="middle" font-size="20" font-weight="700" fill="#0b5cad">R2 storage</text>
+  <text x="450" y="160" text-anchor="middle" font-size="14" fill="#57606a">every event, safely kept</text>
+  <path d="M450 192v26" stroke="#168bff" stroke-width="2.5" marker-end="url(#a)" fill="none"/>
+  <text x="462" y="210" font-size="12" fill="#57606a">summarised</text>
+  <rect x="325" y="222" width="250" height="80" rx="10" fill="#fff" stroke="#168bff"/>
+  <text x="450" y="255" text-anchor="middle" font-size="20" font-weight="700" fill="#0b5cad">D1 database</text>
+  <text x="450" y="280" text-anchor="middle" font-size="14" fill="#57606a">ready-to-read numbers</text>
+
+  <g fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5">
+    <rect x="725" y="80" width="140" height="62" rx="8"/><rect x="725" y="164" width="140" height="62" rx="8"/><rect x="725" y="248" width="140" height="62" rx="8"/>
+  </g>
+  <g font-size="14" fill="#57606a" text-anchor="middle"><text x="795" y="118" font-weight="700" fill="#1f2328">Console</text><text x="795" y="136">Analyst 1</text><text x="795" y="202" font-weight="700" fill="#1f2328">Console</text><text x="795" y="220">Analyst 2</text><text x="795" y="286" font-weight="700" fill="#1f2328">Console</text><text x="795" y="304">Analyst 3</text></g>
+
+  <g stroke="#168bff" stroke-width="2.5" fill="none" marker-end="url(#a)">
+    <path d="M177 111L283 150"/><path d="M177 195H283"/><path d="M177 279L283 240"/>
+    <path d="M725 111L617 150"/><path d="M725 195H617"/><path d="M725 279L617 240"/>
+  </g>
+  <text x="230" y="345" text-anchor="middle" font-size="14" fill="#57606a">send privacy-filtered events</text>
+  <text x="670" y="345" text-anchor="middle" font-size="14" fill="#57606a">read the results</text>
+</svg>

@@ -1,3 +1,4 @@
+import { ActionLink } from '../components/ActionButton.js';
 import { NoProject } from '../components/NoProject.js';
 import { PageHeader } from '../components/PageHeader.js';
 import { WebsiteCard } from '../components/WebsiteCard.js';
@@ -19,10 +20,15 @@ export function WebsitesPage() {
         description="The websites that send analytics to this project. Open one to see it, edit it, or install it."
         actions={
           !noProject && (
-            <a className="primary button-link" href={hrefFor('manage/websites/new')}>
+            <ActionLink
+              capability="add-website"
+              context={{ hasProject: !noProject }}
+              className="primary button-link"
+              href={hrefFor('manage/websites/new')}
+            >
               <PlusIcon size={16} />
               Add website
-            </a>
+            </ActionLink>
           )
         }
       />
@@ -52,9 +58,14 @@ export function WebsitesPage() {
           <span>
             A website is a site you want to measure. Add one, then install a small snippet on it.
           </span>
-          <a className="primary button-link" href={hrefFor('manage/websites/new')}>
+          <ActionLink
+            capability="add-website"
+            context={{ hasProject: !noProject }}
+            className="primary button-link"
+            href={hrefFor('manage/websites/new')}
+          >
             Add your first website
-          </a>
+          </ActionLink>
         </div>
       ) : (
         <ul className="website-grid" aria-label="Websites">

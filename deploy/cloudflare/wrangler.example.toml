@@ -15,6 +15,9 @@ bucket_name = "vizoalica-events"
 [vars]
 VIZOALICA_DEMO_MODE = "false"
 VIZOALICA_MAX_REQUEST_BYTES = "131072"
+# The release this Worker was deployed from; the console's deploy and update engines fill this in.
+# Left blank for a hand-run `wrangler deploy`, which is fine: an unset version is treated as unknown.
+VIZOALICA_WORKER_VERSION = ""
 
 # Optional edge throttle for POST /v1/events:batch, keyed per client address.
 # Uncomment to enable; without it the Worker relies on per-source quotas only. `period` may

@@ -10,10 +10,14 @@ import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { PlusIcon, RefreshIcon } from '../components/Icons.js';
 import { hrefFor } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
+import { useSetup } from '../setup/SetupProvider.js';
+import { useAvailability } from '../setup/useAvailability.js';
 import { DangerZone } from './DangerZone.js';
 
 export function ProjectsPage() {
   const scope = useScope();
+  const setup = useSetup();
+  const canCreate = useAvailability('create-project').available;
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -43,13 +47,14 @@ export function ProjectsPage() {
   async function addProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const projectName = name.trim();
-    if (!projectName) return;
+    if (!projectName || !canCreate) return;
     setBusy(true);
     setMessage('');
     setError('');
     try {
       const created = await createProject(projectName);
       await refresh(created.id);
+      void setup.refresh();
       setName('');
       setMessage(`Project ${created.name} created.`);
     } catch {
@@ -68,6 +73,7 @@ export function ProjectsPage() {
     try {
       await deleteProject(project.id);
       await refresh();
+      void setup.refresh();
       setMessage(
         `Project ${project.name} deleted. Its data will be permanently removed within a day.`
       );

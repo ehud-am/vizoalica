@@ -40,4 +40,6 @@ export interface Env {
   VIZOALICA_DEMO_MODE?: string;
   VIZOALICA_MAX_REQUEST_BYTES?: string;
   VIZOALICA_INGEST_LIMITER?: RateLimiter;
+  /** The release this Worker was deployed from; unset on an older or hand-run deployment. */
+  VIZOALICA_WORKER_VERSION?: string;
 }

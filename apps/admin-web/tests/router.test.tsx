@@ -88,10 +88,10 @@ describe('router', () => {
     expect(navKey('manage/health')).toBe('manage/health');
   });
 
-  it('lists Projects, Websites, and Health under Manage, and no Installation item', () => {
+  it('lists Projects, Websites, Health, Backend, and Access under Manage, and no Installation item', () => {
     expect(
       NAV_ROUTES.filter((route) => route.area === 'manage').map((route) => route.label)
-    ).toEqual(['Projects', 'Websites', 'Health']);
+    ).toEqual(['Projects', 'Websites', 'Health', 'Backend', 'Access']);
     expect(ROUTES.some((route) => route.path.endsWith('installation'))).toBe(false);
     expect(new Set(ROUTES.map((route) => route.path)).size).toBe(ROUTES.length);
   });

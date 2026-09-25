@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { D1Repositories } from '../src/storage/d1-repositories.js';
 import type { D1Database, D1Statement } from '../src/env.js';
+import { d1, freshDatabase } from './support/sqlite-d1.js';
 
 type Options = {
   missingProject?: boolean;
@@ -296,5 +297,18 @@ describe('D1 repositories', () => {
     expect(
       fake.calls.filter(({ query }) => query.includes('dashboard_hourly_visitors'))
     ).toHaveLength(0);
+  });
+
+  it('audits without the actor column on a database not yet updated to schema 2', async () => {
+    const sqlite = freshDatabase({ upTo: 1 });
+    const repositories = new D1Repositories(d1(sqlite));
+    await expect(
+      repositories.saveAdminAudit({
+        operation: 'admin',
+        outcome: 'denied',
+        reasonCode: 'unauthorized',
+        actor: 'k1'
+      })
+    ).resolves.toBeUndefined();
   });
 });

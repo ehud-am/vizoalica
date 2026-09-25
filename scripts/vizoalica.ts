@@ -18,7 +18,6 @@ import { setUpBackend } from './cli/backend.js';
 import { connectConsole } from './cli/connect.js';
 import { type Ctx, OpsError } from './cli/context.js';
 import { addDemoData, removeDemoData } from './cli/demo.js';
-import { install } from './cli/install.js';
 import { rotateSecrets } from './cli/rotate.js';
 import { parseSecretKind } from './cli/secrets.js';
 import {
@@ -434,26 +433,6 @@ export function oneCliNodeOptions(existing = process.env.NODE_OPTIONS): string {
   return [existing, SILENCE_ENV_PROXY_WARNING].filter(Boolean).join(' ');
 }
 
-export function consoleArguments(config: OpsConfig): string[] {
-  return [
-    'run',
-    '--project',
-    config.onecli.project,
-    '--agent',
-    config.onecli.agent,
-    '--gateway',
-    config.onecli.gateway,
-    '--',
-    'env',
-    'VIZOALICA_ONECLI_WRAPPED=1',
-    `NODE_OPTIONS=${oneCliNodeOptions()}`,
-    'pnpm',
-    'local-ops-api:dev',
-    'serve',
-    config.consoleConfigPath
-  ];
-}
-
 export function verifyArguments(config: OpsConfig): string[] {
   return [
     'run',
@@ -626,20 +605,11 @@ async function rotateCommand(
   });
 }
 
-async function installCommand(options: Options, dependencies: Dependencies): Promise<void> {
-  const ctx = guidedContext(dependencies);
-  const result = await install(ctx, {
-    ...backendOptions(options),
-    localConfigPath: localConfigPath(options)
-  });
-  if (result.connected && (await ctx.prompt.confirm('\nStart the console now?', true)))
-    await runConsole({ ...options, open: true }, dependencies);
-  else
-    ctx.out(
-      result.connected
-        ? 'Start it any time with: pnpm vizoalica console'
-        : 'Next: pnpm vizoalica connect'
-    );
+function installCommand(): never {
+  throw new OpsError(
+    'vizoalica install was retired. Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.',
+    2
+  );
 }
 
 async function status(options: Options, dependencies: Dependencies): Promise<void> {
@@ -652,10 +622,6 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       .then((response) => response.ok)
       .catch(() => false)
   ]);
-  const processList = dependencies.spawnSync('ps', ['-axo', 'command='], { encoding: 'utf8' });
-  const commands = typeof processList.stdout === 'string' ? processList.stdout : '';
-  const throughOneCli =
-    client.mode === 'OneCLI' && commands.includes('onecli run') && commands.includes(client.path);
   let authenticated = false;
   if (client.mode === 'OneCLI') {
     authenticated =
@@ -674,22 +640,16 @@ async function status(options: Options, dependencies: Dependencies): Promise<voi
       `Credential mode: ${client.mode}`,
       `Worker hostname: ${new URL(client.workerUrl).hostname}`,
       `Config file: ${client.path} (${client.permissions})`,
-      'Expected startup: pnpm vizoalica console',
+      'Expected startup: pnpm vizoalica console (environments: pnpm vizoalica env)',
       `Port 4318 occupied: ${apiPort ? 'yes' : 'no'}`,
       `Port 5173 occupied: ${webPort ? 'yes' : 'no'}`,
-      `API running through OneCLI: ${throughOneCli ? 'yes' : 'no'}`,
       `Public health: ${publicHealth ? 'passed' : 'failed'}`,
       `Authenticated access: ${authenticated ? 'passed' : 'failed'}`
     ].join('\n') + '\n'
   );
 }
 
-export function localApiArguments(client: { path: string }): string[] {
-  return ['local-ops-api:dev', 'serve', client.path];
-}
-
 async function runConsole(options: Options, dependencies: Dependencies): Promise<void> {
-  const { client, ops } = resolveClientConfig(options);
   // A second console cannot bind the same ports and would die with a raw EADDRINUSE trace.
   const inUse = dependencies.portInUse ?? portOccupied;
   const busy = (
@@ -699,19 +659,14 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
     throw new OpsError(
       `${busy.length > 1 ? 'Ports' : 'Port'} ${busy.join(' and ')} ${busy.length > 1 ? 'are' : 'is'} already in use, so a console is probably running already.\nOpen ${CONSOLE_URL}, or stop the other console first (Ctrl+C in its terminal) and run this again.`
     );
-  const viaOneCli = client.mode === 'OneCLI';
   stdout.write(
-    (viaOneCli
-      ? `Starting the private API through OneCLI (${ops!.onecli.gateway}) and the web console.\n`
-      : 'Starting the private API with the local administrator secret file and the web console.\n') +
+    'Starting the private API and the web console. Environments come from ~/.config/vizoalica/environments.json (manage them with: pnpm vizoalica env).\n' +
       `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );
   if (options.open === true) setTimeout(() => openBrowser(CONSOLE_URL), 3000);
   const children: ChildProcess[] = [
-    viaOneCli
-      ? dependencies.spawn('onecli', consoleArguments(ops!), { stdio: 'inherit' })
-      : dependencies.spawn('pnpm', localApiArguments(client), { stdio: 'inherit' }),
+    dependencies.spawn('pnpm', ['local-ops-api:dev'], { stdio: 'inherit' }),
     dependencies.spawn('pnpm', ['admin-web:dev'], { stdio: 'inherit' })
   ];
   const stop = () => children.forEach((child) => child.kill('SIGTERM'));
@@ -813,10 +768,11 @@ export function help(): string {
     '',
     'Get going',
     ...rows([
-      ['install', 'First-time setup, start to finish: backend, this computer, sample data'],
+      ['env', 'List, add, update, remove, and check environments (dev, stage, prod)'],
+      ['deploy', 'Create a backend for an environment in your Cloudflare account (--apply)'],
+      ['console', 'Start the private API and the web console (alias: run)'],
       ['backend', 'Install or update the Cloudflare backend (asks first install or update)'],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
-      ['console', 'Start the private API and the web console (alias: run)'],
       ['demo', 'Add sample data (--remove deletes it)']
     ]),
     '',
@@ -867,7 +823,72 @@ const dependencies: Dependencies = {
   isTTY: Boolean(stdin.isTTY && stdout.isTTY)
 };
 
+/**
+ * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
+ * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
+ */
+async function packagedCommand(
+  command: 'env' | 'deploy' | 'rotate',
+  argv: readonly string[]
+): Promise<void> {
+  const { envCommand } = await import('../apps/cli/src/env-command.js');
+  const { deployCommand } = await import('../apps/cli/src/deploy-command.js');
+  const { rotateCommand } = await import('../apps/cli/src/rotate-command.js');
+  const { Cancelled, terminalAsk } = await import('../apps/cli/src/prompt.js');
+  const { makeTrace } = await import('../apps/local-ops-api/src/trace.js');
+  const { Vault } = await import('../apps/local-ops-api/src/environments/vault.js');
+  const vault = new Vault(spawn);
+  const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+  const args = argv.filter((item) => item !== '--verbose');
+  const out = (message: string) => void stdout.write(message);
+  const trace = args.length < argv.length ? makeTrace(out) : undefined;
+  trace?.(`vizoalica ${version} (checkout), Node.js ${process.versions.node}, ${process.platform}`);
+  trace?.(`Command: ${command} ${args.join(' ')}`);
+  const deps = {
+    home: homedir(),
+    version,
+    assetDir: resolve('apps', 'cli', 'package', 'dist'),
+    env: process.env,
+    out,
+    err: (message: string) => void process.stderr.write(message),
+    interactive: Boolean(stdin.isTTY && stdout.isTTY),
+    ask: terminalAsk(),
+    readStdin: async () => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stdin) chunks.push(Buffer.from(chunk));
+      return Buffer.concat(chunks).toString('utf8');
+    },
+    vault,
+    ...(trace ? { trace } : {})
+  };
+  const deploy = (deployArgs: readonly string[]) => deployCommand(deployArgs, deps);
+  try {
+    process.exitCode =
+      command === 'env'
+        ? await envCommand(args, { ...deps, deploy })
+        : command === 'rotate'
+          ? await rotateCommand(args, deps)
+          : await deploy(args);
+  } catch (error) {
+    if (!(error instanceof Cancelled)) throw error;
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 130;
+  } finally {
+    vault.close();
+  }
+}
+
 export async function run(argv: readonly string[], injected = dependencies): Promise<void> {
+  if (argv[0] === 'env' || argv[0] === 'deploy') return packagedCommand(argv[0], argv.slice(1));
+  // `rotate <environment> <secret>` is for environments; `rotate <secret>` is this checkout's own install.
+  if (
+    argv[0] === 'rotate' &&
+    argv[1] !== undefined &&
+    !argv[1].startsWith('--') &&
+    argv[2] !== undefined &&
+    !argv[2].startsWith('--')
+  )
+    return packagedCommand('rotate', argv.slice(1));
   if (argv[0] === 'rotate') {
     // `rotate` takes one positional word (admin, token, digest, or all) before any flags.
     const kind = argv[1]?.startsWith('--') ? undefined : argv[1];
@@ -883,7 +904,7 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'verify') await verifyAccess(options, injected);
   else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
-  else if (command === 'install') await installCommand(options, injected);
+  else if (command === 'install') installCommand();
   else if (command === 'backend') await backendCommand(options, injected);
   else if (command === 'connect') await connectCommand(options, injected);
   else if (command === 'demo') await demoCommand(options, injected);
@@ -898,7 +919,7 @@ export async function main(argv: readonly string[]): Promise<void> {
     await run(argv);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : 'Operation failed.'}\n`);
-    process.exitCode = 1;
+    process.exitCode = error instanceof OpsError ? error.exitCode : 1;
   }
 }
 

@@ -240,3 +240,111 @@ export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };
 export const getThemePreference = () => request<ThemePreferenceResult>('/api/preferences/theme');
 export const putThemePreference = (theme: Theme) =>
   request<{ theme: Theme; updatedAt: string }>('/api/preferences/theme', json('PUT', { theme }));
+
+export type ViewRole = 'admin' | 'owner' | 'analyst';
+export type ConnectionStatus = 'connected' | 'unreachable' | 'revoked' | 'incompatible';
+export type StageId = 'console' | 'backend' | 'website' | 'data';
+export type NextAction = { id: string; label: string; href?: string };
+export type Stage = {
+  id: StageId;
+  label: string;
+  status: 'done' | 'current' | 'todo' | 'blocked';
+  next?: NextAction;
+};
+export type VersionStatus = {
+  status: 'current' | 'update-available' | 'console-older' | 'unknown' | 'unsupported';
+  message: string;
+  update: 'backend' | 'console' | null;
+};
+export type SetupState = {
+  version: string;
+  /** The selected environment. */
+  environment: string;
+  connection: {
+    status: ConnectionStatus;
+    workerHost?: string;
+  };
+  principal?: {
+    role: ViewRole;
+    scope: { projectId: string | null; sourceId: string | null };
+    keyLabel: string | null;
+    features: { accessKeys: boolean; versions: boolean };
+  };
+  backend?: {
+    workerVersion: string | null;
+    schema: { applied: number | null; expected: number | null };
+    worker: VersionStatus;
+    schemaStatus: VersionStatus;
+    message: string;
+  };
+  stages: Stage[];
+};
+export const getSetupState = () => request<SetupState>('/api/setup/state');
+
+export type EnvironmentProblem = { code: string; message: string };
+/** What the console knows about one environment; it never includes a secret. */
+export type EnvironmentState = {
+  name: string;
+  url?: string;
+  role?: ViewRole;
+  secretSource?: 'file' | 'onecli';
+  cloudflare: 'none' | 'file' | 'onecli';
+  usable: boolean;
+  problems: EnvironmentProblem[];
+};
+export type EnvironmentsList = {
+  file: { status: 'ok' | 'broken'; path: string; reason?: string };
+  environments: EnvironmentState[];
+  selected: string | null;
+};
+export const listEnvironments = () => request<EnvironmentsList>('/api/environments');
+export const recheckEnvironments = () =>
+  request<EnvironmentsList>('/api/environments/recheck', json('POST'));
+export const selectEnvironment = (name: string) =>
+  request<SetupState>(`/api/environments/${encodeURIComponent(name)}/select`, json('POST'));
+
+export type AccessKeyRole = 'analyst' | 'owner';
+export type AccessKeySummary = {
+  id: string;
+  label: string;
+  role: AccessKeyRole;
+  scope: { projectId: string | null; sourceId: string | null };
+  createdAt: string;
+  revokedAt: string | null;
+};
+export type IssuedAccessKey = AccessKeySummary & { key: string };
+export const listAccessKeys = () => request<AccessKeySummary[]>('/api/access-keys');
+export const issueAccessKey = (input: {
+  label: string;
+  role: AccessKeyRole;
+  projectId?: string;
+  sourceId?: string;
+}) => request<IssuedAccessKey>('/api/access-keys', json('POST', input));
+export const revokeAccessKey = (id: string) =>
+  request<{ status: 'revoked' }>(`/api/access-keys/${encodeURIComponent(id)}`, json('DELETE'));
+
+export type SetupDetails = {
+  workerUrl: string;
+  projectId: string;
+  sourceId: string;
+  publicSourceKey: string;
+  allowedOrigins: string[];
+  readKey: string;
+  guidance: string;
+};
+export const shareWebsite = (projectId: string, websiteId: string, role: AccessKeyRole = 'owner') =>
+  request<SetupDetails>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/share`,
+    json('POST', { role })
+  );
+
+export type BackendState = {
+  workerVersion: string | null;
+  consoleVersion: string;
+  schema: { applied: number | null; expected: number | null; appliedNames: string[] };
+  worker: VersionStatus;
+  schemaStatus: VersionStatus;
+  health: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' } | null;
+  featuresAccessKeys: boolean;
+};
+export const getBackendState = () => request<BackendState>('/api/backend');

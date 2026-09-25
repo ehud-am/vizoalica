@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { DynamicInstallation, Website } from '../../api/local-operations.js';
 import { CodeBlock } from '../../components/CodeBlock.js';
 import { Tabs } from '../../components/Tabs.js';
@@ -7,13 +7,59 @@ import { InstallStep, InstallSteps } from './InstallSteps.js';
 
 type How = 'web' | 'cli';
 
-const WHERE: Record<string, string> = {
-  CF_ACCOUNT_ID: 'Your Cloudflare account ID',
-  CF_PAGES_PROJECT: 'The name of your Cloudflare Pages project',
-  CF_API_TOKEN: 'A Cloudflare API token limited to “Cloudflare Pages: Edit” on this account',
-  VIZOALICA_TOKEN_SECRET:
-    'The token secret you saved during backend setup (the same one the Worker uses)'
+/** Where each value you add yourself comes from, step by step. */
+const WHERE: Record<string, ReactNode> = {
+  CF_ACCOUNT_ID: (
+    <>
+      Your Cloudflare account ID, 32 letters and digits. In the Cloudflare dashboard it is the code
+      in the address bar right after <code>dash.cloudflare.com/</code>, and it is listed as Account
+      ID on the Workers &amp; Pages overview. <code>npx wrangler whoami</code> prints it too.
+    </>
+  ),
+  CF_PAGES_PROJECT: (
+    <>
+      The name of the Cloudflare Pages project your website deploys to, exactly as listed under
+      Workers &amp; Pages in the dashboard (its address is <code>NAME.pages.dev</code>). The project
+      must already exist; if it does not, create it there or with{' '}
+      <code>npx wrangler pages project create NAME</code>.
+    </>
+  ),
+  CF_API_TOKEN: (
+    <>
+      A new Cloudflare API token that can only deploy Pages: in the dashboard open My Profile → API
+      Tokens (<code>dash.cloudflare.com/profile/api-tokens</code>) → Create Token → Custom token,
+      add the permission Account → “Cloudflare Pages: Edit”, and limit it to this account.
+      Cloudflare shows the token once, so copy it straight into GitHub.
+    </>
+  ),
+  VIZOALICA_TOKEN_SECRET: (
+    <>
+      The token secret of this environment’s backend (the same one the Worker uses), so it must be
+      that exact value. It was shown once when the backend was deployed, as{' '}
+      <code>VIZOALICA_TOKEN_SECRET</code>, or written to the file you gave with{' '}
+      <code>--secrets-file</code>. Don’t have it? Make a new one with{' '}
+      <code>vizoalica rotate ENVIRONMENT token</code>; websites already installed then need the new
+      value too.
+    </>
+  )
 };
+
+/** The values you add yourself, each with where to find it. */
+function WhereList({ label, rows }: { label: string; rows: { name: string; kind: string }[] }) {
+  return (
+    <ul className="settings-list" aria-label={label}>
+      {rows.map((row) => (
+        <li key={row.name}>
+          <span className="setting-head">
+            <code>{row.name}</code>
+            <span className={`kind ${row.kind.toLowerCase()}`}>{row.kind}</span>
+          </span>
+          <span className="setting-source">{WHERE[row.name] ?? 'Your own value'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * GitHub → Cloudflare Pages: a push deploys the site with the analytics settings taken from
@@ -84,17 +130,7 @@ export function GithubPath({
               </p>
               <CodeBlock label="Repository variables" code={variables} what="variable list" />
               <p>Then add these yourself, using your own Cloudflare account details:</p>
-              <ul className="settings-list" aria-label="Other settings to add">
-                {rows.map((row) => (
-                  <li key={row.name}>
-                    <span className="setting-head">
-                      <code>{row.name}</code>
-                      <span className={`kind ${row.kind.toLowerCase()}`}>{row.kind}</span>
-                    </span>
-                    <span className="setting-source">{WHERE[row.name] ?? 'Your own value'}</span>
-                  </li>
-                ))}
-              </ul>
+              <WhereList label="Other settings to add" rows={rows} />
             </>
           ) : (
             <>
@@ -107,6 +143,12 @@ export function GithubPath({
                 code={cloudflare.setupCommands.join('\n')}
                 what="gh commands"
               />
+              <p>
+                Replace <code>YOUR_CF_ACCOUNT_ID</code> and <code>YOUR_CF_PAGES_PROJECT</code> with
+                your own values, and paste each secret when <code>gh</code> asks for it. Where to
+                find them:
+              </p>
+              <WhereList label="Where to find each value" rows={rows} />
             </>
           )}
         </Tabs>

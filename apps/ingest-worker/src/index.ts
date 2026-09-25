@@ -7,6 +7,8 @@ import { D1Repositories } from './storage/d1-repositories.js';
 import { purgeDeleted } from './storage/purge-deleted.js';
 import { R2EventBatchRepository } from './storage/r2-event-batches.js';
 import { handleWorkerRequest } from './http/worker-adapter.js';
+import { readHealth, readSchemaVersion } from './schema-version.js';
+import { workerVersion } from './version.js';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -40,7 +42,13 @@ export default {
       reserveQuota: configuration.reserveQuota.bind(configuration),
       recordDashboardRollups: configuration.recordDashboardRollups.bind(configuration),
       saveAcceptedEvents: events.saveAcceptedEvents.bind(events),
-      listAcceptedEvents: events.listAcceptedEvents.bind(events)
+      listAcceptedEvents: events.listAcceptedEvents.bind(events),
+      createAccessKey: configuration.createAccessKey.bind(configuration),
+      listAccessKeys: configuration.listAccessKeys.bind(configuration),
+      findAccessKeyById: configuration.findAccessKeyById.bind(configuration),
+      revokeAccessKey: configuration.revokeAccessKey.bind(configuration),
+      countActiveAccessKeys: configuration.countActiveAccessKeys.bind(configuration),
+      hasAccessKeysTable: configuration.hasAccessKeysTable.bind(configuration)
     };
     return handleWorkerRequest(
       request,
@@ -55,6 +63,11 @@ export default {
         allowUnsignedDemo: config.allowUnsignedDemo,
         metrics: new InMemoryMetricsSink(),
         logger: workerLogger,
+        backendInfo: async () => ({
+          workerVersion: workerVersion(env),
+          schema: await readSchemaVersion(env.VIZOALICA_DB),
+          health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS)
+        }),
         ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes

@@ -104,3 +104,62 @@ describe('actions report client', () => {
     expect(fetch.mock.calls[0]![1]!.signal).toBe(controller.signal);
   });
 });
+
+describe('setup client calls', () => {
+  it('only reads the state', async () => {
+    const fetch = vi.fn(async (_path: string, _init?: RequestInit) => Response.json({}));
+    vi.stubGlobal('fetch', fetch);
+    await api.getSetupState();
+    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
+      'GET /api/setup/state'
+    ]);
+  });
+
+  it('has no way to connect, disconnect, deploy, or edit environments from the console', () => {
+    for (const removed of [
+      'connectBackend',
+      'disconnectBackend',
+      'setRoleHint',
+      'importLegacySetup',
+      'createEnvironment',
+      'connectEnvironment',
+      'removeEnvironment',
+      'setEnvironmentCloudflare',
+      'startDeployRun',
+      'createUpdatePlan',
+      'rotateBackendSecret',
+      'purgeDeleted'
+    ])
+      expect(api, removed).not.toHaveProperty(removed);
+  });
+});
+
+describe('environment client calls', () => {
+  it('lists, rechecks, and selects environments, and nothing else', async () => {
+    const fetch = vi.fn(async (_path: string, _init?: RequestInit) =>
+      Response.json({ file: { status: 'ok', path: '' }, environments: [], selected: null })
+    );
+    vi.stubGlobal('fetch', fetch);
+    await api.listEnvironments();
+    await api.recheckEnvironments();
+    await api.selectEnvironment('dev');
+    await api.selectEnvironment('needs space');
+    expect(fetch.mock.calls.map(([path, init]) => `${init?.method ?? 'GET'} ${path}`)).toEqual([
+      'GET /api/environments',
+      'POST /api/environments/recheck',
+      'POST /api/environments/dev/select',
+      'POST /api/environments/needs%20space/select'
+    ]);
+  });
+
+  it('carries the error code and status of a refused selection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'environment_unusable' }, { status: 409 }))
+    );
+    await expect(api.selectEnvironment('prod')).rejects.toMatchObject({
+      code: 'environment_unusable',
+      status: 409
+    });
+  });
+});

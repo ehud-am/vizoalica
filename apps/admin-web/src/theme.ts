@@ -30,7 +30,8 @@ export interface ThemeController {
   setTheme: (next: Theme) => void;
 }
 
-export function useTheme(): ThemeController {
+/** `sessionReady` holds the saved-preference read back until the console session exists (it needs one). */
+export function useTheme(sessionReady = true): ThemeController {
   const [system, setSystem] = useState<Theme>(() => systemTheme());
   const [explicit, setExplicit] = useState<Theme | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,6 +51,7 @@ export function useTheme(): ThemeController {
   }, []);
 
   useEffect(() => {
+    if (!sessionReady) return;
     let cancelled = false;
     getThemePreference()
       .then((result) => {
@@ -62,7 +64,7 @@ export function useTheme(): ThemeController {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionReady]);
 
   const resolved = explicit ?? system;
 

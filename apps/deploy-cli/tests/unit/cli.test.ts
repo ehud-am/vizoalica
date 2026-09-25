@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  consoleArguments,
   oneCliNodeOptions,
   SILENCE_ENV_PROXY_WARNING,
   normalizeWorkerUrl,
@@ -53,26 +52,6 @@ describe('operations CLI safety', () => {
   it('rejects the Docker-only gateway hostname', () => {
     expect(parseGateway('127.0.0.1:10255')).toEqual({ host: '127.0.0.1', port: 10255 });
     expect(() => parseGateway('gateway:10255')).toThrow('Docker-only');
-  });
-
-  it('always supplies the host-reachable gateway to OneCLI', () => {
-    expect(consoleArguments(config)).toEqual([
-      'run',
-      '--project',
-      'example-project',
-      '--agent',
-      'vizoalica-console',
-      '--gateway',
-      '127.0.0.1:10255',
-      '--',
-      'env',
-      'VIZOALICA_ONECLI_WRAPPED=1',
-      `NODE_OPTIONS=${oneCliNodeOptions()}`,
-      'pnpm',
-      'local-ops-api:dev',
-      'serve',
-      '/tmp/vizoalica/local-operations.json'
-    ]);
   });
 
   it('verifies administrator access through the selected OneCLI agent', () => {

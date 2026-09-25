@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -13,6 +14,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Scan the history for secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # gitleaks reads the pull request's commits through the API.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out the full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Free for repositories owned by a personal account; an organization needs GITLEAKS_LICENSE.
+      - name: Scan with gitleaks (.gitleaks.toml)
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   verify:
     name: Verify and browser-test
     runs-on: ubuntu-latest
@@ -61,6 +83,10 @@ jobs:
 
       - name: Build the standalone browser SDK
         run: pnpm browser-sdk:build
+
+      # Packs what npm would publish, installs it into an empty prefix and home, and starts the console from it.
+      - name: Build and check the npm package
+        run: pnpm package:build && pnpm package:check
 
       - name: Install Chromium
         run: pnpm --filter @vizoalica/admin-web exec playwright install --with-deps chromium
