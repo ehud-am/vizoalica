@@ -30,8 +30,8 @@ Worker's `/healthz`, and adds `prod` to `environments.json` as an `admin` enviro
 
 **Secrets.** The administrator secret goes straight into the environment file and is never printed. The other
 two (`VIZOALICA_TOKEN_SECRET`, for each website's token endpoint, and `VIZOALICA_ANALYTICS_DIGEST_SECRET`) are
-shown **once** in the terminal, or written to a new private file with `--secrets-file <path>` (required without
-a terminal). Save them in a password manager.
+shown **once**, at the end of the output, and the command waits until you type `saved`; or they are written to
+a new private file with `--secrets-file <path>` (required without a terminal). Save them in a password manager.
 
 | Option                                                                       | Meaning                                                                        |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -47,3 +47,27 @@ The token is given to Wrangler only through its environment, never as an argumen
 message names the step and the likely cause (not signed in, a missing permission, R2 not enabled, no network)
 and tells you to continue with `--resume`. A custom domain is not attached by `--apply`: attach it in Cloudflare,
 then `vizoalica env update prod --url https://analytics.example.com`.
+
+## Replace a secret: `vizoalica rotate`
+
+Lost a secret, or think one was exposed? Replace it on the Worker with a new one:
+
+```sh
+vizoalica rotate prod token     # or: admin | digest | all
+```
+
+It says what the change affects, asks you to type `rotate`, stores the new value on the Worker (the old one stops
+working at once), and then:
+
+- **`admin`**: updates `prod` in `environments.json` for you and checks it works. Anyone else who uses `prod` as
+  admin needs the new value (`vizoalica env update prod --secret-stdin`). If OneCLI holds it, the new value is
+  shown so you can replace it there.
+- **`token`**: shows the new `VIZOALICA_TOKEN_SECRET` once and waits until you type `saved`. Every website's token
+  endpoint needs it: update the website repository's `VIZOALICA_TOKEN_SECRET` GitHub secret and re-run its deploy
+  workflow. Until then its visitors' events are rejected.
+- **`digest`**: unique-visitor counts restart; nothing else needs updating.
+
+It uses the Cloudflare token saved with the environment, else `--cloudflare-token-stdin`, `$CLOUDFLARE_API_TOKEN`,
+or asks; the token needs Workers Scripts: Edit. Without a terminal it needs `--yes` and, for a secret it has to
+hand over, `--secrets-file <new file>`. The Worker is the one `vizoalica deploy` created, or the one named by a
+`workers.dev` address; for a custom domain give `--worker <name>`.

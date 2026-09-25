@@ -827,9 +827,13 @@ const dependencies: Dependencies = {
  * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
  * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
  */
-async function packagedCommand(command: 'env' | 'deploy', argv: readonly string[]): Promise<void> {
+async function packagedCommand(
+  command: 'env' | 'deploy' | 'rotate',
+  argv: readonly string[]
+): Promise<void> {
   const { envCommand } = await import('../apps/cli/src/env-command.js');
   const { deployCommand } = await import('../apps/cli/src/deploy-command.js');
+  const { rotateCommand } = await import('../apps/cli/src/rotate-command.js');
   const { Cancelled, terminalAsk } = await import('../apps/cli/src/prompt.js');
   const { makeTrace } = await import('../apps/local-ops-api/src/trace.js');
   const { Vault } = await import('../apps/local-ops-api/src/environments/vault.js');
@@ -860,7 +864,11 @@ async function packagedCommand(command: 'env' | 'deploy', argv: readonly string[
   const deploy = (deployArgs: readonly string[]) => deployCommand(deployArgs, deps);
   try {
     process.exitCode =
-      command === 'env' ? await envCommand(args, { ...deps, deploy }) : await deploy(args);
+      command === 'env'
+        ? await envCommand(args, { ...deps, deploy })
+        : command === 'rotate'
+          ? await rotateCommand(args, deps)
+          : await deploy(args);
   } catch (error) {
     if (!(error instanceof Cancelled)) throw error;
     process.stderr.write(`${error.message}\n`);
@@ -872,6 +880,15 @@ async function packagedCommand(command: 'env' | 'deploy', argv: readonly string[
 
 export async function run(argv: readonly string[], injected = dependencies): Promise<void> {
   if (argv[0] === 'env' || argv[0] === 'deploy') return packagedCommand(argv[0], argv.slice(1));
+  // `rotate <environment> <secret>` is for environments; `rotate <secret>` is this checkout's own install.
+  if (
+    argv[0] === 'rotate' &&
+    argv[1] !== undefined &&
+    !argv[1].startsWith('--') &&
+    argv[2] !== undefined &&
+    !argv[2].startsWith('--')
+  )
+    return packagedCommand('rotate', argv.slice(1));
   if (argv[0] === 'rotate') {
     // `rotate` takes one positional word (admin, token, digest, or all) before any flags.
     const kind = argv[1]?.startsWith('--') ? undefined : argv[1];

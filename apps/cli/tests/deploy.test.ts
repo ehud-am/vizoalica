@@ -269,7 +269,7 @@ describe('vizoalica deploy: without --apply', () => {
 
 describe('vizoalica deploy --apply', () => {
   it('creates the backend in order, registers the environment, and reveals only the other secrets', async () => {
-    const t = setup({ stdin: 'cf-token\n' });
+    const t = setup({ stdin: 'cf-token\n', answers: ['saved'] });
     expect(await deployCommand(['prod', ...APPLY], t.deps)).toBe(0);
     const names = t.wrangler.names();
     expect(names[0]).toBe('whoami');
@@ -290,13 +290,20 @@ describe('vizoalica deploy --apply', () => {
     expect(statSync(t.file).mode & 0o777).toBe(0o600);
 
     const output = t.text() + t.errors();
-    expect(output).toContain(`VIZOALICA_TOKEN_SECRET=${t.wrangler.stored.VIZOALICA_TOKEN_SECRET}`);
     expect(output).toContain(
-      `VIZOALICA_ANALYTICS_DIGEST_SECRET=${t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET}`
+      `VIZOALICA_TOKEN_SECRET\n    ${t.wrangler.stored.VIZOALICA_TOKEN_SECRET}\n`
+    );
+    expect(output).toContain(
+      `VIZOALICA_ANALYTICS_DIGEST_SECRET\n    ${t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET}\n`
     );
     expect(output).not.toContain(admin);
     expect(output).not.toContain('cf-token');
-    expect(output).toContain('was added and works');
+    // The secrets come last, after everything else, and it waits until they are saved.
+    expect(output.indexOf('was added and works')).toBeLessThan(
+      output.indexOf('SAVE THESE 2 SECRETS')
+    );
+    expect(output).toContain('vizoalica rotate prod');
+    expect(t.asked.at(-1)).toBe('When you have saved them, type "saved": ');
   });
 
   it('gives Wrangler the account, the version, and the packaged files, and the token never as an argument', async () => {
@@ -634,7 +641,7 @@ describe('vizoalica deploy --apply', () => {
     expect(await deployCommand(['prod', ...APPLY], t.deps)).toBe(1);
     expect(t.errors()).toContain('could not be added');
     expect(t.text()).toContain(
-      `VIZOALICA_ADMIN_SECRET=${t.wrangler.stored.VIZOALICA_ADMIN_SECRET}`
+      `VIZOALICA_ADMIN_SECRET\n    ${t.wrangler.stored.VIZOALICA_ADMIN_SECRET}\n`
     );
   });
 

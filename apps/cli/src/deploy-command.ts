@@ -1,21 +1,21 @@
-import { chmodSync, existsSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SECRETS, type Run } from '@vizoalica/ops-core';
 import {
   addEnvironment,
   environmentsPath,
   readEnvironments,
-  type EnvironmentDef,
-  type OnecliRef
+  type EnvironmentDef
 } from '../../local-ops-api/src/environments/file.js';
 import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import type { FetchLike, Vault } from '../../local-ops-api/src/environments/vault.js';
 import { verifyEnvironment } from '../../local-ops-api/src/environments/verify.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
+import { chooseAccount, cloudflareAccess, revealSecrets } from './cloudflare-access.js';
 import { tracedAsk } from './prompt.js';
 import { applyDeploy, checkAccess, DeployError } from './deploy/apply.js';
 import { buildPlan, describePlan } from './deploy/plan.js';
-import { wranglerCommand, wranglerFor, type CloudflareAccess } from './deploy/wrangler.js';
+import { wranglerCommand, wranglerFor } from './deploy/wrangler.js';
 
 export type DeployDeps = {
   home: string;
@@ -185,45 +185,16 @@ async function applyCommand(
   }
 
   const trace = deps.trace ?? noTrace;
-  // The Cloudflare credential: stdin, OneCLI, the environment variable, or a hidden prompt.
-  let access: CloudflareAccess;
-  let onecli: OnecliRef | undefined;
-  if (flags.switches.has('--cloudflare-onecli')) {
-    const workspace = flags.values.get('--onecli-workspace');
-    const agent = flags.values.get('--onecli-agent');
-    const gateway = flags.values.get('--onecli-gateway');
-    if (!workspace || !agent || !gateway) {
-      deps.err('OneCLI needs --onecli-workspace, --onecli-agent, and --onecli-gateway.\n');
-      return 1;
-    }
-    onecli = { workspace, agent, gateway };
-    access = { onecli };
-    trace(
-      `Cloudflare credential: held by OneCLI (workspace ${workspace}, agent ${agent}, gateway ${gateway})`
-    );
-  } else {
-    let token: string | undefined;
-    if (flags.switches.has('--cloudflare-token-stdin')) {
-      trace('Cloudflare credential: an API token read from stdin');
-      token = (await deps.readStdin()).replace(/\r?\n$/, '').trim();
-    } else if (deps.env.CLOUDFLARE_API_TOKEN?.trim()) {
-      trace('Cloudflare credential: the CLOUDFLARE_API_TOKEN environment variable');
-      token = deps.env.CLOUDFLARE_API_TOKEN.trim();
-    } else if (deps.interactive)
-      token = (
-        await deps.ask(
-          '\nDeploying needs a Cloudflare API token with Workers Scripts: Edit, D1: Edit,\nWorkers R2 Storage: Edit, and Account Settings: Read. Paste it here; it is not shown.\nCloudflare API token: ',
-          { secret: true }
-        )
-      ).trim();
-    if (!token) {
-      deps.err(
-        'A Cloudflare API token is needed: pipe it with --cloudflare-token-stdin, set CLOUDFLARE_API_TOKEN, or use --cloudflare-onecli.\n'
-      );
-      return 1;
-    }
-    access = { token };
+  const credential = await cloudflareAccess(
+    flags,
+    deps,
+    'Deploying needs a Cloudflare API token with Workers Scripts: Edit, D1: Edit,\nWorkers R2 Storage: Edit, and Account Settings: Read.'
+  );
+  if (typeof credential === 'string') {
+    deps.err(`${credential}\n`);
+    return 1;
   }
+  const { access, onecli } = credential;
   const run = deps.run ?? wranglerFor(access, deps.env);
   trace(
     `Wrangler: ${deps.run ? '(replaced for a test)' : wranglerCommand(deps.env).join(' ')}${onecli ? ', run under OneCLI' : ''}`
@@ -235,41 +206,17 @@ async function applyCommand(
     trace(
       `Cloudflare accounts this credential can see: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}`
     );
-    let accountId = flags.values.get('--account');
-    if (accountId && !accounts.some((account) => account.id === accountId)) {
-      deps.err(
-        `That token cannot see the account ${accountId}. It can see: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}\n`
-      );
+    const chosen = await chooseAccount(
+      accounts,
+      flags.values.get('--account'),
+      deps,
+      'Which one gets the backend?'
+    );
+    if (typeof chosen === 'string') {
+      deps.err(`${chosen} Nothing was created.\n`);
       return 1;
     }
-    if (!accountId) {
-      if (accounts.length === 1) accountId = accounts[0]!.id;
-      else if (deps.interactive) {
-        const list = accounts
-          .map((account, index) => `  ${index + 1}) ${account.name} (${account.id})`)
-          .join('\n');
-        for (let attempt = 0; attempt < 5 && !accountId; attempt += 1) {
-          const answer = (
-            await deps.ask(
-              attempt === 0
-                ? `\nThis token can see several Cloudflare accounts. Which one gets the backend?\n${list}\nAccount number: `
-                : 'Account number: '
-            )
-          ).trim();
-          accountId = accounts[Number(answer) - 1]?.id;
-          if (!accountId) deps.err(`  Type a number from 1 to ${accounts.length}.\n`);
-        }
-      } else {
-        deps.err(
-          `This token can see several accounts; choose one with --account: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}\n`
-        );
-        return 1;
-      }
-    }
-    if (!accountId) {
-      deps.err('No account chosen. Nothing was created.\n');
-      return 1;
-    }
+    const accountId = chosen.id;
     const plan = buildPlan(name, accountId);
     const accountName = accounts.find((account) => account.id === accountId)?.name ?? accountId;
     deps.out(`${describePlan(plan)}\nCloudflare account: ${accountName}\n`);
@@ -331,19 +278,6 @@ async function applyCommand(
         `The Worker already had its secrets, so none were generated. Add it with: vizoalica env add ${name} --url ${result.workerUrl} --role admin\n`
       );
 
-    if (Object.keys(revealed).length > 0) {
-      const lines = Object.entries(revealed).map(([key, value]) => `${key}=${value}`);
-      if (secretsFile) {
-        writeFileSync(secretsFile, `${lines.join('\n')}\n`, { mode: 0o600, flag: 'wx' });
-        chmodSync(secretsFile, 0o600);
-        deps.out(
-          `\nSecrets written to ${secretsFile} (readable only by you). Move them to a password manager.\n`
-        );
-      } else
-        deps.out(
-          `\nSave these now, in a password manager. They are shown only once:\n${lines.map((line) => `  ${line}`).join('\n')}\n`
-        );
-    }
     deps.out(`\nWorker: ${result.workerUrl}\nRendered configuration: ${result.configPath}\n`);
     if (registered) {
       const check = await verifyEnvironment(
@@ -362,8 +296,10 @@ async function applyCommand(
           ? `Environment "${name}" was added and works. Next: vizoalica console\n`
           : `Environment "${name}" was added, but it does not verify yet (${check.problems[0]?.message ?? 'unknown'}). Try: vizoalica env check ${name}\n`
       );
-      return 0;
     }
+    // Last, so nothing scrolls it away, and it waits until they are saved.
+    await revealSecrets(revealed, secretsFile, deps, name);
+    if (registered) return 0;
     return adminSecret ? 1 : 0;
   } catch (error) {
     trace(

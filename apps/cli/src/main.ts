@@ -2,6 +2,7 @@ import { makeTrace, noTrace, type Trace } from '../../local-ops-api/src/trace.js
 import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
+import { rotateCommand } from './rotate-command.js';
 
 export type MainDeps = ConsoleDeps &
   Pick<EnvDeps, 'interactive' | 'ask' | 'readStdin' | 'vault' | 'fetch'> & {
@@ -18,7 +19,6 @@ const CHECKOUT_COMMANDS = new Set([
   'install',
   'backend',
   'connect',
-  'rotate',
   'purge-deleted',
   'demo',
   'setup',
@@ -39,6 +39,7 @@ export function help(): string {
     '                        add (offers to deploy its backend), list, update, remove, check',
     '  deploy <name>         Deploy the backend for an environment in your Cloudflare account',
     '                        (--apply to create it). Run "vizoalica deploy" for details',
+    '  rotate <name> <secret>  Replace a secret of an environment (admin, token, digest, or all)',
     '  console [--no-open]   Start the console: websites, results, and access for the',
     '                        environment you pick',
     '  help                  Show this help',
@@ -97,6 +98,8 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
   if (command === 'env')
     return envCommand(rest, { ...deps, trace, deploy: (args) => deploy(args) });
   if (command === 'deploy') return deploy(rest);
+  if (command === 'rotate')
+    return rotateCommand(rest, { ...deps, trace, ...(deps.deployTestHooks ?? {}) });
   if (CHECKOUT_COMMANDS.has(command)) {
     deps.err(
       `"vizoalica ${command}" is not part of the installed package yet.\nTo use this command now, work from a source checkout:\n  git clone https://github.com/ehud-am/vizoalica && cd vizoalica && pnpm install && pnpm vizoalica ${command}\n`

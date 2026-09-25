@@ -91,7 +91,7 @@ describe('main', () => {
   });
 
   it('points commands that need a checkout at the checkout', async () => {
-    for (const command of ['install', 'backend', 'rotate', 'deploy-pages']) {
+    for (const command of ['install', 'backend', 'deploy-pages']) {
       const d = deps();
       expect(await main([command], d)).toBe(2);
       expect(d.errors.join('')).toContain(`vizoalica ${command}`);

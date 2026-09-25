@@ -115,9 +115,11 @@ vizoalica deploy prod --apply    # creates it, then adds "prod" as an environmen
 
 `--apply` asks first, then creates a D1 database, an R2 bucket, and a Worker, named `prod-vizoalica-…`. It
 never changes or deletes anything that already exists, and `--resume` continues after a failure. It
-**generates your three secrets and shows two of them once** (or writes them to a new private file with
-`--secrets-file`); the administrator secret goes straight into the environment file and is never printed. Save
-the others in a password manager; it never asks you to invent or paste a key. Setting this up with an AI coding
+**generates your three secrets and shows two of them once, at the very end, then waits until you type
+`saved`** (or writes them to a new private file with `--secrets-file`); the administrator secret goes straight
+into the environment file and is never printed. Save the others in a password manager: every website you install
+needs `VIZOALICA_TOKEN_SECRET`. It never asks you to invent or paste a key, and if you lose one,
+`vizoalica rotate prod token` (or `admin`, `digest`, `all`) replaces it. Setting this up with an AI coding
 agent? Do this step yourself: the secrets are shown once and should not pass through an agent conversation.
 See [Create a backend](docs/operations/deploy.md).
 
