@@ -4,6 +4,15 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-25
+
+### Fixed
+
+- **The npm package builds on a clean checkout.** The package bundle resolved `@vizoalica/ops-core` to its
+  compiled output, which the release workflow never builds, so 0.7.0 could not be published to npm. It is now
+  bundled from source like the other workspace packages, and CI builds the package before anything else so a
+  repeat is caught on the pull request. 0.7.1 is 0.7.0 as it was meant to ship; nothing else changed.
+
 ## [0.7.0] - 2026-09-25
 
 ### Added

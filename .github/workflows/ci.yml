@@ -54,7 +54,16 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      # First, on a clean tree: the later type-check emits dist and would hide a broken build order.
+      # First, on a clean tree, exactly as publish.yml does: once `pnpm build` has compiled the workspace
+      # packages, a bundle that only works against their dist/ would pass here and fail to publish.
+      - name: Build the standalone browser SDK
+        run: pnpm browser-sdk:build
+
+      # Packs what npm would publish, installs it into an empty prefix and home, and starts the console from it.
+      - name: Build and check the npm package
+        run: pnpm package:build && pnpm package:check
+
+      # Then, still before anything else: the later type-check emits dist and would hide a broken build order.
       - name: Build production packages
         run: pnpm build
 
@@ -80,13 +89,6 @@ jobs:
 
       - name: Enforce coverage thresholds
         run: pnpm coverage
-
-      - name: Build the standalone browser SDK
-        run: pnpm browser-sdk:build
-
-      # Packs what npm would publish, installs it into an empty prefix and home, and starts the console from it.
-      - name: Build and check the npm package
-        run: pnpm package:build && pnpm package:check
 
       - name: Install Chromium
         run: pnpm --filter @vizoalica/admin-web exec playwright install --with-deps chromium
