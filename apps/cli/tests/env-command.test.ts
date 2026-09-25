@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Vault } from '../../local-ops-api/src/environments/vault.js';
 import { envCommand, type EnvDeps } from '../src/env-command.js';
 import { stubWorker } from '../../local-ops-api/tests/worker-stub.js';
+import { makeTrace } from '../../local-ops-api/src/trace.js';
 import { tempHome, writePrivate } from './support.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -92,6 +93,153 @@ describe('vizoalica env add offers to deploy', () => {
       { ...t.deps, deploy }
     );
     expect(t.asked.join('')).not.toContain('Deploy the backend');
+  });
+});
+
+describe('vizoalica env add: every question, or only options', () => {
+  it('with no options asks each question in turn, starting with the name', async () => {
+    const t = setup(['prod', 'y', 'n']);
+    const deploy = vi.fn(async () => 0);
+    expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
+    expect(t.asked).toEqual([
+      'Environment name (for example dev, stage, prod): ',
+      'Deploy the backend for "prod" now? (Y/n): ',
+      'Should OneCLI hold your Cloudflare token (recommended)? (Y/n): '
+    ]);
+    expect(deploy).toHaveBeenCalledWith(['prod', '--apply']);
+  });
+
+  it('asks the connect questions, name first, when the backend already exists', async () => {
+    worker(['good']);
+    const t = setup(['prod', 'n', 'n', 'https://w.example.com', 'admin', 'good', '']);
+    const deploy = vi.fn(async () => 0);
+    expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
+    expect(deploy).not.toHaveBeenCalled();
+    expect(t.read().environments.prod).toMatchObject({
+      url: 'https://w.example.com',
+      secret: 'good'
+    });
+  });
+
+  it('deploys from options alone, passing the deploy options and OneCLI along', async () => {
+    const t = setup();
+    const deploy = vi.fn(async () => 0);
+    const code = await envCommand(
+      [
+        'add',
+        'prod',
+        '--deploy',
+        '--yes',
+        '--account',
+        'acc',
+        '--secrets-file',
+        '/tmp/s',
+        '--onecli',
+        '--onecli-workspace',
+        'acme',
+        '--onecli-agent',
+        'vz',
+        '--onecli-gateway',
+        'localhost:10255'
+      ],
+      { ...t.deps, deploy }
+    );
+    expect(code).toBe(0);
+    expect(t.asked).toEqual([]);
+    expect(deploy).toHaveBeenCalledWith([
+      'prod',
+      '--apply',
+      '--yes',
+      '--account',
+      'acc',
+      '--secrets-file',
+      '/tmp/s',
+      '--cloudflare-onecli',
+      '--onecli-workspace',
+      'acme',
+      '--onecli-agent',
+      'vz',
+      '--onecli-gateway',
+      'localhost:10255'
+    ]);
+  });
+
+  it('connects from options alone, and rejects contradictory options', async () => {
+    worker(['good']);
+    const t = setup([], 'good\n');
+    expect(
+      await envCommand(
+        [
+          'add',
+          'prod',
+          '--connect',
+          '--url',
+          'https://w.example.com',
+          '--role',
+          'admin',
+          '--secret-stdin',
+          '--no-onecli'
+        ],
+        t.deps
+      )
+    ).toBe(0);
+    expect(t.read().environments.prod).toMatchObject({ secret: 'good' });
+    for (const args of [
+      ['--deploy', '--connect'],
+      ['--deploy', '--url', 'https://w.example.com'],
+      ['--onecli', '--no-onecli']
+    ]) {
+      t.err.length = 0;
+      expect(await envCommand(['add', 'other', ...args], t.deps)).toBe(1);
+      expect(t.errors()).toMatch(/Choose one|no --url/);
+    }
+  });
+});
+
+describe('vizoalica env --verbose', () => {
+  it('traces each step and request, and never a secret or an answer', async () => {
+    const stubbed = worker(['very-secret']);
+    const t = setup([], 'very-secret\n');
+    const code = await envCommand(
+      [
+        'add',
+        'prod',
+        '--connect',
+        '--url',
+        'https://w.example.com',
+        '--role',
+        'admin',
+        '--secret-stdin',
+        '--no-onecli'
+      ],
+      { ...t.deps, trace: makeTrace(t.deps.out) }
+    );
+    expect(code).toBe(0);
+    const text = t.text();
+    expect(text).toContain('Connecting "prod" to an existing backend');
+    expect(text).toContain('Secrets are kept in a private file');
+    expect(text).toMatch(/GET https:\/\/w\.example\.com\/\S+ -> 200 \(\d+ms\)/);
+    expect(text).toContain('"prod" is usable');
+    expect(text).toContain('Wrote ');
+    expect(text).not.toContain('very-secret');
+    expect(stubbed.requests.length).toBeGreaterThan(0);
+  });
+
+  it('shows the question being asked but not the answer', async () => {
+    const t = setup([
+      'prod',
+      'n',
+      'n',
+      'https://w.example.com',
+      'admin',
+      'answer-that-is-secret',
+      ''
+    ]);
+    worker(['answer-that-is-secret']);
+    await envCommand(['add'], { ...t.deps, deploy: async () => 0, trace: makeTrace(t.deps.out) });
+    const text = t.text();
+    expect(text).toContain('Asking: Administrator secret (hidden): (answer hidden)');
+    expect(text).not.toContain('answer-that-is-secret');
   });
 });
 
@@ -301,6 +449,9 @@ describe('vizoalica env add', () => {
     expect(t.errors()).toContain('lowercase');
     t.err.length = 0;
     expect(await envCommand(['add', 'new'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('Say where the backend is');
+    t.err.length = 0;
+    expect(await envCommand(['add', 'new', '--connect'], t.deps)).toBe(1);
     expect(t.errors()).toContain('Missing');
   });
 

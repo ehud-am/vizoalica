@@ -15,6 +15,36 @@ function deps(overrides: Partial<MainDeps> = {}) {
   });
 }
 
+describe('main --verbose', () => {
+  it('prints timed diagnostics only when asked, wherever the flag is', async () => {
+    const quiet = deps();
+    expect(await main(['env', 'list'], quiet)).toBe(0);
+    expect(quiet.output.join('')).not.toContain('[verbose');
+
+    for (const argv of [
+      ['--verbose', 'env', 'list'],
+      ['env', 'list', '--verbose']
+    ]) {
+      const loud = deps();
+      expect(await main(argv, loud)).toBe(0);
+      const text = loud.output.join('');
+      expect(text).toMatch(/\[verbose \+\d+ms\] vizoalica 9\.9\.9, Node\.js 22\.12\.0, darwin/);
+      expect(text).toContain('Command: env list');
+      expect(text).toContain('Environments file:');
+      expect(text).toContain('No environments yet');
+    }
+    expect(help()).toContain('--verbose');
+  });
+
+  it('says whether the Cloudflare token is set without ever printing it', async () => {
+    const d = deps({ env: { CLOUDFLARE_API_TOKEN: 'super-secret-token' } });
+    await main(['env', 'list', '--verbose'], d);
+    const text = d.output.join('');
+    expect(text).toContain('CLOUDFLARE_API_TOKEN set');
+    expect(text).not.toContain('super-secret-token');
+  });
+});
+
 describe('main', () => {
   it('prints the version', async () => {
     for (const flag of ['--version', '-v', 'version']) {

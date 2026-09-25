@@ -17,6 +17,7 @@ import { applyDeploy, checkAccess, DeployError } from '../src/deploy/apply.js';
 import { explain } from '../src/deploy/explain.js';
 import { buildPlan } from '../src/deploy/plan.js';
 import { wranglerFor } from '../src/deploy/wrangler.js';
+import { makeTrace } from '../../local-ops-api/src/trace.js';
 import { tempHome, writePrivate } from './support.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -742,5 +743,23 @@ describe('deploy pieces', () => {
     // onecli is not on this PATH: the failure proves the command that was tried.
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('onecli');
+  });
+});
+
+describe('vizoalica deploy --verbose', () => {
+  it('traces the plan, every Wrangler call, and the health check, without a secret', async () => {
+    const t = setup({ stdin: 'cf-token-value\n', interactive: false });
+    const code = await deployCommand(
+      ['prod', ...APPLY, '--secrets-file', join(tempHome(), 'secrets.env')],
+      { ...t.deps, trace: makeTrace(t.deps.out) }
+    );
+    expect(code).toBe(0);
+    const text = t.text();
+    expect(text).toContain('Plan for "prod"');
+    expect(text).toContain('Cloudflare credential: an API token read from stdin');
+    expect(text).toContain('wrangler d1 create');
+    expect(text).toMatch(/exit 0 after \d+ms/);
+    expect(text).toContain('Health check 1 of 2: healthy');
+    expect(text).not.toContain('cf-token-value');
   });
 });

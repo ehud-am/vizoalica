@@ -65,6 +65,11 @@ vizoalica help
 Update with `npm update -g vizoalica`; remove with `npm uninstall -g vizoalica`. Your settings stay in
 `~/.config/vizoalica/`.
 
+**Something not working?** Add `--verbose` to any command (for example `vizoalica deploy prod --apply --verbose`).
+It prints, with timings, what the command is doing: the files and settings it uses, each question it asks, each
+request it makes, and each Wrangler step with its output. It never prints a secret, a credential, or your
+answers, so the output is safe to paste into an issue.
+
 ## Step 2: Create and deploy your first environment
 
 The console works on **environments** (`dev`, `stage`, `prod`, or any names): a backend, the role you use it
@@ -80,6 +85,18 @@ It asks, in order:
    environment. No connects `prod` to a backend that **already exists** (yours, or a teammate's): it asks for the
    Worker address, your role, and the secret, and checks them against the Worker before saving.
 2. **Should OneCLI hold your secrets?** Yes is recommended, and it is the default (see below).
+
+Run it with no name and it asks for that too, so `vizoalica env add` alone walks through every question. To skip
+the questions, give the answers as options; a script needs no terminal:
+
+```sh
+# create the backend and the environment
+vizoalica env add prod --deploy --yes --secrets-file ./prod-secrets.env --onecli \
+  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>
+
+# connect to a backend that already exists
+vizoalica env add prod --connect --url https://prod.example.workers.dev --role admin --secret-stdin --no-onecli
+```
 
 **Deploying is also a step of its own.** Run it directly whenever you like, for example to create the backend
 later or from a script. Make a Cloudflare API token with Workers Scripts: Edit, D1: Edit, Workers R2 Storage:

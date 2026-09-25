@@ -12,6 +12,7 @@ import {
   type Run,
   type SecretKind
 } from '@vizoalica/ops-core';
+import { noTrace, type Trace } from '../../../local-ops-api/src/trace.js';
 import { explain } from './explain.js';
 import type { DeployPlan } from './plan.js';
 
@@ -29,6 +30,8 @@ export type ApplyDeps = {
   fetch?: (input: URL | string, init?: RequestInit) => Promise<Response>;
   sleep?: (ms: number) => Promise<void>;
   healthAttempts?: number;
+  /** `--verbose`: every Wrangler call and its output. Credentials are never arguments, so none appear. */
+  trace?: Trace;
 };
 
 export type ApplyResult = {
@@ -99,8 +102,20 @@ export async function applyDeploy(
   const env: Record<string, string> = plan.accountId
     ? { CLOUDFLARE_ACCOUNT_ID: plan.accountId }
     : {};
-  const wr = (args: readonly string[], extra: Parameters<Run>[1] = {}) =>
-    deps.run(args, { ...extra, env: { ...env, ...extra.env } });
+  const trace = deps.trace ?? noTrace;
+  const wr = async (args: readonly string[], extra: Parameters<Run>[1] = {}) => {
+    const started = Date.now();
+    trace(
+      `wrangler ${args.join(' ')}${extra.stdin ? ` (sends ${extra.stdin.length} characters on stdin, not shown)` : ''}`
+    );
+    const result = await deps.run(args, { ...extra, env: { ...env, ...extra.env } });
+    trace(`  exit ${result.code} after ${Date.now() - started}ms`);
+    // Wrangler's output shows names and addresses; the secrets it is given go in on stdin and are not echoed.
+    const shown = lastLines(result.stdout + result.stderr);
+    if (shown) trace(shown.replace(/^/gm, '  | '));
+    return result;
+  };
+  trace(`Rendered configuration goes to ${join(deps.configDir, names.worker, 'wrangler.toml')}`);
   const rendered = join(deps.configDir, names.worker, 'wrangler.toml');
   const configArgs = ['--config', rendered];
   let index = 0;
@@ -108,6 +123,7 @@ export async function applyDeploy(
     const label = STEPS[index]!;
     index += 1;
     deps.log(`[${index}/${STEPS.length}] ${label}…`);
+    trace(`Step ${index} of ${STEPS.length}: ${label}`);
     return label;
   };
   const fail = (label: string, what: string, result: { stdout: string; stderr: string }): never => {
@@ -192,6 +208,7 @@ export async function applyDeploy(
   } catch {
     // Nothing listed: every secret is generated below.
   }
+  trace(`Secrets the Worker already has: ${[...present].join(', ') || 'none'}`);
   const missing = SECRET_KINDS.filter((kind: SecretKind) => !present.has(SECRETS[kind].name));
   const secrets = generateSecrets(missing);
   if (missing.length > 0) {
@@ -212,8 +229,14 @@ export async function applyDeploy(
       });
       const body = (await response.json().catch(() => undefined)) as { ok?: unknown } | undefined;
       healthy = response.status === 200 && body?.ok === true;
-    } catch {
+      trace(
+        `Health check ${attempt + 1} of ${attempts}: ${healthy ? 'healthy' : `answered ${response.status}, not healthy yet`}`
+      );
+    } catch (error) {
       // A brand-new workers.dev name can take a moment to resolve.
+      trace(
+        `Health check ${attempt + 1} of ${attempts}: no answer (${error instanceof Error ? error.message : 'unknown'})`
+      );
     }
     if (!healthy && attempt < attempts - 1) await sleep(3000);
   }

@@ -8,12 +8,13 @@ import {
   type EnvironmentDef,
   type OnecliRef
 } from '../../local-ops-api/src/environments/file.js';
+import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import type { FetchLike, Vault } from '../../local-ops-api/src/environments/vault.js';
 import { verifyEnvironment } from '../../local-ops-api/src/environments/verify.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
 import { applyDeploy, checkAccess, DeployError } from './deploy/apply.js';
 import { buildPlan, describePlan } from './deploy/plan.js';
-import { wranglerFor, type CloudflareAccess } from './deploy/wrangler.js';
+import { wranglerCommand, wranglerFor, type CloudflareAccess } from './deploy/wrangler.js';
 
 export type DeployDeps = {
   home: string;
@@ -31,6 +32,8 @@ export type DeployDeps = {
   fetch?: FetchLike | undefined;
   sleep?: ((ms: number) => Promise<void>) | undefined;
   healthAttempts?: number | undefined;
+  /** `--verbose`: what is happening, for troubleshooting. Never a secret or an answer. */
+  trace?: Trace | undefined;
 };
 
 const USAGE = [
@@ -102,6 +105,18 @@ function assertAssets(assetDir: string): void {
 }
 
 export async function deployCommand(args: readonly string[], deps: DeployDeps): Promise<number> {
+  if (deps.trace) {
+    // Say which question is being asked, never what the answer was.
+    const ask = deps.ask;
+    const trace = deps.trace;
+    deps = {
+      ...deps,
+      ask: (question, options) => {
+        trace(`Asking: ${question.trim()}${options?.secret ? ' (answer hidden)' : ''}`);
+        return ask(question, options);
+      }
+    };
+  }
   if (args.length === 0 || args[0] === 'help' || args[0] === '--help') {
     deps.out(`${USAGE}\n`);
     return args.length === 0 ? 1 : 0;
@@ -116,9 +131,13 @@ export async function deployCommand(args: readonly string[], deps: DeployDeps): 
     deps.err('Give the environment name: vizoalica deploy <name> [--apply]\n');
     return 1;
   }
+  const trace = deps.trace ?? noTrace;
   let plan;
   try {
     plan = buildPlan(name, flags.values.get('--account'));
+    trace(
+      `Plan for "${name}": database ${plan.names.database}, bucket ${plan.names.bucket}, Worker ${plan.names.worker}, account ${plan.accountId ?? 'not chosen yet'}`
+    );
   } catch (error) {
     deps.err(`${error instanceof Error ? error.message : 'Invalid name.'}\n`);
     return 1;
@@ -130,6 +149,7 @@ export async function deployCommand(args: readonly string[], deps: DeployDeps): 
     deps.err(`The environments file cannot be used:\n  ${path}\n${loaded.reason}\n`);
     return 1;
   }
+  trace(`Environments file: ${path} (${loaded.entries.length} entries)`);
   if (loaded.entries.some((entry) => entry.name === name)) {
     deps.err(
       `"${name}" is already an environment on this computer, so a new backend would not be added to it.\nChoose another name, or remove it first with: vizoalica env remove ${name}\n`
@@ -142,6 +162,7 @@ export async function deployCommand(args: readonly string[], deps: DeployDeps): 
     return 0;
   }
 
+  trace(`Packaged Worker files: ${deps.assetDir}`);
   try {
     assertAssets(deps.assetDir);
   } catch (error) {
@@ -173,6 +194,7 @@ async function applyCommand(
     return 1;
   }
 
+  const trace = deps.trace ?? noTrace;
   // The Cloudflare credential: stdin, OneCLI, the environment variable, or a hidden prompt.
   let access: CloudflareAccess;
   let onecli: OnecliRef | undefined;
@@ -186,12 +208,18 @@ async function applyCommand(
     }
     onecli = { workspace, agent, gateway };
     access = { onecli };
+    trace(
+      `Cloudflare credential: held by OneCLI (workspace ${workspace}, agent ${agent}, gateway ${gateway})`
+    );
   } else {
     let token: string | undefined;
-    if (flags.switches.has('--cloudflare-token-stdin'))
+    if (flags.switches.has('--cloudflare-token-stdin')) {
+      trace('Cloudflare credential: an API token read from stdin');
       token = (await deps.readStdin()).replace(/\r?\n$/, '').trim();
-    else if (deps.env.CLOUDFLARE_API_TOKEN?.trim()) token = deps.env.CLOUDFLARE_API_TOKEN.trim();
-    else if (deps.interactive)
+    } else if (deps.env.CLOUDFLARE_API_TOKEN?.trim()) {
+      trace('Cloudflare credential: the CLOUDFLARE_API_TOKEN environment variable');
+      token = deps.env.CLOUDFLARE_API_TOKEN.trim();
+    } else if (deps.interactive)
       token = (await deps.ask('Cloudflare API token (hidden): ', { secret: true })).trim();
     if (!token) {
       deps.err(
@@ -202,10 +230,16 @@ async function applyCommand(
     access = { token };
   }
   const run = deps.run ?? wranglerFor(access, deps.env);
+  trace(
+    `Wrangler: ${deps.run ? '(replaced for a test)' : wranglerCommand(deps.env).join(' ')}${onecli ? ', run under OneCLI' : ''}`
+  );
 
   try {
     deps.out('Checking Cloudflare access…\n');
     const accounts = await checkAccess(run);
+    trace(
+      `Cloudflare accounts this credential can see: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}`
+    );
     let accountId = flags.values.get('--account');
     if (accountId && !accounts.some((account) => account.id === accountId)) {
       deps.err(
@@ -256,6 +290,7 @@ async function applyCommand(
         version: deps.version,
         configDir: join(deps.home, '.config', 'vizoalica', 'deploy'),
         log: (line) => deps.out(`${line}\n`),
+        ...(deps.trace ? { trace: deps.trace } : {}),
         ...(deps.fetch ? { fetch: deps.fetch } : {}),
         ...(deps.sleep ? { sleep: deps.sleep } : {}),
         ...(deps.healthAttempts !== undefined ? { healthAttempts: deps.healthAttempts } : {})
@@ -269,6 +304,9 @@ async function applyCommand(
     const revealed = { ...result.secrets };
     let registered = false;
     if (adminSecret) {
+      trace(
+        `Adding "${name}" to ${environmentsFile}: admin secret goes to the file, never printed`
+      );
       const def: EnvironmentDef = {
         url: result.workerUrl,
         role: 'admin',
@@ -313,7 +351,8 @@ async function applyCommand(
           version: deps.version,
           expectedSchema: expectedSchemaFrom(join(deps.assetDir, 'schema')),
           vault: deps.vault,
-          ...(deps.fetch ? { fetch: deps.fetch } : {})
+          ...(deps.fetch ? { fetch: deps.fetch } : {}),
+          ...(deps.trace ? { trace: deps.trace } : {})
         }
       );
       deps.out(
@@ -325,6 +364,9 @@ async function applyCommand(
     }
     return adminSecret ? 1 : 0;
   } catch (error) {
+    trace(
+      `Stopped: ${error instanceof DeployError ? `${error.step}: ` : ''}${error instanceof Error ? error.message : 'unknown error'}`
+    );
     if (error instanceof DeployError) {
       deps.err(`\nStopped at: ${error.step}\n${error.message}\n`);
       if (error.hint) deps.err(`${error.hint}\n`);

@@ -1,5 +1,6 @@
 import { isIncompatible, versionStatus } from '../compat.js';
 import { WorkerClient, type BackendInfo, type Principal } from '../remote-client/worker-client.js';
+import { noTrace, tracedFetch, type Trace } from '../trace.js';
 import type { EnvironmentDef, Role, Secret } from './file.js';
 import { ONECLI_PLACEHOLDER, VaultError, type FetchLike, type Vault } from './vault.js';
 
@@ -35,15 +36,25 @@ export type VerifyDeps = {
   vault: Vault;
   /** Tests replace the network. */
   fetch?: FetchLike;
+  /** `--verbose`: what is being checked and how it answered. Never a secret. */
+  trace?: Trace;
 };
 
 /** How a request is authenticated: the literal secret, or the placeholder plus a fetch through OneCLI. */
 export function resolveSecret(
   secret: Secret,
-  deps: Pick<VerifyDeps, 'vault' | 'fetch'>
+  deps: Pick<VerifyDeps, 'vault' | 'fetch' | 'trace'>
 ): { credential: string; fetch: FetchLike } {
-  if (typeof secret === 'string') return { credential: secret, fetch: deps.fetch ?? fetch };
-  return { credential: ONECLI_PLACEHOLDER, fetch: deps.vault.fetchFor(secret.onecli) };
+  const trace = deps.trace;
+  if (typeof secret === 'string') {
+    const inner = deps.fetch ?? fetch;
+    return { credential: secret, fetch: trace ? tracedFetch(inner, trace) : inner };
+  }
+  const inner = deps.vault.fetchFor(secret.onecli);
+  return {
+    credential: ONECLI_PLACEHOLDER,
+    fetch: trace ? tracedFetch(inner, trace, ` via OneCLI gateway ${secret.onecli.gateway}`) : inner
+  };
 }
 
 const sourceOf = (secret: Secret | undefined): 'file' | 'onecli' | undefined =>
@@ -63,8 +74,12 @@ const vaultProblem = (error: VaultError): Problem => ({ code: 'onecli', message:
 /** Asks Cloudflare whether an API token is active. Resolves to a Problem when it is not usable. */
 export async function verifyCloudflareToken(
   token: Secret,
-  deps: Pick<VerifyDeps, 'vault' | 'fetch'>
+  deps: Pick<VerifyDeps, 'vault' | 'fetch' | 'trace'>
 ): Promise<Problem | undefined> {
+  const trace = deps.trace ?? noTrace;
+  trace(
+    `Checking the Cloudflare API token (${typeof token === 'string' ? 'from the file' : 'held by OneCLI'})`
+  );
   const { credential, fetch: doFetch } = resolveSecret(token, deps);
   const call = (path: string) =>
     doFetch(`https://api.cloudflare.com/client/v4${path}`, {
@@ -75,6 +90,7 @@ export async function verifyCloudflareToken(
     const user = await call('/user/tokens/verify');
     const body = (await user.json().catch(() => undefined)) as
       { result?: { status?: string } } | undefined;
+    trace(`Token status reported by Cloudflare: ${body?.result?.status ?? 'none'}`);
     if (user.ok && body?.result?.status === 'active') return undefined;
     if (user.ok && body?.result?.status)
       return {
@@ -82,6 +98,7 @@ export async function verifyCloudflareToken(
         message: `Cloudflare reports this API token as ${body.result.status}. Create a new token in Cloudflare → My Profile → API Tokens.`
       };
     // An account-owned token is not known to the user endpoint; it can still list its own account.
+    trace('Not a user token; trying to list its account instead');
     const accounts = await call('/accounts?per_page=1');
     if (accounts.ok) return undefined;
     return {
@@ -107,6 +124,10 @@ export async function verifyEnvironment(
   def: EnvironmentDef,
   deps: VerifyDeps
 ): Promise<EnvironmentState> {
+  const trace = deps.trace ?? noTrace;
+  trace(
+    `Verifying "${name}": ${def.url}, role ${def.role}, secret ${typeof def.secret === 'string' ? 'in the file' : `held by OneCLI (workspace ${def.secret.onecli.workspace}, agent ${def.secret.onecli.agent})`}, Cloudflare token ${def.cloudflare ? 'saved' : 'none'}`
+  );
   const state: EnvironmentState = {
     name,
     url: def.url,
@@ -127,6 +148,7 @@ export async function verifyEnvironment(
       return undefined;
     });
   } catch (error) {
+    trace(`Asking the Worker failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     if (error instanceof VaultError) state.problems.push(vaultProblem(error));
     else if (error instanceof Error && error.message === 'unauthorized')
       state.problems.push({
@@ -143,6 +165,9 @@ export async function verifyEnvironment(
       });
   }
   if (principal) {
+    trace(
+      `The Worker says: role ${principal.role}, version ${principal.workerVersion ?? 'unknown'}, schema ${info?.schema.applied ?? 'unknown'} (this command expects schema ${deps.expectedSchema ?? 'unknown'})`
+    );
     state.actualRole = principal.role;
     if (principal.role !== def.role)
       state.problems.push({
@@ -163,5 +188,8 @@ export async function verifyEnvironment(
     if (problem) state.problems.push(problem);
   }
   state.usable = state.problems.length === 0;
+  trace(
+    `"${name}" is ${state.usable ? 'usable' : 'not usable'}${state.problems.map((p) => `\n  problem [${p.code}]: ${p.message}`).join('')}`
+  );
   return state;
 }

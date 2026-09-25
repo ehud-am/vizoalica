@@ -17,6 +17,7 @@ import {
   type EnvironmentState,
   type VerifyDeps
 } from '../../local-ops-api/src/environments/verify.js';
+import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import type { FetchLike, Vault } from '../../local-ops-api/src/environments/vault.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
 
@@ -33,6 +34,8 @@ export type EnvDeps = {
   vault: Vault;
   /** Runs `vizoalica deploy <args>`; lets `env add` offer to create the backend. */
   deploy?: ((args: string[]) => Promise<number>) | undefined;
+  /** `--verbose`: what is happening, for troubleshooting. Never a secret or an answer. */
+  trace?: Trace | undefined;
   /** Tests replace the network. */
   fetch?: FetchLike;
 };
@@ -48,6 +51,9 @@ const USAGE = [
   '  check [name]             Verify one or all environments; fails if one is unusable',
   '',
   'Options for add and update:',
+  '  --deploy                  add: create the backend now (else asked; --url means it exists already)',
+  '  --connect                 add: the backend already exists (else asked; needs --url)',
+  '  --onecli | --no-onecli    Let OneCLI hold the secrets, or keep them in a private file (else asked)',
   '  --url <https-address>     The Worker address: workers.dev or your own domain',
   '  --role admin|owner|analyst',
   '  --secret-stdin            Read the secret (admin secret or access key) from stdin',
@@ -57,6 +63,10 @@ const USAGE = [
   '  --no-cloudflare           Remove the Cloudflare API token',
   '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '  --no-verify               Save without checking (for offline edits)',
+  '',
+  'With --deploy, these are passed to "vizoalica deploy": --yes, --account, --secrets-file,',
+  '--resume, --save-cloudflare, --cloudflare-token-stdin. With no name and no options, add asks',
+  'every question in turn.',
   '',
   'The list is a plain file you can also edit by hand: ~/.config/vizoalica/environments.json'
 ].join('\n');
@@ -70,6 +80,8 @@ type Flags = {
 const VALUE_FLAGS = new Set([
   '--url',
   '--role',
+  '--account',
+  '--secrets-file',
   '--onecli-workspace',
   '--onecli-agent',
   '--onecli-gateway'
@@ -81,7 +93,13 @@ const SWITCHES = new Set([
   '--cloudflare-onecli',
   '--no-cloudflare',
   '--no-verify',
-  '--yes'
+  '--yes',
+  '--deploy',
+  '--connect',
+  '--onecli',
+  '--no-onecli',
+  '--resume',
+  '--save-cloudflare'
 ]);
 
 function parseFlags(args: readonly string[]): Flags | string {
@@ -116,6 +134,18 @@ function printState(state: EnvironmentState, out: (text: string) => void): void 
 }
 
 export async function envCommand(args: readonly string[], deps: EnvDeps): Promise<number> {
+  const trace = deps.trace ?? noTrace;
+  if (deps.trace) {
+    // Say which question is being asked, never what the answer was.
+    const ask = deps.ask;
+    deps = {
+      ...deps,
+      ask: (question, options) => {
+        trace(`Asking: ${question.trim()}${options?.secret ? ' (answer hidden)' : ''}`);
+        return ask(question, options);
+      }
+    };
+  }
   const [command, ...rest] = args;
   if (command === undefined || command === 'help' || command === '--help') {
     deps.out(`${USAGE}\n`);
@@ -132,13 +162,21 @@ export async function envCommand(args: readonly string[], deps: EnvDeps): Promis
     version: deps.version,
     expectedSchema: expectedSchemaFrom(join(deps.assetDir, 'schema')),
     vault: deps.vault,
-    ...(deps.fetch ? { fetch: deps.fetch } : {})
+    ...(deps.fetch ? { fetch: deps.fetch } : {}),
+    ...(deps.trace ? { trace: deps.trace } : {})
   };
   const loaded = readEnvironments(path);
   if (loaded.status === 'broken') {
+    trace(`The environments file is broken: ${loaded.reason}`);
     deps.err(`The environments file cannot be used:\n  ${path}\n${loaded.reason}\n`);
     return 1;
   }
+  trace(
+    `Environments file: ${path} (${loaded.entries.length === 0 ? 'no entries yet' : loaded.entries.map((entry) => entry.name).join(', ')})`
+  );
+  trace(
+    `Expected database schema: ${verifyDeps.expectedSchema ?? 'unknown'}; running: env ${command}`
+  );
 
   if (command === 'list' || command === 'check') {
     const name = flags.positional[0];
@@ -167,7 +205,9 @@ export async function envCommand(args: readonly string[], deps: EnvDeps): Promis
     return states.every((state) => state.usable) || command === 'list' ? 0 : 1;
   }
 
-  const name = flags.positional[0];
+  let name = flags.positional[0];
+  if (!name && command === 'add' && deps.interactive && flags.positional.length === 0)
+    name = (await deps.ask('Environment name (for example dev, stage, prod): ')).trim();
   if (!name || flags.positional.length > 1) {
     deps.err(`Usage: vizoalica env ${command} <name>\n`);
     return 1;
@@ -219,6 +259,7 @@ async function saveCommand(
   deps: EnvDeps,
   verifyDeps: VerifyDeps
 ): Promise<number> {
+  const trace = deps.trace ?? noTrace;
   const existing = loaded.entries.find((entry) => entry.name === name);
   const current: EnvironmentDef | undefined =
     existing && 'def' in existing ? existing.def : undefined;
@@ -250,61 +291,119 @@ async function saveCommand(
     const answer = (await ask(`${question} (${fallback ? 'Y/n' : 'y/N'}): `)).toLowerCase();
     return answer === '' ? fallback : answer.startsWith('y');
   };
-  const askOnecli = async (): Promise<OnecliRef> => ({
-    workspace: await ask('OneCLI workspace: '),
-    agent: await ask('OneCLI agent: '),
-    gateway: await ask('OneCLI gateway (host:port): ')
-  });
-
-  const wantsOnecli =
-    flags.switches.has('--secret-onecli') || flags.switches.has('--cloudflare-onecli');
-  let onecli: OnecliRef | undefined;
-  let onecliChosen = false;
-  if (wantsOnecli) {
-    const workspace = flags.values.get('--onecli-workspace');
-    const agent = flags.values.get('--onecli-agent');
-    const gateway = flags.values.get('--onecli-gateway');
-    if (!workspace || !agent || !gateway) {
-      deps.err('OneCLI needs --onecli-workspace, --onecli-agent, and --onecli-gateway.\n');
-      return 1;
-    }
-    onecli = { workspace, agent, gateway };
+  if (flags.switches.has('--onecli') && flags.switches.has('--no-onecli')) {
+    deps.err('Choose one of --onecli and --no-onecli.\n');
+    return 1;
+  }
+  if (flags.switches.has('--deploy') && flags.switches.has('--connect')) {
+    deps.err('Choose one of --deploy and --connect.\n');
+    return 1;
+  }
+  if (flags.switches.has('--deploy') && flags.values.has('--url')) {
+    deps.err('--deploy creates a new backend, so it has no --url. Use --connect with --url.\n');
+    return 1;
   }
 
+  // Deploy or connect: a flag decides, else --url means the backend exists, else ask.
   const asking = command === 'add' && deps.interactive;
+  const explicitOnecli =
+    flags.switches.has('--secret-onecli') ||
+    flags.switches.has('--cloudflare-onecli') ||
+    flags.switches.has('--onecli');
+  let onecli: OnecliRef | undefined;
+  let onecliChosen = false;
   try {
-    // Deploy or connect: with no address given, offer to create the backend for this environment now.
-    if (asking && !flags.values.has('--url') && deps.deploy) {
-      const deploying = await yes(`Deploy the backend for "${name}" now?`, true);
-      if (!deploying) deps.out(`Connecting "${name}" to a backend that already exists.\n`);
-      if (!onecli && (await yes('Should OneCLI hold your secrets (recommended)?', true)))
-        onecli = await askOnecli();
-      if (deploying)
-        return await deps.deploy([
-          name,
-          '--apply',
-          ...(onecli
-            ? [
-                '--cloudflare-onecli',
-                '--onecli-workspace',
-                onecli.workspace,
-                '--onecli-agent',
-                onecli.agent,
-                '--onecli-gateway',
-                onecli.gateway
-              ]
-            : [])
-        ]);
-      onecliChosen = onecli !== undefined;
-    } else if (
+    let deploying = false;
+    if (command === 'add') {
+      if (flags.switches.has('--deploy')) deploying = true;
+      else if (flags.switches.has('--connect') || flags.values.has('--url')) deploying = false;
+      else if (asking && deps.deploy)
+        deploying = await yes(`Deploy the backend for "${name}" now?`, true);
+      else if (!deps.interactive) {
+        deps.err(
+          'Say where the backend is: --deploy to create it now, or --connect --url <address> for one that exists.\n'
+        );
+        return 1;
+      }
+      if (command === 'add' && !deploying && asking && !flags.values.has('--url'))
+        deps.out(`Connecting "${name}" to a backend that already exists.\n`);
+    }
+    if (deploying && !deps.deploy) throw new Error('Deploying is not available here.');
+    if (command === 'add')
+      trace(
+        deploying
+          ? `Deploying a new backend for "${name}"`
+          : `Connecting "${name}" to an existing backend`
+      );
+
+    // OneCLI: a flag decides, else ask (a secret piped on stdin never goes to OneCLI).
+    let useOnecli: boolean | undefined = flags.switches.has('--no-onecli')
+      ? false
+      : explicitOnecli
+        ? true
+        : undefined;
+    const stdinSecret = flags.switches.has('--secret-stdin');
+    if (
+      useOnecli === undefined &&
       asking &&
-      !wantsOnecli &&
-      !flags.switches.has('--secret-stdin') &&
       deps.deploy &&
-      (await yes('Should OneCLI hold the secret (recommended)?', true))
-    ) {
-      onecli = await askOnecli();
-      onecliChosen = true;
+      !stdinSecret &&
+      !flags.switches.has('--cloudflare-token-stdin')
+    )
+      useOnecli = await yes(
+        deploying
+          ? 'Should OneCLI hold your Cloudflare token (recommended)?'
+          : 'Should OneCLI hold the secret (recommended)?',
+        true
+      );
+    if (useOnecli) {
+      const workspace = flags.values.get('--onecli-workspace');
+      const agent = flags.values.get('--onecli-agent');
+      const gateway = flags.values.get('--onecli-gateway');
+      if (workspace && agent && gateway) onecli = { workspace, agent, gateway };
+      else if (deps.interactive)
+        onecli = {
+          workspace: workspace ?? (await ask('OneCLI workspace: ')),
+          agent: agent ?? (await ask('OneCLI agent: ')),
+          gateway: gateway ?? (await ask('OneCLI gateway (host:port): '))
+        };
+      else
+        throw new Error('OneCLI needs --onecli-workspace, --onecli-agent, and --onecli-gateway.');
+    }
+    onecliChosen = onecli !== undefined && !flags.switches.has('--secret-onecli');
+    trace(
+      onecli
+        ? `OneCLI holds the secrets: workspace ${onecli.workspace}, agent ${onecli.agent}, gateway ${onecli.gateway}`
+        : 'Secrets are kept in a private file (not OneCLI)'
+    );
+
+    if (deploying) {
+      const pass = (name: string): string[] =>
+        flags.values.has(name) ? [name, flags.values.get(name)!] : [];
+      const carry = (name: string): string[] => (flags.switches.has(name) ? [name] : []);
+      const deployArgs = [
+        name,
+        '--apply',
+        ...carry('--yes'),
+        ...carry('--resume'),
+        ...carry('--save-cloudflare'),
+        ...carry('--cloudflare-token-stdin'),
+        ...pass('--account'),
+        ...pass('--secrets-file'),
+        ...(onecli
+          ? [
+              '--cloudflare-onecli',
+              '--onecli-workspace',
+              onecli.workspace,
+              '--onecli-agent',
+              onecli.agent,
+              '--onecli-gateway',
+              onecli.gateway
+            ]
+          : [])
+      ];
+      trace(`Handing over to: vizoalica deploy ${deployArgs.join(' ')}`);
+      return await deps.deploy!(deployArgs);
     }
   } catch (error) {
     deps.err(`${error instanceof Error ? error.message : 'Something went wrong.'}\n`);
@@ -346,6 +445,9 @@ async function saveCommand(
       ...(cloudflare ? { cloudflare } : {})
     });
 
+    trace(
+      `Address ${url}, role ${role}${flags.switches.has('--no-verify') ? ', not verifying (--no-verify)' : ''}`
+    );
     if (!flags.switches.has('--no-verify')) {
       const state = await verifyEnvironment(name, def, verifyDeps);
       if (!state.usable) {
@@ -359,6 +461,7 @@ async function saveCommand(
     const all = definitionsOf(loaded);
     all[name] = def;
     writeEnvironments(path, all);
+    trace(`Wrote ${path} (readable only by you), now ${Object.keys(all).length} environment(s)`);
     deps.out(`${command === 'add' ? 'Added' : 'Updated'} "${name}" (${def.role}, ${def.url}).\n`);
     return 0;
   } catch (error) {

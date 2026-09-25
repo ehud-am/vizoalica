@@ -1,3 +1,4 @@
+import { makeTrace, noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
@@ -41,6 +42,8 @@ export function help(): string {
     '  console [--no-open]   Start the console: websites, results, and access for the',
     '                        environment you pick',
     '  help                  Show this help',
+    '  --verbose             With any command: print what it is doing, for troubleshooting',
+    '                        (never secrets)',
     '  --version             Print the installed version',
     '',
     'Start with: vizoalica env add <name> (deploys a backend or connects an existing one),',
@@ -50,8 +53,19 @@ export function help(): string {
 }
 
 /** Runs the command line and returns the exit code; every failure is a plain message. */
-export async function main(argv: readonly string[], deps: MainDeps): Promise<number> {
+export async function main(args: readonly string[], deps: MainDeps): Promise<number> {
+  const verbose = args.includes('--verbose');
+  const argv = args.filter((item) => item !== '--verbose');
+  const trace: Trace = verbose ? makeTrace(deps.out) : noTrace;
   const [command, ...rest] = argv;
+  trace(`vizoalica ${deps.version}, Node.js ${deps.nodeVersion}, ${deps.platform}`);
+  trace(`Command: ${argv.length > 0 ? argv.join(' ') : '(none)'}`);
+  trace(
+    `Settings folder: ${deps.home}/.config/vizoalica; packaged files: ${deps.assetDir}; terminal: ${deps.interactive ? 'yes' : 'no'}`
+  );
+  trace(
+    `Environment variables: CLOUDFLARE_API_TOKEN ${deps.env.CLOUDFLARE_API_TOKEN?.trim() ? 'set' : 'not set'}, VIZOALICA_WRANGLER ${deps.env.VIZOALICA_WRANGLER ? `set (${deps.env.VIZOALICA_WRANGLER})` : 'not set'}, VIZOALICA_PORT ${deps.env.VIZOALICA_PORT ?? 'not set'}`
+  );
   if (command === '--version' || command === '-v' || command === 'version') {
     deps.out(`${deps.version}\n`);
     return 0;
@@ -76,11 +90,12 @@ export async function main(argv: readonly string[], deps: MainDeps): Promise<num
       deps.err(`Unexpected argument: ${flags[0]}\nUsage: vizoalica console [--no-open]\n`);
       return 1;
     }
-    return consoleCommand({ open: !rest.includes('--no-open') }, deps);
+    return consoleCommand({ open: !rest.includes('--no-open') }, { ...deps, trace });
   }
   const deploy = (args: readonly string[]) =>
-    deployCommand(args, { ...deps, ...(deps.deployTestHooks ?? {}) });
-  if (command === 'env') return envCommand(rest, { ...deps, deploy: (args) => deploy(args) });
+    deployCommand(args, { ...deps, trace, ...(deps.deployTestHooks ?? {}) });
+  if (command === 'env')
+    return envCommand(rest, { ...deps, trace, deploy: (args) => deploy(args) });
   if (command === 'deploy') return deploy(rest);
   if (CHECKOUT_COMMANDS.has(command)) {
     deps.err(

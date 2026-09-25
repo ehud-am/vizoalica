@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createService, listenLoopback } from '../../local-ops-api/src/service.js';
+import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 
 export const CONSOLE_ADDRESS = (port: number) => `http://127.0.0.1:${port}`;
 
@@ -18,6 +19,7 @@ export type ConsoleDeps = {
   /** Tests replace these; the defaults are the real service. */
   createService?: typeof createService;
   listen?: typeof listenLoopback;
+  trace?: Trace;
 };
 
 function busyMessage(port: number): string {
@@ -31,6 +33,12 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
   const homeDir = join(deps.home, '.config', 'vizoalica');
   const port = Number(deps.env.VIZOALICA_PORT ?? 4318);
   const address = CONSOLE_ADDRESS(port);
+  const trace = deps.trace ?? noTrace;
+  trace(`Console: port ${port}, settings ${homeDir}`);
+  for (const folder of ['console', 'sdk', 'schema'])
+    trace(
+      `Packaged ${folder} files: ${join(deps.assetDir, folder)} (${existsSync(join(deps.assetDir, folder)) ? 'found' : 'MISSING'})`
+    );
   const service = (deps.createService ?? createService)({
     homeDir,
     consoleDir: join(deps.assetDir, 'console'),
@@ -43,6 +51,7 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
     deps.err(
       'Note: the console files were not found next to this command, so pages will not load.\n'
     );
+  trace(`Listening on 127.0.0.1:${port} (this computer only)`);
   try {
     await (deps.listen ?? listenLoopback)(service.server, port);
   } catch (error) {
@@ -56,6 +65,12 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
   // The console itself explains what is wrong; the terminal only points at where to look.
   await service.registry.refresh();
   const { environments, selected } = service.registry.snapshot;
+  trace(`Checked ${environments.length} environment(s); selected: ${selected ?? 'none'}`);
+  if (deps.trace)
+    for (const item of environments)
+      trace(
+        `  ${item.name}: ${item.usable ? 'usable' : 'not usable'}${item.problems.map((p) => ` [${p.code}] ${p.message}`).join('')}`
+      );
   if (!selected)
     deps.out(
       `No environment is usable yet, so the console will only show what to fix.\nCheck them with: vizoalica env list\n`
@@ -65,7 +80,9 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
       `Environment: ${selected} (${environments.filter((item) => item.usable).length} of ${environments.length} usable)\n`
     );
   if (options.open) deps.openBrowser(address);
+  trace(options.open ? 'Opening the browser' : 'Not opening the browser (--no-open)');
   await deps.waitForStop();
+  trace('Stopping the console');
   await new Promise<void>((resolve) => {
     service.server.close(() => resolve());
     // A browser keeping a connection alive must not hold the command open.
