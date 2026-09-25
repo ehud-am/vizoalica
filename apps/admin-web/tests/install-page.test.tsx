@@ -204,6 +204,16 @@ describe('GitHub → Cloudflare Pages path', () => {
     );
     expect(screen.queryByRole('list', { name: 'Other settings to add' })).toBeNull();
     expect(screen.getByText(/ask for the value/)).toBeTruthy();
+    // The gh placeholders and secrets each say where their value comes from.
+    const where = within(screen.getByRole('list', { name: 'Where to find each value' }))
+      .getAllByRole('listitem')
+      .map((row) => row.textContent);
+    expect(where).toEqual([
+      expect.stringContaining('dash.cloudflare.com/'),
+      expect.stringContaining('pages project create'),
+      expect.stringContaining('profile/api-tokens'),
+      expect.stringContaining('--secrets-file')
+    ]);
   });
 
   it('names a secret without ever showing one, and lists identifiers only in a collapsed reference', async () => {
