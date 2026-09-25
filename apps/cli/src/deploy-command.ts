@@ -15,7 +15,8 @@ import {
   chooseAccount,
   cloudflareAccess,
   rememberAccount,
-  revealSecrets
+  revealSecrets,
+  secretsFileProblem
 } from './cloudflare-access.js';
 import { tracedAsk } from './prompt.js';
 import { applyDeploy, checkAccess, DeployError } from './deploy/apply.js';
@@ -174,8 +175,9 @@ async function applyCommand(
   deps: DeployDeps
 ): Promise<number> {
   const secretsFile = flags.values.get('--secrets-file');
-  if (secretsFile && existsSync(secretsFile)) {
-    deps.err(`${secretsFile} already exists. Choose a new file so nothing is overwritten.\n`);
+  const fileProblem = secretsFile ? secretsFileProblem(secretsFile) : undefined;
+  if (fileProblem) {
+    deps.err(`${fileProblem}\n`);
     return 1;
   }
   if (!deps.interactive && !secretsFile) {

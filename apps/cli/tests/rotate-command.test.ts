@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Run } from '@vizoalica/ops-core';
 import { describe, expect, it, vi } from 'vitest';
@@ -33,7 +33,13 @@ function setup(
           }
         : { code: 0, stdout: `│ Acme │ ${ACCOUNT} │`, stderr: '' };
     if (args[0] === 'secret' && args[1] === 'bulk') {
-      if (options.bulkFails) return { code: 1, stdout: '', stderr: 'Authentication error [10000]' };
+      if (options.bulkFails)
+        return {
+          code: 1,
+          stdout: '',
+          stderr:
+            'A request to the Cloudflare API failed.\n\n  No access to the specified resource.'
+        };
       Object.assign(stored, JSON.parse(runOptions.stdin ?? '{}'));
       return { code: 0, stdout: '', stderr: '' };
     }
@@ -97,7 +103,7 @@ describe('vizoalica rotate', () => {
     expect(text).toContain(`VIZOALICA_TOKEN_SECRET\n    ${t.stored.VIZOALICA_TOKEN_SECRET}\n`);
     expect(t.asked).toEqual([
       'Type "rotate" to continue: ',
-      'When you have saved them, type "saved": '
+      'When you have saved it, type "saved": '
     ]);
     expect(t.environments().prod!.secret).toBe(OLD);
   });
@@ -178,7 +184,7 @@ describe('vizoalica rotate', () => {
     t.asked.length = 0;
     expect(await rotateCommand(['prod', 'digest', '--yes'], t.deps)).toBe(0);
     expect(t.calls.filter((call) => call.args[0] === 'whoami')).toHaveLength(whoamis);
-    expect(t.asked).toEqual(['When you have saved them, type "saved": ']);
+    expect(t.asked).toEqual(['When you have saved it, type "saved": ']);
   });
 
   it('uses --account or CLOUDFLARE_ACCOUNT_ID without looking accounts up, and needs one without a terminal', async () => {
@@ -203,6 +209,32 @@ describe('vizoalica rotate', () => {
   it('says what to check when Cloudflare refuses the change', async () => {
     const t = setup({ answers: ['rotate'], bulkFails: true });
     expect(await rotateCommand(['prod', 'token'], t.deps)).toBe(1);
-    expect(t.errors()).toContain('Workers Scripts: Edit on the account');
+    expect(t.errors()).toContain('the token lacks Workers Scripts: Edit');
+    expect(t.errors()).toContain('--account <id>');
+  });
+
+  it('refuses a secrets file it could not write before changing anything', async () => {
+    const t = setup({ interactive: false });
+    const args = ['prod', 'token', '--yes', '--secrets-file'];
+    expect(await rotateCommand([...args, join(t.home, 'missing', 's.env')], t.deps)).toBe(1);
+    expect(t.errors()).toContain('does not exist or cannot be written to');
+    expect(await rotateCommand([...args, t.home], t.deps)).toBe(1);
+    expect(t.errors()).toContain('already exists');
+    expect(t.calls.some((call) => call.args[1] === 'bulk')).toBe(false);
+  });
+
+  it('shows the new administrator secret when the environment file cannot be updated', async () => {
+    const t = setup({ answers: ['rotate', 'saved'] });
+    const folder = join(t.home, '.config', 'vizoalica');
+    chmodSync(folder, 0o500);
+    try {
+      expect(await rotateCommand(['prod', 'admin'], t.deps)).toBe(0);
+    } finally {
+      chmodSync(folder, 0o700);
+    }
+    const secret = t.stored.VIZOALICA_ADMIN_SECRET!;
+    expect(t.errors()).toContain('could not be updated');
+    expect(t.text()).toContain(`VIZOALICA_ADMIN_SECRET\n    ${secret}\n`);
+    expect(t.environments().prod!.secret).toBe(OLD);
   });
 });

@@ -1,4 +1,13 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  chmodSync,
+  constants,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { SECRETS, SECRET_KINDS } from '@vizoalica/ops-core';
 import type { OnecliRef, Secret } from '../../local-ops-api/src/environments/file.js';
@@ -114,10 +123,15 @@ export function rememberedAccount(home: string, worker: string): string | undefi
   }
 }
 
+/** A convenience only: it runs after a secret changed, so it must never stop the command. */
 export function rememberAccount(home: string, worker: string, id: string): void {
-  const file = accountFile(home, worker);
-  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  writeFileSync(file, `${id}\n`, { mode: 0o600 });
+  try {
+    const file = accountFile(home, worker);
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+    writeFileSync(file, `${id}\n`, { mode: 0o600 });
+  } catch {
+    // Next time the account is looked up or asked for again.
+  }
 }
 
 /** Asks for an account ID when the token may not list accounts. A string is what is wrong. */
@@ -137,6 +151,23 @@ export async function askAccountId(io: Io, why: string): Promise<{ id: string } 
     io.err('  An account ID is 32 letters (a-f) and digits.\n');
   }
   return 'No account ID given.';
+}
+
+/**
+ * Checks, before anything changes, that a new secrets file can be created: once a secret exists only in
+ * memory, failing to write it would lose it. A string is what is wrong.
+ */
+export function secretsFileProblem(path: string): string | undefined {
+  if (existsSync(path))
+    return `${path} already exists. Choose a new file so nothing is overwritten.`;
+  const folder = dirname(path);
+  try {
+    if (!statSync(folder).isDirectory()) return `${folder} is not a folder.`;
+    accessSync(folder, constants.W_OK);
+  } catch {
+    return `The folder ${folder} does not exist or cannot be written to. Choose a secrets file in a folder you can write to.`;
+  }
+  return undefined;
 }
 
 /** What each secret is for, and where it has to go, in the words of someone who has to keep it. */
@@ -164,12 +195,19 @@ export async function revealSecrets(
   if (names.length === 0) return;
   if (secretsFile) {
     const lines = names.map((name) => `${name}=${secrets[name]}`);
-    writeFileSync(secretsFile, `${lines.join('\n')}\n`, { mode: 0o600, flag: 'wx' });
-    chmodSync(secretsFile, 0o600);
-    io.out(
-      `\nSecrets written to ${secretsFile} (readable only by you). Move them to a password manager,\nthen delete the file.\n`
-    );
-    return;
+    try {
+      writeFileSync(secretsFile, `${lines.join('\n')}\n`, { mode: 0o600, flag: 'wx' });
+      chmodSync(secretsFile, 0o600);
+      io.out(
+        `\nSecrets written to ${secretsFile} (readable only by you). Move them to a password manager,\nthen delete the file.\n`
+      );
+      return;
+    } catch (error) {
+      // They exist nowhere else: showing them is better than losing them.
+      io.err(
+        `\nThe secrets could not be written to ${secretsFile} (${(error as Error).message}), so they are shown below instead.\n`
+      );
+    }
   }
   const rule = '═'.repeat(76);
   io.out(
@@ -177,7 +215,7 @@ export async function revealSecrets(
       '',
       rule,
       `SAVE ${names.length === 1 ? 'THIS SECRET' : `THESE ${names.length} SECRETS`} NOW, in a password manager, under the exact name shown.`,
-      'Vizoalica does not keep a copy, and they cannot be shown again.',
+      `Vizoalica does not keep a copy, and ${names.length === 1 ? 'it' : 'they'} cannot be shown again.`,
       rule,
       '',
       ...names.flatMap((name) => [name, `    ${secrets[name]}`, `    ${KEEP[name]}`, '']),
@@ -190,7 +228,9 @@ export async function revealSecrets(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const answer = (
       await io.ask(
-        attempt === 0 ? 'When you have saved them, type "saved": ' : 'Type "saved" to continue: '
+        attempt === 0
+          ? `When you have saved ${names.length === 1 ? 'it' : 'them'}, type "saved": `
+          : 'Type "saved" to continue: '
       )
     )
       .trim()

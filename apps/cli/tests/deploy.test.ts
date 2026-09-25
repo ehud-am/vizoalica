@@ -420,6 +420,16 @@ describe('vizoalica deploy --apply', () => {
     expect(await deployCommand(['prod2', ...APPLY, '--secrets-file', file], again.deps)).toBe(1);
     expect(again.errors()).toContain('already exists');
     expect(again.wrangler.calls).toEqual([]);
+    // A folder that is not there would lose the secrets after the backend exists: refused first.
+    const nowhere = setup({ stdin: 'cf-token\n' });
+    expect(
+      await deployCommand(
+        ['prod3', ...APPLY, '--secrets-file', join(tempHome(), 'missing', 's.env')],
+        nowhere.deps
+      )
+    ).toBe(1);
+    expect(nowhere.errors()).toContain('cannot be written to');
+    expect(nowhere.wrangler.calls).toEqual([]);
   });
 
   it('without a terminal needs --yes and somewhere to put the secrets, before creating anything', async () => {

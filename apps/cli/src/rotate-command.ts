@@ -24,7 +24,8 @@ import {
   cloudflareAccess,
   rememberAccount,
   rememberedAccount,
-  revealSecrets
+  revealSecrets,
+  secretsFileProblem
 } from './cloudflare-access.js';
 import type { DeployDeps } from './deploy-command.js';
 import { checkAccess, DeployError } from './deploy/apply.js';
@@ -183,8 +184,9 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
   // Secrets that exist nowhere else must go somewhere: on screen, or into a new file.
   const revealed = kinds.filter((item) => item !== 'admin' || !adminInFile);
   const secretsFile = flags.values.get('--secrets-file');
-  if (secretsFile && existsSync(secretsFile)) {
-    deps.err(`${secretsFile} already exists. Choose a new file so nothing is overwritten.\n`);
+  const fileProblem = secretsFile ? secretsFileProblem(secretsFile) : undefined;
+  if (fileProblem) {
+    deps.err(`${fileProblem}\n`);
     return 1;
   }
   if (!deps.interactive && revealed.length > 0 && !secretsFile) {
@@ -268,9 +270,17 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
     if (stored.code !== 0) {
       const output = `${stored.stdout}${stored.stderr}`.trim().split('\n').slice(-6).join('\n');
       deps.err(`Storing the new value failed, so nothing was rotated:\n${output}\n`);
-      if (/authentic|unauthori[sz]ed|permission|10000|forbidden/i.test(output))
+      if (/authentic|unauthori[sz]ed|permission|10000|forbidden|no access|\b403\b/i.test(output))
         deps.err(
-          `Cloudflare refused the change. Check that the token has Workers Scripts: Edit on the account ${chosen.id},\nand that the Worker ${worker} is in that account.\n`
+          [
+            `Cloudflare says this token may not change the Worker ${worker} in the account ${chosen.id}.`,
+            'Either:',
+            '  - the token lacks Workers Scripts: Edit. The token you deployed with has it; a Pages-only token',
+            '    (the CF_API_TOKEN for a website) does not. Check it in Cloudflare → My Profile → API Tokens.',
+            `  - or the Worker is in another account: open Workers & Pages in the dashboard, find ${worker},`,
+            '    and use the account ID in the address bar with --account <id>.',
+            ''
+          ].join('\n')
         );
       else if (/not found|10007/i.test(output))
         deps.err(
@@ -282,18 +292,33 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
     deps.out(`The Worker now uses the new ${kinds.length === 1 ? 'value' : 'values'}.\n`);
 
     const adminSecret = generated[SECRETS.admin.name];
+    let saved = false;
     if (adminSecret && adminInFile) {
       const all = definitionsOf(loaded);
       all[name] = { ...def, secret: adminSecret };
-      writeEnvironments(path, all);
+      try {
+        writeEnvironments(path, all);
+        saved = true;
+      } catch (error) {
+        // The Worker already has it: hand it over rather than lose it.
+        deps.err(
+          `The Worker has the new administrator secret, but "${name}" could not be updated (${(error as Error).message}).\nIt is shown below; save it, then: vizoalica env update ${name} --secret-stdin\n`
+        );
+      }
+    }
+    if (saved) {
       deps.out(`"${name}" on this computer now has the new administrator secret.\n`);
-      const check = await verifyEnvironment(name, all[name], {
-        version: deps.version,
-        expectedSchema: expectedSchemaFrom(join(deps.assetDir, 'schema')),
-        vault: deps.vault,
-        ...(deps.fetch ? { fetch: deps.fetch } : {}),
-        ...(deps.trace ? { trace: deps.trace } : {})
-      });
+      const check = await verifyEnvironment(
+        name,
+        { ...def, secret: adminSecret! },
+        {
+          version: deps.version,
+          expectedSchema: expectedSchemaFrom(join(deps.assetDir, 'schema')),
+          vault: deps.vault,
+          ...(deps.fetch ? { fetch: deps.fetch } : {}),
+          ...(deps.trace ? { trace: deps.trace } : {})
+        }
+      );
       deps.out(
         check.usable
           ? `"${name}" works with it.\n`
@@ -302,7 +327,9 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
     }
     await revealSecrets(
       Object.fromEntries(
-        revealed.map((item) => [SECRETS[item].name, generated[SECRETS[item].name]!])
+        [...revealed, ...(adminSecret && adminInFile && !saved ? (['admin'] as const) : [])].map(
+          (item) => [SECRETS[item].name, generated[SECRETS[item].name]!]
+        )
       ),
       secretsFile,
       deps,
