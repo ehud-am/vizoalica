@@ -534,8 +534,8 @@ async function saveCommand(
         {
           label: 'whether OneCLI holds the Cloudflare API token',
           about:
-            'Deploying needs a Cloudflare API token. OneCLI can hold it, so you never paste it here\n(recommended if you use OneCLI). Otherwise you paste it next, hidden, or it is read from\nCLOUDFLARE_API_TOKEN.',
-          prompt: 'Should OneCLI hold your Cloudflare API token?',
+            'Deploying needs a Cloudflare API token. Where is yours?\n  y  It is already stored in OneCLI. Vizoalica gets it from OneCLI, and you never paste it.\n  n  You have it yourself. You paste it next (nothing is shown), or it is read from\n     CLOUDFLARE_API_TOKEN if that is set.\nIf you do not use OneCLI, answer n.',
+          prompt: 'Is your Cloudflare API token stored in OneCLI?',
           option: '--onecli or --no-onecli'
         },
         true
@@ -620,11 +620,11 @@ async function saveCommand(
       (await ask.yesNo(
         {
           label: `where the ${secretName} is`,
-          about: `OneCLI can hold the ${secretName}, so it is never saved on this computer (recommended if\nyou use OneCLI and it already holds it). Otherwise you paste it next and it is kept in a file\nonly you can read.`,
-          prompt: `Does OneCLI hold the ${secretName}?`,
+          about: `Where is the ${secretName} for "${name}"?\n  y  It is already stored in OneCLI. Vizoalica asks OneCLI for it when needed and never saves\n     it on this computer. You then say which OneCLI workspace and agent hold it.\n  n  You have it yourself, for example in a password manager. You paste it next (nothing is\n     shown), and it is saved in ~/.config/vizoalica/environments.json, readable only by you.\nIf you do not use OneCLI, answer n.`,
+          prompt: `Is the ${secretName} stored in OneCLI?`,
           option: '--secret-onecli or --secret-stdin'
         },
-        true
+        false
       ));
     secret = useOnecli
       ? { onecli: await onecliRef() }

@@ -84,7 +84,9 @@ It asks, in order, explaining each question above its prompt:
 1. **Deploy a new backend for "prod" now?** Yes creates it in your Cloudflare account and adds `prod` as an
    environment. No connects `prod` to a backend that **already exists** (yours, or a teammate's): it asks for the
    Worker address, your role, and the secret, and checks them against the Worker before saving.
-2. **Should OneCLI hold your secrets?** Yes is recommended, and it is the default (see below).
+2. **Is the secret stored in OneCLI?** When deploying, this is about your Cloudflare API token, and the
+   default is yes. When connecting, it is about the administrator secret or access key, and the default is
+   no. Answer yes only if OneCLI already holds it (see below); if you do not use OneCLI, answer no.
 
 An answer that cannot be used (a name that is taken, an address with a path, a role that does not exist) is
 asked again with the reason. Ctrl-C stops without changing anything. Add `--verbose` to see each step.

@@ -79,7 +79,7 @@ describe('vizoalica env add offers to deploy', () => {
     expect(await envCommand(['add', 'prod'], { ...t.deps, deploy })).toBe(0);
     expect(t.asked).toEqual([
       'Deploy a new backend for "prod" now? (Y/n): ',
-      'Should OneCLI hold your Cloudflare API token? (Y/n): ',
+      'Is your Cloudflare API token stored in OneCLI? (Y/n): ',
       'OneCLI workspace: ',
       'OneCLI agent: ',
       'OneCLI gateway (host:port) [localhost:10255]: '
@@ -129,7 +129,7 @@ describe('vizoalica env add: every question, or only options', () => {
     expect(t.asked).toEqual([
       'Environment name: ',
       'Deploy a new backend for "prod" now? (Y/n): ',
-      'Should OneCLI hold your Cloudflare API token? (Y/n): '
+      'Is your Cloudflare API token stored in OneCLI? (Y/n): '
     ]);
     expect(deploy).toHaveBeenCalledWith(['prod', '--apply']);
   });
@@ -157,7 +157,7 @@ describe('vizoalica env add: every question, or only options', () => {
       'Deploy a new backend for "prod" now? (Y/n): ',
       'Worker address (https://…): ',
       'Role (1-3, or admin, owner, analyst): ',
-      'Does OneCLI hold the administrator secret? (Y/n): ',
+      'Is the administrator secret stored in OneCLI? (y/N): ',
       'Administrator secret (hidden): ',
       'Cloudflare API token (hidden, Enter to skip): '
     ]);
