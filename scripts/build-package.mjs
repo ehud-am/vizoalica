@@ -42,8 +42,11 @@ await build({
   target: 'node22',
   banner: { js: '#!/usr/bin/env node' },
   define: { __VIZOALICA_VERSION__: JSON.stringify(version) },
+  // Workspace packages are bundled from their sources, so the package builds on a clean checkout
+  // with no `pnpm build` first (as the publish workflow does).
   alias: {
     '@vizoalica/event-contracts': './packages/event-contracts/src/index.ts',
+    '@vizoalica/ops-core': './packages/ops-core/src/index.ts',
     '@vizoalica/privacy': './packages/privacy/src/index.ts'
   },
   legalComments: 'none',
@@ -60,8 +63,11 @@ await build({
   platform: 'node',
   format: 'esm',
   target: 'es2022',
+  // Workspace packages are bundled from their sources, so the package builds on a clean checkout
+  // with no `pnpm build` first (as the publish workflow does).
   alias: {
     '@vizoalica/event-contracts': './packages/event-contracts/src/index.ts',
+    '@vizoalica/ops-core': './packages/ops-core/src/index.ts',
     '@vizoalica/privacy': './packages/privacy/src/index.ts'
   },
   legalComments: 'none',
