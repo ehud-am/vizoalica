@@ -18,7 +18,14 @@ import {
 import { verifyEnvironment } from '../../local-ops-api/src/environments/verify.js';
 import { noTrace } from '../../local-ops-api/src/trace.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
-import { chooseAccount, cloudflareAccess, revealSecrets } from './cloudflare-access.js';
+import {
+  askAccountId,
+  chooseAccount,
+  cloudflareAccess,
+  rememberAccount,
+  rememberedAccount,
+  revealSecrets
+} from './cloudflare-access.js';
 import type { DeployDeps } from './deploy-command.js';
 import { checkAccess, DeployError } from './deploy/apply.js';
 import { wranglerCommand, wranglerFor } from './deploy/wrangler.js';
@@ -205,14 +212,33 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
   trace(`Wrangler: ${deps.run ? '(replaced for a test)' : wranglerCommand(deps.env).join(' ')}`);
 
   try {
-    deps.out('Checking Cloudflare access…\n');
-    const accounts = await checkAccess(run);
-    const chosen = await chooseAccount(
-      accounts,
-      flags.values.get('--account'),
-      deps,
-      `Which one has the "${name}" Worker?`
-    );
+    // Rotating needs only Workers Scripts: Edit. Listing the accounts also needs Account Settings: Read,
+    // so it is only a convenience: the account can be given, remembered, or typed instead.
+    const known =
+      flags.values.get('--account') ??
+      deps.env.CLOUDFLARE_ACCOUNT_ID?.trim() ??
+      rememberedAccount(deps.home, worker);
+    let chosen: { id: string } | string;
+    if (known) {
+      trace(`Cloudflare account: ${known}`);
+      chosen = { id: known };
+    } else {
+      deps.out('Looking up your Cloudflare account…\n');
+      let accounts: Array<{ id: string; name: string }> = [];
+      try {
+        accounts = await checkAccess(run);
+      } catch (error) {
+        if (!(error instanceof DeployError)) throw error;
+        trace(`The token cannot list accounts: ${error.message.split('\n')[0]}`);
+      }
+      chosen =
+        accounts.length > 0
+          ? await chooseAccount(accounts, undefined, deps, `Which one has the "${name}" Worker?`)
+          : await askAccountId(
+              deps,
+              `This token cannot list your Cloudflare accounts (that needs Account Settings: Read), which is\nfine for rotating: say which account has the "${name}" Worker.`
+            );
+    }
     if (typeof chosen === 'string') {
       deps.err(`${chosen} Nothing was rotated.\n`);
       return 1;
@@ -242,8 +268,17 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
     if (stored.code !== 0) {
       const output = `${stored.stdout}${stored.stderr}`.trim().split('\n').slice(-6).join('\n');
       deps.err(`Storing the new value failed, so nothing was rotated:\n${output}\n`);
+      if (/authentic|unauthori[sz]ed|permission|10000|forbidden/i.test(output))
+        deps.err(
+          `Cloudflare refused the change. Check that the token has Workers Scripts: Edit on the account ${chosen.id},\nand that the Worker ${worker} is in that account.\n`
+        );
+      else if (/not found|10007/i.test(output))
+        deps.err(
+          `There is no Worker named ${worker} in the account ${chosen.id}. Check the account, or give the Worker with --worker <name>.\n`
+        );
       return 1;
     }
+    rememberAccount(deps.home, worker, chosen.id);
     deps.out(`The Worker now uses the new ${kinds.length === 1 ? 'value' : 'values'}.\n`);
 
     const adminSecret = generated[SECRETS.admin.name];

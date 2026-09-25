@@ -303,6 +303,13 @@ describe('vizoalica deploy --apply', () => {
       output.indexOf('SAVE THESE 2 SECRETS')
     );
     expect(output).toContain('vizoalica rotate prod');
+    // The account is remembered, so rotating later need not look it up.
+    expect(
+      readFileSync(
+        join(t.home, '.config', 'vizoalica', 'deploy', 'prod-vizoalica-worker', 'account-id'),
+        'utf8'
+      )
+    ).toBe(`${ACCOUNT}\n`);
     expect(t.asked.at(-1)).toBe('When you have saved them, type "saved": ');
   });
 

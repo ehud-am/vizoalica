@@ -11,7 +11,12 @@ import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
 import type { FetchLike, Vault } from '../../local-ops-api/src/environments/vault.js';
 import { verifyEnvironment } from '../../local-ops-api/src/environments/verify.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
-import { chooseAccount, cloudflareAccess, revealSecrets } from './cloudflare-access.js';
+import {
+  chooseAccount,
+  cloudflareAccess,
+  rememberAccount,
+  revealSecrets
+} from './cloudflare-access.js';
 import { tracedAsk } from './prompt.js';
 import { applyDeploy, checkAccess, DeployError } from './deploy/apply.js';
 import { buildPlan, describePlan } from './deploy/plan.js';
@@ -247,6 +252,8 @@ async function applyCommand(
       plan,
       { resume: flags.switches.has('--resume') }
     );
+
+    rememberAccount(deps.home, plan.names.worker, accountId);
 
     // Register the environment; the administrator secret goes only to the private file.
     const adminSecret = result.secrets[SECRETS.admin.name];

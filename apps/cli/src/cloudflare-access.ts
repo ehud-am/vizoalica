@@ -1,4 +1,5 @@
-import { chmodSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { SECRETS, SECRET_KINDS } from '@vizoalica/ops-core';
 import type { OnecliRef, Secret } from '../../local-ops-api/src/environments/file.js';
 import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
@@ -96,6 +97,46 @@ export async function chooseAccount(
     io.err(`  Type a number from 1 to ${accounts.length}.\n`);
   }
   return 'No account chosen.';
+}
+
+const ACCOUNT_ID = /^[0-9a-f]{32}$/;
+
+const accountFile = (home: string, worker: string) =>
+  join(home, '.config', 'vizoalica', 'deploy', worker, 'account-id');
+
+/** The Cloudflare account a Worker was deployed or last rotated in, so it need not be looked up again. */
+export function rememberedAccount(home: string, worker: string): string | undefined {
+  try {
+    const id = readFileSync(accountFile(home, worker), 'utf8').trim();
+    return ACCOUNT_ID.test(id) ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function rememberAccount(home: string, worker: string, id: string): void {
+  const file = accountFile(home, worker);
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  writeFileSync(file, `${id}\n`, { mode: 0o600 });
+}
+
+/** Asks for an account ID when the token may not list accounts. A string is what is wrong. */
+export async function askAccountId(io: Io, why: string): Promise<{ id: string } | string> {
+  if (!io.interactive) return `${why} Give the account ID with --account <id>.`;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const answer = (
+      await io.ask(
+        attempt === 0
+          ? `\n${why}\nIn the Cloudflare dashboard, the account ID is the 32-character code in the address bar right\nafter dash.cloudflare.com/, and it is listed on the Workers & Pages overview.\nCloudflare account ID: `
+          : 'Cloudflare account ID: '
+      )
+    )
+      .trim()
+      .toLowerCase();
+    if (ACCOUNT_ID.test(answer)) return { id: answer };
+    io.err('  An account ID is 32 letters (a-f) and digits.\n');
+  }
+  return 'No account ID given.';
 }
 
 /** What each secret is for, and where it has to go, in the words of someone who has to keep it. */

@@ -11,7 +11,9 @@ const ACCOUNT = 'a'.repeat(32);
 const OLD = 'old-admin-secret-0123456789abcdefghijklmnop';
 const prod = { url: 'https://prod-vizoalica-worker.acme.workers.dev', role: 'admin', secret: OLD };
 
-function setup(options: { answers?: string[]; interactive?: boolean; bulkFails?: boolean } = {}) {
+function setup(
+  options: { answers?: string[]; interactive?: boolean; bulkFails?: boolean; noList?: boolean } = {}
+) {
   const home = tempHome();
   const out: string[] = [];
   const err: string[] = [];
@@ -22,7 +24,14 @@ function setup(options: { answers?: string[]; interactive?: boolean; bulkFails?:
   const stored: Record<string, string> = {};
   const run: Run = async (args, runOptions = {}) => {
     calls.push({ args, ...runOptions });
-    if (args[0] === 'whoami') return { code: 0, stdout: `│ Acme │ ${ACCOUNT} │`, stderr: '' };
+    if (args[0] === 'whoami')
+      return options.noList
+        ? {
+            code: 1,
+            stdout: '',
+            stderr: '✘ [ERROR] Failed to automatically retrieve account IDs for the logged in user.'
+          }
+        : { code: 0, stdout: `│ Acme │ ${ACCOUNT} │`, stderr: '' };
     if (args[0] === 'secret' && args[1] === 'bulk') {
       if (options.bulkFails) return { code: 1, stdout: '', stderr: 'Authentication error [10000]' };
       Object.assign(stored, JSON.parse(runOptions.stdin ?? '{}'));
@@ -152,5 +161,48 @@ describe('vizoalica rotate', () => {
     });
     expect(await rotateCommand(['prod', 'token'], t.deps)).toBe(1);
     expect(t.errors()).toContain('--worker <name>');
+  });
+
+  it('asks for the account when the token cannot list accounts, then remembers it', async () => {
+    const t = setup({
+      noList: true,
+      answers: ['not-an-id', ACCOUNT.toUpperCase(), 'rotate', 'saved', 'saved']
+    });
+    expect(await rotateCommand(['prod', 'token'], t.deps)).toBe(0);
+    expect(t.errors()).toContain('32 letters');
+    expect(t.text()).not.toContain('did not recognize');
+    const bulk = t.calls.find((call) => call.args[1] === 'bulk')!;
+    expect(bulk.env).toEqual({ CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
+    // The next run needs neither the lookup nor the question.
+    const whoamis = t.calls.filter((call) => call.args[0] === 'whoami').length;
+    t.asked.length = 0;
+    expect(await rotateCommand(['prod', 'digest', '--yes'], t.deps)).toBe(0);
+    expect(t.calls.filter((call) => call.args[0] === 'whoami')).toHaveLength(whoamis);
+    expect(t.asked).toEqual(['When you have saved them, type "saved": ']);
+  });
+
+  it('uses --account or CLOUDFLARE_ACCOUNT_ID without looking accounts up, and needs one without a terminal', async () => {
+    const t = setup({ noList: true, interactive: false });
+    const file = (n: number) => join(t.home, `s${n}.env`);
+    expect(await rotateCommand(['prod', 'token', '--yes', '--secrets-file', file(1)], t.deps)).toBe(
+      1
+    );
+    expect(t.errors()).toContain('--account <id>');
+    expect(
+      await rotateCommand(
+        ['prod', 'token', '--yes', '--secrets-file', file(2), '--account', ACCOUNT],
+        t.deps
+      )
+    ).toBe(0);
+    const other = setup({ noList: true, interactive: false });
+    other.deps.env = { ...other.deps.env, CLOUDFLARE_ACCOUNT_ID: ACCOUNT };
+    expect(await rotateCommand(['prod', 'admin', '--yes'], other.deps)).toBe(0);
+    expect(other.calls.some((call) => call.args[0] === 'whoami')).toBe(false);
+  });
+
+  it('says what to check when Cloudflare refuses the change', async () => {
+    const t = setup({ answers: ['rotate'], bulkFails: true });
+    expect(await rotateCommand(['prod', 'token'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('Workers Scripts: Edit on the account');
   });
 });
