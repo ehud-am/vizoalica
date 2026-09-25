@@ -73,10 +73,30 @@ environment, never as an argument, and is stored in the new environment only wit
 - **FR-D6** The package ships the Worker bundle, its Wrangler template, and the migrations; `deploy` uses only
   those (never a repository path).
 - **FR-D7** The Worker reports the console/package version it was deployed from.
+- **FR-D8** `rotate` replaces only the named secrets of the named environment's Worker, and never loses a
+  generated value (Story D4).
+
+### Story D4 - Replace a secret (P1, added 2026-09-24)
+
+`vizoalica rotate <name> <admin|token|digest|all>` replaces secrets on the environment's Worker. It explains the
+impact of each, asks to type `rotate` (`--yes` skips; required without a terminal), stores the new values with
+`wrangler secret bulk`, writes a new administrator secret into `environments.json` (and verifies it), and hands
+the others over like deploy does. Only the admin role may rotate.
+
+Acceptance: (1) the Cloudflare token needs only Workers Scripts: Edit: the account comes from `--account`,
+`CLOUDFLARE_ACCOUNT_ID`, the one remembered at deploy or the last rotation, a lookup, or a question; (2) a
+secret that exists only in memory is never lost: an unwritable `--secrets-file` is refused before anything
+changes, a file that cannot be written or an environment that cannot be saved falls back to showing the value;
+(3) a refusal by Cloudflare says which permission and account to check.
+
+### Story D5 - Secrets that cannot be scrolled past (P1, added 2026-09-24)
+
+In a terminal, deploy and rotate show generated secrets **last**, in a framed block naming what each is for,
+and wait until `saved` is typed.
 
 ## Out of scope
 
-Infrastructure-as-code output, updating an existing backend, destroying a backend, rotating secrets, Terraform state management, remote
+Infrastructure-as-code output, updating an existing backend, destroying a backend, Terraform state management, remote
 backends for state, OpenTofu-specific testing, and attaching a custom domain (attach it in Cloudflare, then run `vizoalica env update <name> --url …`).
 
 ## Success criteria

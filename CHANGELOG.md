@@ -4,7 +4,7 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
-## [0.7.0] - 2026-09-23
+## [0.7.0] - 2026-09-25
 
 ### Added
 
@@ -23,6 +23,19 @@ All notable changes to Vizoalica are documented in this file.
   D1 database, R2 bucket, and Worker (asking first, never touching what exists, resumable with `--resume`)
   and adds the environment; without it, it only shows what would be created. See
   `docs/operations/deploy.md`.
+- **`vizoalica rotate <environment> <admin|token|digest|all>`** replaces a secret on an environment's Worker.
+  It says what the change affects, asks to confirm, updates this computer's environment for `admin` (and
+  checks it), and hands the other secrets over once. It needs only a Cloudflare token with Workers Scripts:
+  Edit; the account is remembered, given with `--account`, or asked for.
+- **`env add` explains every question and asks again after an answer it cannot use** (a taken or invalid
+  name, an address with a path, an unknown role), offers to save an environment that does not verify yet,
+  and stops cleanly on Ctrl-C. `--verbose` on any command prints each step, question, request, and Wrangler
+  call, never a secret or an answer.
+- **The deploy and rotate secrets cannot be scrolled past.** They are shown last, in a framed block that says
+  what each is for, and the command waits until you type `saved`. A `--secrets-file` that could not be
+  written is refused before anything changes.
+- **The GitHub install steps say where to find each value** (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`,
+  `CF_API_TOKEN`, `VIZOALICA_TOKEN_SECRET`), in both the GitHub and the `gh` instructions.
 - **A welcome page instead of a broken console.** With no usable environment (none yet, a broken file, a
   rejected or revoked secret, a wrong role, an unreachable Worker, an incompatible version, OneCLI
   unavailable) the console explains what is wrong with each environment and the `vizoalica env` command that
@@ -45,7 +58,7 @@ All notable changes to Vizoalica are documented in this file.
 
 - The console's first-run questions, connect and disconnect forms, and environment creation, deletion, and
   Cloudflare-credential forms.
-- Deploying, updating, rotating secrets, and purging deleted data from the console, and the Worker bundle and
+- Deploying, updating, rotating secrets (now `vizoalica rotate`), and purging deleted data from the console, and the Worker bundle and
   in-console screens. Backend creation moved to `vizoalica deploy`; updating an existing backend stays
   `pnpm vizoalica backend` from a source checkout.
 - Whole-process OneCLI wrapping, the `vizoalica serve` command, the `onecli-managed` placeholder in the

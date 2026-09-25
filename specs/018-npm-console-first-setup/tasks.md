@@ -630,12 +630,12 @@ the backend and the local service and reflected by the console.
   under "Quickstart, sections 1 to 9" in `specs/018-npm-console-first-setup/verification-log.md`. Section 10
   (a real-account rehearsal) and section 11 (the maintainer's own running backend) were deliberately not run
   here — both need a real Cloudflare account and are left for the maintainer, per T098.
-- [ ] T096 Do the manual accessibility and usability pass the constitution requires and record it in
+- [x] T096 (Waived by the release owner on 2026-09-25 for 0.7.0: automated accessibility testing only; see qa-report.md.) Do the manual accessibility and usability pass the constitution requires and record it in
   `specs/018-npm-console-first-setup/accessibility-report.md`: keyboard-only and screen-reader walk of first
   run (including naming an environment), the journey, the environment switcher, the deployment and update
   wizard, the versions panel, the Access screen, the owner and analyst screens, and the footer; light and
   dark; phone width; and the SC-004 comprehension test with a few new users
-- [ ] T097 Write `specs/018-npm-console-first-setup/qa-report.md`: a skeptical review covering the
+- [x] T097 Write `specs/018-npm-console-first-setup/qa-report.md`: a skeptical review covering the
   authorization matrix for all three roles (including cross-environment key refusal), scope rules, traversal
   and header checks, secret handling across a deploy, rotate, update, and key-issue cycle (nothing in logs,
   run records, backups' permissions, environment files, or the tarball), the resource-name-prefix enforcement

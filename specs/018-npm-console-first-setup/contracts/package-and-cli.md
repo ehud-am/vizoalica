@@ -30,12 +30,14 @@ identifier.
 
 | Command                | Status                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
-| `env`                  | `list`, `add`, `update`, `remove`, `check` for `~/.config/vizoalica/environments.json` (Revision 3). Verifies before saving; secrets only from a hidden prompt or stdin; never prints a secret |
+| `env`                  | `list`, `add`, `update`, `remove`, `check` for `~/.config/vizoalica/environments.json` (Revision 3). Verifies before saving; secrets only from a hidden prompt or stdin; never prints a secret. In a terminal, `add` asks for each missing value with an explanation, re-asks an unusable answer, and offers to save one that does not verify |
 | `console`              | Starts the service and console as one process, prints the address and the selected environment, opens the browser (`--no-open` to skip), stops everything on one interrupt. Always starts, even with no usable environment (the console then shows the welcome page) |
 | `status`, `doctor`, `verify` | From the package these print where to go and exit 2; unchanged in a checkout |
-| `connect`, `backend`, `rotate`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout (they keep their own direct-credential file and are unrelated to the console's environments, except that `connect` suggests `vizoalica env add`); from the package they print where to go and exit 2 |
+| `connect`, `backend`, `purge-deleted`, `demo`, `setup`, `deploy-pages` | Kept in a checkout (they keep their own direct-credential file and are unrelated to the console's environments, except that `connect` suggests `vizoalica env add`); from the package they print where to go and exit 2 |
 | `install`              | **Retired**: prints that it was retired and to add an environment with `vizoalica env add <name>` then run `vizoalica console`; exit code 2 |
 | `deploy`               | Creates a backend with `--apply`; without it, shows the plan (feature 019) |
+| `rotate`               | `rotate <environment> <admin\|token\|digest\|all>` replaces a secret on that environment's Worker (feature 019). In a checkout, `pnpm vizoalica rotate <secret>` (one word) is still the checkout install's own command |
+| `--verbose`            | With any command: timed diagnostics on stdout (steps, questions, requests, Wrangler calls); never a secret, header, body, or answer |
 | `serve`                | **Removed** (it existed only to run the service under `onecli run`)                            |
 
 In a checkout, `pnpm vizoalica env ...` runs the same code.

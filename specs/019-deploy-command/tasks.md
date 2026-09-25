@@ -11,3 +11,6 @@
 - [x] D009 Docs (deploy guide, environments, README, get-started, llms.txt), CHANGELOG, release notes
 - [x] D010 Package check covers `deploy --terraform`; run all gates; update verification log
 - [x] D011 Remove the Terraform path from code, tests, docs, package check; `deploy` without `--apply` is a dry run
+- [x] D012 `env add` explains each question, re-asks unusable answers, `--verbose` (also through `pnpm vizoalica`)
+- [x] D013 Deploy shows secrets last and waits for `saved`; `vizoalica rotate` (Story D4, D5) + tests
+- [x] D014 Pre-release fixes: secrets never lost after the Worker changed; `prompt.ts` tests (coverage gate)
