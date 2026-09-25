@@ -34,16 +34,16 @@ export function help(): string {
     '',
     'Usage: vizoalica <command>',
     '',
-    '  env <command>         Manage your environments (dev, stage, prod, ...): list, add,',
-    '                        update, remove, check. Run "vizoalica env" for details',
-    '  deploy <name>         Create a backend for an environment in your Cloudflare account',
+    '  env <command>         Create and manage your environments (dev, stage, prod, ...):',
+    '                        add (offers to deploy its backend), list, update, remove, check',
+    '  deploy <name>         Deploy the backend for an environment in your Cloudflare account',
     '                        (--apply to create it). Run "vizoalica deploy" for details',
     '  console [--no-open]   Start the console: websites, results, and access for the',
     '                        environment you pick',
     '  help                  Show this help',
     '  --version             Print the installed version',
     '',
-    'Start with: vizoalica deploy <name> --apply (or vizoalica env add <name> for a backend you have),',
+    'Start with: vizoalica env add <name> (deploys a backend or connects an existing one),',
     'then: vizoalica console',
     'Documentation: https://vizoalica.dev'
   ].join('\n');
@@ -78,9 +78,10 @@ export async function main(argv: readonly string[], deps: MainDeps): Promise<num
     }
     return consoleCommand({ open: !rest.includes('--no-open') }, deps);
   }
-  if (command === 'env') return envCommand(rest, deps);
-  if (command === 'deploy')
-    return deployCommand(rest, { ...deps, ...(deps.deployTestHooks ?? {}) });
+  const deploy = (args: readonly string[]) =>
+    deployCommand(args, { ...deps, ...(deps.deployTestHooks ?? {}) });
+  if (command === 'env') return envCommand(rest, { ...deps, deploy: (args) => deploy(args) });
+  if (command === 'deploy') return deploy(rest);
   if (CHECKOUT_COMMANDS.has(command)) {
     deps.err(
       `"vizoalica ${command}" is not part of the installed package yet.\nTo use this command now, work from a source checkout:\n  git clone https://github.com/ehud-am/vizoalica && cd vizoalica && pnpm install && pnpm vizoalica ${command}\n`

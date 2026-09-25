@@ -15,8 +15,8 @@ describe('deployment documentation contract', () => {
     const readme = await text('README.md');
     const headings = [
       '## Deployment in four steps',
-      '## Step 1: install',
-      '## Step 2: create the backend, then open the console',
+      '## Step 1: Install the vizoalica cli',
+      '## Step 2: Create and deploy your first environment',
       '## Step 3: add your websites',
       '## Step 4: verify it works',
       '## For contributors: build from source'
@@ -25,16 +25,18 @@ describe('deployment documentation contract', () => {
     const positions = headings.map((heading) => readme.indexOf(heading));
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     // The diagram states the sequence explicitly.
-    expect(readme).toContain('Step 1: install the command');
-    expect(readme).toContain('Step 2: create the backend and add it as an environment');
+    expect(readme).toContain('Step 1: install the vizoalica cli');
+    expect(readme).toContain('Step 2: create and deploy your first environment');
     expect(readme).toContain('Step 3: define websites in the console');
     // Step 2 creates or adds the environment before the console starts, and says what the console does not do.
     const step2 = readme.slice(
-      readme.indexOf('## Step 2: create the backend, then open the console'),
+      readme.indexOf('## Step 2: Create and deploy your first environment'),
       readme.indexOf('## Step 3: add your websites')
     );
     expect(step2).toContain('vizoalica deploy prod --apply');
     expect(step2).toContain('vizoalica env add prod');
+    expect(step2).toContain('Deploy the backend for "prod" now?');
+    expect(step2).toMatch(/already exists/);
     expect(step2.indexOf('vizoalica deploy prod --apply')).toBeLessThan(
       step2.indexOf('vizoalica console')
     );
@@ -55,9 +57,9 @@ describe('deployment documentation contract', () => {
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/onecli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    // The default is the private file; OneCLI is supported but opt-in.
-    expect(readme).toMatch(/OneCLI is supported and is the more secure option/);
-    expect(readme).toMatch(/is not the default/);
+    // OneCLI is offered as a question and recommended; the private file is the alternative.
+    expect(readme).toMatch(/OneCLI is the recommended, more secure option/);
+    expect(readme).toMatch(/Answer no to keep the secret in a private file/);
     expect(readme).not.toContain('## Try it');
   });
 

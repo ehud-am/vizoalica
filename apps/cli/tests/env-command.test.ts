@@ -51,6 +51,50 @@ const worker = (accept = ['good']) =>
   stubWorker({ role: 'admin', workerVersion: '0.7.0', schemaApplied: 1, accept });
 const admin = { url: 'https://w.example.com', role: 'admin', secret: 'good' };
 
+describe('vizoalica env add offers to deploy', () => {
+  it('deploys the backend when asked, passing OneCLI along', async () => {
+    const t = setup(['y', 'y', 'acme', 'vz', 'localhost:10255']);
+    const deploy = vi.fn(async () => 0);
+    expect(await envCommand(['add', 'prod'], { ...t.deps, deploy })).toBe(0);
+    expect(t.asked[0]).toContain('Deploy the backend for "prod" now?');
+    expect(deploy).toHaveBeenCalledWith([
+      'prod',
+      '--apply',
+      '--cloudflare-onecli',
+      '--onecli-workspace',
+      'acme',
+      '--onecli-agent',
+      'vz',
+      '--onecli-gateway',
+      'localhost:10255'
+    ]);
+    expect(() => t.read()).toThrow();
+  });
+
+  it('connects to an existing backend, with the secret held by OneCLI, when deploy is declined', async () => {
+    worker(['onecli-managed']);
+    const t = setup(['n', 'y', 'acme', 'vz', 'localhost:10255', 'https://w.example.com', 'admin']);
+    const deploy = vi.fn(async () => 0);
+    const code = await envCommand(['add', 'prod', '--no-verify'], { ...t.deps, deploy });
+    expect(code).toBe(0);
+    expect(deploy).not.toHaveBeenCalled();
+    expect(t.read().environments.prod).toMatchObject({
+      url: 'https://w.example.com',
+      secret: { onecli: { workspace: 'acme', agent: 'vz', gateway: 'localhost:10255' } }
+    });
+  });
+
+  it('does not ask about deploying when the address is given', async () => {
+    const t = setup(['n']);
+    const deploy = vi.fn(async () => 0);
+    await envCommand(
+      ['add', 'prod', '--url', 'https://w.example.com', '--role', 'analyst', '--no-verify'],
+      { ...t.deps, deploy }
+    );
+    expect(t.asked.join('')).not.toContain('Deploy the backend');
+  });
+});
+
 describe('vizoalica env (help and errors)', () => {
   it('shows usage with no command, and rejects an unknown command or option', async () => {
     const t = setup();

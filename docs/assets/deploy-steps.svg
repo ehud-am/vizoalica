@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" role="img" aria-labelledby="t d">
   <title id="t">Deploying Vizoalica in four steps</title>
-  <desc id="d">Step 1 install the console on one admin machine. Step 2 set up the backend. Step 3 define websites in the console and add the code snippet to your web assets. Step 4 verify everything works.</desc>
+  <desc id="d">Step 1 install the vizoalica cli on one admin machine. Step 2 create and deploy your first environment, or connect it to an existing backend. Step 3 define websites in the console and add the code snippet to your web assets. Step 4 verify everything works.</desc>
   <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#168bff"/></marker></defs>
   <rect width="900" height="250" rx="16" fill="#ffffff" stroke="#d0d7de"/>
   <g stroke="#168bff" stroke-width="2.5" fill="none" marker-end="url(#a)"><path d="M212 125H236"/><path d="M432 125H456"/><path d="M652 125H676"/></g>
@@ -10,11 +10,11 @@
   <g fill="#168bff"><circle cx="115" cy="65" r="18"/><circle cx="333" cy="65" r="18"/><circle cx="553" cy="65" r="18"/></g><circle cx="779" cy="65" r="18" fill="#1a7f37"/>
   <g fill="#fff" font-size="18" font-weight="700" text-anchor="middle"><text x="115" y="71">1</text><text x="333" y="71">2</text><text x="553" y="71">3</text><text x="779" y="71">4</text></g>
   <g font-size="17" font-weight="700" fill="#1f2328" text-anchor="middle">
-    <text x="115" y="112">Install the console</text><text x="333" y="112">Set up the backend</text><text x="553" y="112">Add your websites</text><text x="779" y="112">Verify it works</text>
+    <text x="115" y="106">Install the</text><text x="115" y="128">vizoalica cli</text><text x="333" y="106">Create and deploy</text><text x="333" y="128">your first env</text><text x="553" y="112">Add your websites</text><text x="779" y="112">Verify it works</text>
   </g>
   <g font-size="13.5" fill="#57606a" text-anchor="middle">
-    <text x="115" y="142">on one admin</text><text x="115" y="162">machine</text>
-    <text x="333" y="142">in your Cloudflare</text><text x="333" y="162">account</text>
+    <text x="115" y="158">on one admin</text><text x="115" y="178">machine</text>
+    <text x="333" y="158">or connect it to a backend</text><text x="333" y="178">that already exists</text>
     <text x="553" y="142">define them in the console,</text><text x="553" y="162">paste the code snippet</text><text x="553" y="182">into your web assets</text>
     <text x="779" y="142">see your first page</text><text x="779" y="162">views in the console</text>
   </g>
