@@ -128,7 +128,11 @@ exactly as before, with no consent prompt and no analytics.
 
 1. In the console, create a website for `https://vizoalica.dev` (the exact origin, no trailing slash).
    Its **Install** page lists the values below.
-2. Add these public repository **variables** (Settings → Secrets and variables → Actions → Variables):
+2. Add these repository settings (Settings → Secrets and variables → Actions). They are public values, not confidential;
+   this repository keeps the identifying ones (`VIZOALICA_INGEST_ENDPOINT`, `VIZOALICA_PUBLIC_SOURCE_KEY`,
+   `VIZOALICA_PROJECT_ID`, `VIZOALICA_SOURCE_ID`) and `CF_ACCOUNT_ID` as **secrets** and `VIZOALICA_SITE_ORIGINS` and
+   `VIZOALICA_DOCS_PAGES_PROJECT` as **variables**, and the workflow reads them from there (move one and change its
+   `secrets.`/`vars.` in `docs-site.yml` to match):
    `VIZOALICA_INGEST_ENDPOINT`, `VIZOALICA_PUBLIC_SOURCE_KEY`, `VIZOALICA_PROJECT_ID`,
    `VIZOALICA_SOURCE_ID`, and `VIZOALICA_SITE_ORIGINS`. Three more follow conventions and are only set to
    change them: `VIZOALICA_SDK_SRC` (default `/vizoalica.js`), `VIZOALICA_TOKEN_URL` (default
