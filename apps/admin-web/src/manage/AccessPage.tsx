@@ -160,6 +160,12 @@ export function AccessPage() {
         ? `Project ${projectName(item.projectId)}`
         : 'Everything';
 
+  // Choosing another project at the top changes where a new key starts; keys already typed stay.
+  useEffect(() => {
+    setProjectId(scope.projectId);
+    setWebsiteId('');
+  }, [scope.projectId]);
+
   const projectSites = websites[projectId];
   const siteList = Array.isArray(projectSites) ? projectSites : [];
   const selectedWebsite = siteList.find((item) => item.id === websiteId);

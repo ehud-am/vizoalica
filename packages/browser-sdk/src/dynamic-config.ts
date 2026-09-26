@@ -1,4 +1,5 @@
 import type { ConsentState } from '@vizoalica/event-contracts';
+import { DEFAULT_TOKEN_URL } from './defaults.js';
 
 export interface DynamicConfigV1 {
   version: 1;
@@ -16,7 +17,6 @@ export interface DynamicLoaderState {
   sdkInserted?: boolean;
 }
 
-const DEFAULT_TOKEN_URL = '/vizoalica/ingest-token';
 export const DYNAMIC_CONFIG_URL = '/vizoalica/config.json';
 export const DYNAMIC_LOADER_STATE = '__vizoalicaLoaderState';
 

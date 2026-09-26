@@ -4,7 +4,7 @@
  * service keeps its own validation as the authority; this only makes the common cases painless
  * and lets the form show the result before anything is saved.
  */
-export interface NormalizedOrigin {
+interface NormalizedOrigin {
   origin?: string;
   /** What to type instead, when the input cannot be turned into an origin. */
   error?: string;

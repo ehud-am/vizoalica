@@ -92,6 +92,21 @@ describe('Issue a key', () => {
     expect(screen.getByText(/An analyst key for project Acme\./)).toBeTruthy();
   });
 
+  it('follows the project chosen at the top, and drops a website chosen under the old one', async () => {
+    const user = userEvent.setup();
+    await open();
+    await choose(user, 'Access', /One website/);
+    await waitFor(() => expect((field('Website') as HTMLButtonElement).disabled).toBe(false));
+    await choose(user, 'Website', /Docs/);
+    expect(screen.getByText(/An analyst key for Docs in Acme\./)).toBeTruthy();
+    // The header's own Project menu, not the form's.
+    await user.click(screen.getAllByRole('button', { name: /^Project/ })[0]!);
+    await user.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    expect(field('Project').textContent).toContain('Beta');
+    expect(field('Website').textContent).toContain('Choose a website');
+    expect(screen.queryByText(/Docs in/)).toBeNull();
+  });
+
   it('shows the websites of the chosen project, and drops a website when the project changes', async () => {
     const user = userEvent.setup();
     await open();

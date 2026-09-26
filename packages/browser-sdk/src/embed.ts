@@ -1,3 +1,4 @@
+import { DEFAULT_TOKEN_URL } from './defaults.js';
 import { init, type VizoalicaClient } from './index.js';
 import type { ConsentState } from '@vizoalica/event-contracts';
 
@@ -10,8 +11,6 @@ export interface EmbedConfig {
   autoPageView?: boolean;
 }
 
-/** Where a site's own server issues short-lived ingest tokens; the conventional path every guide uses. */
-export const DEFAULT_TOKEN_URL = '/vizoalica/ingest-token';
 /** Written as `data-token-url="none"` to send unsigned events (demos only). */
 const NO_TOKEN = 'none';
 
