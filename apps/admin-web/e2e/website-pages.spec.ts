@@ -45,7 +45,11 @@ test('edit is keyboard-only, protects unsaved changes, and saves back to the web
   await expect(name).toHaveValue('Docs v2');
   await page.getByRole('button', { name: 'Save changes' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Website updated and audit recorded.')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Website updated and audit recorded. Nothing needs to change on your installed site.'
+    )
+  ).toBeVisible();
   await expect(page).toHaveURL(/#\/manage\/websites\/site-1$/);
 });
 
@@ -53,9 +57,8 @@ test('adding a website ends on its Install page', async ({ page }) => {
   await page.goto('/#/manage/websites');
   await page.getByRole('link', { name: /Add website/ }).click();
   const form = page.getByRole('form', { name: 'Add website' });
-  await form.getByRole('combobox', { name: 'Project' }).selectOption('project-1');
-  await form.getByRole('textbox', { name: 'Website name' }).fill('Launch');
-  await form.getByRole('textbox', { name: 'Allowed origins' }).fill('https://launch.example');
+  await form.getByRole('textbox', { name: 'Website address' }).fill('https://launch.example');
+  await form.getByRole('textbox', { name: /Website name/ }).fill('Launch');
   await form.getByRole('button', { name: 'Add website' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Install on Launch' })).toBeVisible();
   await expect(page.getByText(/Next: install it/)).toBeVisible();
@@ -91,7 +94,7 @@ test('install: choose a path with the keyboard, copy, and check that data arrive
   await expect(page.getByRole('button', { name: 'Copy snippet' })).toContainText('Copied');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('vizoalica.js');
 
-  await page.getByRole('button', { name: 'Check now' }).click();
+  await page.getByRole('button', { name: /I.ve deployed, check now/ }).click();
   await expect(page.getByText('Receiving data.')).toBeVisible();
 });
 

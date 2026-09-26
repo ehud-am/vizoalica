@@ -15,8 +15,9 @@ The console provides exactly two options, which its Install page presents as **P
 (static snippet) and **GitHub → Cloudflare Pages** (dynamic configuration). Do not enable both on
 one page.
 
-- **Static snippet** is the compatibility path. It embeds `src`, `data-endpoint`, `data-source`,
-  `data-project`, `data-token-url`, and `data-consent` directly in website-specific markup.
+- **Static snippet** is the compatibility path. Since 0.7.3 the console generates the short form: `src`,
+  `data-endpoint` and `data-source` only, because everything else has a default (see the table below).
+  Older, longer snippets keep working unchanged.
 - **Dynamic configuration** uses the byte-identical generic markup below on every website. The
   loader reads the six public values from a versioned, same-origin JSON response. Cloudflare Pages
   can map plaintext environment variables through the included Function; other hosts can use a
@@ -65,14 +66,14 @@ Optional custom event:
 
 ## Data attributes
 
-| Attribute             | Required    | Description                                                                   |
-| --------------------- | ----------- | ----------------------------------------------------------------------------- |
-| `data-endpoint`       | Yes         | Ingestion endpoint, usually `/v1/events:batch`.                               |
-| `data-source`         | Yes         | Public source key used for routing. This is not a secret.                     |
-| `data-project`        | Recommended | Project identifier to include on client-built events.                         |
-| `data-token-url`      | Production  | Same-origin endpoint that returns a short-lived ingest token.                 |
-| `data-consent`        | Recommended | Consent state such as `analytics-granted`, `analytics-denied`, or `unknown`.  |
-| `data-auto-page-view` | No          | Set to `false` to disable automatic page views, including in-page navigation. |
+| Attribute             | Required | Description                                                                                               |
+| --------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| `data-endpoint`       | Yes      | Ingestion endpoint, usually `/v1/events:batch`.                                                           |
+| `data-source`         | Yes      | Public source key used for routing. This is not a secret.                                                 |
+| `data-project`        | No       | Project identifier. Optional: the backend takes the project from the source.                              |
+| `data-token-url`      | No       | Same-origin token endpoint. Default `/vizoalica/ingest-token`; `none` sends unsigned events (demos only). |
+| `data-consent`        | No       | Consent state such as `analytics-granted`, `analytics-denied`, or `unknown`. Default `unknown`.           |
+| `data-auto-page-view` | No       | Set to `false` to disable automatic page views, including in-page navigation.                             |
 
 ## Pages and in-page navigation
 

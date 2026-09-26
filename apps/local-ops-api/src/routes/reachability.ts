@@ -1,4 +1,4 @@
-import type { ReachabilityStatus } from '../contracts.js';
+import type { InstallCheck, ReachabilityStatus } from '../contracts.js';
 
 const MAX_CONFIG_BYTES = 16_384;
 
@@ -83,4 +83,84 @@ export async function checkReachability(
       configEndpointError: 'network_error'
     };
   }
+}
+
+const isHtml = (response: Response) =>
+  (response.headers.get('content-type') ?? '').toLowerCase().includes('text/html');
+
+async function probe(
+  fetchImpl: typeof fetch,
+  target: URL,
+  headers: Record<string, string> = {}
+): Promise<Response | undefined> {
+  try {
+    const response = await fetchImpl(target, {
+      method: 'GET',
+      headers,
+      redirect: 'error',
+      signal: AbortSignal.timeout(5_000)
+    });
+    // Only the status and type matter; never read more of a site's response than that.
+    await response.body?.cancel();
+    return response;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Looks at the parts of an install that fail most often, in the order a visitor's browser meets
+ * them, and answers with the first that is wrong: one code, one next action. A single-page-app host
+ * answers unknown paths with its home page, so an HTML answer counts as "not there".
+ */
+export async function checkInstall(
+  origin: string,
+  path: 'github' | 'snippet',
+  configReachable: boolean,
+  fetchImpl: typeof fetch = fetch
+): Promise<InstallCheck> {
+  let base: URL;
+  try {
+    base = new URL(origin);
+  } catch {
+    return { code: 'site-unreachable', nextAction: 'Edit the website and enter a valid origin.' };
+  }
+  const sdk = await probe(fetchImpl, new URL('/vizoalica.js', base));
+  if (!sdk)
+    return {
+      code: 'site-unreachable',
+      nextAction: `Could not reach ${base.origin}. Check the address is live; if it redirects to another address (for example www), allow that address too.`
+    };
+  if (!sdk.ok || isHtml(sdk))
+    return {
+      code: 'sdk-file-missing',
+      nextAction: `Save vizoalica.js in the root folder of your website so it is served at ${base.origin}/vizoalica.js, then deploy.`
+    };
+  if (path === 'github' && !configReachable)
+    return {
+      code: 'config-file-missing',
+      nextAction:
+        'Finish the deploy: the workflow publishes /vizoalica/config.json, and it is not answering yet. Check the latest run in your repository’s Actions tab.'
+    };
+  // The token endpoint is asked as the site's own page would ask, with its origin.
+  const token = await probe(fetchImpl, new URL('/vizoalica/ingest-token', base), {
+    origin: base.origin
+  });
+  if (!token || token.status === 404 || isHtml(token))
+    return {
+      code: 'token-endpoint-missing',
+      nextAction: `Add the token endpoint so ${base.origin}/vizoalica/ingest-token answers, then deploy. The install page shows the endpoint.`
+    };
+  if (token.status === 403)
+    return {
+      code: 'origin-not-allowed',
+      nextAction: `The token endpoint does not accept ${base.origin}. Make sure its list of site origins includes this exact address, then deploy.`
+    };
+  if (!token.ok)
+    return {
+      code: 'token-endpoint-rejecting',
+      nextAction:
+        'The token endpoint is answering with an error. Check that VIZOALICA_TOKEN_SECRET is set on your site and is the same secret as your backend.'
+    };
+  return { code: 'ok', nextAction: 'No action needed.' };
 }

@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   getSnippet: vi.fn(),
   getStatus: vi.fn(),
   getReachability: vi.fn(),
+  getBackendState: vi.fn(),
   getAnalyticsOverview: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
@@ -33,6 +34,15 @@ const website = {
 };
 
 beforeEach(() => {
+  api.getBackendState.mockResolvedValue({
+    workerVersion: '0.7.2',
+    consoleVersion: '0.7.3',
+    schema: { applied: 1, expected: 1, appliedNames: [] },
+    worker: { status: 'current', message: 'ok' },
+    schemaStatus: { status: 'current', message: 'ok' },
+    health: { database: 'ok', storage: 'ok' },
+    featuresAccessKeys: true
+  });
   api.bootstrapSession.mockResolvedValue(undefined);
   api.listProjects.mockResolvedValue([project]);
   api.createProject.mockResolvedValue({ id: 'p2', name: 'New project' });

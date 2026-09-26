@@ -281,29 +281,33 @@ function overview(startUtc: string, endUtc: string, earlier: boolean) {
 }
 
 const staticSnippet = (site: Site) =>
-  `<script\n  async\n  src="${site.origin}/vizoalica.js"\n  data-endpoint="${WORKER}/v1/events:batch"\n  data-source="pk_${site.id.replace('site-', '')}_8f3a1c"\n  data-project="${PROJECT_ID}"\n  data-token-url="/vizoalica/ingest-token"\n  data-consent="unknown"\n></script>`;
+  `<script\n  async\n  src="/vizoalica.js"\n  data-endpoint="${WORKER}/v1/events:batch"\n  data-source="pk_${site.id.replace('site-', '')}_8f3a1c"\n></script>`;
+const customizeSnippet = (site: Site) =>
+  staticSnippet(site).replace(
+    '\n></script>',
+    `\n  data-project="${PROJECT_ID}"\n  data-token-url="/vizoalica/ingest-token"\n  data-consent="unknown"\n></script>`
+  );
 
 function integration(site: Site) {
   const key = `pk_${site.id.replace('site-', '')}_8f3a1c`;
   const config = {
     version: 1,
-    src: `${site.origin}/vizoalica.js`,
+    src: '/vizoalica.js',
     'data-endpoint': `${WORKER}/v1/events:batch`,
     'data-source': key,
     'data-project': PROJECT_ID,
     'data-token-url': '/vizoalica/ingest-token',
     'data-consent': 'unknown'
   };
-  const ref = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2';
+  const ref = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3';
   const variables: Record<string, string> = {
-    VIZOALICA_SDK_SRC: config.src,
-    VIZOALICA_INGEST_ENDPOINT: config['data-endpoint'],
-    VIZOALICA_PUBLIC_SOURCE_KEY: key,
-    VIZOALICA_PROJECT_ID: PROJECT_ID,
-    VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
-    VIZOALICA_CONSENT: 'unknown',
-    VIZOALICA_SOURCE_ID: site.id,
-    VIZOALICA_SITE_ORIGINS: site.origin
+    VIZOALICA_SITE: JSON.stringify({
+      endpoint: config['data-endpoint'],
+      sourceKey: key,
+      projectId: PROJECT_ID,
+      sourceId: site.id,
+      origins: [site.origin]
+    })
   };
   return {
     projectId: PROJECT_ID,
@@ -312,7 +316,16 @@ function integration(site: Site) {
     allowedOrigins: [site.origin],
     html: staticSnippet(site),
     modes: [
-      { id: 'static', snippet: staticSnippet(site) },
+      {
+        id: 'static',
+        snippet: staticSnippet(site),
+        customize: customizeSnippet(site),
+        defaults: {
+          'data-token-url': '/vizoalica/ingest-token',
+          'data-consent': 'unknown',
+          'data-project': 'taken from the source key'
+        }
+      },
       {
         id: 'dynamic',
         snippet: '<script async src="/vizoalica-loader.js"></script>',
@@ -321,12 +334,19 @@ function integration(site: Site) {
         cloudflare: {
           workflowRef: ref,
           repoVariables: variables,
+          defaults: {
+            VIZOALICA_SDK_SRC: '/vizoalica.js',
+            VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+            VIZOALICA_CONSENT: 'unknown'
+          },
+          summary: { publicValues: 3, secrets: 2 },
+          accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
           accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
           repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
-          starterWorkflowYaml: `name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["site/**"]\n\njobs:\n  deploy:\n    uses: ${ref}\n    with:\n      site-directory: site\n    secrets: inherit`,
+          starterWorkflowYaml: `name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ${ref}\n    secrets: inherit`,
           setupCommands: [
             ...Object.entries(variables).map(
-              ([name, value]) => `gh variable set ${name} --body ${JSON.stringify(value)}`
+              ([name, value]) => `gh variable set ${name} --body '${value}'`
             ),
             'gh variable set CF_ACCOUNT_ID --body YOUR_CF_ACCOUNT_ID',
             'gh variable set CF_PAGES_PROJECT --body YOUR_CF_PAGES_PROJECT',

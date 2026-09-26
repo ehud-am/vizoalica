@@ -43,6 +43,27 @@ describe('dynamic configuration loader', () => {
     ).toBeTruthy();
   });
 
+  it('fills the conventional defaults when optional settings are left out', () => {
+    const short: Record<string, unknown> = { ...validDynamicConfig };
+    for (const setting of ['data-project', 'data-token-url', 'data-consent']) delete short[setting];
+    const config = validateDynamicConfig(short, 'https://site.example/page');
+    expect(config).toMatchObject({
+      'data-token-url': '/vizoalica/ingest-token',
+      'data-consent': 'unknown'
+    });
+    expect(config).not.toHaveProperty('data-project');
+    // A setting that is present must still be valid, so the defaults never excuse a bad value.
+    expect(
+      validateDynamicConfig({ ...short, 'data-project': '' }, 'https://site.example/page')
+    ).toBeUndefined();
+    expect(
+      validateDynamicConfig(
+        { ...short, 'data-token-url': 'https://other.example/t' },
+        'https://site.example/page'
+      )
+    ).toBeUndefined();
+  });
+
   it('fetches without cache reuse and inserts one configured asynchronous SDK script', async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json(validDynamicConfig));
     await expect(initializeDynamicLoader(window, document, fetcher)).resolves.toBe(true);

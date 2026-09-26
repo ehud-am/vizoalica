@@ -17,14 +17,30 @@ export type DynamicConfigV1 = {
   src: string;
   'data-endpoint': string;
   'data-source': string;
-  'data-project': string;
-  'data-token-url': string;
-  'data-consent': 'analytics-granted' | 'analytics-denied' | 'unknown';
+  'data-project'?: string;
+  'data-token-url'?: string;
+  'data-consent'?: 'analytics-granted' | 'analytics-denied' | 'unknown';
 };
-export type StaticInstallation = { id: 'static'; snippet: string };
+export type StaticInstallation = {
+  id: 'static';
+  /** The recommended embed: what is unique to the website; the rest is defaulted. */
+  snippet: string;
+  /** The same embed with every default written out. Absent from an older local API. */
+  customize?: string;
+  /** The defaults the short embed leaves out. Absent from an older local API. */
+  defaults?: Record<string, string>;
+};
 export type CloudflareGuidance = {
   workflowRef: string;
   repoVariables: Record<string, string>;
+  /** The same settings as separate variables. Absent from an older local API. */
+  expandedRepoVariables?: Record<string, string>;
+  /** Optional variables left out because they have a default. */
+  defaults?: Record<string, string>;
+  /** How many values are added in total. */
+  summary?: { publicValues: number; secrets: number };
+  /** One command that prints the Cloudflare account ID and Pages projects. */
+  accountLookupCommand?: string;
   accountSpecificVariables: string[];
   repoSecretNames: string[];
   starterWorkflowYaml: string;
@@ -48,10 +64,20 @@ export type Integration = {
   /** Transitional compatibility alias; identical to modes[0].snippet. */
   html?: string;
 };
+export type InstallCode =
+  | 'ok'
+  | 'site-unreachable'
+  | 'sdk-file-missing'
+  | 'token-endpoint-missing'
+  | 'token-endpoint-rejecting'
+  | 'origin-not-allowed'
+  | 'config-file-missing';
 export type Reachability = {
   configEndpointReachable: boolean;
   configEndpointCheckedAt: string;
   configEndpointError: string | null;
+  /** The install probes' answer, when the request said which path is being checked. */
+  install?: { code: InstallCode; nextAction: string };
 };
 export type Status = {
   collection: 'healthy' | 'disabled';
@@ -198,9 +224,15 @@ export const getStatus = (projectId: string, websiteId: string) =>
   request<Status>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/status`
   );
-export const getReachability = (projectId: string, websiteId: string) =>
+export const getReachability = (
+  projectId: string,
+  websiteId: string,
+  installPath?: 'github' | 'snippet'
+) =>
   request<Reachability>(
-    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/reachability`
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/reachability${
+      installPath ? `?path=${installPath}` : ''
+    }`
   );
 export const getAnalyticsOverview = (
   projectId: string,

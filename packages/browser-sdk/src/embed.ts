@@ -10,6 +10,11 @@ export interface EmbedConfig {
   autoPageView?: boolean;
 }
 
+/** Where a site's own server issues short-lived ingest tokens; the conventional path every guide uses. */
+export const DEFAULT_TOKEN_URL = '/vizoalica/ingest-token';
+/** Written as `data-token-url="none"` to send unsigned events (demos only). */
+const NO_TOKEN = 'none';
+
 function readBoolean(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) return defaultValue;
   return value !== 'false';
@@ -27,7 +32,9 @@ export function configFromScript(script: Pick<HTMLScriptElement, 'dataset'>): Em
     autoPageView: readBoolean(script.dataset.autoPageView, true)
   };
   if (script.dataset.project) config.projectId = script.dataset.project;
-  if (script.dataset.tokenUrl) config.tokenUrl = script.dataset.tokenUrl;
+  // Signed is the only production mode, so an absent attribute means the conventional path.
+  const tokenUrl = script.dataset.tokenUrl || DEFAULT_TOKEN_URL;
+  if (tokenUrl !== NO_TOKEN) config.tokenUrl = tokenUrl;
   return config;
 }
 

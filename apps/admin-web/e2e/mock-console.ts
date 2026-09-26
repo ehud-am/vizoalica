@@ -176,7 +176,9 @@ function actionsReport(url: URL) {
 }
 
 const staticSnippet =
-  '<script async src="/vizoalica.js" data-source="public-key" data-project="project-1"></script>';
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key"></script>';
+const customizeSnippet =
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key" data-project="project-1" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>';
 
 export type MockSetup = Record<string, unknown>;
 
@@ -401,14 +403,23 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
         tokenIssuer: 'website-owned',
         html: staticSnippet,
         modes: [
-          { id: 'static', snippet: staticSnippet },
+          {
+            id: 'static',
+            snippet: staticSnippet,
+            customize: customizeSnippet,
+            defaults: {
+              'data-token-url': '/vizoalica/ingest-token',
+              'data-consent': 'unknown',
+              'data-project': 'taken from the source key'
+            }
+          },
           {
             id: 'dynamic',
             snippet: '<script async src="/vizoalica-loader.js"></script>',
             configUrl: '/vizoalica/config.json',
             config: {
               version: 1,
-              src: 'https://docs.example.com/vizoalica.js',
+              src: '/vizoalica.js',
               'data-endpoint': 'https://worker.test/v1/events:batch',
               'data-source': 'public-key',
               'data-project': project.id,
@@ -416,23 +427,36 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               'data-consent': 'unknown'
             },
             cloudflare: {
-              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2',
+              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3',
               repoVariables: {
-                VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
+                VIZOALICA_SITE: JSON.stringify({
+                  endpoint: 'https://worker.test/v1/events:batch',
+                  sourceKey: 'public-key',
+                  projectId: project.id,
+                  sourceId: website.id,
+                  origins: ['https://docs.example.com']
+                })
+              },
+              expandedRepoVariables: {
                 VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
                 VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key',
                 VIZOALICA_PROJECT_ID: project.id,
-                VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
-                VIZOALICA_CONSENT: 'unknown',
                 VIZOALICA_SOURCE_ID: website.id,
                 VIZOALICA_SITE_ORIGINS: 'https://docs.example.com'
               },
+              defaults: {
+                VIZOALICA_SDK_SRC: '/vizoalica.js',
+                VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+                VIZOALICA_CONSENT: 'unknown'
+              },
+              summary: { publicValues: 3, secrets: 2 },
+              accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
               accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
               repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
               starterWorkflowYaml:
-                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3\n    secrets: inherit',
               setupCommands: [
-                'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
+                "gh variable set VIZOALICA_SITE --body '{}'",
                 'gh secret set CF_API_TOKEN'
               ],
               warnings: [

@@ -9,7 +9,7 @@ import { useSetup } from '../setup/SetupProvider.js';
 import { useFlash } from '../shell/FlashProvider.js';
 import { useDirtyGuard } from './useDirtyGuard.js';
 
-/** Adds a website. Its first field is the project, so the owner is always chosen on purpose. */
+/** Adds a website to the project in scope. Asking for an address is the whole job. */
 export function WebsiteAddPage() {
   const scope = useScope();
   const setup = useSetup();
@@ -20,19 +20,19 @@ export function WebsiteAddPage() {
   const list = hrefFor('manage/websites');
 
   async function add(input: WebsiteInput) {
-    const target = scope.activeProjects.find((item) => item.id === input.projectId);
-    if (!input.projectId || !target) {
-      setError('The selected project is no longer available. Refresh Projects and try again.');
+    // The project is the one chosen at the top; it is shown in the form, never asked.
+    const target = scope.project;
+    if (!target) {
+      setError('The current project is no longer available. Choose a project and try again.');
       throw new Error('project_unavailable');
     }
     try {
-      const created = await createWebsite(input.projectId, {
+      const created = await createWebsite(target.id, {
         name: input.name,
         allowedOrigins: input.allowedOrigins
       });
       void setup.refresh();
-      if (input.projectId === scope.projectId) await scope.refreshWebsites();
-      else scope.selectProject(input.projectId);
+      await scope.refreshWebsites();
       flash.carry(
         `Website ${created.name} created in project ${target.name} (${target.id}). Next: install it.`
       );
@@ -40,7 +40,7 @@ export function WebsiteAddPage() {
     } catch (reason) {
       setError(
         reason instanceof ApiError && reason.status === 404
-          ? 'The selected project is no longer available. Your entries were preserved.'
+          ? 'The current project is no longer available. Your entries were preserved.'
           : 'Website creation was interrupted. Your entries were preserved.'
       );
       throw reason;
@@ -57,15 +57,15 @@ export function WebsiteAddPage() {
         ]}
         back={{ label: 'Back to websites', href: list, onClick: guard(list) }}
         title="Add a website"
-        description="Register a website, then install it. You choose the project it belongs to first."
+        description="Enter its address, then install it. It is added to the project chosen at the top."
       />
-      {scope.activeProjects.length === 0 ? (
+      {!scope.project ? (
         <NoProject />
       ) : (
         <section className="panel form-panel" aria-label="New website details">
           <WebsiteForm
             autoFocus
-            projects={scope.activeProjects}
+            projectName={scope.project?.name ?? ''}
             onSubmit={add}
             onDirtyChange={setDirty}
             cancel={

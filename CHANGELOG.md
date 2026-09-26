@@ -4,6 +4,31 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-25
+
+### Changed
+
+- **A website needs far fewer values to install.** The recommended snippet is now `src`, `data-endpoint` and
+  `data-source`; the token path (`/vizoalica/ingest-token`), consent (`unknown`) and project (taken from the
+  source key) are defaults, and the script location is site-relative so it is right on every hostname. Use
+  `data-token-url="none"` for an unsigned demo. Older snippets keep working. The GitHub → Cloudflare Pages
+  workflow takes one bundled `VIZOALICA_SITE` variable (plus the two Cloudflare values and two secrets: five
+  values, down from twelve), defaults the site folder to the repository root, and still accepts the separate
+  variables. The starter workflow now references `v0.7.3`; websites already deploying with an older reference keep working.
+- **Adding a website asks for an address.** Paste it as you copied it (`Example.com/pricing` becomes
+  `https://example.com`), see exactly what will be saved, allow the `www` counterpart with one tick, and
+  leave the name empty to use the domain. The project is the one chosen at the top and is shown, not asked.
+- **The install check names one thing to fix.** It looks at the SDK file, the token endpoint and the allowed
+  origin, then at page views, and answers with a single next action; "I've deployed" starts it.
+- **One place to choose the environment and project.** They sit together at the top of every page except
+  Projects. The environment control no longer overlaps its own text, and shows the role and an unusable
+  environment's reason separately. The project menu only switches; projects are created and deleted on the
+  Projects page.
+- **The footer is one line**: Vizoalica, vizoalica.dev, GitHub. The console version is on the Health page.
+- **Health includes the backend.** The Backend page is now the first section of Health (its old address opens
+  Health). Projects and Access keys leave the sidebar; Access keys is reached from a website's Share section
+  and the environment menu, for administrators only.
+
 ## [0.7.2] - 2026-09-25
 
 ### Fixed

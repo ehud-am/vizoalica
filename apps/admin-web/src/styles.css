@@ -267,12 +267,13 @@ pre:focus-visible {
   outline-offset: 2px;
 }
 .topbar {
-  height: 64px;
+  min-height: 64px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 24px;
+  gap: 8px 12px;
+  padding: 8px 24px;
   background: var(--color-surface-raised);
   border-bottom: 1px solid var(--color-border-default);
 }
@@ -295,17 +296,25 @@ pre:focus-visible {
 }
 .topbar-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  min-width: 0;
 }
-.environment-label {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--color-text-secondary);
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-default);
+/* The environment first, then the project: what every page below is showing. */
+.scope-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.environment-menu {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .workspace {
   min-height: calc(100vh - 64px);
@@ -424,54 +433,26 @@ h2 {
 .app-footer {
   width: 100%;
   margin-top: auto;
-  padding: 32px 40px 20px;
+  padding: 16px 40px;
   border-top: 1px solid var(--color-border-default);
   color: var(--color-text-secondary);
   font-size: 13px;
 }
-.app-footer-inner {
+.app-footer-line {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px 48px;
+  align-items: baseline;
+  gap: 4px 8px;
   width: min(100%, 1200px);
   margin: 0 auto;
 }
-.app-footer-brand {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  max-width: 320px;
-}
-.app-footer-brand .brand-logo {
-  width: 32px;
-  height: 32px;
-  flex: none;
-}
-.app-footer-name {
-  margin: 0;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-.app-footer-tagline {
-  margin: 4px 0 0;
-  color: var(--color-text-secondary);
-}
-.app-footer-group ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
+.app-footer-item {
+  display: inline-flex;
   gap: 8px;
 }
-.app-footer-heading {
-  margin: 0 0 10px;
-  font-size: 12px;
+.app-footer-name {
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
 }
 .app-footer a {
   color: var(--color-text-brand);
@@ -481,19 +462,6 @@ h2 {
   outline: 2px solid var(--color-text-brand);
   outline-offset: 3px;
   border-radius: 2px;
-}
-.app-footer-legal {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  width: min(100%, 1200px);
-  margin: 24px auto 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-default);
-  color: var(--color-text-tertiary);
-  font-size: 12px;
 }
 .technical-value,
 .detail-card dd {
@@ -1081,10 +1049,6 @@ pre {
   }
   .app-footer {
     padding-inline: 20px;
-  }
-  .app-footer-inner {
-    flex-direction: column;
-    gap: 20px;
   }
   .brand span:last-child {
     display: none;
@@ -2039,8 +2003,26 @@ a.nav-item {
 }
 @media (max-width: 639px) {
   .topbar {
-    height: 60px;
+    min-height: 60px;
     padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+  }
+  /* On a phone the scope group takes its own row under the brand, so nothing has to squeeze. */
+  .topbar-actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .scope-switcher {
+    flex: 1 1 100%;
+  }
+  .scope-switcher > *,
+  .environment-menu .menu-button {
+    flex: 1 1 100%;
+  }
+  .menu-list {
+    inset-inline-start: 0;
+    inset-inline-end: 0;
+    width: auto;
+    max-width: none;
   }
   .brand-logo-lockup {
     width: 40px;
@@ -2376,12 +2358,6 @@ a.nav-item {
   padding-left: 1.25rem;
 }
 
-.environment-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .versions-table {
   width: 100%;
   border-collapse: collapse;
@@ -2421,4 +2397,196 @@ a.nav-item {
 .status-pill.status-unsupported {
   background: var(--color-warning-bg);
   color: var(--color-warning-text);
+}
+
+/* ---- Menu button: environment and project choosers in the header ---- */
+.menu-button {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.menu-trigger,
+.menu-static {
+  display: inline-grid;
+  /* The chevron has a column of its own, so it can never sit on top of the text. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  max-width: 100%;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  background: var(--color-surface-default, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-static {
+  grid-template-columns: minmax(0, 1fr);
+  cursor: default;
+}
+
+.menu-face {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  min-width: 0;
+}
+
+.menu-caption {
+  color: var(--color-text-muted, inherit);
+  font-size: 0.75rem;
+}
+
+.menu-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.menu-badge {
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.menu-chevron {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-inline-end: 0.15rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-15%, -15%);
+}
+
+.menu-trigger[aria-expanded='true'] .menu-chevron {
+  transform: rotate(-135deg) translate(-15%, -15%);
+}
+
+.menu-list {
+  position: absolute;
+  z-index: 20;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-start: 0;
+  display: grid;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.25rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.5rem;
+  background: var(--color-surface-raised, var(--color-surface-default, Canvas));
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu-item {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--color-surface-muted);
+}
+
+.menu-item[aria-disabled='true'] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.menu-item-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.menu-item-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.menu-item-detail {
+  color: var(--color-text-muted, inherit);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.menu-mark {
+  margin-inline-start: auto;
+  width: 0.35rem;
+  height: 0.65rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--color-border-default);
+}
+
+/* ---- Website form: what will be saved, and small pieces of the add form ---- */
+.website-form .field {
+  min-width: 0;
+}
+
+.origin-preview {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.origin-preview code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.form-project {
+  margin: 0;
+}
+
+/* The global label is a grid and the global input is full width; a tick box is neither. */
+.website-form .checkbox-field {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.website-form .checkbox-field input {
+  flex: none;
+  width: auto;
+  margin-top: 0.15rem;
+  padding: 0;
+}
+
+.website-form .field label {
+  display: block;
+}
+
+.optional {
+  font-weight: 400;
+}
+
+.install-count {
+  margin: 0;
 }

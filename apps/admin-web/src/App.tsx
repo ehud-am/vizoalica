@@ -45,9 +45,8 @@ import { ScopeProvider } from './scope/ScopeProvider.js';
 import { AreaNav } from './shell/AreaNav.js';
 import { FlashProvider } from './shell/FlashProvider.js';
 import { ScopeBar } from './shell/ScopeBar.js';
+import { ScopeSwitcher } from './shell/ScopeSwitcher.js';
 import { AccessPage } from './manage/AccessPage.js';
-import { BackendPage } from './manage/BackendPage.js';
-import { EnvironmentPicker } from './setup/EnvironmentPicker.js';
 import { Journey } from './setup/Journey.js';
 import { Welcome } from './setup/Welcome.js';
 import { SetupProvider, useSetup } from './setup/SetupProvider.js';
@@ -102,7 +101,8 @@ function ManageRoute({ route }: { route: Route }) {
     case 'manage/health':
       return <HealthPage />;
     case 'manage/backend':
-      return <BackendPage />;
+      // The backend's versions are the first section of Health; the old address still works.
+      return <HealthPage />;
     case 'manage/access':
       return <AccessGate />;
     default:
@@ -136,7 +136,6 @@ function Console({ route }: { route: Route }) {
         </aside>
         <div className="content-column">
           <ScopeBar
-            showProject={controls !== 'none'}
             showWebsite={controls === 'project-website'}
             showRange={showsRange(route.path)}
           />
@@ -219,48 +218,58 @@ export function App() {
     }
     await connect();
   }, [connect]);
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <a className="brand" href={hrefFor('analytics/overview')} aria-label="Vizoalica overview">
-          <BrandLogo theme={theme.theme} />
-        </a>
-        <div className="topbar-actions">
-          {access === 'ready' && (
-            <EnvironmentPicker list={environments} onChanged={() => void connect()} />
-          )}
-          <ThemeToggle
-            theme={theme.theme}
-            saving={theme.saving}
-            saveError={theme.saveError}
-            onChange={theme.setTheme}
-          />
-        </div>
-      </header>
-      {access === 'ready' ? (
+  const toggle = (
+    <ThemeToggle
+      theme={theme.theme}
+      saving={theme.saving}
+      saveError={theme.saveError}
+      onChange={theme.setTheme}
+    />
+  );
+  const brand = (
+    <a className="brand" href={hrefFor('analytics/overview')} aria-label="Vizoalica overview">
+      <BrandLogo theme={theme.theme} />
+    </a>
+  );
+  if (access === 'ready')
+    return (
+      <div className="app-shell">
         <SetupProvider key={session} initial={setupState}>
           <ScopeProvider key={session} initialProjects={initialProjects}>
+            <header className="topbar">
+              {brand}
+              <div className="topbar-actions">
+                <ScopeSwitcher
+                  list={environments}
+                  route={route}
+                  onEnvironmentChanged={() => void connect()}
+                />
+                {toggle}
+              </div>
+            </header>
             <Console route={route} />
           </ScopeProvider>
         </SetupProvider>
-      ) : (
-        <div className="workspace workspace-single">
-          <div className="content-column">
-            <main id="main" tabIndex={-1}>
-              {access === 'welcome' ? (
-                <Welcome
-                  list={environments}
-                  checking={rechecking}
-                  onRecheck={() => void recheck()}
-                />
-              ) : (
-                <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
-              )}
-            </main>
-            <AppFooter />
-          </div>
+      </div>
+    );
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        {brand}
+        <div className="topbar-actions">{toggle}</div>
+      </header>
+      <div className="workspace workspace-single">
+        <div className="content-column">
+          <main id="main" tabIndex={-1}>
+            {access === 'welcome' ? (
+              <Welcome list={environments} checking={rechecking} onRecheck={() => void recheck()} />
+            ) : (
+              <AccessState state={access} reason={denialReason} onRetry={() => void connect()} />
+            )}
+          </main>
+          <AppFooter />
         </div>
-      )}
+      </div>
     </div>
   );
 }

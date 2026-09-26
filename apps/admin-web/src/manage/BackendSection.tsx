@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { getBackendState, type BackendState } from '../api/local-operations.js';
-import { PageHeader } from '../components/PageHeader.js';
 
 const STATUS_TEXT: Record<string, string> = {
   current: 'Up to date',
@@ -38,8 +37,11 @@ function Row({
   );
 }
 
-/** The backend's versions and health, for every role. It only reads; nothing here changes the backend. */
-export function BackendPage() {
+/**
+ * The backend's versions and health: the first section of Health. It covers the whole environment,
+ * whichever project is chosen, and only reads; nothing here changes the backend.
+ */
+export function BackendSection({ environment }: { environment?: string }) {
   const [state, setState] = useState<BackendState | undefined>();
   const [error, setError] = useState('');
 
@@ -54,22 +56,27 @@ export function BackendPage() {
   }, []);
 
   return (
-    <div className="page backend-page" data-page="backend">
-      <PageHeader
-        crumbs={[{ label: 'Backend' }]}
-        title="Backend"
-        description="The three versions this console cares about, and the backend's health."
-      />
+    <section className="health-backend" aria-labelledby="backend-heading" data-section="backend">
+      <h2 id="backend-heading">Backend</h2>
+      <p className="hint">
+        Covers the whole environment{environment ? ` (${environment})` : ''}, whichever project is
+        chosen.
+      </p>
       {error && (
         <p className="notice error" role="alert">
           {error}
         </p>
       )}
+      {!state && !error && (
+        <p className="metric-empty" aria-busy="true">
+          Checking…
+        </p>
+      )}
       {state && (
         <>
-          <section className="panel" aria-labelledby="versions-heading">
-            <h2 id="versions-heading">Versions</h2>
-            <table className="versions-table">
+          <div className="panel">
+            <h3 id="versions-heading">Versions</h3>
+            <table className="versions-table" aria-labelledby="versions-heading">
               <thead>
                 <tr>
                   <th scope="col">Component</th>
@@ -99,10 +106,10 @@ export function BackendPage() {
                 />
               </tbody>
             </table>
-          </section>
-          <section className="panel" aria-labelledby="health-heading">
-            <h2 id="health-heading">Health</h2>
-            <dl className="detail-list">
+          </div>
+          <div className="panel">
+            <h3 id="storage-heading">Storage</h3>
+            <dl className="detail-list" aria-labelledby="storage-heading">
               <div>
                 <dt>Database</dt>
                 <dd>{state.health?.database ?? 'unknown'}</dd>
@@ -112,9 +119,9 @@ export function BackendPage() {
                 <dd>{state.health?.storage ?? 'unknown'}</dd>
               </div>
             </dl>
-          </section>
+          </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

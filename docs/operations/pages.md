@@ -133,6 +133,15 @@ shown in the dashboard, normally `https://YOUR_PAGES_PROJECT.pages.dev`.
 
 ### B2. Fill in the public configuration
 
+> **Defaults (0.7.3).** `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL`
+> (`/vizoalica/ingest-token`) and `VIZOALICA_CONSENT` (`unknown`) follow a convention, so the deploy
+> workflow no longer asks for them. It also accepts one repository variable, `VIZOALICA_SITE`, holding
+> `endpoint`, `sourceKey`, `projectId`, `sourceId` and `origins` as JSON, in place of the five values
+> that vary per website; a separate variable still wins over the bundled one. `site-directory` defaults
+> to the repository root. Changing a website's allowed origins in the console means updating the origin
+> list here (or in `VIZOALICA_SITE`) to match, then deploying. The manual `wrangler.toml` below still
+> uses the separate fields.
+
 Edit the working copy's `wrangler.toml`:
 
 | Field                         | Copy from                                                                                                                |

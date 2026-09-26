@@ -68,6 +68,7 @@ describe('embed script', () => {
     ).toEqual({
       endpoint: 'https://a.test',
       sourceKey: 'public',
+      tokenUrl: '/vizoalica/ingest-token',
       consentState: 'unknown',
       autoPageView: false
     });

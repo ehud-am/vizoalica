@@ -5,7 +5,7 @@ description: 'What the three versions the console shows mean, and how database c
 
 # Database and Worker versions
 
-Starting at 0.6.4, the console's Backend screen shows three versions to every role: the **console**
+Starting at 0.6.4, the console's Health page (Backend section) shows three versions to every role: the **console**
 you installed, the **Worker** deployed to your Cloudflare account, and the **database schema** the
 Worker's D1 database has applied. Each has a status: up to date, an update is available, the console
 is older than the backend, unknown (an older backend that predates this), or unsupported (a database
@@ -38,7 +38,7 @@ either a stock 0.5.2 database or one with those tables already present reaches t
 
 ## Updating a backend
 
-The console shows the Worker's and the schema's current and expected versions on the Backend screen, for every
+The console shows the Worker's and the schema's current and expected versions on the Health page (Backend section), for every
 role, and tells you when the backend is behind (or newer than the console). It does not change the backend.
 Update it from the checkout that installed it with `pnpm vizoalica backend` (answer "update"), or by hand as
 below. An environment whose database is newer than the console expects is not usable until you update the

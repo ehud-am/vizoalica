@@ -98,9 +98,9 @@ export function AccessPage() {
   return (
     <div className="page access-page" data-page="access">
       <PageHeader
-        crumbs={[{ label: 'Access' }]}
-        title="Access"
-        description="Issue and revoke the keys analysts and website owners connect with."
+        crumbs={[{ label: 'Access keys' }]}
+        title="Access keys"
+        description="A key lets an analyst (who can only view) or a website owner (who can manage) connect to this environment without your administrator secret. Issue one to share access, and revoke it to end that access."
       />
 
       {revealed && <RevealedKey issued={revealed} onDone={() => setRevealed(undefined)} />}
