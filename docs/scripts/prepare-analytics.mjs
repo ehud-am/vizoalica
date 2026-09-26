@@ -6,6 +6,8 @@
  * the public settings. Nothing here is a secret; the token-signing secret is set separately.
  *
  * When VIZOALICA_INGEST_ENDPOINT is not set the site has no analytics, and this does nothing.
+ * The SDK path, the token path and the consent state follow the same conventions as the deploy
+ * workflow, so they are only set to change them.
  *
  * Usage (from the repository root): node docs/scripts/prepare-analytics.mjs
  */
@@ -16,18 +18,26 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DIST = join(ROOT, 'docs/.vitepress/dist');
 
-const PUBLIC = [
-  'VIZOALICA_SDK_SRC',
+// What has no default: it identifies this website, so it must be given.
+const REQUIRED = [
   'VIZOALICA_INGEST_ENDPOINT',
   'VIZOALICA_PUBLIC_SOURCE_KEY',
   'VIZOALICA_PROJECT_ID',
-  'VIZOALICA_TOKEN_URL',
-  'VIZOALICA_CONSENT',
   'VIZOALICA_SOURCE_ID',
   'VIZOALICA_SITE_ORIGINS'
 ];
+// What follows a convention, so it is only set to change it (the same defaults as the deploy workflow).
+const DEFAULTS = {
+  VIZOALICA_SDK_SRC: '/vizoalica.js',
+  VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+  VIZOALICA_CONSENT: 'unknown'
+};
+const PUBLIC = [...Object.keys(DEFAULTS), ...REQUIRED];
 
-export function prepare(env = process.env, root = ROOT, dist = DIST) {
+export function prepare(input = process.env, root = ROOT, dist = DIST) {
+  // A variable that is set but empty counts as not set, as GitHub passes an unset variable as "".
+  const env = { ...input };
+  for (const [name, value] of Object.entries(DEFAULTS)) env[name] = input[name] || value;
   if (!env.VIZOALICA_INGEST_ENDPOINT) {
     console.log('analytics not configured: the site is published without it');
     return false;

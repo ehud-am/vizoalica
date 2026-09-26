@@ -49,6 +49,46 @@ describe('adding analytics to the built docs site', () => {
     expect(toml).not.toMatch(/SECRET/);
   });
 
+  it('needs only what identifies the website: the SDK path, token path and consent are defaulted', () => {
+    const { root, dist } = workspace();
+    const minimal: Record<string, string> = { ...settings };
+    for (const name of ['VIZOALICA_SDK_SRC', 'VIZOALICA_TOKEN_URL', 'VIZOALICA_CONSENT'])
+      delete minimal[name];
+    expect(prepare(minimal, root, dist)).toBe(true);
+    const toml = readFileSync(join(root, 'docs/wrangler.toml'), 'utf8');
+    expect(toml).toContain('VIZOALICA_SDK_SRC = "/vizoalica.js"');
+    expect(toml).toContain('VIZOALICA_TOKEN_URL = "/vizoalica/ingest-token"');
+    expect(toml).toContain('VIZOALICA_CONSENT = "unknown"');
+  });
+
+  it('treats an empty variable (how GitHub passes an unset one) as not set, and lets a set one win', () => {
+    const { root, dist } = workspace();
+    prepare({ ...settings, VIZOALICA_CONSENT: '', VIZOALICA_TOKEN_URL: '' }, root, dist);
+    let toml = readFileSync(join(root, 'docs/wrangler.toml'), 'utf8');
+    expect(toml).toContain('VIZOALICA_CONSENT = "unknown"');
+    expect(toml).toContain('VIZOALICA_TOKEN_URL = "/vizoalica/ingest-token"');
+    // A value that was set is kept as it is.
+    expect(toml).toContain('VIZOALICA_SDK_SRC = "https://vizoalica.dev/vizoalica.js"');
+    prepare({ ...settings, VIZOALICA_CONSENT: 'analytics-granted' }, root, dist);
+    toml = readFileSync(join(root, 'docs/wrangler.toml'), 'utf8');
+    expect(toml).toContain('VIZOALICA_CONSENT = "analytics-granted"');
+  });
+
+  it("does not read the caller's object as a place to keep defaults", () => {
+    const { root, dist } = workspace();
+    const given: Record<string, string> = { ...settings };
+    delete given.VIZOALICA_CONSENT;
+    prepare(given, root, dist);
+    expect(given.VIZOALICA_CONSENT).toBeUndefined();
+  });
+
+  it('still refuses a default-able value that could break the file', () => {
+    const { root, dist } = workspace();
+    expect(() => prepare({ ...settings, VIZOALICA_CONSENT: 'a"b' }, root, dist)).toThrow(
+      /VIZOALICA_CONSENT contains/
+    );
+  });
+
   it('refuses a partly configured site, a missing SDK build, and a value that could break the file', () => {
     const { root, dist } = workspace();
     const partial: Record<string, string> = { ...settings };
