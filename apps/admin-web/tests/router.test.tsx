@@ -13,6 +13,7 @@ import {
   routeLabel,
   scopeControls,
   showsRange,
+  showsScopeHeader,
   useRoute
 } from '../src/router.js';
 
@@ -88,12 +89,24 @@ describe('router', () => {
     expect(navKey('manage/health')).toBe('manage/health');
   });
 
-  it('lists Projects, Websites, Health, Backend, and Access under Manage, and no Installation item', () => {
+  it('lists only Websites and Health under Manage; Projects, Backend and Access have no sidebar item', () => {
     expect(
       NAV_ROUTES.filter((route) => route.area === 'manage').map((route) => route.label)
-    ).toEqual(['Projects', 'Websites', 'Health', 'Backend', 'Access']);
+    ).toEqual(['Websites', 'Health']);
+    // They are still pages: Projects from the project menu, Access keys from Share and the
+    // environment menu, and the old Backend address opens Health.
+    for (const path of ['manage/projects', 'manage/backend', 'manage/access'] as const)
+      expect(NAV_ROUTES.some((route) => route.path === path)).toBe(false);
+    expect(parseRoute('#/manage/backend').path).toBe('manage/backend');
+    expect(navKey('manage/backend')).toBe('manage/health');
+    expect(routeLabel('manage/access')).toBe('Access keys');
     expect(ROUTES.some((route) => route.path.endsWith('installation'))).toBe(false);
     expect(new Set(ROUTES.map((route) => route.path)).size).toBe(ROUTES.length);
+  });
+
+  it('runs every page inside the header scope except Projects', () => {
+    for (const route of ROUTES)
+      expect(showsScopeHeader(route.path), route.path).toBe(route.path !== 'manage/projects');
   });
 
   it('follows hash changes and navigate(), keeping the same object when nothing changed', async () => {

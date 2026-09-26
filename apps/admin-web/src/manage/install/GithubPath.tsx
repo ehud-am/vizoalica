@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { DynamicInstallation, Website } from '../../api/local-operations.js';
 import { CodeBlock } from '../../components/CodeBlock.js';
 import { Tabs } from '../../components/Tabs.js';
+import { DeployedButton } from './DeployedButton.js';
 import { InstallCheck } from './InstallCheck.js';
 import { InstallStep, InstallSteps } from './InstallSteps.js';
 
@@ -11,17 +12,16 @@ type How = 'web' | 'cli';
 const WHERE: Record<string, ReactNode> = {
   CF_ACCOUNT_ID: (
     <>
-      Your Cloudflare account ID, 32 letters and digits. In the Cloudflare dashboard it is the code
-      in the address bar right after <code>dash.cloudflare.com/</code>, and it is listed as Account
-      ID on the Workers &amp; Pages overview. <code>npx wrangler whoami</code> prints it too.
+      Your Cloudflare account ID, 32 letters and digits. Run the command below the list: it prints
+      it, and it is also the code in the dashboard address right after{' '}
+      <code>dash.cloudflare.com/</code>.
     </>
   ),
   CF_PAGES_PROJECT: (
     <>
-      The name of the Cloudflare Pages project your website deploys to, exactly as listed under
-      Workers &amp; Pages in the dashboard (its address is <code>NAME.pages.dev</code>). The project
-      must already exist; if it does not, create it there or with{' '}
-      <code>npx wrangler pages project create NAME</code>.
+      The name of the Cloudflare Pages project your website deploys to, as the same command lists it
+      (its address is <code>NAME.pages.dev</code>). It must already exist; if it does not, create it
+      with <code>npx wrangler pages project create NAME</code>.
     </>
   ),
   CF_API_TOKEN: (
@@ -67,16 +67,24 @@ function WhereList({ label, rows }: { label: string; rows: { name: string; kind:
  */
 export function GithubPath({
   website,
-  dynamic
+  dynamic,
+  runSignal,
+  onDeployed
 }: {
   website: Website;
   dynamic: DynamicInstallation;
+  runSignal: number;
+  onDeployed: () => void;
 }) {
   const [how, setHow] = useState<How>('web');
   const { cloudflare } = dynamic;
-  const variables = Object.entries(cloudflare.repoVariables)
-    .map(([name, value]) => `${name}=${value}`)
-    .join('\n');
+  const asLines = (values: Record<string, string>) =>
+    Object.entries(values)
+      .map(([name, value]) => `${name}=${value}`)
+      .join('\n');
+  const variables = asLines(cloudflare.repoVariables);
+  const { summary, defaults, expandedRepoVariables } = cloudflare;
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
   // The one-path rule is stated once, above the steps, so it is not repeated as a warning here.
   // Two of the service's warnings are already said by the page itself: the one-path rule (above
   // the steps) and "public variables are not secrets" (in the settings step).
@@ -90,7 +98,7 @@ export function GithubPath({
     ...cloudflare.repoSecretNames.map((name) => ({ name, kind: 'Secret' }))
   ];
 
-  return (
+  const steps = (
     <InstallSteps label="Steps for GitHub and Cloudflare Pages">
       <InstallStep title="Add the loader to your pages">
         <p>
@@ -103,7 +111,9 @@ export function GithubPath({
       <InstallStep title="Add the deploy workflow">
         <p>
           Save this as <code>.github/workflows/deploy-website.yml</code> in your website’s
-          repository, replacing <code>YOUR_SITE_DIRECTORY</code> with your site’s folder.
+          repository. It works as it is when your site is at the top of the repository. If your site
+          is in a folder, add <code>with:</code> and <code>site-directory: YOUR_FOLDER</code> under
+          the <code>uses</code> line.
         </p>
         <CodeBlock
           label="Deploy workflow"
@@ -113,6 +123,12 @@ export function GithubPath({
       </InstallStep>
 
       <InstallStep title="Add the settings and secrets to the repository">
+        {summary && (
+          <p className="install-count">
+            You add <strong>{plural(summary.publicValues, 'public value')}</strong> and{' '}
+            <strong>{plural(summary.secrets, 'secret')}</strong>. Everything else has a default.
+          </p>
+        )}
         <Tabs
           label="How to add them"
           value={how}
@@ -125,12 +141,18 @@ export function GithubPath({
           {how === 'web' ? (
             <>
               <p>
-                In the repository, open Settings → Secrets and variables → Actions. Add these public
-                variables. They are browser configuration, not secrets.
+                In the repository, open Settings → Secrets and variables → Actions. Add this public
+                variable. It is browser configuration, not a secret.
               </p>
               <CodeBlock label="Repository variables" code={variables} what="variable list" />
               <p>Then add these yourself, using your own Cloudflare account details:</p>
               <WhereList label="Other settings to add" rows={rows} />
+              {cloudflare.accountLookupCommand && (
+                <p className="hint">
+                  To find your account ID and Pages project, run{' '}
+                  <code>{cloudflare.accountLookupCommand}</code>.
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -145,8 +167,14 @@ export function GithubPath({
               />
               <p>
                 Replace <code>YOUR_CF_ACCOUNT_ID</code> and <code>YOUR_CF_PAGES_PROJECT</code> with
-                your own values, and paste each secret when <code>gh</code> asks for it. Where to
-                find them:
+                your own values, and paste each secret when <code>gh</code> asks for it.
+                {cloudflare.accountLookupCommand && (
+                  <>
+                    {' '}
+                    <code>{cloudflare.accountLookupCommand}</code> prints the first two.
+                  </>
+                )}{' '}
+                Where to find them:
               </p>
               <WhereList label="Where to find each value" rows={rows} />
             </>
@@ -167,11 +195,41 @@ export function GithubPath({
           Vizoalica’s loader, its configuration file (<code>{dynamic.configUrl}</code>), and the
           token endpoint.
         </p>
+        <DeployedButton onDeployed={onDeployed} />
       </InstallStep>
 
       <InstallStep title="Check that it works">
-        <InstallCheck website={website} path="github" />
+        <InstallCheck website={website} path="github" runSignal={runSignal} />
       </InstallStep>
     </InstallSteps>
+  );
+  return (
+    <>
+      {steps}
+      {defaults && expandedRepoVariables && (
+        <details className="install-more">
+          <summary>What is assumed, or prefer separate variables?</summary>
+          <p>
+            These follow a convention, so you do not add them:{' '}
+            {Object.entries(defaults).map(([name, value], index) => (
+              <span key={name}>
+                {index > 0 && ', '}
+                <code>{name}</code> = <code>{value}</code>
+              </span>
+            ))}
+            . Set a variable with that name only to change it.
+          </p>
+          <p>
+            You can add the public value above as separate variables instead. They work the same,
+            and a separate variable wins over the bundled one.
+          </p>
+          <CodeBlock
+            label="Separate repository variables"
+            code={asLines(expandedRepoVariables)}
+            what="separate variable list"
+          />
+        </details>
+      )}
+    </>
   );
 }

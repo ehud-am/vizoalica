@@ -131,7 +131,26 @@ explained below.
 **Check:** the Pages project exists in the intended Cloudflare account. Record the exact origin
 shown in the dashboard, normally `https://YOUR_PAGES_PROJECT.pages.dev`.
 
+### The console's install check
+
+On a website's install page, "I've deployed, check now" looks at each allowed address for
+`/vizoalica.js`, then asks `/vizoalica/ingest-token` for a token (with the site's own `Origin`),
+and answers with the first thing that is wrong: file missing, token endpoint missing or erroring, the
+origin not in the endpoint's list, or a redirect to an address that is not allowed. It never follows a
+redirect, never reads a response body, and discards the token, which expires in five minutes. Then it
+reads the last day's page views. Add the address a site redirects to (for example `www`) to the
+allowed origins and to the endpoint's list, or list only the address that serves the site.
+
 ### B2. Fill in the public configuration
+
+> **Defaults (0.7.3).** `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL`
+> (`/vizoalica/ingest-token`) and `VIZOALICA_CONSENT` (`unknown`) follow a convention, so the deploy
+> workflow no longer asks for them. It also accepts one repository variable, `VIZOALICA_SITE`, holding
+> `endpoint`, `sourceKey`, `projectId`, `sourceId` and `origins` as JSON, in place of the five values
+> that vary per website; a separate variable still wins over the bundled one. `site-directory` defaults
+> to the repository root. Changing a website's allowed origins in the console means updating the origin
+> list here (or in `VIZOALICA_SITE`) to match, then deploying. The manual `wrangler.toml` below still
+> uses the separate fields.
 
 Edit the working copy's `wrangler.toml`:
 

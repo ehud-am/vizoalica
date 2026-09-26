@@ -22,13 +22,7 @@ test('groups navigation into Analytics and Manage', async ({ page }) => {
     'Technology',
     'Traffic quality'
   ]);
-  await expect(nav.locator('[data-area="manage"] a')).toHaveText([
-    'Projects',
-    'Websites',
-    'Health',
-    'Backend',
-    'Access'
-  ]);
+  await expect(nav.locator('[data-area="manage"] a')).toHaveText(['Websites', 'Health']);
 });
 
 test('Analytics screens contain no state-changing controls', async ({ page }) => {
@@ -49,13 +43,15 @@ test('Analytics screens contain no state-changing controls', async ({ page }) =>
 
 test('remembers project, website, and range across a reload', async ({ page }) => {
   const scope = page.getByRole('region', { name: 'Scope' });
-  await scope.getByLabel('Project').selectOption('project-2');
+  await page.getByRole('button', { name: /^Project/ }).click();
+  await page.getByRole('menuitemradio', { name: /project-2/ }).click();
   await expect(scope.getByLabel('Website')).toBeVisible();
   await page.getByRole('button', { name: /^Last/ }).click();
   await page.getByRole('radio', { name: 'Last 7 days' }).check();
   await page.getByRole('button', { name: 'Apply' }).click();
   await page.reload();
-  await expect(page.getByRole('region', { name: 'Scope' }).getByLabel('Project')).toHaveValue(
+  await expect(page.getByRole('button', { name: /^Project/ })).toHaveAttribute(
+    'title',
     'project-2'
   );
   await expect(page.getByRole('button', { name: 'Last 7 days' })).toBeVisible();

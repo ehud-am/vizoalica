@@ -14,6 +14,8 @@ export type SetupState = {
   connection: {
     status: ConnectionStatus;
     workerHost?: string;
+    /** The Worker's address (scheme and host), for instructions that name it. */
+    workerUrl?: string;
   };
   principal?: {
     role: Principal['role'];
@@ -111,6 +113,14 @@ async function discover(client: WorkerClient, now: Date): Promise<Discovery> {
   return { websites, ...(firstWebsiteId ? { firstWebsiteId } : {}), dataArriving };
 }
 
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
 function hostOf(url: string): string {
   try {
     return new URL(url).host;
@@ -156,7 +166,10 @@ export async function buildSetupState(deps: SetupDeps): Promise<SetupState> {
   const connection = deps.registry.current();
   if (!connection) throw new Error('backend_not_connected');
   const base = { version: deps.version, environment: connection.name };
-  const shared = { workerHost: hostOf(connection.remoteUrl) };
+  const shared = {
+    workerHost: hostOf(connection.remoteUrl),
+    workerUrl: originOf(connection.remoteUrl)
+  };
   const client = (deps.clientFor ?? clientOf)(connection);
   const fallbackRole = connection.role;
   const withoutBackend = (status: ConnectionStatus, principal?: Principal): SetupState => ({

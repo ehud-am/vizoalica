@@ -8,6 +8,9 @@ import { useFlash } from '../shell/FlashProvider.js';
 import { useDirtyGuard } from './useDirtyGuard.js';
 import { WebsiteGate } from './WebsiteGate.js';
 
+const sameOrigins = (a: string[], b: string[]) =>
+  a.length === b.length && [...a].sort().join('\n') === [...b].sort().join('\n');
+
 function EditForm({ website }: { website: Website }) {
   const scope = useScope();
   const flash = useFlash();
@@ -21,7 +24,14 @@ function EditForm({ website }: { website: Website }) {
       allowedOrigins: input.allowedOrigins
     });
     await scope.refreshWebsites();
-    flash.carry('Website updated and audit recorded.');
+    const originsChanged = !sameOrigins(website.allowedOrigins, input.allowedOrigins);
+    // The embed itself does not depend on the origins, but the site's own token endpoint keeps a
+    // list of them, so a changed list is the one edit that can need a matching change on the site.
+    flash.carry(
+      originsChanged
+        ? 'Website updated and audit recorded. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
+        : 'Website updated and audit recorded. Nothing needs to change on your installed site.'
+    );
     navigate('manage/websites/:id', website.id);
   }
 

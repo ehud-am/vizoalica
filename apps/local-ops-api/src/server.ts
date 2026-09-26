@@ -6,7 +6,7 @@ import { isStaticRequest, serveStatic, type StaticDirs } from './static.js';
 import { readPreferences, updatePreferences } from './preferences.js';
 import { WorkerClient } from './remote-client/worker-client.js';
 import { integrationSnippet } from './routes/snippet.js';
-import { checkReachability } from './routes/reachability.js';
+import { checkInstall, checkReachability } from './routes/reachability.js';
 import { handleEnvironments } from './routes/environments.js';
 import { backendState, expectedSchemaFrom } from './setup/state.js';
 import {
@@ -289,9 +289,20 @@ export function createLocalServer(options: ServerOptions) {
         const basePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}`;
         const remotePath = `${basePath}${item[3] && item[3] !== 'reachability' && item[3] !== 'share' ? `/${item[3]}` : ''}`;
         if (request.method === 'GET' && item[3] === 'reachability') {
-          const metadata = (await workerJson(client, basePath)) as { allowedOrigins?: unknown };
+          // The Worker has no read of a bare source, only of its snippet, which carries the origins.
+          const metadata = (await workerJson(client, `${basePath}/snippet`)) as {
+            allowedOrigins?: unknown;
+          };
           if (!validOrigins(metadata.allowedOrigins)) throw new Error('remote_unavailable');
-          return send(response, 200, await checkReachability(metadata.allowedOrigins[0]!));
+          const origin = metadata.allowedOrigins[0]!;
+          const reach = await checkReachability(origin);
+          // The install probes run when the page says which path it is checking.
+          const path = url.searchParams.get('path');
+          const install =
+            path === 'github' || path === 'snippet'
+              ? await checkInstall(metadata.allowedOrigins, path, reach.configEndpointReachable)
+              : undefined;
+          return send(response, 200, install ? { ...reach, install } : reach);
         }
         if (request.method === 'POST' && item[3] === 'share') {
           const body = (await requestJson(request)) as { role?: unknown } | undefined;

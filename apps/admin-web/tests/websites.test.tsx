@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OperationalStatus } from '../src/components/OperationalStatus.js';
 import { WebsiteCard } from '../src/components/WebsiteCard.js';
-import { WebsiteForm, isExactOrigin } from '../src/components/WebsiteForm.js';
+import { WebsiteForm } from '../src/components/WebsiteForm.js';
 import { site } from './fixtures/api.js';
 
 afterEach(cleanup);
@@ -40,38 +40,144 @@ describe('website card', () => {
 });
 
 describe('website form', () => {
-  const projects = [
-    { id: 'p1', name: 'Current' },
-    { id: 'p2', name: 'Target' }
-  ];
+  const address = () => screen.getByRole('textbox', { name: 'Website address' });
+  const name = () => screen.getByRole('textbox', { name: /Website name/ });
 
-  it('starts creation with an empty required project control', async () => {
+  it('asks for an address first and shows the project as text, not a choice', () => {
+    render(<WebsiteForm projectName="Marketing" onSubmit={vi.fn()} />);
+    const form = screen.getByRole('form', { name: 'Add website' });
+    expect(form.querySelectorAll('select')).toHaveLength(0);
+    expect(form.querySelector('.form-project')!.textContent).toBe('Project: Marketing');
+    // The address comes first; the name is optional.
+    expect(form.querySelectorAll('input, textarea')[0]).toBe(address());
+    expect(name().hasAttribute('required')).toBe(false);
+    expect(screen.getByText('(optional)')).toBeTruthy();
+  });
+
+  it('tidies a pasted address into an exact origin, shows it, and names the website after its domain', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<WebsiteForm projects={projects} onSubmit={submit} />);
-    const controls = screen
-      .getByRole('form', { name: 'Add website' })
-      .querySelectorAll('select, input, textarea');
-    const project = screen.getByRole('combobox', { name: 'Project' }) as HTMLSelectElement;
-    expect(controls[0]).toBe(project);
-    expect(project.required).toBe(true);
-    expect(project.value).toBe('');
-
-    await user.selectOptions(project, 'p2');
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), 'Marketing');
-    await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), 'https://site.test');
+    render(<WebsiteForm projectName="Marketing" onSubmit={submit} />);
+    await user.type(address(), 'Example.com/pricing?x=1/');
+    // Before anything is saved, the person sees exactly what will be.
+    const preview = document.querySelector('.origin-preview')!;
+    expect(preview.textContent).toContain('https://example.com');
+    expect(preview.textContent).toContain('https://www.example.com');
+    expect(name().getAttribute('placeholder')).toBe('example.com');
     await user.click(screen.getByRole('button', { name: 'Add website' }));
     await waitFor(() =>
       expect(submit).toHaveBeenCalledWith({
-        projectId: 'p2',
-        name: 'Marketing',
-        allowedOrigins: ['https://site.test']
+        name: 'example.com',
+        allowedOrigins: ['https://example.com', 'https://www.example.com']
       })
     );
-    expect(project.value).toBe('');
+    // The form is ready for the next one.
+    expect((address() as HTMLTextAreaElement).value).toBe('');
   });
 
-  it('does not expose the project in edit mode, keeps failed drafts, and shows why', async () => {
+  it('keeps a typed name, and lets the www counterpart be switched off', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="Marketing" onSubmit={submit} />);
+    await user.type(address(), 'https://example.com');
+    const also = screen.getByRole('checkbox', { name: /Also allow/ }) as HTMLInputElement;
+    expect(also.checked).toBe(true);
+    expect(also.closest('label')!.textContent).toContain('https://www.example.com');
+    await user.click(also);
+    await user.type(name(), 'Marketing site');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith({
+        name: 'Marketing site',
+        allowedOrigins: ['https://example.com']
+      })
+    );
+  });
+
+  it('offers the other spelling in both directions, and only for an ordinary domain', async () => {
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="P" onSubmit={vi.fn()} />);
+    await user.type(address(), 'www.example.com');
+    expect(
+      screen.getByRole('checkbox', { name: /Also allow/ }).closest('label')!.textContent
+    ).toContain('https://example.com');
+    await user.clear(address());
+    await user.type(address(), 'blog.example.com');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    await user.clear(address());
+    await user.type(address(), 'localhost:3000');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    // With several addresses typed there is nothing to guess.
+    await user.clear(address());
+    await user.type(address(), 'a.com b.com');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('accepts several addresses separated by spaces, lines or commas, without repeats', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="P" onSubmit={submit} />);
+    await user.type(address(), 'a.test, https://a.test/x{Enter}b.test');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith({
+        name: 'a.test',
+        allowedOrigins: ['https://a.test', 'https://b.test']
+      })
+    );
+  });
+
+  it('says what to type instead when an address cannot be used, and sends nothing', async () => {
+    const user = userEvent.setup();
+    const submit = vi.fn();
+    render(<WebsiteForm projectName="P" onSubmit={submit} />);
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    expect(await screen.findByText('Enter your website’s address.')).toBeTruthy();
+    expect(document.activeElement).toBe(address());
+    await user.type(address(), 'ftp://files.test');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    expect(
+      await screen.findByText(/cannot be measured\. Use the address people open/)
+    ).toBeTruthy();
+    expect(address().getAttribute('aria-invalid')).toBe('true');
+    await user.clear(address());
+    await user.type(address(), 'ok.test');
+    await user.type(name(), 'x'.repeat(121));
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    expect(await screen.findByText('Use 120 characters or fewer.')).toBeTruthy();
+    expect(document.activeElement).toBe(name());
+    await user.clear(address());
+    await user.type(
+      address(),
+      Array.from({ length: 11 }, (_, index) => `s${index}.test`).join(' ')
+    );
+    await user.clear(name());
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    expect(await screen.findByText('Use 10 addresses or fewer.')).toBeTruthy();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it('warns, without blocking, that http is only for testing', async () => {
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="P" onSubmit={vi.fn()} />);
+    await user.type(address(), 'http://example.com');
+    expect(screen.getByText(/uses http\. Signed tokens need https/)).toBeTruthy();
+    await user.clear(address());
+    await user.type(address(), 'http://localhost:3000');
+    expect(screen.queryByText(/uses http/)).toBeNull();
+  });
+
+  it('keeps entries and explains when saving fails', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error('offline'));
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="P" onSubmit={submit} />);
+    await user.type(address(), 'example.com');
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    expect(await screen.findByText(/Website could not be saved/)).toBeTruthy();
+    expect((address() as HTMLTextAreaElement).value).toBe('example.com');
+  });
+
+  it('edits with the name first and the allowed origins as a list, keeping failed drafts', async () => {
     const submit = vi.fn().mockRejectedValue(new Error('stale project'));
     const user = userEvent.setup();
     render(
@@ -82,15 +188,55 @@ describe('website form', () => {
         onSubmit={submit}
       />
     );
-    expect(screen.queryByRole('combobox', { name: 'Project' })).toBeNull();
-    await user.clear(screen.getByRole('textbox', { name: 'Website name' }));
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), 'Docs retained');
+    const form = screen.getByRole('form', { name: 'Edit website' });
+    expect(form.querySelectorAll('input, textarea')[0]).toBe(name());
+    expect(form.querySelector('.form-project')).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    await user.clear(name());
+    await user.type(name(), 'Docs retained');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(submit).toHaveBeenCalled());
-    expect((screen.getByRole('textbox', { name: 'Website name' }) as HTMLInputElement).value).toBe(
-      'Docs retained'
-    );
+    expect((name() as HTMLInputElement).value).toBe('Docs retained');
     expect(await screen.findByText(/Website could not be saved/)).toBeTruthy();
+  });
+
+  it('shows what will be saved only when tidying changed what was typed', async () => {
+    const user = userEvent.setup();
+    render(
+      <WebsiteForm
+        initialName="Docs"
+        initialOrigins={['https://docs.test']}
+        submitLabel="Save changes"
+        onSubmit={async () => undefined}
+      />
+    );
+    // Already exact: nothing to echo.
+    expect(document.querySelector('.origin-preview')).toBeNull();
+    const box = screen.getByRole('textbox', { name: 'Allowed origins' });
+    await user.type(box, '{Enter}Other.test/x');
+    expect(document.querySelector('.origin-preview')!.textContent).toContain('https://other.test');
+    await user.clear(box);
+    await user.type(box, 'https://exact.test');
+    expect(document.querySelector('.origin-preview')).toBeNull();
+  });
+
+  it('tidies pasted origins when editing too', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <WebsiteForm
+        initialName="Docs"
+        initialOrigins={['https://docs.test']}
+        submitLabel="Save changes"
+        onSubmit={submit}
+      />
+    );
+    await user.clear(screen.getByRole('textbox', { name: 'Allowed origins' }));
+    await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), 'Other.test/x');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith({ name: 'Docs', allowedOrigins: ['https://other.test'] })
+    );
   });
 
   it('reports unsaved changes and keeps Save unavailable until something changed', async () => {
@@ -108,48 +254,33 @@ describe('website form', () => {
     const save = screen.getByRole('button', { name: 'Save changes' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     expect(changes.at(-1)).toBe(false);
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), '!');
+    await user.type(name(), '!');
     expect(save.disabled).toBe(false);
     expect(changes.at(-1)).toBe(true);
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), '{Backspace}');
+    await user.type(name(), '{Backspace}');
     expect(save.disabled).toBe(true);
     expect(changes.at(-1)).toBe(false);
-    // Extra whitespace between origins is not a change.
+    // Extra whitespace, or the same origin spelled another way, is not a change.
     await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), '\n\n');
     expect(save.disabled).toBe(true);
   });
 
-  it('reports each field problem next to the field and sends nothing', async () => {
+  it('reports a draft as unsaved once an address is typed', async () => {
     const user = userEvent.setup();
-    const submit = vi.fn();
-    render(<WebsiteForm projects={projects} onSubmit={submit} />);
-    await user.click(screen.getByRole('button', { name: 'Add website' }));
-    expect(await screen.findByText('Choose the project this website belongs to.')).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Project' }));
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'p1');
-    await user.click(screen.getByRole('button', { name: 'Add website' }));
-    expect(await screen.findByText('Enter a name for this website.')).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: 'Website name' }).getAttribute('aria-invalid')).toBe(
-      'true'
+    const changes: boolean[] = [];
+    render(
+      <WebsiteForm
+        projectName="P"
+        onSubmit={vi.fn()}
+        onDirtyChange={(dirty) => changes.push(dirty)}
+      />
     );
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), 'x'.repeat(121));
-    await user.click(screen.getByRole('button', { name: 'Add website' }));
-    expect(await screen.findByText('Use 120 characters or fewer.')).toBeTruthy();
-    await user.clear(screen.getByRole('textbox', { name: 'Website name' }));
-    await user.type(screen.getByRole('textbox', { name: 'Website name' }), 'Fine');
-    await user.click(screen.getByRole('button', { name: 'Add website' }));
-    expect(await screen.findByText('Enter at least one allowed origin.')).toBeTruthy();
-    await user.type(
-      screen.getByRole('textbox', { name: 'Allowed origins' }),
-      'https://ok.test/path'
-    );
-    await user.click(screen.getByRole('button', { name: 'Add website' }));
-    expect(await screen.findByText(/is not an exact origin/)).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Allowed origins' }));
-    expect(submit).not.toHaveBeenCalled();
+    expect(changes.at(-1)).toBe(false);
+    await user.type(address(), 'a');
+    expect(changes.at(-1)).toBe(true);
   });
 
-  it('focuses the first field when asked', () => {
+  it('focuses the first field when asked: the address to add, the name to edit', () => {
     render(
       <WebsiteForm
         initialName="Docs"
@@ -158,25 +289,10 @@ describe('website form', () => {
         onSubmit={async () => undefined}
       />
     );
-    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Website name' }));
+    expect(document.activeElement).toBe(name());
     cleanup();
-    render(<WebsiteForm projects={projects} autoFocus onSubmit={async () => undefined} />);
-    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Project' }));
-  });
-
-  it('accepts only exact http and https origins', () => {
-    for (const good of ['https://a.test', 'http://localhost:3000', 'https://a.test:8443'])
-      expect(isExactOrigin(good), good).toBe(true);
-    for (const bad of [
-      'a.test',
-      'https://a.test/',
-      'https://a.test/x',
-      'ftp://a.test',
-      'https://A.test',
-      'javascript:alert(1)',
-      ''
-    ])
-      expect(isExactOrigin(bad), bad).toBe(false);
+    render(<WebsiteForm projectName="P" autoFocus onSubmit={async () => undefined} />);
+    expect(document.activeElement).toBe(address());
   });
 });
 
