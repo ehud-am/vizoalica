@@ -21,9 +21,9 @@ export interface MenuLink {
  * as its own control (not a native select) so the name, a role badge and a reason can each be their
  * own element, and the arrow has a column of its own and can never touch the text.
  *
- * Keyboard: Enter, Space or Down opens; arrows, Home and End move; Enter or Space chooses; Escape
- * closes and returns focus to the button. With `menu={false}` it shows the current value and does
- * not open, for a list of one.
+ * Keyboard: Enter, Space or Down opens; arrows, Home and End move; a letter jumps to the next choice
+ * starting with it; Enter or Space chooses; Escape closes and returns focus to the button. With
+ * `menu={false}` it shows the current value and does not open, for a list of one.
  */
 export function MenuButton({
   caption,
@@ -107,6 +107,21 @@ export function MenuButton({
         return close(true);
       case 'Tab':
         return close(false);
+    }
+    // Typing a letter moves to the next choice that starts with it, as in a native list.
+    if (event.key.length === 1 && /\S/.test(event.key) && !event.ctrlKey && !event.metaKey) {
+      const labels = [...items.map((item) => item.label), ...links.map((link) => link.label)];
+      const order = focusable.map((entry) => entry.index);
+      const after = order.indexOf(index);
+      const typed = event.key.toLowerCase();
+      for (let step = 1; step <= order.length; step += 1) {
+        const candidate = order[(after + step) % order.length]!;
+        if (labels[candidate]!.toLowerCase().startsWith(typed)) {
+          event.preventDefault();
+          entries.current[candidate]?.focus();
+          return;
+        }
+      }
     }
   }
 

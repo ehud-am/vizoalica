@@ -131,6 +131,16 @@ explained below.
 **Check:** the Pages project exists in the intended Cloudflare account. Record the exact origin
 shown in the dashboard, normally `https://YOUR_PAGES_PROJECT.pages.dev`.
 
+### The console's install check
+
+On a website's install page, "I've deployed, check now" looks at each allowed address for
+`/vizoalica.js`, then asks `/vizoalica/ingest-token` for a token (with the site's own `Origin`),
+and answers with the first thing that is wrong: file missing, token endpoint missing or erroring, the
+origin not in the endpoint's list, or a redirect to an address that is not allowed. It never follows a
+redirect, never reads a response body, and discards the token, which expires in five minutes. Then it
+reads the last day's page views. Add the address a site redirects to (for example `www`) to the
+allowed origins and to the endpoint's list, or list only the address that serves the site.
+
 ### B2. Fill in the public configuration
 
 > **Defaults (0.7.3).** `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL`

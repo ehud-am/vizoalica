@@ -25,8 +25,7 @@ export function nextStep(site: Website, health: Health): string {
   if (health.failed) return 'Health details are unavailable. Check the local API, then try again.';
   if (site.status === 'disabled') return 'Enable the website to resume collection.';
   const { status, reachability } = health;
-  if (status?.dataAccess === 'unavailable')
-    return 'Run pnpm vizoalica status to check data access.';
+  if (status?.dataAccess === 'unavailable') return 'Run vizoalica status to check data access.';
   if (status?.configuration === 'attention') return 'Review the installation configuration.';
   if (reachability && !reachability.configEndpointReachable)
     return "Check that the website's configuration endpoint is deployed and reachable.";

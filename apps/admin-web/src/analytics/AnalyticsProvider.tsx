@@ -39,7 +39,7 @@ export function analyticsErrorMessage(reason: unknown): string {
   if (reason instanceof ApiError && reason.status === 401)
     return reason.code === 'session_expired'
       ? 'Your browser session expired. Reconnect to the local workspace.'
-      : 'The Worker rejected the configured credential. Run pnpm vizoalica status.';
+      : 'The Worker rejected the configured credential. Run vizoalica status.';
   return 'Analytics are unavailable. No stale results are shown.';
 }
 

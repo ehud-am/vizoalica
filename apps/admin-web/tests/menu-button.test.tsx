@@ -106,6 +106,21 @@ describe('MenuButton', () => {
     expect(onChange).toHaveBeenCalledWith('staging');
   });
 
+  it('jumps to the next choice that starts with the typed letter, skipping a disabled one', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /Environment/ }));
+    await user.keyboard('s');
+    expect((document.activeElement as HTMLElement).textContent).toContain('staging');
+    // "o" would be the disabled "old": nothing else starts with it, so focus stays put.
+    await user.keyboard('o');
+    expect((document.activeElement as HTMLElement).textContent).toContain('staging');
+    await user.keyboard('a');
+    expect((document.activeElement as HTMLElement).textContent).toBe('Access keys');
+    await user.keyboard('p');
+    expect((document.activeElement as HTMLElement).textContent).toContain('prod');
+  });
+
   it('closes on Escape (focus back on the button), on Tab, and on an outside click', async () => {
     const user = userEvent.setup();
     render(<Harness />);

@@ -95,15 +95,24 @@ const isActive = (project: Project) => project.status !== 'deleted';
 
 export function ScopeProvider({
   initialProjects,
+  preferredProjectId,
+  onProjectChange,
   children
 }: {
   initialProjects: Project[];
+  /**
+   * The project the console was on before it reloaded (for example on an environment switch), used
+   * when browser storage cannot remember it. Kept only if it exists among the projects.
+   */
+  preferredProjectId?: string;
+  /** Told whenever the current project changes, so a reload can keep it without storage. */
+  onProjectChange?: (projectId: string) => void;
   children: ReactNode;
 }) {
   const saved = useRef<Partial<Saved>>(readSaved());
   const [initial] = useState(() => {
     const active = initialProjects.filter(isActive);
-    const wanted = saved.current.projectId;
+    const wanted = saved.current.projectId ?? (preferredProjectId || undefined);
     if (wanted && active.some((project) => project.id === wanted))
       return { projectId: wanted, notice: '' };
     return {
@@ -158,6 +167,11 @@ export function ScopeProvider({
       cancelled = true;
     };
   }, [projectId, loadWebsites]);
+
+  useEffect(() => {
+    onProjectChange?.(projectId);
+    // The callback only reports; the project alone decides when it is called.
+  }, [projectId]);
 
   useEffect(() => {
     writeSaved({

@@ -84,6 +84,7 @@ export type InstallationGuidance = IntegrationSnippet;
 export type InstallCode =
   | 'ok'
   | 'site-unreachable'
+  | 'site-redirects'
   | 'sdk-file-missing'
   | 'token-endpoint-missing'
   | 'token-endpoint-rejecting'

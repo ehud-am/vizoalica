@@ -129,7 +129,7 @@ describe('health next step', () => {
     );
     expect(
       step(website, { status: { ...healthy, dataAccess: 'unavailable' }, failed: false })
-    ).toMatch(/pnpm vizoalica status/);
+    ).toMatch(/Run vizoalica status/);
     expect(
       step(website, { status: { ...healthy, configuration: 'attention' }, failed: false })
     ).toMatch(/installation configuration/);

@@ -7,6 +7,7 @@ import type { EnvironmentsList } from '../src/api/local-operations.js';
 import { EnvironmentMenu } from '../src/shell/EnvironmentMenu.js';
 import { SetupProvider } from '../src/setup/SetupProvider.js';
 import { Welcome } from '../src/setup/Welcome.js';
+import { makeOverview } from './fixtures/console.js';
 import { DEFAULT_ENVIRONMENTS } from './setup.js';
 
 const api = vi.hoisted(() => ({
@@ -43,7 +44,7 @@ beforeEach(() => {
   api.getSetupState.mockRejectedValue(new Error('offline'));
   api.listProjects.mockResolvedValue([]);
   api.listWebsites.mockResolvedValue([]);
-  api.getAnalyticsOverview.mockResolvedValue({});
+  api.getAnalyticsOverview.mockResolvedValue(makeOverview());
 });
 afterEach(() => {
   cleanup();
@@ -268,6 +269,59 @@ describe('App with environments', () => {
     expect((await screen.findByRole('button', { name: /Environment/ })).textContent).toContain(
       'prod'
     );
+  });
+
+  it('keeps the project across an environment switch even when browser storage is blocked', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    api.listProjects.mockResolvedValue([
+      { id: 'p1', name: 'Acme' },
+      { id: 'p2', name: 'Beta' }
+    ]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'dev' })
+    );
+    api.selectEnvironment.mockResolvedValue({});
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Project/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
+    await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(2));
+    const project = await screen.findByRole('button', { name: /^Project/ });
+    await waitFor(() => expect(project.textContent).toContain('Beta'));
+    expect(screen.queryByText(/no longer available/)).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it('says so, and picks the first project, when the project does not exist in the other environment', async () => {
+    api.listProjects.mockResolvedValueOnce([
+      { id: 'p1', name: 'Acme' },
+      { id: 'p2', name: 'Beta' }
+    ]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'dev' })
+    );
+    api.selectEnvironment.mockResolvedValue({});
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Project/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    api.listProjects.mockResolvedValue([{ id: 'p9', name: 'Other' }]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
+    expect(
+      await screen.findByText(/previous project is no longer available. Showing Other/)
+    ).toBeTruthy();
   });
 
   it('never offers environment management, first-run questions, or deploy actions in the console', async () => {

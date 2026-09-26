@@ -122,7 +122,7 @@ describe('console startup', () => {
     render(<App />);
     expect(
       await screen.findByText(
-        /The Worker rejected the configured credential. Run pnpm vizoalica status./
+        /The Worker rejected the configured credential. Run vizoalica status./
       )
     ).toBeTruthy();
     cleanup();

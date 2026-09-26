@@ -3,6 +3,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { validateDynamicConfig } from '../../../packages/browser-sdk/src/dynamic-config.js';
+import { onRequest as configEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/config.json.js';
+import { onRequest as tokenEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/ingest-token.js';
 
 // The reusable workflow resolves the bundled site value and the defaults in one shell step. That
 // step runs with a Cloudflare token nearby, so it is tested here as real shell, not read by eye.
@@ -12,8 +15,10 @@ const workflow = readFileSync(
 );
 const hasJq = spawnSync('jq', ['--version']).status === 0;
 
-function resolveStep(): string {
-  const start = workflow.indexOf('- name: Resolve and validate configuration');
+const resolveStep = () => stepScript('Resolve and validate configuration');
+
+function stepScript(name: string): string {
+  const start = workflow.indexOf(`- name: ${name}`);
   const runAt = workflow.indexOf('        run: |\n', start);
   const end = workflow.indexOf('\n      - name:', runAt);
   return workflow
@@ -132,5 +137,101 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
   it('defaults the site folder to the repository root and rejects a path that escapes it', () => {
     expect(workflow).toMatch(/site-directory:[\s\S]*?required: false[\s\S]*?default: '\.'/);
     expect(run({ SITE_BUNDLE: JSON.stringify(bundle), SITE_DIRECTORY: '../x' }).status).toBe(1);
+  });
+});
+
+describe.skipIf(!hasJq)('workflow steps chained into the real Pages functions', () => {
+  /** Resolve, then generate wrangler.toml exactly as the workflow does, and read back its [vars]. */
+  function deployed(bundleOrEnv: Record<string, string>) {
+    const dir = mkdtempSync(join(tmpdir(), 'vizoalica-chain-'));
+    const githubEnv = join(dir, 'env');
+    writeFileSync(githubEnv, '');
+    const base = {
+      PATH: process.env.PATH ?? '',
+      GITHUB_ENV: githubEnv,
+      SITE_DIRECTORY: '.',
+      VIZOALICA_TOKEN_SECRET: secret,
+      ...account,
+      ...bundleOrEnv
+    };
+    const resolve = join(dir, 'resolve.sh');
+    writeFileSync(resolve, resolveStep());
+    expect(spawnSync('bash', [resolve], { cwd: dir, env: base, encoding: 'utf8' }).status).toBe(0);
+    const resolved = Object.fromEntries(
+      readFileSync(githubEnv, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)])
+    );
+    const generate = join(dir, 'generate.sh');
+    writeFileSync(generate, stepScript('Generate ephemeral Cloudflare Pages configuration'));
+    const run = spawnSync('bash', [generate], {
+      cwd: dir,
+      env: {
+        PATH: base.PATH,
+        SITE_DIRECTORY: '.',
+        CF_PAGES_PROJECT: account.CF_PAGES_PROJECT,
+        ...resolved
+      },
+      encoding: 'utf8'
+    });
+    expect(run.status).toBe(0);
+    const toml = readFileSync(join(dir, 'wrangler.toml'), 'utf8');
+    const vars = Object.fromEntries(
+      [...toml.matchAll(/^(VIZOALICA_\w+) = "([^"]*)"$/gm)].map((match) => [match[1]!, match[2]!])
+    );
+    return { toml, vars };
+  }
+
+  it('produces a config document the browser loader accepts, from only the bundled value', async () => {
+    const { toml, vars } = deployed({ SITE_BUNDLE: JSON.stringify(bundle) });
+    expect(toml).toContain('name = "proj"');
+    const response = await configEndpoint({
+      request: new Request('https://a.test/vizoalica/config.json'),
+      env: vars as never
+    });
+    expect(response.status).toBe(200);
+    const document = await response.json();
+    expect(document).toMatchObject({
+      version: 1,
+      src: '/vizoalica.js',
+      'data-endpoint': bundle.endpoint,
+      'data-source': 'key1',
+      'data-project': 'p1',
+      'data-token-url': '/vizoalica/ingest-token',
+      'data-consent': 'unknown'
+    });
+    expect(validateDynamicConfig(document, 'https://a.test/')).toBeTruthy();
+  });
+
+  it('issues a token scoped to the bundled project and source, for each listed origin only', async () => {
+    const { vars } = deployed({ SITE_BUNDLE: JSON.stringify(bundle) });
+    const env = { ...vars, VIZOALICA_TOKEN_SECRET: secret } as never;
+    const ask = (origin: string) =>
+      tokenEndpoint({
+        request: new Request(`${origin}/vizoalica/ingest-token`, { headers: { origin } }),
+        env
+      });
+    for (const origin of bundle.origins) {
+      const response = await ask(origin);
+      expect(response.status).toBe(200);
+      const claims = JSON.parse(
+        Buffer.from((await response.text()).split('.')[1]!, 'base64url').toString('utf8')
+      );
+      expect(claims).toMatchObject({ project_id: 'p1', source_id: 's1', origin });
+    }
+    expect((await ask('https://evil.test')).status).toBe(403);
+  });
+
+  it('gives the same functions the same values whether bundled or set separately', () => {
+    const bundled = deployed({ SITE_BUNDLE: JSON.stringify(bundle) }).vars;
+    const separate = deployed({
+      VIZOALICA_INGEST_ENDPOINT: bundle.endpoint,
+      VIZOALICA_PUBLIC_SOURCE_KEY: 'key1',
+      VIZOALICA_PROJECT_ID: 'p1',
+      VIZOALICA_SOURCE_ID: 's1',
+      VIZOALICA_SITE_ORIGINS: 'https://a.test,https://www.a.test'
+    }).vars;
+    expect(separate).toEqual(bundled);
   });
 });

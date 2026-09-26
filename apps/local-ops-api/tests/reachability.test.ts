@@ -95,7 +95,7 @@ describe('install check', () => {
       '/vizoalica.js': js,
       '/vizoalica/ingest-token': () => token()
     });
-    expect((await checkInstall(site, 'snippet', false, fetchImpl)).code).toBe('ok');
+    expect((await checkInstall([site], 'snippet', false, fetchImpl)).code).toBe('ok');
     // The token endpoint is asked with the site's own origin, as its page would.
     expect(asked.find((item) => item.path === '/vizoalica/ingest-token')?.origin).toBe(site);
   });
@@ -140,17 +140,17 @@ describe('install check', () => {
     ]
   ] as const)('names one action when %s', async (_name, routes, code, action) => {
     const { fetchImpl } = siteAnswering(routes as Record<string, () => Response>);
-    const result = await checkInstall(site, 'snippet', false, fetchImpl);
+    const result = await checkInstall([site], 'snippet', false, fetchImpl);
     expect(result.code).toBe(code);
     expect(result.nextAction).toMatch(action);
   });
 
-  it('says the site cannot be reached, and mentions a redirect', async () => {
-    const result = await checkInstall(site, 'snippet', false, (async () => {
+  it('says the site cannot be reached', async () => {
+    const result = await checkInstall([site], 'snippet', false, (async () => {
       throw new Error('down');
     }) as unknown as typeof fetch);
     expect(result.code).toBe('site-unreachable');
-    expect(result.nextAction).toMatch(/redirects/);
+    expect(result.nextAction).toMatch(/Could not reach https:\/\/site\.test/);
   });
 
   it('checks the configuration file only on the GitHub path', async () => {
@@ -158,9 +158,11 @@ describe('install check', () => {
       '/vizoalica.js': js,
       '/vizoalica/ingest-token': () => token()
     });
-    expect((await checkInstall(site, 'github', false, fetchImpl)).code).toBe('config-file-missing');
-    expect((await checkInstall(site, 'github', true, fetchImpl)).code).toBe('ok');
-    expect((await checkInstall(site, 'snippet', false, fetchImpl)).code).toBe('ok');
+    expect((await checkInstall([site], 'github', false, fetchImpl)).code).toBe(
+      'config-file-missing'
+    );
+    expect((await checkInstall([site], 'github', true, fetchImpl)).code).toBe('ok');
+    expect((await checkInstall([site], 'snippet', false, fetchImpl)).code).toBe('ok');
   });
 
   it('never reads a site response body', async () => {
@@ -178,11 +180,105 @@ describe('install check', () => {
         ),
         { headers: { 'content-type': type } }
       );
-    const result = await checkInstall(site, 'snippet', false, (async (target: URL) =>
+    const result = await checkInstall([site], 'snippet', false, (async (target: URL) =>
       answer(
         target.pathname === '/vizoalica.js' ? 'text/javascript' : 'text/plain'
       )) as unknown as typeof fetch);
     expect(result.code).toBe('ok');
     expect(read).toBe(false);
+  });
+});
+
+describe('install check across addresses and redirects', () => {
+  const redirect = (to: string) => new Response(null, { status: 301, headers: { location: to } });
+  const js = () => new Response('/* sdk */', { headers: { 'content-type': 'text/javascript' } });
+  const token = () => new Response('a.b.c', { headers: { 'content-type': 'text/plain' } });
+  const bare = 'https://a.test';
+  const www = 'https://www.a.test';
+
+  /** Each address answers by its own routes; anything not listed is a 404. */
+  function sites(routes: Record<string, Record<string, () => Response>>) {
+    const seen: Array<{ redirect: string | undefined }> = [];
+    const fetchImpl = (async (target: URL, init?: RequestInit) => {
+      seen.push({ redirect: init?.redirect });
+      const answer = routes[target.origin]?.[target.pathname];
+      return answer ? answer() : new Response('nope', { status: 404 });
+    }) as unknown as typeof fetch;
+    return { fetchImpl, seen };
+  }
+
+  it('never follows a redirect itself', async () => {
+    const { fetchImpl, seen } = sites({
+      [bare]: { '/vizoalica.js': js, '/vizoalica/ingest-token': token }
+    });
+    await checkInstall([bare], 'snippet', false, fetchImpl);
+    expect(seen.every((item) => item.redirect === 'manual')).toBe(true);
+  });
+
+  it('is fine when one address redirects to another that is allowed and works', async () => {
+    const { fetchImpl } = sites({
+      [bare]: { '/vizoalica.js': () => redirect(`${www}/vizoalica.js`) },
+      [www]: { '/vizoalica.js': js, '/vizoalica/ingest-token': token }
+    });
+    expect((await checkInstall([bare, www], 'snippet', false, fetchImpl)).code).toBe('ok');
+  });
+
+  it('names the address a site redirects to when it is not allowed', async () => {
+    const { fetchImpl } = sites({
+      [bare]: { '/vizoalica.js': () => redirect(`${www}/vizoalica.js`) }
+    });
+    const result = await checkInstall([bare], 'snippet', false, fetchImpl);
+    expect(result.code).toBe('site-redirects');
+    expect(result.nextAction).toContain(www);
+    expect(result.nextAction).toMatch(/allowed origins/);
+  });
+
+  it('says so when every allowed address only redirects to another allowed one', async () => {
+    const { fetchImpl } = sites({
+      [bare]: { '/vizoalica.js': () => redirect(`${www}/`) },
+      [www]: { '/vizoalica.js': () => redirect(`${bare}/`) }
+    });
+    const result = await checkInstall([bare, www], 'snippet', false, fetchImpl);
+    expect(result.code).toBe('site-redirects');
+    expect(result.nextAction).toMatch(/Every allowed address redirects/);
+  });
+
+  it('checks every allowed address, and names the one that is wrong', async () => {
+    // The bare domain is right; the www address has no token endpoint.
+    const { fetchImpl } = sites({
+      [bare]: { '/vizoalica.js': js, '/vizoalica/ingest-token': token },
+      [www]: { '/vizoalica.js': js }
+    });
+    const result = await checkInstall([bare, www], 'snippet', false, fetchImpl);
+    expect(result.code).toBe('token-endpoint-missing');
+    expect(result.nextAction).toContain(www);
+    // The first failing address in the website's own order wins.
+    const both = sites({});
+    expect(
+      (await checkInstall([bare, www], 'snippet', false, both.fetchImpl)).nextAction
+    ).toContain(bare);
+  });
+
+  it('a token endpoint that redirects counts as missing, not as followed', async () => {
+    const { fetchImpl } = sites({
+      [bare]: { '/vizoalica.js': js, '/vizoalica/ingest-token': () => redirect('https://x.test/') }
+    });
+    expect((await checkInstall([bare], 'snippet', false, fetchImpl)).code).toBe(
+      'token-endpoint-missing'
+    );
+  });
+
+  it('probes at most ten addresses, and ignores one that is not an address', async () => {
+    const many = Array.from({ length: 14 }, (_, index) => `https://s${index}.test`);
+    const { fetchImpl, seen } = sites({});
+    await checkInstall(many, 'snippet', false, fetchImpl);
+    expect(seen.length).toBe(10);
+    expect((await checkInstall(['not a url'], 'snippet', false, fetchImpl)).code).toBe(
+      'site-unreachable'
+    );
+    const { fetchImpl: ok } = sites({
+      [bare]: { '/vizoalica.js': js, '/vizoalica/ingest-token': token }
+    });
+    expect((await checkInstall(['not a url', bare], 'snippet', false, ok)).code).toBe('ok');
   });
 });

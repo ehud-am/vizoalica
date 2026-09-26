@@ -19,7 +19,13 @@ All notable changes to Vizoalica are documented in this file.
   `https://example.com`), see exactly what will be saved, allow the `www` counterpart with one tick, and
   leave the name empty to use the domain. The project is the one chosen at the top and is shown, not asked.
 - **The install check names one thing to fix.** It looks at the SDK file, the token endpoint and the allowed
-  origin, then at page views, and answers with a single next action; "I've deployed" starts it.
+  origin on every allowed address, never follows a redirect (a redirect to an address you have not allowed is
+  named), then at page views, and answers with a single next action; "I've deployed" starts it. It asks the token
+  endpoint for a token and discards it unread; the page says so.
+- **A snippet without `data-token-url` now asks the conventional token path** instead of sending unsigned; a
+  missing endpoint still sends, unsigned. Use `data-token-url="none"` for an unsigned demo.
+- **The project survives an environment switch** even when browser storage is blocked, and the menu supports
+  type-ahead. Health messages say `vizoalica status`, not `pnpm vizoalica status`.
 - **One place to choose the environment and project.** They sit together at the top of every page except
   Projects. The environment control no longer overlaps its own text, and shows the role and an unusable
   environment's reason separately. The project menu only switches; projects are created and deleted on the

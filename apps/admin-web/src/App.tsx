@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   bootstrapSession,
@@ -174,6 +174,9 @@ export function App() {
     'session_expired' | 'worker_authorization' | undefined
   >();
   const route = useRoute();
+  // The project the console is on, kept in memory so an environment switch can keep it even when
+  // browser storage is blocked.
+  const lastProjectId = useRef('');
   const [sessionStarted, setSessionStarted] = useState(false);
   const theme = useTheme(sessionStarted);
   const connect = useCallback(async () => {
@@ -235,7 +238,12 @@ export function App() {
     return (
       <div className="app-shell">
         <SetupProvider key={session} initial={setupState}>
-          <ScopeProvider key={session} initialProjects={initialProjects}>
+          <ScopeProvider
+            key={session}
+            initialProjects={initialProjects}
+            preferredProjectId={lastProjectId.current}
+            onProjectChange={(id) => (lastProjectId.current = id)}
+          >
             <header className="topbar">
               {brand}
               <div className="topbar-actions">

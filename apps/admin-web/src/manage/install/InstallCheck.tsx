@@ -89,6 +89,11 @@ export function InstallCheck({
           This website is disabled, so it will not collect anything until you enable it.
         </p>
       )}
+      <p className="hint">
+        The check asks {website.allowedOrigins.length > 1 ? 'each allowed address' : 'your site'}{' '}
+        for <code>/vizoalica.js</code> and for a token from your token endpoint. It throws the token
+        away unread, and it expires in five minutes.
+      </p>
       <button
         className="primary"
         type="button"

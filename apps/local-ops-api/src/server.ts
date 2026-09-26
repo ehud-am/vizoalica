@@ -297,7 +297,7 @@ export function createLocalServer(options: ServerOptions) {
           const path = url.searchParams.get('path');
           const install =
             path === 'github' || path === 'snippet'
-              ? await checkInstall(origin, path, reach.configEndpointReachable)
+              ? await checkInstall(metadata.allowedOrigins, path, reach.configEndpointReachable)
               : undefined;
           return send(response, 200, install ? { ...reach, install } : reach);
         }

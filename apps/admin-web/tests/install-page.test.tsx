@@ -522,6 +522,19 @@ describe('checking that it works', () => {
     expect(screen.queryByText(/One thing to fix/)).toBeNull();
   });
 
+  it('says what the check asks of the site, including the token it throws away', async () => {
+    await openInstall();
+    const note = screen.getByText(/The check asks your site for/).closest('p')!;
+    expect(note.textContent).toContain('throws the token away unread');
+    expect(note.textContent).toContain('five minutes');
+    cleanup();
+    api.listWebsites.mockResolvedValue([
+      { ...docs, allowedOrigins: ['https://a.test', 'https://www.a.test'] }
+    ]);
+    await openInstall();
+    expect(screen.getByText(/The check asks each allowed address for/)).toBeTruthy();
+  });
+
   it('runs the check when the person says the site is deployed', async () => {
     const user = setup();
     await openInstall();
