@@ -24,7 +24,11 @@ export function connectedState(
   return {
     version: '0.6.3',
     environment: 'dev',
-    connection: { status: 'connected', workerHost: 'w.example.workers.dev' },
+    connection: {
+      status: 'connected',
+      workerHost: 'w.example.workers.dev',
+      workerUrl: 'https://w.example.workers.dev'
+    },
     principal: {
       role,
       scope: { projectId: null, sourceId: null },

@@ -200,6 +200,26 @@ describe('website form', () => {
     expect(await screen.findByText(/Website could not be saved/)).toBeTruthy();
   });
 
+  it('shows what will be saved only when tidying changed what was typed', async () => {
+    const user = userEvent.setup();
+    render(
+      <WebsiteForm
+        initialName="Docs"
+        initialOrigins={['https://docs.test']}
+        submitLabel="Save changes"
+        onSubmit={async () => undefined}
+      />
+    );
+    // Already exact: nothing to echo.
+    expect(document.querySelector('.origin-preview')).toBeNull();
+    const box = screen.getByRole('textbox', { name: 'Allowed origins' });
+    await user.type(box, '{Enter}Other.test/x');
+    expect(document.querySelector('.origin-preview')!.textContent).toContain('https://other.test');
+    await user.clear(box);
+    await user.type(box, 'https://exact.test');
+    expect(document.querySelector('.origin-preview')).toBeNull();
+  });
+
   it('tidies pasted origins when editing too', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();

@@ -296,6 +296,8 @@ export type SetupState = {
   connection: {
     status: ConnectionStatus;
     workerHost?: string;
+    /** The Worker's address, for instructions that name it. */
+    workerUrl?: string;
   };
   principal?: {
     role: ViewRole;

@@ -108,7 +108,7 @@ export function BackendSection({ environment }: { environment?: string }) {
             </table>
           </div>
           <div className="panel">
-            <h3 id="storage-heading">Storage</h3>
+            <h3 id="storage-heading">Database and storage</h3>
             <dl className="detail-list" aria-labelledby="storage-heading">
               <div>
                 <dt>Database</dt>

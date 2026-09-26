@@ -171,7 +171,13 @@ export function WebsiteForm({
   );
 
   // Show what will be saved when it differs from what was typed, so nothing changes by surprise.
-  const changed = splitAddresses(origins).length > 0 && !resolved.problem;
+  const typed = splitAddresses(origins);
+  // Only when tidying changed something (or www was added): an unchanged list needs no echo.
+  const changed =
+    typed.length > 0 &&
+    !resolved.problem &&
+    (typed.length !== resolved.origins.length ||
+      typed.some((entry, index) => entry !== resolved.origins[index]));
   const insecure = resolved.origins.filter(isInsecureRemote);
   const originsField = (
     <div className="field" key="origins">

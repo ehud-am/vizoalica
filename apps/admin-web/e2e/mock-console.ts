@@ -205,7 +205,11 @@ export function setupState(
   return {
     version: '0.6.3',
     environment: 'prod',
-    connection: { status: 'connected', workerHost: 'worker.test' },
+    connection: {
+      status: 'connected',
+      workerHost: 'worker.test',
+      workerUrl: 'https://worker.test'
+    },
     principal: {
       role,
       scope: { projectId: null, sourceId: null },
@@ -308,8 +312,9 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
         status: 201,
         json: {
           id: 'k1',
-          label: 'x',
-          role: 'analyst',
+          // Echo what was asked for, as the real service does.
+          label: (request.postDataJSON() as { label?: string }).label ?? 'x',
+          role: (request.postDataJSON() as { role?: string }).role ?? 'analyst',
           scope: { projectId: null, sourceId: null },
           createdAt: '2026-01-01T00:00:00.000Z',
           revokedAt: null,

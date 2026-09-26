@@ -159,3 +159,14 @@ Paths are relative to the repository root. `web` = `apps/admin-web`, `api` = `ap
 - **T035**: the installed state is on the website page, not on the list cards (it would cost one request per card).
 - **T038**: no project rename, because the service has none.
 - **T053**: the QA pass is in [qa-report.md](qa-report.md). The release owner's go/no-go, the version bump and the `v0.7.3` tag were **not** done; the starter workflow references `v0.7.3`, which does not exist until then.
+
+
+## Phase 12: Access keys usability (added 2026-09-26)
+
+- [X] T054 [US9] Add `workerUrl` to the setup state connection in `apps/local-ops-api/src/setup/state.ts`, `apps/admin-web/src/api/local-operations.ts` and fixtures
+- [X] T055 [P] [US9] Add a `field` variant to `apps/admin-web/src/components/MenuButton.tsx` (label above, full width, shows the chosen item's description) with styles
+- [X] T056 [US9] Rewrite `apps/admin-web/src/manage/AccessPage.tsx`: role and access dropdowns, project and website pickers, inline errors, summary line, list with names and dates, revoke result beside the list, focus management
+- [X] T057 [US9] Add `apps/admin-web/src/manage/access/KeyInstructions.tsx`: private file, OneCLI and script instructions, shown after issuing and under "How is a key used?"
+- [X] T058 [US9] Tests: `apps/admin-web/tests/access-page.test.tsx` (23 cases), `apps/admin-web/e2e/access.spec.ts`, `apps/admin-web/tests/menu-button.test.tsx`
+- [X] T059 [US9] Test against the real dev backend from an isolated scratch home: issue, add environment (file, stdin, OneCLI syntax and `--dry-run`), analyst and owner consoles, revoke; fix what it finds (the reachability route asked the Worker for a record it does not serve: `apps/local-ops-api/src/server.ts`, stub in `tests/reachability-route.test.ts`)
+- [X] T060 [US9] Docs: `docs/operations/environments.md` (Access keys), `CHANGELOG.md`, `docs/releases/v0.7.3.md`

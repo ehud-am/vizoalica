@@ -24,6 +24,16 @@ All notable changes to Vizoalica are documented in this file.
   endpoint for a token and discards it unread; the page says so.
 - **A snippet without `data-token-url` now asks the conventional token path** instead of sending unsigned; a
   missing endpoint still sends, unsigned. Use `data-token-url="none"` for an unsigned demo.
+- **Access keys are usable.** Role and access are dropdowns that explain each choice; a website is picked by name
+  from its project instead of typing an id; problems are named beside their field; the list shows what each key
+  reaches and when it was issued, with revoked keys last. After issuing, the page says what to do with the key:
+  nothing to deploy, and how the recipient adds a console environment in a private file, with OneCLI, or from a
+  script, with the backend's address and the role filled in. The same guidance stays on the page under "How is a
+  key used?".
+- **The install check works against a real Worker.** The console asked the Worker for a website's bare record,
+  which the Worker has never offered (only its snippet), so the reachability route and the install check answered
+  "not found" on a deployed backend while the tests, which stubbed the Worker, passed. It now reads the snippet,
+  and the test stub answers as the Worker does.
 - **The project survives an environment switch** even when browser storage is blocked, and the menu supports
   type-ahead. Health messages say `vizoalica status`, not `pnpm vizoalica status`.
 - **One place to choose the environment and project.** They sit together at the top of every page except

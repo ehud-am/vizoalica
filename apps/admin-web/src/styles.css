@@ -2590,3 +2590,139 @@ a.nav-item {
 .install-count {
   margin: 0;
 }
+
+/* ---- Menu button as a form field: a label above, a full-width button that shows its description ---- */
+.menu-field {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.menu-field-label {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.menu-field .menu-trigger {
+  width: 100%;
+  min-height: 3rem;
+  padding-block: 0.5rem;
+}
+
+.menu-field .menu-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.menu-field .menu-trigger[aria-invalid='true'] {
+  border-color: var(--color-danger-border);
+}
+
+.menu-field .menu-face {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.menu-detail {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.menu-field .menu-list {
+  inset-inline-end: 0;
+  width: auto;
+  max-width: none;
+}
+
+/* ---- Access keys ---- */
+.access-form {
+  display: grid;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.access-form .field {
+  display: grid;
+  gap: 6px;
+}
+
+.access-summary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface-sunken);
+  font-size: 0.9rem;
+}
+
+.access-key-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.access-key-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.access-key-list li[data-revoked='true'] {
+  opacity: 0.65;
+}
+
+.access-key-meta {
+  display: block;
+  margin-top: 4px;
+}
+
+.key-instructions {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.key-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.access-howto summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+/* Space between the sections of the Access and Health pages, and the look of the key instructions. */
+.access-page > section,
+.access-page > details,
+.health-page > section {
+  margin-top: 24px;
+}
+
+.health-backend .panel + .panel {
+  margin-top: 16px;
+}
+
+.key-instructions h3 {
+  margin: 16px 0 0;
+  font-size: 1.1rem;
+}
+
+.key-facts {
+  list-style: disc;
+}
+
+.key-reveal .key-reveal-value {
+  display: block;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}

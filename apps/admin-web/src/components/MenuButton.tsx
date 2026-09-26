@@ -34,7 +34,11 @@ export function MenuButton({
   onSelect,
   links = [],
   menu = true,
-  title
+  title,
+  variant = 'inline',
+  invalid = false,
+  describedBy,
+  disabled = false
 }: {
   /** What is being chosen, said before the value ("Environment"). */
   caption: string;
@@ -46,11 +50,22 @@ export function MenuButton({
   links?: MenuLink[];
   menu?: boolean;
   title?: string;
+  /**
+   * `inline` (the header): the caption sits inside the button. `field` (a form): the caption is a
+   * label above a full-width button that also shows the chosen item's second line.
+   */
+  variant?: 'inline' | 'field';
+  invalid?: boolean;
+  describedBy?: string | undefined;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const listId = useId();
+  const labelId = useId();
+  const valueId = useId();
+  const field = variant === 'field';
   const entries = useRef<Array<HTMLElement | null>>([]);
   // Disabled items are shown but never focused or chosen, so the keys skip them.
   const focusable = [
@@ -125,7 +140,16 @@ export function MenuButton({
     }
   }
 
-  const face = (
+  const detail = items.find((item) => item.id === selected)?.detail;
+  const face = field ? (
+    <>
+      <span className="menu-value" id={valueId}>
+        {value}
+      </span>
+      {badge && <span className="menu-badge">{badge}</span>}
+      {detail && <span className="menu-detail">{detail}</span>}
+    </>
+  ) : (
     <>
       <span className="menu-caption">{caption}</span>
       <span className="menu-value">{value}</span>
@@ -141,11 +165,20 @@ export function MenuButton({
     );
 
   return (
-    <div className="menu-button" ref={root}>
+    <div className={field ? 'menu-button menu-field' : 'menu-button'} ref={root}>
+      {field && (
+        <span className="menu-field-label" id={labelId}>
+          {caption}
+        </span>
+      )}
       <button
         ref={button}
         type="button"
         className="menu-trigger"
+        disabled={disabled}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        {...(field ? { 'aria-labelledby': `${labelId} ${valueId}` } : {})}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}

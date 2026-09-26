@@ -289,7 +289,10 @@ export function createLocalServer(options: ServerOptions) {
         const basePath = `/v1/admin/projects/${encodeURIComponent(item[1]!)}/sources/${encodeURIComponent(item[2]!)}`;
         const remotePath = `${basePath}${item[3] && item[3] !== 'reachability' && item[3] !== 'share' ? `/${item[3]}` : ''}`;
         if (request.method === 'GET' && item[3] === 'reachability') {
-          const metadata = (await workerJson(client, basePath)) as { allowedOrigins?: unknown };
+          // The Worker has no read of a bare source, only of its snippet, which carries the origins.
+          const metadata = (await workerJson(client, `${basePath}/snippet`)) as {
+            allowedOrigins?: unknown;
+          };
           if (!validOrigins(metadata.allowedOrigins)) throw new Error('remote_unavailable');
           const origin = metadata.allowedOrigins[0]!;
           const reach = await checkReachability(origin);

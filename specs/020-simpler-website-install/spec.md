@@ -191,6 +191,24 @@ Backend information lives inside Health, and access keys are presented as a shar
 3. **Given** an administrator, **When** they open a website's Share section, **Then** they see what a key is for, can issue one, and can reach the list of keys to revoke.
 4. **Given** a person who cannot manage keys, **When** they use the console, **Then** no access-key entry is shown anywhere.
 
+---
+
+### User Story 9 - Access keys an administrator can actually use (Priority: P2, added 2026-09-26)
+
+An administrator issues a key for an analyst or website owner, and knows what to do with it. Role and access are
+dropdowns that explain each choice, a website is picked by name, and after issuing the page says how the recipient
+adds a console environment (private file, OneCLI, or script) and that nothing needs deploying.
+
+**Independent Test**: On a real backend, issue an analyst key for one project, add an environment with it exactly as
+the page says, see a read-only console, revoke the key, and see the environment rejected.
+
+**Acceptance Scenarios**:
+
+1. **Given** the issue form, **When** it loads, **Then** role and access are dropdowns (no radio buttons) showing what the chosen option means, the access defaults to the project chosen at the top, and a website is chosen from a list of that project's websites by name and address.
+2. **Given** missing or invalid input, **When** the person issues, **Then** each problem is named beside its field and nothing is sent.
+3. **Given** a key was issued, **When** it is shown, **Then** the page says nothing needs deploying, and gives commands with this backend's address and the key's role for a private file, for OneCLI (store the key, then add the environment) and for a script, none of which contains the key.
+4. **Given** the keys list, **When** it loads, **Then** each key shows its role, what it reaches (by name), when it was issued, and revoked keys are last and marked; revoking says what happens and reports the result beside the list.
+
 ### Edge Cases
 
 - The environment has no projects yet, or the projects list cannot be loaded, while the environment switcher is working.
@@ -240,6 +258,7 @@ Backend information lives inside Health, and access keys are presented as a shar
 - **FR-027**: Changing environment MUST keep the current project only if it exists in the new environment, and otherwise MUST select another and say so.
 - **FR-028**: The Health page MUST contain the backend information (versions, database, storage), clearly labelled as covering the whole environment, followed by the current project's websites. The separate Backend navigation item MUST be removed and its address MUST show Health.
 - **FR-029**: The version of the console MUST remain findable (on the Health page) after it leaves the footer.
+- **FR-031**: The Access keys page MUST offer role and access as dropdowns that explain each choice, choose a website from its project's list, name each input problem beside its field, and after issuing MUST give the recipient's steps (private file, OneCLI, script) with the backend address and role filled in and the key never written into a command.
 - **FR-030**: Access keys MUST be reachable from the website Share section and the environment menu, MUST explain in one sentence who keys are for, and MUST be absent from the primary navigation and from anyone who cannot manage them.
 
 ### Key Entities
