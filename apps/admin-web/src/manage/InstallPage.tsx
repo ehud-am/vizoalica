@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getSnippet, type Integration, type Website } from '../api/local-operations.js';
-import { IdentifierList, identifiersFor } from '../components/IdentifierList.js';
 import { PageHeader } from '../components/PageHeader.js';
 import { Tabs } from '../components/Tabs.js';
 import { hrefFor } from '../router.js';
@@ -49,6 +48,9 @@ function Install({ website }: { website: Website }) {
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [chosen, setChosen] = useState<InstallPath | undefined>(() => readPath(website.id));
+  // Each press of "I've deployed" changes this, which starts the check further down the page.
+  const [runSignal, setRunSignal] = useState(0);
+  const onDeployed = useCallback(() => setRunSignal((value) => value + 1), []);
 
   useEffect(() => {
     setIntegration(undefined);
@@ -90,6 +92,11 @@ function Install({ website }: { website: Website }) {
         back={{ label: `Back to ${website.name}`, href: hub }}
         title={`Install on ${website.name}`}
         description="Add the code, deploy, then check that data arrives."
+        actions={
+          <a className="secondary button-link" href={hrefFor('manage/websites/new')}>
+            Add another website
+          </a>
+        }
       />
       <FlashMessage />
       {website.status === 'disabled' && (
@@ -159,24 +166,25 @@ function Install({ website }: { website: Website }) {
                 public; signing and deployment secrets stay on your servers.
               </p>
               {path === 'github' && modes.dynamicMode ? (
-                <GithubPath website={website} dynamic={modes.dynamicMode} />
+                <GithubPath
+                  website={website}
+                  dynamic={modes.dynamicMode}
+                  runSignal={runSignal}
+                  onDeployed={onDeployed}
+                />
               ) : (
                 <SnippetPath
                   website={website}
                   projectId={projectId}
                   staticCode={modes.staticCode}
+                  staticMode={modes.staticMode}
                   dynamic={modes.dynamicMode}
+                  runSignal={runSignal}
+                  onDeployed={onDeployed}
                 />
               )}
             </Tabs>
           </section>
-
-          {path === 'github' && (
-            <details className="install-more">
-              <summary>Identifiers for this website</summary>
-              <IdentifierList items={identifiersFor(projectId, website)} />
-            </details>
-          )}
         </>
       )}
     </div>

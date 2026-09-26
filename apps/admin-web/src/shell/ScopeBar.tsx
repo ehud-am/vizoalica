@@ -2,67 +2,41 @@ import { TimeRangeSelector } from '../components/TimeRangeSelector.js';
 import { useScope } from '../scope/ScopeProvider.js';
 
 /**
- * The single place to choose the project and website (and, for analytics, the time range).
- * Screens read the scope; they never render their own project picker.
+ * The per-page filters: the website (and, for analytics, the time range). The environment and the
+ * project are chosen once, in the header; screens read the scope and never render a project picker.
  */
-export function ScopeBar({
-  showProject,
-  showWebsite,
-  showRange
-}: {
-  showProject: boolean;
-  showWebsite: boolean;
-  showRange: boolean;
-}) {
+export function ScopeBar({ showWebsite, showRange }: { showWebsite: boolean; showRange: boolean }) {
   const scope = useScope();
-  if (!showProject && !showRange && !scope.notice) return null;
+  const hasProject = scope.activeProjects.length > 0;
+  const websiteFilter = showWebsite && hasProject;
+  const rangeFilter = showRange && hasProject;
+  if (!websiteFilter && !rangeFilter && !scope.notice && !scope.websitesError) return null;
   return (
     <section className="context-bar" aria-label="Scope">
-      <div className="context-controls">
-        {showProject &&
-          (scope.activeProjects.length === 0 ? (
-            <p className="context-empty">No project yet</p>
-          ) : (
-            <>
-              <label>
-                Project
-                <select
-                  aria-label="Project"
-                  value={scope.projectId}
-                  onChange={(event) => scope.selectProject(event.target.value)}
-                >
-                  {scope.activeProjects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {showWebsite && (
-                <label>
-                  Website
-                  <select
-                    aria-label="Website"
-                    value={scope.websiteId}
-                    onChange={(event) => scope.selectWebsite(event.target.value)}
-                  >
-                    <option value="">All websites</option>
-                    {scope.websites.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.status === 'disabled'
-                          ? `${site.name} (history only, disabled)`
-                          : site.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </>
-          ))}
-        {showRange && showProject && scope.activeProjects.length > 0 && (
-          <TimeRangeSelector applied={scope.range} onApply={scope.setRange} />
-        )}
-      </div>
+      {(websiteFilter || rangeFilter) && (
+        <div className="context-controls">
+          {websiteFilter && (
+            <label>
+              Website
+              <select
+                aria-label="Website"
+                value={scope.websiteId}
+                onChange={(event) => scope.selectWebsite(event.target.value)}
+              >
+                <option value="">All websites</option>
+                {scope.websites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.status === 'disabled'
+                      ? `${site.name} (history only, disabled)`
+                      : site.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {rangeFilter && <TimeRangeSelector applied={scope.range} onApply={scope.setRange} />}
+        </div>
+      )}
       {scope.websitesError && (
         <p className="notice error" role="alert">
           Websites could not be loaded.

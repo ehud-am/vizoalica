@@ -40,56 +40,53 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const scopeProject = () =>
-  (
-    within(screen.getByRole('region', { name: 'Scope' })).getByLabelText(
-      'Project'
-    ) as HTMLSelectElement
-  ).value;
+/** The project the header says the console is working in. */
+const scopeProject = () => screen.getByRole('button', { name: /^Project/ }).getAttribute('title');
+const headerProject = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole('button', { name: /^Project/ }));
+  return screen.getByRole('menu', { name: 'Project' });
+};
 
 describe('Manage > Projects', () => {
-  it('identifies duplicate project names by stable ID and shows no project picker of its own', async () => {
+  it('identifies duplicate project names by stable ID, and is the one page without the project menu', async () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
     expect(screen.getByText(primaryProject.id)).toBeTruthy();
     expect(screen.getByText(duplicateNameProject.id)).toBeTruthy();
     expect(screen.getAllByText('Developer Tools')).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Projects' }).getAttribute('aria-current')).toBe(
-      'page'
-    );
-    // Projects is not scope-bound, so the shell hides the project and website controls.
+    // Projects run outside the environment/project pair: the environment stays, the project goes.
+    expect(screen.queryByRole('button', { name: /^Project/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Environment/ })).toBeTruthy();
     expect(screen.queryByLabelText('Website')).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Select / })).toBeNull();
+    // Projects is not in the sidebar: it is reached from the project menu.
+    expect(screen.queryByRole('link', { name: 'Projects' })).toBeNull();
   });
 
-  it('opens a project in Websites or Analytics and makes it the current scope', async () => {
+  it('marks the current project and opens another in Websites, making it current', async () => {
     const user = userEvent.setup();
     render(<App />);
+    const current = await screen.findByText('Current');
+    expect(current.closest('article')!.textContent).toContain(primaryProject.id);
     await user.click(
       await screen.findByRole('link', {
-        name: `Manage websites in ${duplicateNameProject.name} (${duplicateNameProject.id})`
+        name: `Open ${duplicateNameProject.name} (${duplicateNameProject.id})`
       })
     );
     await waitFor(() => expect(api.listWebsites).toHaveBeenCalledWith(duplicateNameProject.id));
     expect(document.querySelector('main')?.getAttribute('data-route')).toBe('manage/websites');
     expect(scopeProject()).toBe(duplicateNameProject.id);
+  });
 
-    await user.click(screen.getByRole('link', { name: 'Projects' }));
-    await user.click(
-      screen.getByRole('link', {
-        name: `View analytics for ${duplicateNameProject.name} (${duplicateNameProject.id})`
-      })
-    );
-    await waitFor(() =>
-      expect(api.getAnalyticsOverview).toHaveBeenCalledWith(
-        duplicateNameProject.id,
-        undefined,
-        expect.any(String),
-        expect.any(String),
-        expect.any(AbortSignal)
-      )
-    );
-    expect(document.querySelector('main')?.getAttribute('data-route')).toBe('analytics/overview');
+  it('is where the project menu points, and the only place that creates projects', async () => {
+    const user = userEvent.setup();
+    window.location.hash = '#/manage/websites';
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: 'Websites' });
+    const menu = await headerProject(user);
+    expect(within(menu).queryByRole('textbox')).toBeNull();
+    await user.click(within(menu).getByRole('menuitem', { name: 'All projects…' }));
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Project name' })).toBeTruthy();
   });
 
   it('creates a project with an inline form and makes it the current scope', async () => {
@@ -165,6 +162,35 @@ describe('Manage > Projects danger zone', () => {
     expect(screen.getByText('Deleted projects (1)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Delete project/ })).toBeNull();
     expect(nativeConfirm).not.toHaveBeenCalled();
+  });
+
+  it('falls back to another project when the current one is deleted, and to the create-first state when none is left', async () => {
+    const user = userEvent.setup();
+    const gone = (project: typeof primaryProject) => ({ ...project, status: 'deleted' as const });
+    api.listProjects
+      .mockResolvedValueOnce(consoleProjects)
+      .mockResolvedValueOnce([gone(primaryProject), duplicateNameProject])
+      .mockResolvedValueOnce([gone(primaryProject), gone(duplicateNameProject)]);
+    render(<App />);
+    const first = (await screen.findAllByRole('button', { name: /^Delete project/ }))[0]!;
+    await user.click(first);
+    await user.type(screen.getByLabelText(/Type/), primaryProject.name);
+    await user.click(screen.getByRole('button', { name: 'Delete project' }));
+    await screen.findByText(/Project Developer Tools deleted/);
+    // The remaining project is now the one the console works in.
+    await user.click(screen.getByRole('link', { name: 'Websites' }));
+    expect(scopeProject()).toBe(duplicateNameProject.id);
+    await user.click(screen.getByRole('button', { name: /^Project/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'All projects…' }));
+    await user.click(await screen.findByRole('button', { name: /^Delete project/ }));
+    await user.type(screen.getByLabelText(/Type/), duplicateNameProject.name);
+    await user.click(screen.getByRole('button', { name: 'Delete project' }));
+    await screen.findByText('No projects yet');
+    window.location.hash = '#/manage/websites';
+    const button = await screen.findByRole('button', { name: /^Project/ });
+    expect(button.textContent).toContain('No project yet');
+    await user.click(button);
+    expect(screen.getByRole('menuitem', { name: 'Create your first project' })).toBeTruthy();
   });
 
   it('does not delete when cancelled, and reports a failed delete', async () => {

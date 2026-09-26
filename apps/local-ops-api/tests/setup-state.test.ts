@@ -33,7 +33,8 @@ describe('with a connection', () => {
     expect(result.environment).toBe('default');
     expect(result.connection).toEqual({
       status: 'connected',
-      workerHost: 'worker.example.workers.dev'
+      workerHost: 'worker.example.workers.dev',
+      workerUrl: 'https://worker.example.workers.dev'
     });
     expect(result.principal).toMatchObject({ role: 'admin', keyLabel: null });
     expect(result.backend).toMatchObject({

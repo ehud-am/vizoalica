@@ -80,7 +80,8 @@ export const ROUTES = define([
     path: 'manage/projects',
     area: 'manage',
     label: 'Projects',
-    nav: true,
+    // Reached from the project menu, and the one page that runs outside the environment/project pair.
+    nav: false,
     scope: 'none',
     range: false
   },
@@ -140,15 +141,18 @@ export const ROUTES = define([
     path: 'manage/backend',
     area: 'manage',
     label: 'Backend',
-    nav: true,
+    // Its content is the first section of Health; the address stays so old links keep working.
+    nav: false,
+    parent: 'manage/health',
     scope: 'none',
     range: false
   },
   {
     path: 'manage/access',
     area: 'manage',
-    label: 'Access',
-    nav: true,
+    label: 'Access keys',
+    // Reached from a website's Share section and the environment menu, not from the sidebar.
+    nav: false,
     scope: 'none',
     range: false
   }
@@ -231,6 +235,8 @@ export const routeLabel = (path: RoutePath): string => definition(path).label;
 export const navKey = (path: RoutePath): RoutePath =>
   (definition(path).parent as RoutePath | undefined) ?? path;
 export const scopeControls = (path: RoutePath): ScopeControls => definition(path).scope;
+/** Every page runs inside the environment and project chosen in the header, except Projects. */
+export const showsScopeHeader = (path: RoutePath): boolean => path !== 'manage/projects';
 export const showsRange = (path: RoutePath): boolean => definition(path).range;
 
 export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParams): string {

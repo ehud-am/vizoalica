@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { shareWebsite, type AccessKeyRole, type SetupDetails } from '../api/local-operations.js';
 import { ActionButton } from '../components/ActionButton.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { hrefFor } from '../router.js';
 
 function download(details: SetupDetails) {
   const blob = new Blob([JSON.stringify(details, null, 2)], { type: 'application/json' });
@@ -96,6 +97,10 @@ export function SharePanel({ projectId, websiteId }: { projectId: string; websit
           </div>
         </div>
       )}
+      <p className="hint">
+        Each setup creates a key. To see the keys that exist, or to end someone&rsquo;s access, open{' '}
+        <a href={hrefFor('manage/access')}>Access keys</a>.
+      </p>
     </section>
   );
 }

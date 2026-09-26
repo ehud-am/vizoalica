@@ -80,7 +80,6 @@ type Pending = {
 
 class Helper {
   private child: Piped | undefined;
-  private failure: VaultError | undefined;
   private readonly pending = new Map<number, Pending>();
   private next = 1;
 
@@ -95,7 +94,6 @@ class Helper {
       stdio: ['pipe', 'pipe', 'ignore']
     }) as unknown as Piped;
     this.child = child;
-    this.failure = undefined;
     createInterface({ input: child.stdout }).on('line', (line) => {
       let reply: Reply;
       try {
@@ -111,7 +109,6 @@ class Helper {
     });
     const end = (error: VaultError) => {
       if (this.child === child) this.child = undefined;
-      this.failure = error;
       for (const [id, waiting] of this.pending) {
         this.pending.delete(id);
         clearTimeout(waiting.timer);

@@ -92,3 +92,43 @@ choose **Check again**.
 
 The console does not deploy or update a backend. To create one, run `vizoalica deploy <name>` ([guide](deploy.md)),
 which creates it and adds the environment for you.
+
+## Access keys: giving someone else a role
+
+An administrator can let an **analyst** (view only) or a **website owner** (manage websites and projects) connect
+without the administrator secret. Open **Access keys** from the environment menu (or a website's Share section),
+choose who it is for, the role, and what it reaches (everything, one project, or one website), and issue it. The
+key is shown once; the page then shows what to do with it.
+
+**Nothing is deployed.** The backend accepts a key from the moment it is issued, and revoking it there stops it at
+once, on every computer. The person who receives the key (send it through a password manager, not chat or email)
+adds an environment for this backend to their own console, with the role of the key. There are three ways to keep it:
+
+**In a private file** (asks questions, key hidden):
+
+```sh
+vizoalica env add dev-analyst --connect --url https://YOUR_WORKER_ADDRESS --role analyst
+# paste the key when asked; answer n to "stored in OneCLI"
+vizoalica env check dev-analyst
+```
+
+**In OneCLI** (the key is never saved on the computer; Vizoalica keeps only the placeholder `onecli-managed`).
+Create a Generic secret with host = the Worker's host, header `Authorization`, format `Bearer {value}` and the key as
+the value, attached only to the agent that will use it, then point the environment at it:
+
+```sh
+onecli secrets create --project PROJECT --name "Vizoalica analyst key dev-analyst" --type generic \
+  --host-pattern YOUR_WORKER_HOST --header-name Authorization --value-format 'Bearer {value}' --file ./key.txt
+vizoalica env add dev-analyst --connect --url https://YOUR_WORKER_ADDRESS --role analyst \
+  --secret-onecli --onecli-workspace WORKSPACE --onecli-agent AGENT --onecli-gateway 127.0.0.1:10255
+```
+
+**From a script** (the key comes from standard input, so it is not in the command line or shell history):
+
+```sh
+read -rs KEY && printf '%s' "$KEY" | vizoalica env add dev-analyst --connect \
+  --url https://YOUR_WORKER_ADDRESS --role analyst --secret-stdin --no-onecli
+```
+
+Then `vizoalica console` and choose the environment at the top. A revoked key is reported by
+`vizoalica env check` as rejected, with a hint to ask for a new one.

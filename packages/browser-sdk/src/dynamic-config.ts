@@ -1,11 +1,13 @@
 import type { ConsentState } from '@vizoalica/event-contracts';
+import { DEFAULT_TOKEN_URL } from './defaults.js';
 
 export interface DynamicConfigV1 {
   version: 1;
   src: string;
   'data-endpoint': string;
   'data-source': string;
-  'data-project': string;
+  /** Absent when the backend can tell the project from the source key. */
+  'data-project'?: string;
   'data-token-url': string;
   'data-consent': ConsentState;
 }
@@ -46,10 +48,13 @@ export function validateDynamicConfig(
     typeof config['data-endpoint'] === 'string'
       ? httpUrl(config['data-endpoint'], baseUrl)
       : undefined;
-  const tokenUrl =
-    typeof config['data-token-url'] === 'string'
-      ? httpUrl(config['data-token-url'], baseUrl)
-      : undefined;
+  // Settings that have a conventional default may be left out of the document.
+  const tokenUrl = httpUrl(
+    typeof config['data-token-url'] === 'string' ? config['data-token-url'] : DEFAULT_TOKEN_URL,
+    baseUrl
+  );
+  const consent = config['data-consent'] ?? 'unknown';
+  const hasProject = config['data-project'] !== undefined;
   if (
     config.version !== 1 ||
     !sourceUrl ||
@@ -58,9 +63,9 @@ export function validateDynamicConfig(
     tokenUrl.origin !== baseUrl.origin ||
     typeof config['data-source'] !== 'string' ||
     !safePublicSource.test(config['data-source']) ||
-    typeof config['data-project'] !== 'string' ||
-    !safeIdentity.test(config['data-project']) ||
-    !consentStates.has(config['data-consent'] as ConsentState)
+    (hasProject &&
+      (typeof config['data-project'] !== 'string' || !safeIdentity.test(config['data-project']))) ||
+    !consentStates.has(consent as ConsentState)
   )
     return undefined;
   return {
@@ -68,9 +73,9 @@ export function validateDynamicConfig(
     src: sourceUrl.href,
     'data-endpoint': endpointUrl.href,
     'data-source': config['data-source'],
-    'data-project': config['data-project'],
+    ...(hasProject ? { 'data-project': config['data-project']! } : {}),
     'data-token-url': `${tokenUrl.pathname}${tokenUrl.search}${tokenUrl.hash}`,
-    'data-consent': config['data-consent'] as ConsentState
+    'data-consent': consent as ConsentState
   };
 }
 
@@ -113,7 +118,7 @@ export async function initializeDynamicLoader(
     script.src = config.src;
     script.dataset.endpoint = config['data-endpoint'];
     script.dataset.source = config['data-source'];
-    script.dataset.project = config['data-project'];
+    if (config['data-project']) script.dataset.project = config['data-project'];
     script.dataset.tokenUrl = config['data-token-url'];
     script.dataset.consent = config['data-consent'];
     script.addEventListener('error', () => {

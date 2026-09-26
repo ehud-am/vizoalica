@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
 import type { EnvironmentsList } from '../src/api/local-operations.js';
-import { EnvironmentPicker } from '../src/setup/EnvironmentPicker.js';
+import { EnvironmentMenu } from '../src/shell/EnvironmentMenu.js';
+import { SetupProvider } from '../src/setup/SetupProvider.js';
 import { Welcome } from '../src/setup/Welcome.js';
+import { makeOverview } from './fixtures/console.js';
 import { DEFAULT_ENVIRONMENTS } from './setup.js';
 
 const api = vi.hoisted(() => ({
@@ -42,7 +44,7 @@ beforeEach(() => {
   api.getSetupState.mockRejectedValue(new Error('offline'));
   api.listProjects.mockResolvedValue([]);
   api.listWebsites.mockResolvedValue([]);
-  api.getAnalyticsOverview.mockResolvedValue({});
+  api.getAnalyticsOverview.mockResolvedValue(makeOverview());
 });
 afterEach(() => {
   cleanup();
@@ -134,49 +136,86 @@ describe('Welcome', () => {
   });
 });
 
-describe('EnvironmentPicker', () => {
-  it('shows nothing without a selection, and a plain label for a single environment', () => {
+function renderMenu(environments: EnvironmentsList, onChanged = () => undefined) {
+  return render(
+    <SetupProvider initial={undefined}>
+      <EnvironmentMenu list={environments} onChanged={onChanged} />
+    </SetupProvider>
+  );
+}
+
+describe('EnvironmentMenu', () => {
+  it('shows nothing without a selection, and the same control without a menu for one environment', () => {
     const { container, rerender } = render(
-      <EnvironmentPicker list={undefined} onChanged={() => undefined} />
+      <SetupProvider initial={undefined}>
+        <EnvironmentMenu list={undefined} onChanged={() => undefined} />
+      </SetupProvider>
     );
     expect(container.textContent).toBe('');
-    rerender(<EnvironmentPicker list={list()} onChanged={() => undefined} />);
+    rerender(
+      <SetupProvider initial={undefined}>
+        <EnvironmentMenu list={list()} onChanged={() => undefined} />
+      </SetupProvider>
+    );
     expect(screen.getByText('dev')).toBeTruthy();
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByText('admin')).toBeTruthy();
+    // With no setup state the administrator's "Access keys" entry is there, so it can open.
+    expect(screen.getByRole('button', { name: /Environment/ })).toBeTruthy();
   });
 
-  it('lists every environment, disables unusable ones with their reason, and selects the chosen one', async () => {
+  it('lists every environment with its role apart from its name, and disables an unusable one with its reason', async () => {
     api.selectEnvironment.mockResolvedValue({});
     const onChanged = vi.fn();
-    render(
-      <EnvironmentPicker
-        list={list({
-          environments: [environment('dev'), environment('prod'), environment('stage', false)],
-          selected: 'dev'
-        })}
-        onChanged={onChanged}
-      />
+    renderMenu(
+      list({
+        environments: [environment('dev'), environment('prod'), environment('stage', false)],
+        selected: 'dev'
+      }),
+      onChanged
     );
-    const select = screen.getByRole('combobox', { name: 'Environment' }) as HTMLSelectElement;
-    expect(select.value).toBe('dev');
-    const options = within(select).getAllByRole('option') as HTMLOptionElement[];
-    expect(options.map((option) => option.disabled)).toEqual([false, false, true]);
-    expect(options[2]!.textContent).toContain('The Worker rejected this secret.');
-    await userEvent.selectOptions(select, 'prod');
+    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    const menu = screen.getByRole('menu', { name: 'Environment' });
+    const items = within(menu).getAllByRole('menuitemradio');
+    expect(items.map((item) => item.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'false',
+      'false'
+    ]);
+    expect(items.map((item) => item.getAttribute('aria-disabled'))).toEqual([null, null, 'true']);
+    // The name and the role are separate elements, never one "name (role)" string.
+    expect(items[0]!.querySelector('.menu-item-label')!.textContent).toBe('dev');
+    expect(items[0]!.querySelector('.menu-badge')!.textContent).toBe('admin');
+    expect(within(items[2]!).getByText('The Worker rejected this secret.')).toBeTruthy();
+    await userEvent.click(items[1]!);
     expect(api.selectEnvironment).toHaveBeenCalledWith('prod');
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
+  it('does not select an environment that is already selected, or one that cannot be used', async () => {
+    renderMenu(
+      list({ environments: [environment('dev'), environment('stage', false)], selected: 'dev' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /dev/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /stage/ }));
+    expect(api.selectEnvironment).not.toHaveBeenCalled();
+  });
+
   it('says so when a selection is refused', async () => {
     api.selectEnvironment.mockRejectedValue(new Error('refused'));
-    render(
-      <EnvironmentPicker
-        list={list({ environments: [environment('dev'), environment('prod')], selected: 'dev' })}
-        onChanged={() => undefined}
-      />
-    );
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'prod');
+    renderMenu(list({ environments: [environment('dev'), environment('prod')], selected: 'dev' }));
+    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     expect((await screen.findByRole('alert')).textContent).toContain('could not be selected');
+  });
+
+  it('offers Access keys to an administrator, at the foot of the menu', async () => {
+    renderMenu(list({ environments: [environment('dev'), environment('prod')], selected: 'dev' }));
+    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    expect(screen.getByRole('menuitem', { name: 'Access keys' }).getAttribute('href')).toBe(
+      '#/manage/access'
+    );
   });
 });
 
@@ -188,7 +227,7 @@ describe('App with environments', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Welcome to Vizoalica' })).toBeTruthy();
     expect(api.listProjects).not.toHaveBeenCalled();
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Environment/ })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -197,10 +236,8 @@ describe('App with environments', () => {
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
     );
     render(<App />);
-    const select = (await screen.findByRole('combobox', {
-      name: 'Environment'
-    })) as HTMLSelectElement;
-    expect(select.value).toBe('prod');
+    const trigger = await screen.findByRole('button', { name: /Environment/ });
+    expect(trigger.textContent).toContain('prod');
     expect(api.listProjects).toHaveBeenCalled();
   });
 
@@ -221,14 +258,70 @@ describe('App with environments', () => {
     );
     api.selectEnvironment.mockResolvedValue({});
     render(<App />);
-    const select = await screen.findByRole('combobox', { name: 'Environment' });
+    const trigger = await screen.findByRole('button', { name: /Environment/ });
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(1));
     api.listEnvironments.mockResolvedValue(
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
     );
-    await userEvent.selectOptions(select, 'prod');
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(2));
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('prod');
+    expect((await screen.findByRole('button', { name: /Environment/ })).textContent).toContain(
+      'prod'
+    );
+  });
+
+  it('keeps the project across an environment switch even when browser storage is blocked', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    api.listProjects.mockResolvedValue([
+      { id: 'p1', name: 'Acme' },
+      { id: 'p2', name: 'Beta' }
+    ]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'dev' })
+    );
+    api.selectEnvironment.mockResolvedValue({});
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Project/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
+    await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(2));
+    const project = await screen.findByRole('button', { name: /^Project/ });
+    await waitFor(() => expect(project.textContent).toContain('Beta'));
+    expect(screen.queryByText(/no longer available/)).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it('says so, and picks the first project, when the project does not exist in the other environment', async () => {
+    api.listProjects.mockResolvedValueOnce([
+      { id: 'p1', name: 'Acme' },
+      { id: 'p2', name: 'Beta' }
+    ]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'dev' })
+    );
+    api.selectEnvironment.mockResolvedValue({});
+    render(<App />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Project/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    api.listProjects.mockResolvedValue([{ id: 'p9', name: 'Other' }]);
+    api.listEnvironments.mockResolvedValue(
+      list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
+    expect(
+      await screen.findByText(/previous project is no longer available. Showing Other/)
+    ).toBeTruthy();
   });
 
   it('never offers environment management, first-run questions, or deploy actions in the console', async () => {

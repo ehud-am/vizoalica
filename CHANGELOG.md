@@ -4,6 +4,47 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-25
+
+### Changed
+
+- **A website needs far fewer values to install.** The recommended snippet is now `src`, `data-endpoint` and
+  `data-source`; the token path (`/vizoalica/ingest-token`), consent (`unknown`) and project (taken from the
+  source key) are defaults, and the script location is site-relative so it is right on every hostname. Use
+  `data-token-url="none"` for an unsigned demo. Older snippets keep working. The GitHub → Cloudflare Pages
+  workflow takes one bundled `VIZOALICA_SITE` variable (plus the two Cloudflare values and two secrets: five
+  values, down from twelve), defaults the site folder to the repository root, and still accepts the separate
+  variables. The starter workflow now references `v0.7.3`; websites already deploying with an older reference keep working.
+- **Adding a website asks for an address.** Paste it as you copied it (`Example.com/pricing` becomes
+  `https://example.com`), see exactly what will be saved, allow the `www` counterpart with one tick, and
+  leave the name empty to use the domain. The project is the one chosen at the top and is shown, not asked.
+- **The install check names one thing to fix.** It looks at the SDK file, the token endpoint and the allowed
+  origin on every allowed address, never follows a redirect (a redirect to an address you have not allowed is
+  named), then at page views, and answers with a single next action; "I've deployed" starts it. It asks the token
+  endpoint for a token and discards it unread; the page says so.
+- **A snippet without `data-token-url` now asks the conventional token path** instead of sending unsigned; a
+  missing endpoint still sends, unsigned. Use `data-token-url="none"` for an unsigned demo.
+- **Access keys are usable.** Role and access are dropdowns that explain each choice; a website is picked by name
+  from its project instead of typing an id; problems are named beside their field; the list shows what each key
+  reaches and when it was issued, with revoked keys last. After issuing, the page says what to do with the key:
+  nothing to deploy, and how the recipient adds a console environment in a private file, with OneCLI, or from a
+  script, with the backend's address and the role filled in. The same guidance stays on the page under "How is a
+  key used?".
+- **The install check works against a real Worker.** The console asked the Worker for a website's bare record,
+  which the Worker has never offered (only its snippet), so the reachability route and the install check answered
+  "not found" on a deployed backend while the tests, which stubbed the Worker, passed. It now reads the snippet,
+  and the test stub answers as the Worker does.
+- **The project survives an environment switch** even when browser storage is blocked, and the menu supports
+  type-ahead. Health messages say `vizoalica status`, not `pnpm vizoalica status`.
+- **One place to choose the environment and project.** They sit together at the top of every page except
+  Projects. The environment control no longer overlaps its own text, and shows the role and an unusable
+  environment's reason separately. The project menu only switches; projects are created and deleted on the
+  Projects page.
+- **The footer is one line**: Vizoalica, vizoalica.dev, GitHub. The console version is on the Health page.
+- **Health includes the backend.** The Backend page is now the first section of Health (its old address opens
+  Health). Projects and Access keys leave the sidebar; Access keys is reached from a website's Share section
+  and the environment menu, for administrators only.
+
 ## [0.7.2] - 2026-09-25
 
 ### Fixed

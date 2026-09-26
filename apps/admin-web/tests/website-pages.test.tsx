@@ -67,9 +67,9 @@ describe('websites list', () => {
     expect(screen.getByRole('link', { name: /Add website/ }).getAttribute('href')).toBe(
       '#/manage/websites/new'
     );
-    // Only the project selector belongs to this page in the shell; there is no website selector.
-    expect(within(scopeBar()!).getByLabelText('Project')).toBeTruthy();
-    expect(within(scopeBar()!).queryByLabelText('Website')).toBeNull();
+    // The project is chosen once, in the header; this page has no bar of filters of its own.
+    expect(screen.getByRole('button', { name: /^Project/ }).textContent).toContain('Acme');
+    expect(scopeBar()).toBeNull();
     expect(navLink('Websites').getAttribute('aria-current')).toBe('page');
   });
 
@@ -78,7 +78,8 @@ describe('websites list', () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Docs');
-    await user.selectOptions(within(scopeBar()!).getByLabelText('Project'), 'p2');
+    await user.click(screen.getByRole('button', { name: /^Project/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
     expect(await screen.findByText('Shop')).toBeTruthy();
     expect(screen.queryByText('Docs')).toBeNull();
   });
@@ -284,6 +285,8 @@ describe('website page', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete website…' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Delete Docs?' });
     expect(within(dialog).getByText(/permanent/)).toBeTruthy();
+    // What the live site will do is said before the person confirms.
+    expect(within(dialog).getByText(/tag on your live site will stop recording/)).toBeTruthy();
     api.deleteWebsite.mockImplementationOnce(async () => {
       sites.p1 = [blog];
       return { status: 'deleted', audit: 'recorded' };
@@ -295,7 +298,8 @@ describe('website page', () => {
     expect(screen.queryByRole('link', { name: /Docs/ })).toBeNull();
     expect(nativeConfirm).not.toHaveBeenCalled();
     // The confirmation is shown once: moving on clears it.
-    await user.click(navLink('Projects'));
+    await user.click(screen.getByRole('button', { name: /^Project/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'All projects…' }));
     await screen.findByRole('heading', { level: 1, name: 'Projects' });
     expect(screen.queryByText(/Website Docs deleted/)).toBeNull();
   });
@@ -309,6 +313,45 @@ describe('website page', () => {
     await user.click(screen.getByRole('button', { name: 'Delete website' }));
     expect(await screen.findByText(/operation was interrupted/i)).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: /Docs/ })).toBeTruthy();
+  });
+});
+
+describe('install state on the website page', () => {
+  it('says the website is installed once page views have arrived, and points at the steps otherwise', async () => {
+    go('manage/websites/s1');
+    api.getAnalyticsOverview.mockResolvedValue(
+      makeOverview({ totals: { pageViews: 7, uniqueUsers: 3 } })
+    );
+    render(<App />);
+    expect(await screen.findByText('Installed.')).toBeTruthy();
+    expect(screen.getByText(/7 page views in the last 24 hours/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Install steps and check' }).getAttribute('href')).toBe(
+      '#/manage/websites/s1/install'
+    );
+    cleanup();
+    api.getAnalyticsOverview.mockResolvedValue(makeOverview());
+    render(<App />);
+    expect(await screen.findByText(/No page views in the last 24 hours/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Install this website' })).toBeTruthy();
+  });
+
+  it('still works when the page-view check cannot be made', async () => {
+    go('manage/websites/s1');
+    api.getAnalyticsOverview.mockRejectedValue(new Error('offline'));
+    render(<App />);
+    expect(await screen.findByText(/Not checked yet/)).toBeTruthy();
+  });
+
+  it('shows the website’s identifiers once, on this page, and not again on the install page', async () => {
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    expect(screen.getAllByText('Public source key')).toHaveLength(1);
+    cleanup();
+    go('manage/websites/s1/install');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /^Install on/ });
+    expect(screen.queryByText('Public source key')).toBeNull();
   });
 });
 
@@ -380,8 +423,35 @@ describe('edit page', () => {
       })
     );
     expect(await screen.findByRole('heading', { level: 1, name: /Docs v2/ })).toBeTruthy();
-    expect(screen.getByText('Website updated and audit recorded.')).toBeTruthy();
+    // A new name changes nothing on the installed site, and the page says so.
+    expect(
+      screen.getByText(
+        'Website updated and audit recorded. Nothing needs to change on your installed site.'
+      )
+    ).toBeTruthy();
     expect(window.location.hash).toBe(hubHash);
+  });
+
+  it('says the token endpoint’s own origin list must follow when the origins change', async () => {
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    const origins = await screen.findByRole('textbox', { name: 'Allowed origins' });
+    await user.type(origins, '{Enter}www.s1.test');
+    api.updateWebsite.mockImplementationOnce(async () => {
+      sites.p1 = [{ ...docs, allowedOrigins: ['https://s1.test', 'https://www.s1.test'] }, blog];
+      return docs;
+    });
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's1', {
+        name: 'Docs',
+        allowedOrigins: ['https://s1.test', 'https://www.s1.test']
+      })
+    );
+    const note = await screen.findByText(/keeps its own list of origins/);
+    expect(note.textContent).toContain('VIZOALICA_SITE');
+    expect(screen.queryByText(/Nothing needs to change/)).toBeNull();
   });
 
   it('keeps the operator on the page with entries preserved when saving fails', async () => {
@@ -408,15 +478,15 @@ describe('edit page', () => {
     expect(await screen.findByText('Enter a name for this website.')).toBeTruthy();
     await user.type(name, 'Docs');
     await user.clear(screen.getByRole('textbox', { name: 'Allowed origins' }));
-    await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), 'docs.test');
+    await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), 'ftp://docs.test');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(await screen.findByText(/is not an exact origin/)).toBeTruthy();
+    expect(await screen.findByText(/cannot be measured/)).toBeTruthy();
     expect(api.updateWebsite).not.toHaveBeenCalled();
   });
 });
 
 describe('add page', () => {
-  it('is only the add form, project first and empty, with a back link and no scope bar', async () => {
+  it('is only the add form, with the project shown as text, a back link and no scope bar', async () => {
     go('manage/websites');
     const user = userEvent.setup();
     render(<App />);
@@ -424,9 +494,9 @@ describe('add page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Add a website' })).toBeTruthy();
     expect(scopeBar()).toBeNull();
     const form = screen.getByRole('form', { name: 'Add website' });
-    expect(form.querySelector('select, input, textarea')!.tagName).toBe('SELECT');
-    expect((within(form).getByLabelText('Project') as HTMLSelectElement).value).toBe('');
-    expect(document.activeElement).toBe(within(form).getByLabelText('Project'));
+    expect(form.querySelector('select')).toBeNull();
+    expect(form.querySelector('.form-project')!.textContent).toBe('Project: Acme');
+    expect(document.activeElement).toBe(within(form).getByLabelText('Website address'));
     expect(screen.getByRole('link', { name: /Back to websites/ }).getAttribute('href')).toBe(
       '#/manage/websites'
     );
@@ -434,38 +504,44 @@ describe('add page', () => {
     expect(await screen.findByRole('list', { name: 'Websites' })).toBeTruthy();
   });
 
-  it('creates the website in exactly the chosen project and lands on its Install page', async () => {
+  it('creates the website in the project chosen at the top and lands on its Install page', async () => {
     go('manage/websites/new');
     const user = userEvent.setup();
-    const created = site('s9', 'p2', 'Launch', { allowedOrigins: ['https://launch.test'] });
+    const created = site('s9', 'p2', 'launch.test', { allowedOrigins: ['https://launch.test'] });
     api.createWebsite.mockImplementationOnce(async () => {
       sites.p2 = [shop, created];
       return created;
     });
     render(<App />);
+    // Change the project in the header first: the form follows it.
+    await user.click(await screen.findByRole('button', { name: /^Project/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Beta/ }));
+    go('manage/websites/new');
     const form = await screen.findByRole('form', { name: 'Add website' });
-    await user.selectOptions(within(form).getByLabelText('Project'), 'p2');
-    await user.type(within(form).getByLabelText('Website name'), 'Launch');
-    await user.type(within(form).getByLabelText('Allowed origins'), 'https://launch.test');
+    await waitFor(() =>
+      expect(form.querySelector('.form-project')!.textContent).toBe('Project: Beta')
+    );
+    await user.type(within(form).getByLabelText('Website address'), 'https://launch.test/');
+    await user.click(within(form).getByRole('checkbox', { name: /Also allow/ }));
     await user.click(within(form).getByRole('button', { name: 'Add website' }));
     await waitFor(() =>
       expect(api.createWebsite).toHaveBeenCalledWith('p2', {
-        name: 'Launch',
+        name: 'launch.test',
         allowedOrigins: ['https://launch.test']
       })
     );
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Install on Launch' })
+      await screen.findByRole('heading', { level: 1, name: 'Install on launch.test' })
     ).toBeTruthy();
     expect(window.location.hash).toBe('#/manage/websites/s9/install');
     expect(
-      screen.getByText('Website Launch created in project Beta (p2). Next: install it.')
+      screen.getByText('Website launch.test created in project Beta (p2). Next: install it.')
     ).toBeTruthy();
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' }).textContent).toContain('Beta');
     await waitFor(() => expect(api.getSnippet).toHaveBeenCalledWith('p2', 's9'));
   });
 
-  it('creates in the current project and lands on the new website', async () => {
+  it('adds a website to the current project with a name of its own', async () => {
     go('manage/websites/new');
     const user = userEvent.setup();
     const created = site('s8', 'p1', 'Wiki');
@@ -475,31 +551,38 @@ describe('add page', () => {
     });
     render(<App />);
     const form = await screen.findByRole('form', { name: 'Add website' });
-    await user.selectOptions(within(form).getByLabelText('Project'), 'p1');
-    await user.type(within(form).getByLabelText('Website name'), 'Wiki');
-    await user.type(within(form).getByLabelText('Allowed origins'), 'https://s8.test');
+    await user.type(within(form).getByLabelText('Website name', { exact: false }), 'Wiki');
+    await user.type(within(form).getByLabelText('Website address'), 's8.test');
     await user.click(within(form).getByRole('button', { name: 'Add website' }));
+    await waitFor(() =>
+      expect(api.createWebsite).toHaveBeenCalledWith('p1', {
+        name: 'Wiki',
+        allowedOrigins: ['https://s8.test', 'https://www.s8.test']
+      })
+    );
     expect(await screen.findByRole('heading', { level: 1, name: 'Install on Wiki' })).toBeTruthy();
   });
 
-  it('preserves entries when the chosen project has become unavailable, or creation is interrupted', async () => {
+  it('preserves entries when the current project has become unavailable, or creation is interrupted', async () => {
     go('manage/websites/new');
     const user = userEvent.setup();
     api.createWebsite.mockRejectedValueOnce(new ApiError('not_found', 404));
     render(<App />);
     const form = await screen.findByRole('form', { name: 'Add website' });
-    await user.selectOptions(within(form).getByLabelText('Project'), 'p2');
-    await user.type(within(form).getByLabelText('Website name'), 'Retained draft');
-    await user.type(within(form).getByLabelText('Allowed origins'), 'https://retained.test');
+    await user.type(
+      within(form).getByLabelText('Website name', { exact: false }),
+      'Retained draft'
+    );
+    await user.type(within(form).getByLabelText('Website address'), 'https://retained.test');
     await user.click(within(form).getByRole('button', { name: 'Add website' }));
     expect(
       await screen.findByText(
-        'The selected project is no longer available. Your entries were preserved.'
+        'The current project is no longer available. Your entries were preserved.'
       )
     ).toBeTruthy();
-    expect((within(form).getByLabelText('Website name') as HTMLInputElement).value).toBe(
-      'Retained draft'
-    );
+    expect(
+      (within(form).getByLabelText('Website name', { exact: false }) as HTMLInputElement).value
+    ).toBe('Retained draft');
     api.createWebsite.mockRejectedValueOnce(new Error('offline'));
     await user.click(within(form).getByRole('button', { name: 'Add website' }));
     expect(
@@ -511,7 +594,7 @@ describe('add page', () => {
     go('manage/websites/new');
     const user = userEvent.setup();
     render(<App />);
-    await user.type(await screen.findByLabelText('Website name'), 'Half done');
+    await user.type(await screen.findByLabelText('Website address'), 'half.test');
     await user.click(screen.getByRole('link', { name: /Back to websites/ }));
     expect(screen.getByRole('alertdialog', { name: 'Discard your changes?' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Keep editing' }));

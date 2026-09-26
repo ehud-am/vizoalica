@@ -1,87 +1,57 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { AppFooter } from '../src/components/AppFooter.js';
-import { PROJECT_LINKS, VIZOALICA_LINKS } from '../src/footer-links.js';
+import { FOOTER_LINKS } from '../src/footer-links.js';
 
-beforeEach(() => vi.stubGlobal('__VIZOALICA_VERSION__', '0.6.3'));
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 
 describe('AppFooter', () => {
-  it('shows the brand mark, the name, and the tagline', () => {
+  it('is one line with exactly three items: the name, the website and GitHub', () => {
     render(<AppFooter />);
     const footer = screen.getByRole('contentinfo');
-    expect(within(footer).getByTestId('footer-mark').getAttribute('src')).toBe(
-      '/brand/vizoalica-mark.svg'
-    );
-    expect(within(footer).getByText('Vizoalica', { selector: 'p' })).toBeTruthy();
+    expect(footer.querySelectorAll('p')).toHaveLength(1);
+    expect(footer.textContent).toBe('Vizoalica·vizoalica.dev·GitHub');
     expect(
-      within(footer).getByText('Privacy-first analytics that runs in your own Cloudflare account.')
-    ).toBeTruthy();
+      within(footer)
+        .getAllByRole('link')
+        .map((link) => link.textContent)
+    ).toEqual(['vizoalica.dev', 'GitHub']);
   });
 
-  it('has a labeled Vizoalica group with the website, documentation, guide, and privacy pages', () => {
+  it('carries no tagline, link groups, legal line or version', () => {
     render(<AppFooter />);
-    const group = screen.getByRole('navigation', { name: 'Vizoalica' });
-    expect(within(group).getByRole('heading', { name: 'Vizoalica' })).toBeTruthy();
-    const links = within(group).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual([
-      'Website',
-      'Documentation',
-      'Get started',
-      'Privacy'
-    ]);
-    expect(links[0]!.getAttribute('href')).toBe('https://vizoalica.dev');
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).queryByRole('navigation')).toBeNull();
+    expect(within(footer).queryByRole('heading')).toBeNull();
+    expect(footer.textContent).not.toMatch(/©|Version|Privacy-first/);
   });
 
-  it('has a labeled Project group pointing at the repository', () => {
+  it('points at the website and the repository', () => {
     render(<AppFooter />);
-    const group = screen.getByRole('navigation', { name: 'Project' });
-    const links = within(group).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual([
-      'GitHub',
-      'npm',
-      'Discussions',
-      'Issues',
-      'Release notes',
-      'License'
-    ]);
-    expect(links[0]!.getAttribute('href')).toBe('https://github.com/ehud-am/vizoalica');
-    expect(links[1]!.getAttribute('href')).toBe('https://www.npmjs.com/package/vizoalica');
+    expect(screen.getByRole('link', { name: /^vizoalica\.dev:/ }).getAttribute('href')).toBe(
+      'https://vizoalica.dev'
+    );
+    expect(screen.getByRole('link', { name: /^GitHub:/ }).getAttribute('href')).toBe(
+      'https://github.com/ehud-am/vizoalica'
+    );
   });
 
   it('opens every link in a new tab without leaking the opener, with a distinct name', () => {
     render(<AppFooter />);
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(VIZOALICA_LINKS.length + PROJECT_LINKS.length);
+    expect(links).toHaveLength(FOOTER_LINKS.length);
     for (const link of links) {
       expect(link.getAttribute('target')).toBe('_blank');
       expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-      expect(link.getAttribute('href')).toMatch(/^https:\/\//);
+      expect(link.getAttribute('aria-label')).toMatch(/\(opens in a new tab\)$/);
     }
-    const names = links.map((link) => link.getAttribute('aria-label'));
-    expect(new Set(names).size).toBe(names.length);
+    expect(new Set(links.map((link) => link.getAttribute('aria-label'))).size).toBe(links.length);
   });
 
-  it('ends with the year, the product, and the version', () => {
+  it('hides the separators from assistive technology', () => {
     render(<AppFooter />);
-    expect(screen.getByText(`© ${new Date().getFullYear()} Vizoalica`)).toBeTruthy();
-    expect(screen.getByText('Version 0.6.3')).toBeTruthy();
-  });
-
-  it('says so when the version is unavailable', () => {
-    vi.stubGlobal('__VIZOALICA_VERSION__', 'weird');
-    render(<AppFooter />);
-    expect(screen.getByText('Version unavailable')).toBeTruthy();
-  });
-
-  it('makes no request when it renders', () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    render(<AppFooter />);
-    expect(fetchMock).not.toHaveBeenCalled();
+    const separators = screen.getByRole('contentinfo').querySelectorAll('[aria-hidden="true"]');
+    expect(separators).toHaveLength(2);
   });
 });

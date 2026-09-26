@@ -4,19 +4,17 @@ import { mockConsole } from './mock-console.js';
 
 const origin = 'http://127.0.0.1:4173';
 
-test('shows the footer on Overview and Manage', async ({ page }) => {
+test('shows a one-line footer on Overview and Manage', async ({ page }) => {
   await mockConsole(page);
   for (const address of ['analytics/overview', 'manage/websites']) {
     await page.goto(`/#/${address}`);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     const footer = page.getByRole('contentinfo');
     await expect(footer).toBeVisible();
-    await expect(
-      footer.getByText('Privacy-first analytics that runs in your own Cloudflare account.')
-    ).toBeVisible();
-    await expect(footer.getByRole('navigation', { name: 'Vizoalica' })).toBeVisible();
-    await expect(footer.getByRole('navigation', { name: 'Project' })).toBeVisible();
-    await expect(footer.getByText(/^Version \d+\.\d+\.\d+/)).toBeVisible();
+    await expect(footer).toHaveText('Vizoalica·vizoalica.dev·GitHub');
+    await expect(footer.getByRole('link')).toHaveCount(2);
+    await expect(footer.getByRole('navigation')).toHaveCount(0);
+    await expect(footer).not.toContainText(/Version|©|Privacy-first/);
   }
 });
 
@@ -25,15 +23,15 @@ test('shows the footer when the console cannot reach its service', async ({ page
   await page.goto('/');
   await expect(page.getByText('Workspace unavailable')).toBeVisible();
   await expect(
-    page.getByRole('contentinfo').getByRole('link', { name: /^Website:/ })
+    page.getByRole('contentinfo').getByRole('link', { name: /^vizoalica\.dev:/ })
   ).toBeVisible();
 });
 
-test('points at the website and the project', async ({ page }) => {
+test('points at the website and the repository', async ({ page }) => {
   await mockConsole(page);
   await page.goto('/');
   const footer = page.getByRole('contentinfo');
-  await expect(footer.getByRole('link', { name: /^Website:/ })).toHaveAttribute(
+  await expect(footer.getByRole('link', { name: /^vizoalica\.dev:/ })).toHaveAttribute(
     'href',
     'https://vizoalica.dev'
   );
@@ -43,13 +41,9 @@ test('points at the website and the project', async ({ page }) => {
   );
 });
 
-for (const [width, columns] of [
-  [320, 1],
-  [768, 2],
-  [1440, 3]
-] as const) {
+for (const width of [320, 768, 1440] as const) {
   for (const scheme of ['light', 'dark'] as const) {
-    test(`reflows without overflow at ${width}px in ${scheme}`, async ({ page }) => {
+    test(`is one line without overflow at ${width}px in ${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await mockConsole(page);
       await page.setViewportSize({ width, height: 900 });
@@ -59,14 +53,18 @@ for (const [width, columns] of [
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
       );
       expect(overflow).toBeLessThanOrEqual(1);
-      const tops = await page
-        .locator('.app-footer-inner > *')
-        .evaluateAll(
-          (items) => new Set(items.map((item) => Math.round(item.getBoundingClientRect().top))).size
-        );
-      // One row of columns on a wide screen; stacked on a phone.
-      if (columns === 1) expect(tops).toBe(3);
-      if (columns === 3) expect(tops).toBe(1);
+      // The three items share one row wherever they fit, and never overlap where they wrap.
+      const boxes = await page.locator('.app-footer-line > *').evaluateAll((items) =>
+        items.map((item) => {
+          const box = item.getBoundingClientRect();
+          return { top: Math.round(box.top), left: box.left, right: box.right };
+        })
+      );
+      expect(boxes).toHaveLength(3);
+      if (width >= 768) expect(new Set(boxes.map((box) => box.top)).size).toBe(1);
+      for (const [index, box] of boxes.entries())
+        if (index > 0 && boxes[index - 1]!.top === box.top)
+          expect(box.left).toBeGreaterThanOrEqual(boxes[index - 1]!.right - 0.5);
     });
   }
 }
@@ -87,7 +85,7 @@ test('is fully keyboard reachable with a visible focus ring', async ({ page }) =
   await page.goto('/');
   const links = page.getByRole('contentinfo').getByRole('link');
   const count = await links.count();
-  expect(count).toBe(10);
+  expect(count).toBe(2);
   await links.first().focus();
   for (let index = 0; index < count; index += 1) {
     const focused = page.locator(':focus');

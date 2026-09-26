@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   deleteWebsite,
+  getAnalyticsOverview,
   getReachability,
   getStatus,
   updateWebsite,
@@ -18,6 +19,7 @@ import { hrefFor, navigate } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
 import { FlashMessage, useFlash } from '../shell/FlashProvider.js';
 import { useSetup } from '../setup/SetupProvider.js';
+import { presetToRange } from '../time-range.js';
 import { DangerZone } from './DangerZone.js';
 import { SharePanel } from './SharePanel.js';
 import { nextStep } from './HealthPage.js';
@@ -32,6 +34,8 @@ function WebsiteHub({ website }: { website: Website }) {
   const [status, setStatus] = useState<Status>();
   const [reachability, setReachability] = useState<Reachability>();
   const [checked, setChecked] = useState<'loading' | 'done' | 'failed'>('loading');
+  // Page views in the last day, for "is it installed?". Undefined until known, or if it cannot be.
+  const [recent, setRecent] = useState<number>();
   const [pending, setPending] = useState<Pending>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +45,12 @@ function WebsiteHub({ website }: { website: Website }) {
     setStatus(undefined);
     setReachability(undefined);
     setChecked('loading');
+    setRecent(undefined);
     let cancelled = false;
+    const range = presetToRange('24h');
+    getAnalyticsOverview(projectId, website.id, range.startUtc, range.endUtc)
+      .then((overview) => !cancelled && setRecent(overview.totals.pageViews))
+      .catch(() => undefined);
     Promise.all([
       getStatus(projectId, website.id),
       getReachability(projectId, website.id).catch(() => undefined)
@@ -196,6 +205,39 @@ function WebsiteHub({ website }: { website: Website }) {
               {reachability && <WebsiteReachability reachability={reachability} bare />}
             </>
           )}
+          {website.status === 'active' && (
+            <ActionButton
+              capability="toggle-website"
+              className="secondary"
+              disabled={busy}
+              onClick={() => setPending('disable')}
+            >
+              Disable website…
+            </ActionButton>
+          )}
+        </section>
+
+        <section className="detail-card" aria-labelledby="website-install-heading">
+          <h2 id="website-install-heading">Install</h2>
+          {recent === undefined ? (
+            <p className="hint">Not checked yet. Open the install steps to add it to your site.</p>
+          ) : recent > 0 ? (
+            <p className="notice success" role="status">
+              <strong>Installed.</strong> {recent.toLocaleString()}{' '}
+              {recent === 1 ? 'page view' : 'page views'} in the last 24 hours.
+            </p>
+          ) : (
+            <p className="hint">
+              No page views in the last 24 hours. If you have not installed it yet, start with the
+              install steps.
+            </p>
+          )}
+          <a
+            className={`${recent && recent > 0 ? 'secondary' : 'primary'} button-link`}
+            href={hrefFor('manage/websites/:id/install', website.id)}
+          >
+            {recent && recent > 0 ? 'Install steps and check' : 'Install this website'}
+          </a>
         </section>
       </div>
 
@@ -205,18 +247,8 @@ function WebsiteHub({ website }: { website: Website }) {
 
       <DangerZone
         target={website.name}
-        description="Disabling stops collection but keeps history. Deleting removes the website and all of its data."
+        description="Deleting removes the website and all of its data. The tag on your live site will stop recording, and keeps asking quietly until you take it out."
       >
-        {website.status === 'active' && (
-          <ActionButton
-            capability="toggle-website"
-            className="secondary"
-            disabled={busy}
-            onClick={() => setPending('disable')}
-          >
-            Disable website…
-          </ActionButton>
-        )}
         <ActionButton
           capability="delete-website"
           className="danger"
@@ -238,6 +270,10 @@ function WebsiteHub({ website }: { website: Website }) {
           <p>
             This deletes <strong>{website.name}</strong> and is permanent: its data, analytics and
             audit entries are removed within a day.
+          </p>
+          <p>
+            The Vizoalica tag on your live site will stop recording, and it will not show an error.
+            Remove it from your pages if you no longer want it there.
           </p>
         </ConfirmDialog>
       )}

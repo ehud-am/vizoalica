@@ -30,7 +30,9 @@ const primaryWebsite: Website = {
 };
 
 const staticSnippet =
-  '<script async src="https://docs.example.com/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key" data-project="project-1" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>';
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key"></script>';
+const customizeSnippet =
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key" data-project="project-1" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>';
 
 export const primaryIntegration: Integration = {
   projectId: primaryProject.id,
@@ -39,14 +41,23 @@ export const primaryIntegration: Integration = {
   allowedOrigins: primaryWebsite.allowedOrigins,
   html: staticSnippet,
   modes: [
-    { id: 'static', snippet: staticSnippet },
+    {
+      id: 'static',
+      snippet: staticSnippet,
+      customize: customizeSnippet,
+      defaults: {
+        'data-token-url': '/vizoalica/ingest-token',
+        'data-consent': 'unknown',
+        'data-project': 'taken from the source key'
+      }
+    },
     {
       id: 'dynamic',
       snippet: '<script async src="/vizoalica-loader.js"></script>',
       configUrl: '/vizoalica/config.json',
       config: {
         version: 1,
-        src: 'https://docs.example.com/vizoalica.js',
+        src: '/vizoalica.js',
         'data-endpoint': 'https://worker.test/v1/events:batch',
         'data-source': 'public-key',
         'data-project': primaryProject.id,
@@ -54,23 +65,32 @@ export const primaryIntegration: Integration = {
         'data-consent': 'unknown'
       },
       cloudflare: {
-        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2',
+        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3',
         repoVariables: {
-          VIZOALICA_SDK_SRC: 'https://docs.example.com/vizoalica.js',
+          VIZOALICA_SITE:
+            '{"endpoint":"https://worker.test/v1/events:batch","sourceKey":"public-key","projectId":"project-1","sourceId":"site-1","origins":["https://docs.example.com"]}'
+        },
+        expandedRepoVariables: {
           VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
           VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key',
           VIZOALICA_PROJECT_ID: primaryProject.id,
-          VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
-          VIZOALICA_CONSENT: 'unknown',
           VIZOALICA_SOURCE_ID: primaryWebsite.id,
           VIZOALICA_SITE_ORIGINS: 'https://docs.example.com'
         },
+        defaults: {
+          VIZOALICA_SDK_SRC: '/vizoalica.js',
+          VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+          VIZOALICA_CONSENT: 'unknown'
+        },
+        summary: { publicValues: 3, secrets: 2 },
+        accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
         accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
         repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
         starterWorkflowYaml:
-          'name: Deploy website\non:\n  push:\n    branches: [main]\n    paths: ["YOUR_SITE_DIRECTORY/**"]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.6.2\n    with:\n      site-directory: YOUR_SITE_DIRECTORY\n    secrets: inherit',
+          'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3\n    secrets: inherit',
         setupCommands: [
-          'gh variable set VIZOALICA_SDK_SRC --body "https://docs.example.com/vizoalica.js"',
+          `gh variable set VIZOALICA_SITE --body '{"endpoint":"https://worker.test/v1/events:batch"}'`,
+          'gh variable set CF_ACCOUNT_ID --body YOUR_CF_ACCOUNT_ID',
           'gh secret set CF_API_TOKEN'
         ],
         warnings: ['Public values are not secrets.', 'Enable only one installation mode.']

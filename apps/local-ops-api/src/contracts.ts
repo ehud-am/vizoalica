@@ -36,11 +36,19 @@ export type DynamicConfigV1 = {
   src: string;
   'data-endpoint': string;
   'data-source': string;
-  'data-project': string;
-  'data-token-url': string;
-  'data-consent': ConsentState;
+  'data-project'?: string;
+  'data-token-url'?: string;
+  'data-consent'?: ConsentState;
 };
-export type StaticInstallation = { id: 'static'; snippet: string };
+export type StaticInstallation = {
+  id: 'static';
+  /** The recommended embed: only what is unique to the website, everything else defaulted. */
+  snippet: string;
+  /** The same embed with every default written out, for people who want to override one. */
+  customize: string;
+  /** The defaults the short embed leaves out, with their values. */
+  defaults: Record<string, string>;
+};
 /**
  * Guidance for the CI/CD (GitHub Actions) deployment path. `repoVariables` holds
  * values Vizoalica already knows and can prefill; `accountSpecificVariables` and
@@ -49,7 +57,16 @@ export type StaticInstallation = { id: 'static'; snippet: string };
  */
 export type CloudflareGuidance = {
   workflowRef: string;
+  /** What must be added: one public value that bundles this website's public settings. */
   repoVariables: Record<string, string>;
+  /** The same settings as separate variables, for people who prefer them or already use them. */
+  expandedRepoVariables: Record<string, string>;
+  /** Optional variables that are left out because they have a default, with that default. */
+  defaults: Record<string, string>;
+  /** How many values the person adds in total. */
+  summary: { publicValues: number; secrets: number };
+  /** One command that prints the Cloudflare account ID and the Pages projects. */
+  accountLookupCommand: string;
   accountSpecificVariables: string[];
   repoSecretNames: string[];
   starterWorkflowYaml: string;
@@ -64,10 +81,23 @@ export type DynamicInstallation = {
   cloudflare: CloudflareGuidance;
 };
 export type InstallationGuidance = IntegrationSnippet;
+export type InstallCode =
+  | 'ok'
+  | 'site-unreachable'
+  | 'site-redirects'
+  | 'sdk-file-missing'
+  | 'token-endpoint-missing'
+  | 'token-endpoint-rejecting'
+  | 'origin-not-allowed'
+  | 'config-file-missing';
+/** What the install check found, as one code and the single next thing to do. */
+export type InstallCheck = { code: InstallCode; nextAction: string };
 export type ReachabilityStatus = {
   configEndpointReachable: boolean;
   configEndpointCheckedAt: string;
   configEndpointError: string | null;
+  /** Present when the route ran the install probes. */
+  install?: InstallCheck;
 };
 export type OperationalStatus = {
   sourceId: string;
@@ -121,10 +151,11 @@ export function isDynamicConfigV1(value: unknown): value is DynamicConfigV1 {
     config['data-source'].length >= 1 &&
     config['data-source'].length <= 256 &&
     !/[\u0000-\u001f]/.test(config['data-source']) &&
-    typeof config['data-project'] === 'string' &&
-    isSafeId(config['data-project']) &&
-    typeof config['data-token-url'] === 'string' &&
-    (config['data-consent'] === 'analytics-granted' ||
+    (config['data-project'] === undefined ||
+      (typeof config['data-project'] === 'string' && isSafeId(config['data-project']))) &&
+    (config['data-token-url'] === undefined || typeof config['data-token-url'] === 'string') &&
+    (config['data-consent'] === undefined ||
+      config['data-consent'] === 'analytics-granted' ||
       config['data-consent'] === 'analytics-denied' ||
       config['data-consent'] === 'unknown')
   );

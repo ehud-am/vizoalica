@@ -62,55 +62,80 @@ const concrete = ROUTES.map((route) => ({
   controls: scopeControls(route.path)
 }));
 
+const projectButton = () => screen.findByRole('button', { name: /^Project/ });
+async function switchProject(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+  await user.click(await projectButton());
+  await user.click(screen.getByRole('menuitemradio', { name }));
+}
+
 describe('single scope control', () => {
   it.each(concrete.map((route) => [route.address, route.controls]))(
-    '%s shows scope controls in the shell only as its route declares (%s)',
+    '%s is scoped by the header, and its bar holds only what its route declares (%s)',
     async (address, controls) => {
       window.location.hash = `#/${address}`;
       render(<App />);
       await screen.findByRole('heading', { level: 1 });
+      // The environment and the project are chosen once, in the header, on every page but Projects.
+      const header = screen.getByRole('group', { name: 'Environment and project' });
+      expect(within(header).getAllByRole('button', { name: /^Environment/ })).toHaveLength(1);
+      expect(within(header).queryAllByRole('button', { name: /^Project/ })).toHaveLength(
+        address === 'manage/projects' ? 0 : 1
+      );
+      // The bar under it never has a project picker; it has a website filter where the route says.
       const bar = screen.queryByRole('region', { name: 'Scope' });
-      if (controls === 'none') expect(bar).toBeNull();
-      else {
-        const shell = bar!;
-        expect(within(shell).getAllByLabelText('Project')).toHaveLength(1);
-        expect(within(shell).queryAllByLabelText('Website')).toHaveLength(
-          controls === 'project-website' ? 1 : 0
-        );
-      }
-      // Outside the shell there is at most the add-website form's explicit project field, or the
-      // Access page's own project selector for a key scoped to one project or website.
+      expect(bar ? within(bar).queryAllByLabelText('Project') : []).toHaveLength(0);
+      expect(bar ? within(bar).queryAllByLabelText('Website') : []).toHaveLength(
+        controls === 'project-website' ? 1 : 0
+      );
+      // No page draws a project picker of its own; Access has one for a key's scope.
       const outside = Array.from(document.querySelectorAll('main select')).filter(
-        (select) =>
-          !select.closest('form[aria-label="Add website"]') &&
-          !select.closest('[data-page="access"]')
+        (select) => !select.closest('[data-page="access"]')
       );
       expect(outside).toHaveLength(0);
     }
   );
 
-  it('hides the project controls on Projects and the time range outside Analytics', async () => {
+  it('hides the project menu on Projects and the time range outside Analytics', async () => {
     window.location.hash = '#/manage/projects';
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: 'Projects' });
-    expect(screen.queryByRole('region', { name: 'Scope' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Project/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Environment/ })).toBeTruthy();
     window.location.hash = '#/manage/websites';
-    const bar = await scopeBar();
-    expect(within(bar).queryByRole('button', { name: /^Last/ })).toBeNull();
+    await projectButton();
+    expect(screen.queryByRole('button', { name: /^Last/ })).toBeNull();
     window.location.hash = '#/analytics/overview';
     expect(await within(await scopeBar()).findByRole('button', { name: /^Last/ })).toBeTruthy();
+  });
+
+  it('lists the environment’s projects in the menu, marks the current one, and ends with All projects', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await projectButton());
+    const menu = screen.getByRole('menu', { name: 'Project' });
+    const items = within(menu).getAllByRole('menuitemradio');
+    expect(items.map((item) => item.querySelector('.menu-item-label')!.textContent)).toEqual([
+      'Acme',
+      'Beta'
+    ]);
+    expect(items[0]!.getAttribute('aria-checked')).toBe('true');
+    // It only switches: the one way to make or remove a project is the Projects page.
+    const links = within(menu).getAllByRole('menuitem');
+    expect(links.map((link) => link.textContent)).toEqual(['All projects…']);
+    expect(links[0]!.getAttribute('href')).toBe('#/manage/projects');
+    expect(within(menu).queryByRole('textbox')).toBeNull();
   });
 
   it('keeps the scope across screens and restores it after a reload', async () => {
     const user = userEvent.setup();
     render(<App />);
+    await switchProject(user, /Beta/);
     const bar = await scopeBar();
-    await user.selectOptions(within(bar).getByLabelText('Project'), 'p2');
     await within(bar).findByRole('option', { name: 'Shop' });
     await user.selectOptions(within(bar).getByLabelText('Website'), 's3');
     await user.click(screen.getByRole('link', { name: 'Health' }));
     expect(await screen.findByRole('heading', { name: 'Shop' })).toBeTruthy();
-    expect((within(bar).getByLabelText('Project') as HTMLSelectElement).value).toBe('p2');
+    expect((await projectButton()).textContent).toContain('Beta');
     await user.click(screen.getByRole('link', { name: 'Geography' }));
     await waitFor(() =>
       expect(api.getAnalyticsOverview).toHaveBeenLastCalledWith(
@@ -129,7 +154,16 @@ describe('single scope control', () => {
     await waitFor(() =>
       expect((within(restored).getByLabelText('Website') as HTMLSelectElement).value).toBe('s3')
     );
-    expect((within(restored).getByLabelText('Project') as HTMLSelectElement).value).toBe('p2');
+    expect((await projectButton()).textContent).toContain('Beta');
+  });
+
+  it('leaves a website’s own page when another project is chosen, so it never shows under the wrong one', async () => {
+    window.location.hash = '#/manage/websites/s1/edit';
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Edit Docs/ });
+    await switchProject(user, /Beta/);
+    await waitFor(() => expect(window.location.hash).toBe('#/manage/websites'));
   });
 
   it('does not refetch analytics when moving between Analytics views in the same scope', async () => {
@@ -163,7 +197,11 @@ describe('single scope control', () => {
       render(<App />);
       const link = await screen.findByRole('link', { name: 'Create a project' });
       expect(link.getAttribute('href')).toBe('#/manage/projects');
-      if (route.controls !== 'none') expect(screen.getByText('No project yet')).toBeTruthy();
+      // The header says the same: its menu offers the one way in, and nothing else does.
+      if (route.address !== 'manage/projects') {
+        const menu = await screen.findByRole('button', { name: /^Project/ });
+        expect(menu.textContent).toContain('No project yet');
+      }
       cleanup();
     }
   });

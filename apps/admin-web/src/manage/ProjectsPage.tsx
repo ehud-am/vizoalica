@@ -91,7 +91,10 @@ export function ProjectsPage() {
         <div>
           <p className="eyebrow">Manage</p>
           <h1>Projects</h1>
-          <p>Projects are the ownership boundary for websites and analytics.</p>
+          <p>
+            Projects are the ownership boundary for websites and analytics. This is the only place
+            to create or delete one; the project menu at the top switches between them.
+          </p>
         </div>
         <button
           className="secondary"
@@ -106,7 +109,7 @@ export function ProjectsPage() {
 
       <section className="panel project-create-panel" aria-labelledby="create-project-heading">
         <div>
-          <h2 id="create-project-heading">Create a project</h2>
+          <h2 id="create-project-heading">New project</h2>
           <p>Projects keep each group of websites and analytics isolated.</p>
         </div>
         <form className="project-create-form" onSubmit={(event) => void addProject(event)}>
@@ -142,6 +145,11 @@ export function ProjectsPage() {
                     <h2>{project.name}</h2>
                     <code>{project.id}</code>
                   </div>
+                  {project.id === scope.projectId && (
+                    <span className="menu-badge" data-current="true">
+                      Current
+                    </span>
+                  )}
                 </div>
                 <p>
                   {project.websiteCount === undefined
@@ -152,18 +160,10 @@ export function ProjectsPage() {
                   <a
                     className="secondary button-link"
                     href={hrefFor('manage/websites')}
-                    aria-label={`Manage websites in ${project.name} (${project.id})`}
+                    aria-label={`Open ${project.name} (${project.id})`}
                     onClick={() => scope.selectProject(project.id)}
                   >
-                    Manage websites
-                  </a>
-                  <a
-                    className="secondary button-link"
-                    href={hrefFor('analytics/overview')}
-                    aria-label={`View analytics for ${project.name} (${project.id})`}
-                    onClick={() => scope.selectProject(project.id)}
-                  >
-                    View analytics
+                    Open
                   </a>
                 </div>
                 <DangerZone
