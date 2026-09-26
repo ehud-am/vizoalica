@@ -55,7 +55,9 @@ export function CountryTable({ data }: { data: LocationData }) {
               <tr key={row.key}>
                 <th scope="row">
                   {row.name}
-                  {row.code && <span className="secondary-text"> {row.code}</span>}
+                  {/* The space sits outside the span so the accessible name reads "Germany DE". */}
+                  {row.code && ' '}
+                  {row.code && <span className="secondary-text">{row.code}</span>}
                 </th>
                 <td className="numeric">{formatNumber(row.count)}</td>
                 <td className="numeric">{formatShare(row.count, data.total)}</td>
