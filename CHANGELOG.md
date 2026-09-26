@@ -4,6 +4,13 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The docs site's analytics needs five repository variables, not eight.** `prepare-analytics.mjs` now defaults
+  `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL` (`/vizoalica/ingest-token`) and `VIZOALICA_CONSENT`
+  (`unknown`) like the deploy workflow does, so those three variables can be deleted. Nothing in the npm package
+  changes.
+
 ## [0.7.3] - 2026-09-25
 
 ### Changed

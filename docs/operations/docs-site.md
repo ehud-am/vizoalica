@@ -129,10 +129,11 @@ exactly as before, with no consent prompt and no analytics.
 1. In the console, create a website for `https://vizoalica.dev` (the exact origin, no trailing slash).
    Its **Install** page lists the values below.
 2. Add these public repository **variables** (Settings → Secrets and variables → Actions → Variables):
-   `VIZOALICA_SDK_SRC` (`https://vizoalica.dev/vizoalica.js`), `VIZOALICA_INGEST_ENDPOINT`,
-   `VIZOALICA_PUBLIC_SOURCE_KEY`, `VIZOALICA_PROJECT_ID`, `VIZOALICA_TOKEN_URL`
-   (`/vizoalica/ingest-token`), `VIZOALICA_CONSENT` (`analytics-granted`, recorded because the loader
-   runs only after the visitor allows it), `VIZOALICA_SOURCE_ID`, and `VIZOALICA_SITE_ORIGINS`.
+   `VIZOALICA_INGEST_ENDPOINT`, `VIZOALICA_PUBLIC_SOURCE_KEY`, `VIZOALICA_PROJECT_ID`,
+   `VIZOALICA_SOURCE_ID`, and `VIZOALICA_SITE_ORIGINS`. Three more follow conventions and are only set to
+   change them: `VIZOALICA_SDK_SRC` (default `/vizoalica.js`), `VIZOALICA_TOKEN_URL` (default
+   `/vizoalica/ingest-token`) and `VIZOALICA_CONSENT` (default `unknown`; use `analytics-granted` to record
+   that the visitor allowed it, since the loader runs only after they do).
 3. Add one **secret**, `VIZOALICA_TOKEN_SECRET`: the same value your Worker uses to verify tokens
    (`gh secret set VIZOALICA_TOKEN_SECRET`). It is given to the Pages project by the publish step and
    never written to a file or to the site.

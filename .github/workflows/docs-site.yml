@@ -115,16 +115,14 @@ jobs:
       - name: Build the browser SDK
         run: pnpm browser-sdk:build
 
-      # Adds the SDK, the loader, the token Functions and the public settings. Only public values.
+      # Adds the SDK, the loader, the token Functions and the public settings. Only public values. The
+      # SDK path, token path and consent state are defaulted (see docs/scripts/prepare-analytics.mjs).
       - name: Add Vizoalica analytics
         env:
           PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
-          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
           VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
           VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
-          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
-          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
           VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
           VIZOALICA_SITE_ORIGINS: ${{ vars.VIZOALICA_SITE_ORIGINS }}
         run: node docs/scripts/prepare-analytics.mjs
