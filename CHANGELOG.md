@@ -4,12 +4,21 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-09-26
+
 ### Changed
 
-- **The docs site's analytics needs five repository variables, not eight.** `prepare-analytics.mjs` now defaults
+- **Development dependencies are current**, including jsdom 30, eslint 10.11, wrangler 4.136 and the `actionlint`
+  step in CI. The package's runtime code is unchanged.
+- **The docs site's analytics needs five settings, not eight.** `prepare-analytics.mjs` now defaults
   `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL` (`/vizoalica/ingest-token`) and `VIZOALICA_CONSENT`
-  (`unknown`) like the deploy workflow does, so those three variables can be deleted. Nothing in the npm package
-  changes.
+  (`unknown`) like the deploy workflow does, and the docs workflow reads the identifying values from secrets.
+  This affects this repository's own docs publish only.
+
+### Fixed
+
+- **The Geography table's location names read correctly to assistive technology** ("Germany DE") whichever DOM
+  implementation renders them: the space now sits outside the code's span.
 
 ## [0.7.3] - 2026-09-25
 
