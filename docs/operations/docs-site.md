@@ -137,12 +137,12 @@ exactly as before, with no consent prompt and no analytics.
    `VIZOALICA_SOURCE_ID`, and `VIZOALICA_SITE_ORIGINS`. Three more follow conventions and are only set to
    change them: `VIZOALICA_SDK_SRC` (default `/vizoalica.js`), `VIZOALICA_TOKEN_URL` (default
    `/vizoalica/ingest-token`) and `VIZOALICA_CONSENT` (default `unknown`; use `analytics-granted` to record
-   that the visitor allowed it, since the loader runs only after they do).
+   that the visitor allowed it; the site runs analytics unless the visitor turns it off or sends a privacy signal).
 3. Add one **secret**, `VIZOALICA_TOKEN_SECRET`: the same value your Worker uses to verify tokens
    (`gh secret set VIZOALICA_TOKEN_SECRET`). It is given to the Pages project by the publish step and
    never written to a file or to the site.
 4. Run the workflow. Then check with `pnpm website:verify -- https://vizoalica.dev PROJECT_ID SOURCE_ID --mode dynamic`,
-   open the site, choose **Allow analytics**, and watch the event arrive in the console.
+   open the site (analytics is on by default; **Turn off** in the corner stops it), and watch the event arrive in the console.
 
 Remove it by deleting `VIZOALICA_INGEST_ENDPOINT` and publishing again. Rotating the signing secret
 follows [the activation guide](./pages.md#rotate-or-remove): change it on the Worker and here together.

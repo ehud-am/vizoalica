@@ -93,6 +93,10 @@ for (const scheme of ['light', 'dark'] as const) {
 test('loads nothing from another origin, and the Content-Security-Policy blocks nothing it needs', async ({
   page
 }) => {
+  // Analytics is on by default, and the placeholder build has no loader, so give the page an inert one.
+  await page.route('**/vizoalica-loader.js', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: '' })
+  );
   const problems = await collectProblems(page);
   for (const path of PAGES) {
     await page.goto(path);
@@ -240,46 +244,35 @@ test.describe('analytics consent', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     test.skip(
-      (await page.getByRole('region', { name: /improve these docs/i }).count()) === 0 &&
-        (await page.getByRole('button', { name: /^Analytics:/ }).count()) === 0,
+      (await page.getByRole('button', { name: /^Analytics:/ }).count()) === 0,
       'built without analytics'
     );
   });
 
-  test('asks first, and loads nothing from Vizoalica until analytics is allowed', async ({
+  test('is on by default: the loader runs without a prompt, and it can be turned off', async ({
     page
   }) => {
-    const requested: string[] = [];
-    page.on('request', (request) => requested.push(request.url()));
-    await page.reload();
-    await expect(page.getByRole('region', { name: /improve these docs/i })).toBeVisible();
-    await page.waitForLoadState('networkidle');
-    expect(requested.filter((url) => /vizoalica-loader|vizoalica\/config/.test(url))).toEqual([]);
-  });
-
-  test('"No thanks" is remembered and loads nothing, and the choice can be changed', async ({
-    page
-  }) => {
-    const requested: string[] = [];
-    page.on('request', (request) => requested.push(request.url()));
-    await page.getByRole('button', { name: 'No thanks' }).click();
-    await page.reload();
-    await expect(page.getByRole('region', { name: /improve these docs/i })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Analytics: off. Change' })).toBeVisible();
-    expect(requested.filter((url) => /vizoalica-loader/.test(url))).toEqual([]);
-    await page.getByRole('button', { name: 'Analytics: off. Change' }).click();
-    await expect(page.getByRole('region', { name: /improve these docs/i })).toBeVisible();
-  });
-
-  test('"Allow analytics" loads the loader, and only then', async ({ page }) => {
     await page.route('**/vizoalica-loader.js', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: 'window.__loaderRan = true;' })
     );
-    await page.getByRole('button', { name: 'Allow analytics' }).click();
+    await page.reload();
+    await expect(page.getByRole('region', { name: /improve these docs/i })).toHaveCount(0);
     await expect
       .poll(() => page.evaluate(() => (window as { __loaderRan?: boolean }).__loaderRan))
       .toBe(true);
+    await page.getByRole('button', { name: 'Analytics: on. Change' }).click();
+    await expect(page.getByRole('region', { name: /improve these docs/i })).toBeVisible();
+  });
+
+  test('"Turn off" is remembered and loads nothing afterwards', async ({ page }) => {
+    const requested: string[] = [];
+    await page.getByRole('button', { name: 'Analytics: on. Change' }).click();
+    await page.getByRole('button', { name: 'Turn off' }).click(); // reloads without the loader
+    await page.waitForLoadState('load');
+    page.on('request', (request) => requested.push(request.url()));
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Analytics: on. Change' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Analytics: off. Change' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(requested.filter((url) => /vizoalica-loader/.test(url))).toEqual([]);
   });
 });

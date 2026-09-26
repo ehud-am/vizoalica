@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue';
 
 // Set at build time (see config.mts): false unless the site is being built for a Vizoalica
-// backend, in which case this component renders nothing and loads nothing.
+// backend, in which case this component renders nothing and loads nothing. When it is true,
+// analytics runs unless the visitor turned it off or their browser sends a privacy signal.
 declare const __VIZOALICA_ANALYTICS__: boolean;
 
 const KEY = 'vizoalica-docs-analytics';
@@ -10,7 +11,7 @@ type Choice = 'granted' | 'denied';
 
 const enabled = __VIZOALICA_ANALYTICS__;
 const choice = ref<Choice | undefined>();
-const asking = ref(false);
+const asking = ref(false); // only true while the visitor is changing the choice
 const privacySignal = ref(false);
 const heading = ref<HTMLElement>();
 
@@ -60,9 +61,9 @@ onMounted(() => {
     choice.value = 'denied';
     return;
   }
-  choice.value = stored();
+  // On by default: only a stored "denied" (or a privacy signal, above) keeps it off.
+  choice.value = stored() ?? 'granted';
   if (choice.value === 'granted') load();
-  else if (choice.value === undefined) asking.value = true;
 });
 </script>
 
@@ -71,14 +72,14 @@ onMounted(() => {
     <section v-if="asking" class="analytics-card" aria-labelledby="analytics-consent-title">
       <h2 id="analytics-consent-title" ref="heading" tabindex="-1">Help improve these docs?</h2>
       <p>
-        We would like to count page views with Vizoalica, the open-source analytics this site
-        documents. It sets no cookies and stores no personal data, and it stays off unless you allow
-        it.
+        We count page views with Vizoalica, the open-source analytics this site documents. It sets
+        no cookies and stores no personal data. It is on by default, and you can turn it off here at
+        any time.
         <a href="/operations/privacy">How Vizoalica handles privacy</a>
       </p>
       <div class="analytics-actions">
-        <button type="button" class="allow" @click="decide('granted')">Allow analytics</button>
-        <button type="button" @click="decide('denied')">No thanks</button>
+        <button type="button" class="allow" @click="decide('granted')">Keep analytics on</button>
+        <button type="button" @click="decide('denied')">Turn off</button>
       </div>
     </section>
     <button
