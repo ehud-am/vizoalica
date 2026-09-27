@@ -27,6 +27,8 @@ export type BackendOptions = {
   worker: string;
   database: string;
   bucket: string;
+  /** File under deploy/cloudflare that holds this install's Wrangler config. */
+  configFile?: string;
 };
 export type BackendResult = {
   workerUrl: string;
@@ -60,7 +62,8 @@ export async function setUpBackend(ctx: Ctx, options: BackendOptions): Promise<B
   const wr = (args: readonly string[], extra: Parameters<Ctx['run']>[1] = {}): Promise<RunResult> =>
     ctx.run(args, { ...extra, env });
   const deployDir = join(ctx.cwd, 'deploy', 'cloudflare');
-  const configPath = join(deployDir, 'wrangler.production.toml');
+  const configFile = options.configFile ?? 'wrangler.production.toml';
+  const configPath = join(deployDir, configFile);
   const configArgs = ['--config', configPath];
 
   step(ctx, 'Building Vizoalica…');
@@ -235,15 +238,20 @@ export async function setUpBackend(ctx: Ctx, options: BackendOptions): Promise<B
   }
 
   async function update(): Promise<BackendResult> {
-    if (!existingDatabase || !existingBucket)
+    if (!existingDatabase || !existingBucket) {
+      // Backends made by `vizoalica deploy <env>` are named `<env>-vizoalica-…`; point at them.
+      const environments = databases
+        .map((item) => /^([a-z][a-z0-9-]*)-vizoalica-db$/.exec(item.name)?.[1])
+        .filter((name): name is string => !!name);
+      const hint = environments.length
+        ? `\nThis account has backends for: ${environments.join(', ')}. Update one with --env <name>, for example: pnpm vizoalica backend --update --env ${environments[0]}`
+        : '';
       throw new OpsError(
-        `There is nothing to update: "${existingDatabase ? bucket : database}" does not exist on this account.\nAnswer "yes" for a first install, or pass --database, --bucket, and --worker-name to point at your existing install.`
+        `There is nothing to update: "${existingDatabase ? bucket : database}" does not exist on this account.\nAnswer "yes" for a first install, or pass --database, --bucket, and --worker-name to point at your existing install.${hint}`
       );
+    }
     if (!existsSync(configPath)) {
-      step(
-        ctx,
-        'Rebuilding deploy/cloudflare/wrangler.production.toml from your existing install…'
-      );
+      step(ctx, `Rebuilding deploy/cloudflare/${configFile} from your existing install…`);
       const example = readFileSync(join(deployDir, 'wrangler.example.toml'), 'utf8');
       writeFileSync(
         configPath,

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_NAMES,
   assertResourceName,
+  defaultNames,
   parseAccounts,
   parseBuckets,
   parseDatabases,
@@ -12,6 +13,7 @@ import {
   renderProductionConfig,
   setUpBackend
 } from '../../../../scripts/cli/backend.js';
+import { backendOptions } from '../../../../scripts/vizoalica.js';
 import {
   ACCOUNT_ID,
   D1_LIST,
@@ -359,6 +361,36 @@ describe('update', () => {
     await expect(setUpBackend(ctx, { ...options, firstRun: false })).rejects.toThrow(
       /nothing to update/i
     );
+  });
+
+  it('names the environments it finds when the single-install names are absent', async () => {
+    const d1 = JSON.stringify([
+      { uuid: DB_UUID, name: 'prod-vizoalica-db' },
+      { uuid: DB_UUID, name: 'dev-vizoalica-db' }
+    ]);
+    const wrangler = fakeRun({ ...empty(), 'd1 list': { stdout: d1 } });
+    const { ctx } = fakeCtx({ cwd: tempCheckout(), run: wrangler.run });
+    await expect(setUpBackend(ctx, { ...options, firstRun: false })).rejects.toThrow(
+      /backends for: prod, dev\. .*--update --env prod/
+    );
+  });
+
+  it('updates an environment through its own config file, leaving others alone', async () => {
+    const cwd = tempCheckout();
+    const names = defaultNames('prod');
+    const wrangler = fakeRun({
+      ...installed(),
+      'd1 list': { stdout: JSON.stringify([{ uuid: DB_UUID, name: names.database }]) },
+      'r2 bucket list': { stdout: `Listing buckets...\nname:           ${names.bucket}` }
+    });
+    const { ctx } = fakeCtx({ cwd, run: wrangler.run, fetch: workerFetch() });
+    const result = await setUpBackend(ctx, backendOptions({ env: 'prod', update: true }));
+    expect(result.firstRun).toBe(false);
+    expect(result.configPath).toBe(join(cwd, 'deploy/cloudflare/wrangler.env.prod.toml'));
+    expect(readConfigNames(readFileSync(result.configPath, 'utf8'))).toMatchObject(names);
+    expect(existsSync(join(cwd, 'deploy/cloudflare/wrangler.production.toml'))).toBe(false);
+    const deploy = wrangler.calls.find((call) => call.args[0] === 'deploy')!;
+    expect(deploy.args).toContain(result.configPath);
   });
 
   it('refuses when the local config points at a different install', async () => {

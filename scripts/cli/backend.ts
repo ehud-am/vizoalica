@@ -1,5 +1,6 @@
 export {
   DEFAULT_NAMES,
+  defaultNames,
   assertResourceName,
   readConfigNames,
   parseAccounts,

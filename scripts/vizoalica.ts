@@ -13,8 +13,7 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { formatReport, purgeDeleted } from './purge-deleted.js';
-import { DEFAULT_NAMES } from './cli/backend.js';
-import { setUpBackend } from './cli/backend.js';
+import { DEFAULT_NAMES, defaultNames, setUpBackend } from './cli/backend.js';
 import { connectConsole } from './cli/connect.js';
 import { type Ctx, OpsError } from './cli/context.js';
 import { addDemoData, removeDemoData } from './cli/demo.js';
@@ -529,11 +528,19 @@ function guidedContext(
   };
 }
 
-function backendOptions(options: Options) {
+/**
+ * Resource names for `backend`. `--env <name>` targets a backend made by `vizoalica deploy <name>`
+ * (`<name>-vizoalica-…`) and keeps its Wrangler config in its own file, so several environments on
+ * one account can be updated from the same checkout. Without it, the single-install names apply.
+ */
+export function backendOptions(options: Options) {
+  const environment = text(options, 'env');
+  const names = environment ? defaultNames(environment) : DEFAULT_NAMES;
   return {
-    worker: text(options, 'worker-name') ?? DEFAULT_NAMES.worker,
-    database: text(options, 'database') ?? DEFAULT_NAMES.database,
-    bucket: text(options, 'bucket') ?? DEFAULT_NAMES.bucket,
+    worker: text(options, 'worker-name') ?? names.worker,
+    database: text(options, 'database') ?? names.database,
+    bucket: text(options, 'bucket') ?? names.bucket,
+    ...(environment ? { configFile: `wrangler.env.${environment}.toml` } : {}),
     ...(options['first-run'] === true
       ? { firstRun: true }
       : options.update === true
@@ -771,7 +778,10 @@ export function help(): string {
       ['env', 'List, add, update, remove, and check environments (dev, stage, prod)'],
       ['deploy', 'Create a backend for an environment in your Cloudflare account (--apply)'],
       ['console', 'Start the private API and the web console (alias: run)'],
-      ['backend', 'Install or update the Cloudflare backend (asks first install or update)'],
+      [
+        'backend',
+        'Install or update the Cloudflare backend (asks first install or update; --env <name> for an environment)'
+      ],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
       ['demo', 'Add sample data (--remove deletes it)']
     ]),

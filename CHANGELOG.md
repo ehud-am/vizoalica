@@ -4,6 +4,14 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`pnpm vizoalica backend --update --env <name>` updates a backend created by `vizoalica deploy <name>`.**
+  Without it, `--update` looked only for the single-install names (`vizoalica-config`) and reported "nothing to
+  update" on an account whose backends are `prod-vizoalica-…` and `dev-vizoalica-…`. Each environment keeps its
+  Wrangler config in `deploy/cloudflare/wrangler.env.<name>.toml`, and the "nothing to update" message now names
+  the environments it finds on the account.
+
 ## [0.7.5] - 2026-09-27
 
 ### Changed
