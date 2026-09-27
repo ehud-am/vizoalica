@@ -4,6 +4,12 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Top pages name the website each page belongs to** when a project has more than one website and the console
+  shows all websites ("/ · Blog"). The same path on two websites is now two rows, not one merged count. Page
+  rankings gain an optional `website` field on each item; single-website scopes are unchanged.
+
 ## [0.7.4] - 2026-09-26
 
 ### Changed

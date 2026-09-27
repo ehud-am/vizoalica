@@ -836,12 +836,22 @@ export class D1Repositories
         `SELECT DISTINCT identity_kind AS kind FROM dashboard_minute_visitors WHERE ${inRange}`
       ),
       ...dimensions.map(([kind]) =>
-        rangeQuery(
-          `SELECT dimension_value AS label, SUM(event_count) AS count
-           FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
-           GROUP BY dimension_value ORDER BY count DESC, label ASC`,
-          kind
-        )
+        // Across all websites, the same path on two websites is two different pages, so page
+        // paths are ranked per website and carry that website's name.
+        kind === 'page_path' && !sourceId
+          ? rangeQuery(
+              `SELECT dimension_value AS label, SUM(event_count) AS count,
+                 (SELECT name FROM sources WHERE sources.id = dashboard_minute_dimensions.source_id) AS website
+               FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
+               GROUP BY source_id, dimension_value ORDER BY count DESC, label ASC, website ASC`,
+              kind
+            )
+          : rangeQuery(
+              `SELECT dimension_value AS label, SUM(event_count) AS count
+               FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
+               GROUP BY dimension_value ORDER BY count DESC, label ASC`,
+              kind
+            )
       )
     ]);
 
@@ -873,9 +883,12 @@ export class D1Repositories
     }
 
     const counted = (index: number) =>
-      ((dimensionResults[index] ?? []) as Array<{ label: string; count: number }>).map((row) => ({
+      (
+        (dimensionResults[index] ?? []) as Array<{ label: string; count: number; website?: string }>
+      ).map((row) => ({
         label: row.label,
-        count: Number(row.count)
+        count: Number(row.count),
+        ...(row.website ? { website: row.website } : {})
       }));
     const sum = (rows: Array<{ count: number }>) => rows.reduce((all, row) => all + row.count, 0);
     const ranked = (index: number): RankedResult => {
