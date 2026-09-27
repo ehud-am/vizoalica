@@ -393,6 +393,18 @@ describe('update', () => {
     expect(deploy.args).toContain(result.configPath);
   });
 
+  it("tells the Worker which release it runs, so the console can show the backend's version", async () => {
+    const cwd = tempCheckout();
+    writeFileSync(join(cwd, 'package.json'), JSON.stringify({ version: '9.8.7' }));
+    const wrangler = fakeRun(installed());
+    const { ctx } = fakeCtx({ cwd, run: wrangler.run, fetch: workerFetch() });
+    await setUpBackend(ctx, { ...options, firstRun: false });
+    const deploy = wrangler.calls.find((call) => call.args[0] === 'deploy')!;
+    expect(deploy.args).toEqual(
+      expect.arrayContaining(['--var', 'VIZOALICA_WORKER_VERSION:9.8.7'])
+    );
+  });
+
   it('refuses when the local config points at a different install', async () => {
     const cwd = tempCheckout();
     const example = readFileSync(join(cwd, 'deploy/cloudflare/wrangler.example.toml'), 'utf8');

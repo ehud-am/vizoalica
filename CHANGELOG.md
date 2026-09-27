@@ -11,6 +11,9 @@ All notable changes to Vizoalica are documented in this file.
   update" on an account whose backends are `prod-vizoalica-…` and `dev-vizoalica-…`. Each environment keeps its
   Wrangler config in `deploy/cloudflare/wrangler.env.<name>.toml`, and the "nothing to update" message now names
   the environments it finds on the account.
+- **A backend updated or installed with `pnpm vizoalica backend` reports its version.** It deployed without
+  `VIZOALICA_WORKER_VERSION`, so the console's Backend screen showed "unknown" and "set up with an older release"
+  even right after an update. The deploy now passes the checkout's release to the Worker.
 
 ## [0.7.5] - 2026-09-27
 

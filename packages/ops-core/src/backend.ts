@@ -119,7 +119,16 @@ export async function setUpBackend(ctx: Ctx, options: BackendOptions): Promise<B
 
   async function deploy(): Promise<string> {
     step(ctx, 'Deploying the Worker…');
-    const deployed = await wr(['deploy', ...configArgs], { interactive: true, echo: true });
+    // The Worker reports this release to the console; without it the console shows "unknown".
+    const version = checkoutVersion(ctx.cwd);
+    const deployed = await wr(
+      [
+        'deploy',
+        ...configArgs,
+        ...(version ? ['--var', `VIZOALICA_WORKER_VERSION:${version}`] : [])
+      ],
+      { interactive: true, echo: true }
+    );
     if (deployed.code !== 0) throw new OpsError(`The deploy failed:\n${lastLines(deployed)}`);
     const found = parseWorkerUrl(`${deployed.stdout}\n${deployed.stderr}`);
     const url =
@@ -277,5 +286,17 @@ export async function setUpBackend(ctx: Ctx, options: BackendOptions): Promise<B
     const secrets = await ensureSecrets();
     await verifyHealth(workerUrl);
     return { workerUrl, firstRun: false, configPath, secrets };
+  }
+}
+
+/** The release this checkout builds, from its root package.json; undefined when unreadable. */
+function checkoutVersion(cwd: string): string | undefined {
+  try {
+    const { version } = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')) as {
+      version?: unknown;
+    };
+    return typeof version === 'string' && /^\d+\.\d+\.\d+/.test(version) ? version : undefined;
+  } catch {
+    return undefined;
   }
 }
