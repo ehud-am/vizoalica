@@ -2,7 +2,9 @@ import { makeTrace, noTrace, type Trace } from '../../local-ops-api/src/trace.js
 import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
+import { mcpCommand } from './mcp-command.js';
 import { rotateCommand } from './rotate-command.js';
+import { skillCommand } from './skill-command.js';
 
 export type MainDeps = ConsoleDeps &
   Pick<EnvDeps, 'interactive' | 'ask' | 'readStdin' | 'vault' | 'fetch'> & {
@@ -42,6 +44,9 @@ export function help(): string {
     '  rotate <name> <secret>  Replace a secret of an environment (admin, token, digest, or all)',
     '  console [--no-open]   Start the console: websites, results, and access for the',
     '                        environment you pick',
+    '  mcp install           Let an AI assistant (Claude, Codex, Cursor) read your analytics and',
+    '                        health, read-only, across every environment. Run "vizoalica mcp help"',
+    '  skill install         Teach an AI assistant how Vizoalica works. Run "vizoalica skill"',
     '  help                  Show this help',
     '  --verbose             With any command: print what it is doing, for troubleshooting',
     '                        (never secrets)',
@@ -57,8 +62,9 @@ export function help(): string {
 export async function main(args: readonly string[], deps: MainDeps): Promise<number> {
   const verbose = args.includes('--verbose');
   const argv = args.filter((item) => item !== '--verbose');
-  const trace: Trace = verbose ? makeTrace(deps.out) : noTrace;
   const [command, ...rest] = argv;
+  // The MCP server's stdout carries only protocol messages, so its trace goes to stderr.
+  const trace: Trace = verbose ? makeTrace(command === 'mcp' ? deps.err : deps.out) : noTrace;
   trace(`vizoalica ${deps.version}, Node.js ${deps.nodeVersion}, ${deps.platform}`);
   trace(`Command: ${argv.length > 0 ? argv.join(' ') : '(none)'}`);
   trace(
@@ -98,6 +104,8 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
   if (command === 'env')
     return envCommand(rest, { ...deps, trace, deploy: (args) => deploy(args) });
   if (command === 'deploy') return deploy(rest);
+  if (command === 'mcp') return mcpCommand(rest, { ...deps, trace });
+  if (command === 'skill') return skillCommand(rest, deps);
   if (command === 'rotate')
     return rotateCommand(rest, { ...deps, trace, ...(deps.deployTestHooks ?? {}) });
   if (CHECKOUT_COMMANDS.has(command)) {

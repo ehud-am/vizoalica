@@ -46,8 +46,7 @@ function repository() {
     saveAdminAudit: vi.fn(async () => undefined),
     createQuotaPolicy: vi.fn(),
     createProject: vi.fn(),
-    createSource: vi.fn(),
-    getPageViewCounts: vi.fn()
+    createSource: vi.fn()
   };
 }
 

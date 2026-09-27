@@ -1,0 +1,31 @@
+name: Attach the AI assistant skill
+
+# Kept apart from publish.yml, which must not hold contents: write.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  skill:
+    name: Attach vizoalica-skill.zip to the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Uploading a release asset needs write access to the repository's contents; nothing else does.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Claude Desktop and claude.ai take a skill as a zip with the skill's folder at the top.
+      - name: Zip and upload vizoalica-skill.zip
+        working-directory: skills
+        run: |
+          zip -r ../vizoalica-skill.zip vizoalica
+          gh release upload "$TAG" ../vizoalica-skill.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}

@@ -4,210 +4,129 @@
 
 **Created**: 2026-09-27
 
-**Status**: Draft (planning only; not approved for implementation)
+**Status**: Implemented (phases A and B)
 
 **Input**: "Deliver AI capabilities: an MCP on top of the APIs, a new command `vizoalica mcp`, and a new
 skill file that can be deployed to Claude and ChatGPT/Codex."
 
-## Context: what exists today
+## Decisions (2026-09-27)
 
-- The Worker already serves a minimal MCP endpoint, `POST /mcp`
-  (`apps/ingest-worker/src/http/mcp-adapter.ts`, from spec 002). It is admin-secret only, hand-rolled
-  JSON-RPC, protocol `2025-03-26`, two tools (`list_projects_and_sources`, `get_page_view_counts`), no
-  access-key roles, no streaming/session support, and is undocumented for users.
-- The admin API (`/v1/admin/*`) already has everything an AI needs to read: projects, websites,
-  overview analytics (totals, trend, top pages, countries, referrers, user agents, OS, browsers, devices,
-  traffic), actions report, website status, backend info. It enforces roles (`admin`, `owner`,
-  `analyst`) and scope (project / website) for access keys. Ranges are capped at 30 days.
-- The CLI (`vizoalica`) reads `~/.config/vizoalica/environments.json`, resolves secrets (file or OneCLI)
-  and talks to Workers via `WorkerClient` (`apps/local-ops-api/src/remote-client/worker-client.ts`).
-- The repo has one agent skill already, `.agents/skills/vizoalica-cloudflare-deploy`, for contributors
-  deploying from a checkout. It is not shipped to users.
+| #   | Question                         | Decision                                                                               |
+| --- | -------------------------------- | -------------------------------------------------------------------------------------- |
+| Q1  | Use `@modelcontextprotocol/sdk`  | Yes                                                                                    |
+| Q2  | Existing Worker `/mcp`           | Remove it; start over                                                                  |
+| Q3  | Clients for `mcp install`        | Claude Code, Claude Desktop, Codex, Cursor                                             |
+| Q4  | Remote MCP (ChatGPT, claude.ai)  | Not now                                                                                |
+| Q5  | Environments                     | One local server for every environment on the computer; always clear which one is used |
+| Q6  | Writes                           | Read-only                                                                              |
+| Q7  | Skills                           | One skill: setup, health, operations, analytics, all read-only                         |
+| Q8  | 30-day range cap                 | Keep                                                                                   |
+| Q9  | Release                          | Phases A (MCP) and B (install + skill) together                                        |
+
+## Context
+
+- The admin API (`/v1/admin/*`) already serves what an assistant reads: projects, websites, overview
+  analytics, actions report, website status, whoami, backend info, with roles (`admin`, `owner`,
+  `analyst`) and project/website scope. Ranges are capped at 30 days.
+- The CLI reads `~/.config/vizoalica/environments.json`, resolves secrets (file or OneCLI), and talks to
+  Workers through `WorkerClient`.
+- The Worker had a minimal, undocumented `POST /mcp` (admin secret only, two tools). It is removed (Q2).
 
 ## Goal
 
-A user who has run `vizoalica env add` can connect Claude (Code or Desktop), Codex, Cursor, or any MCP
-client to their own analytics with one command, and ask plain questions ("how did traffic change this
-week?", "which buttons on /pricing get clicked?") without the credential ever entering the model's
-conversation. A skill file teaches the agent how to answer well and safely.
+A user with at least one environment connects Claude Code, Claude Desktop, Codex, or Cursor with one command
+and asks plain questions about analytics and backend health, across all their environments, without any
+credential entering the model's conversation. A skill teaches the assistant how Vizoalica works.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing
 
-### User Story 1 - Ask an AI assistant about my analytics (Priority: P1) 🎯 MVP
+### User Story 1 - Ask an AI assistant about my analytics (P1)
 
-An operator with a working environment registers `vizoalica mcp` as a local MCP server in their AI
-client and asks analytics questions in natural language.
+**Independent Test**: an MCP client connected to `createMcpServer` with two environments (prod admin, stage
+analyst) lists tools, lists environments, and reads an overview from each; results match the Worker's and no
+output contains a secret. Covered by `apps/cli/tests/mcp-server.test.ts` (fake Workers) and
+`apps/cli/tests/mcp-worker.integration.test.ts` (the real Worker code and schema).
 
-**Independent Test**: With a fake Worker holding two projects (one with two websites), an MCP client
-spawns `vizoalica mcp --env prod`, lists tools, lists projects, and gets an overview for one website;
-results match the admin API and contain no secret.
+1. **Given** environments in `environments.json`, **When** a client starts `vizoalica mcp`, **Then** the
+   handshake completes and only read-only tools are listed.
+2. **Given** no `environment` argument, **Then** a call uses this session's environment: the one chosen with
+   `use_environment`, else the console's last-used one if it works, else the only one, else the first that
+   works; if none works, the call says so and names `vizoalica env list`.
+3. **Given** any result, **Then** its first line is `Environment: <name> (<role>, <url>; <how it was chosen>)`,
+   and when the environment was a default and others exist, it names them and how to switch.
+4. **Given** a project with several websites, **Then** page rows name their website.
+5. **Given** a scoped access key, **When** it asks about something outside its scope, **Then** it gets the
+   same not-found the console gets.
+6. **Given** a range over 30 days, **Then** the call fails with the reason and no request is sent.
+7. No result, error, or log line contains an administrator secret, access key, or Cloudflare token.
 
-**Acceptance Scenarios**:
+### User Story 2 - Connect my AI client in one step (P1)
 
-1. **Given** a working environment `prod`, **When** a client starts `vizoalica mcp --env prod` over
-   stdio, **Then** it completes the MCP handshake and lists the read-only tools in FR-004.
-2. **Given** no `--env`, **When** the server starts, **Then** it uses the last-selected environment if it
-   works, else the only working one, else fails the handshake-time tool calls with a message naming
-   `vizoalica env list`.
-3. **Given** a project with two websites, **When** the agent asks for top pages at project level,
-   **Then** every page row names its website (ties to the "top URLs need the website name" item).
-4. **Given** an `analyst` or `owner` access key scoped to one website, **When** the agent asks about
-   another website, **Then** it gets `not_found`, exactly as the admin API answers.
-5. **Given** any tool call, **Then** the response and server logs never contain the admin secret, an
-   access key, a Cloudflare token, a visitor identifier, or a raw event.
-6. **Given** a range longer than 30 days, **When** a tool is called, **Then** it returns a clear
-   error explaining the 30-day cap (no silent truncation).
+1. `vizoalica mcp install --client <claude-code|claude-desktop|codex|cursor>` adds a `vizoalica` server
+   that runs this Node.js and this package by absolute path, with no secret.
+2. An existing `vizoalica` entry is replaced only after a yes (or `--yes`); other entries and settings are
+   kept byte for byte (TOML for Codex, JSON for the others; Claude Code via `claude mcp add --scope user`).
+3. `--print` shows the change and makes none. With no client, the command lists the options.
 
----
+### User Story 3 - The Vizoalica skill (P2)
 
-### User Story 2 - Connect my AI client in one step (Priority: P1)
-
-**Independent Test**: `vizoalica mcp install --client claude-code` on a clean machine results in Claude
-Code listing a `vizoalica` server; the command output shows exactly what file was changed.
-
-**Acceptance Scenarios**:
-
-1. **Given** a supported client (see Q3), **When** the operator runs `vizoalica mcp install --client
-   <c> [--env <name>]`, **Then** the client's MCP config gains a `vizoalica` entry that runs
-   `vizoalica mcp --env <name>`, with no secret in that config.
-2. **Given** an existing `vizoalica` entry, **When** install runs again, **Then** it shows the diff and
-   asks before replacing (`--yes` skips the question).
-3. **Given** `--print`, **Then** it prints the config snippet and changes nothing.
-4. `vizoalica mcp install` with no client prints the snippet for each supported client.
-
----
-
-### User Story 3 - The agent answers well: the Vizoalica skill (Priority: P2)
-
-A skill (Agent Skills format: `SKILL.md` with `name` and `description` frontmatter, plus reference
-files) teaches an agent how Vizoalica's data works and how to answer common questions with the MCP tools.
-
-**Independent Test**: For an evaluation set of ~15 questions against fixture data, an agent with the
-skill calls the right tools and its answer states correct numbers, the range, and data availability.
-
-**Acceptance Scenarios**:
-
-1. The skill covers: the data model (projects, websites, page keys like `/orders/:id`, actions, custom
-   events, consent), what is never collected, ranges and the 30-day cap, availability states
-   (`processing`, `incomplete`), and recipes: weekly summary, period-over-period comparison, top pages
-   per website, action/click analysis for a page, referrer and country breakdown, "is my site sending
-   data?".
-2. The skill tells the agent never to ask the user for a secret and to send setup or secret steps
-   (`env add`, `deploy`, `rotate`) to the user to run in their own terminal.
-3. The skill works without the MCP server for setup questions (install, `env add`, embed) by pointing
-   to docs; with the MCP server it answers data questions.
-4. `vizoalica skill install --client claude-code|codex` copies the skill to the client's skills folder;
-   `vizoalica skill path` prints where the packaged copy is; a release asset `vizoalica-skill.zip` is
-   uploadable to claude.ai (Settings → Capabilities → Skills) [likely] and ChatGPT where supported [guess].
-
----
-
-### User Story 4 - Use Vizoalica from ChatGPT or claude.ai (remote MCP) (Priority: P3)
-
-Web chat clients cannot start a local process; they need a remote MCP URL [likely].
-
-**Acceptance Scenarios**:
-
-1. **Given** a deployed Worker, **When** a remote client connects to `https://<worker>/mcp` with an
-   access key (analyst/owner) or admin secret as a bearer token, **Then** it gets the same read-only
-   tools as US1 over the MCP Streamable HTTP transport, scoped by the same role rules.
-2. The existing two tools keep working for one release (deprecated alias) [guess: see Q2].
-3. OAuth for connectors that require it is out of scope for this spec (see Q4).
-
----
+1. `skills/vizoalica/SKILL.md` (Agent Skills format) plus `reference/data-model.md`, `setup.md`,
+   `troubleshooting.md`: data model, what is never collected, ranges, availability, recipes, setup, health,
+   operations, troubleshooting.
+2. Rules in the skill: name the environment in every answer; never ask for or handle secrets; hand
+   `env add`, `deploy`, `rotate` to the user; aggregates only; mark guesses.
+3. `vizoalica skill install --client claude-code|codex` copies it to `~/.claude/skills/vizoalica` or
+   `~/.codex/skills/vizoalica`; `vizoalica skill path` prints the packaged copy. Claude Desktop and claude.ai
+   take an uploaded zip.
 
 ### Edge Cases
 
-- Environment unusable (wrong secret, Worker down, OneCLI locked): tool returns a plain message and the
-  `vizoalica env` command that fixes it; the server does not crash.
-- Worker older than the MCP feature (no route or older schema): tools that need newer routes report
-  "backend too old; update with …" rather than failing opaquely.
-- Aggregates still processing: answers carry `availability.state` so the agent can say "partial".
-- Very large projects: rankings are already bounded server-side (top N + `other`); MCP passes that through.
-- stdout pollution: any log goes to stderr only; `--verbose` traces to stderr.
-- Multiple environments: one server serves one environment by default; `--all-envs` [guess] exposes an
-  `environment` argument on every tool (see Q5).
+- Environments file missing, empty, broken, or world-readable: a plain message; the server keeps running.
+- Environment unusable (secret rejected, Worker down, OneCLI failing): the message names
+  `vizoalica env check <name>`.
+- Name matches several projects or websites: the ids are listed. One visible project: `project` may be omitted.
+- `vizoalica mcp` typed in a terminal: explains it is started by an AI client.
+- stdout carries only protocol messages; `--verbose` goes to stderr.
+- The client closes stdin: the server exits 0.
 
-## Requirements *(mandatory)*
+## Requirements
 
-### Functional Requirements
+- **FR-001**: `vizoalica mcp` runs an MCP server over stdio from the published package.
+- **FR-002**: It reads every environment from `environments.json` and authenticates with each environment's
+  stored credential through `WorkerClient`; credentials are never tool inputs or outputs.
+- **FR-003**: Tools are read-only (`readOnlyHint: true`, `destructiveHint: false`).
+- **FR-004**: Tools: `list_environments`, `use_environment`, `get_environment_status`, `list_websites`,
+  `get_website_status`, `get_traffic_overview`, `compare_periods`, `get_actions`. Analytics tools take an
+  optional `environment`, `project` and `website` by name or id, `preset` or `start`/`end`, and `limit`.
+- **FR-005**: Each result has an `Environment:` line, a one-line summary with the UTC range and data
+  availability, and the data as JSON (also as `structuredContent`, with `environment`).
+- **FR-006**: Prompts: `weekly_report`, `compare_weeks`, `page_actions`.
+- **FR-007**: `use_environment` lasts for the session and never changes the console's preference.
+- **FR-008**: `vizoalica mcp install` per US2; `vizoalica skill install|path` per US3.
+- **FR-009**: The Worker has no `/mcp` route (404); the query only it used is removed.
+- **FR-010**: Docs: `docs/operations/ai.md` on vizoalica.dev, README section, `llms.txt`, `vizoalica help`,
+  changelog.
 
-- **FR-001**: New command `vizoalica mcp [--env <name>] [--verbose]` runs an MCP server over stdio in the
-  published npm package (no source checkout).
-- **FR-002**: The server authenticates to the Worker with the environment's stored credential (file or
-  OneCLI) via the existing `WorkerClient`; the credential is never an MCP input or output.
-- **FR-003**: v1 tools are read-only. No tool creates, changes, deletes, rotates, deploys, or reveals a
-  secret or snippet token.
-- **FR-004**: v1 tools (names final at plan review):
-  - `whoami`: environment name, role, scope, Worker version, schema status.
-  - `list_websites`: projects and their websites (ids, names, origins, status). No keys.
-  - `get_overview`: project or website, `start`/`end` (ISO date or `last_7_days`-style preset), returns
-    totals, trend, top pages (with website name at project scope), referrers, countries, OS, browsers,
-    devices, traffic, availability.
-  - `get_top_pages`: slimmer, page-focused variant of the above with `limit` [guess: may fold into
-    `get_overview`, see plan].
-  - `compare_periods`: two ranges, returns totals and per-page deltas (computed client-side from two
-    overview calls).
-  - `get_actions`: actions report with optional `page`/`action` filters.
-  - `get_website_status`: collection/configuration health for one website ("is it sending data?").
-- **FR-005**: Tool results include structured content (JSON) plus a short text summary, and every result
-  states the range in UTC and the availability state.
-- **FR-006**: The server exposes MCP prompts for the skill's main recipes (`weekly_report`,
-  `compare_weeks`, `page_actions`) [guess: useful in Claude Desktop's prompt picker].
-- **FR-007**: `vizoalica mcp install --client <c>` writes or prints client config per US2; it never
-  writes a secret into a client config.
-- **FR-008**: A user-facing skill lives in the repo at `skills/vizoalica/` and ships in the npm package;
-  `vizoalica skill install|path` per US3.
-- **FR-009**: Worker `/mcp` is upgraded to Streamable HTTP with role/scope resolution identical to the
-  admin API (`resolvePrincipal`), sharing one tool implementation with the local server (US4, P3).
-- **FR-010**: Every allowed and denied MCP tool call on the Worker is audited as today (operation,
-  outcome, scope; never arguments beyond ids).
-- **FR-011**: Docs: a page "Use Vizoalica with AI" on vizoalica.dev, a README section, `llms.txt` entry,
-  and `vizoalica help` line.
+## Success Criteria
 
-### Key Entities
+- **SC-001**: One command connects a client (`vizoalica mcp install --client <c>`).
+- **SC-002**: Every tool answer names its environment (tested for each way of choosing it).
+- **SC-003**: No secret in any tool output (the test harness scans every answer for the fixture secrets).
+- **SC-004**: No native dependency. Measured: `dist/cli.mjs` grows from 162 KB to 1.2 MB, mostly Zod (the
+  SDK's schema library), after dropping Zod's non-English locales from the bundle; the packed tarball grows
+  from 424 KB to 628 KB.
+- **SC-005**: New code is covered by tests; global coverage does not drop.
 
-- **MCP tool**: name, JSON input schema, output schema, text summary, role rules (same as the admin route
-  it calls).
-- **Skill**: `SKILL.md` + `reference/*.md`; versioned with the package.
-- **Client config target**: client name, config path, entry format, whether it supports stdio.
+## Out of Scope
 
-## Success Criteria *(mandatory)*
-
-- **SC-001**: From a working environment, connecting Claude Code takes one command and under 1 minute.
-- **SC-002**: On the evaluation set, ≥ 90% of answers call the correct tool(s) and state correct numbers.
-- **SC-003**: Zero secrets in any MCP output, client config, log line, or test snapshot (checked by a test
-  that scans outputs for the fixture secrets).
-- **SC-004**: `vizoalica mcp` adds < 150 KB to the published package [guess] and no native dependency.
-- **SC-005**: Coverage for new code ≥ 90% (constitution gate).
+- Write tools. Remote MCP on the Worker (ChatGPT, claude.ai connectors) and OAuth.
+- Ranges over 30 days, raw events, per-visitor data (constitution I).
+- Any model or AI key inside Vizoalica.
 
 ## Assumptions
 
-- Local stdio covers Claude Code, Claude Desktop, Codex CLI, Cursor, VS Code, and most IDE agents
-  [likely]. ChatGPT (web/desktop) needs a remote HTTPS MCP server [likely], hence US4.
-- Codex reads MCP servers from `~/.codex/config.toml` (`[mcp_servers.<name>]`) [likely] and supports
-  Agent Skills-format skills [likely; verify at implementation].
-- The official TypeScript MCP SDK (`@modelcontextprotocol/sdk`) is acceptable as a dependency (Q1).
-- Item 1 of the same request (website name on top URLs) may add the website to project-level page
-  rankings in the Worker. If it lands first, MCP reuses it; if not, MCP resolves names by calling the
-  overview per website [guess].
-
-## Out of Scope (v1)
-
-- Write tools (create website, disable website, get snippet, create access key). Candidate for v2 behind
-  an explicit `--allow-writes` flag (Q6).
-- OAuth / Dynamic Client Registration for remote MCP.
-- Ranges over 30 days, raw events, per-visitor data (forbidden by constitution I).
-- An LLM running inside Vizoalica (no AI keys, no hosted inference).
-
-## Open Questions (answer before implementation)
-
-- **Q1**: OK to add `@modelcontextprotocol/sdk` (and `zod`) as dependencies, or keep the hand-rolled JSON-RPC style of the current Worker `/mcp`?
-- **Q2**: Existing Worker `/mcp` (admin-only, 2 tools): upgrade in place with deprecated aliases (default), remove, or leave as is?
-- **Q3**: Which clients must `vizoalica mcp install` support in v1? Default: Claude Code, Claude Desktop, Codex, Cursor.
-- **Q4**: Is ChatGPT/claude.ai (remote MCP, Phase C) needed in this release, and is bearer-key auth enough, or is OAuth required?
-- **Q5**: One environment per server (default) or one server spanning all environments with an `environment` argument?
-- **Q6**: v1 read-only (default), or include write tools (add website, get snippet, create access key) behind `--allow-writes`?
-- **Q7**: Skill: one user skill named `vizoalica` (default), or split into `vizoalica-analytics` and `vizoalica-setup`?
-- **Q8**: 30-day range cap: keep (default; skill explains it) or raise to 90 days in the Worker as part of this work?
-- **Q9**: Release: ship Phase A alone as the next minor version (default), or wait for Phases A+B together?
+- Claude Code accepts `claude mcp add --scope user <name> -- <command> <args>` [likely].
+- Claude Desktop reads `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or
+  `~/.config/Claude/claude_desktop_config.json` (Linux) [likely]; Cursor `~/.cursor/mcp.json` [likely];
+  Codex `~/.codex/config.toml` `[mcp_servers.<name>]` [likely].
+- Codex loads skills from `~/.codex/skills/<name>/SKILL.md` [likely].

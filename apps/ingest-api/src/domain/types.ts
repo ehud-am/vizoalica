@@ -52,10 +52,6 @@ export type Principal =
   | { role: 'admin' }
   | { role: AccessKeyRole; keyId: string; keyLabel: string; scope: AccessKeyScope };
 
-export interface PageViewCounts {
-  total: number;
-  byDateAndPath: Array<{ date: string; path: string; count: number }>;
-}
 export interface AnalyticsSummary {
   projectId: string;
   sourceId: string;

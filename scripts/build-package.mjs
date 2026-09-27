@@ -31,8 +31,21 @@ if (!/^\d+\.\d+\.\d+/.test(version)) throw new Error(`Unexpected version: ${vers
 rmSync(out, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
+// Zod (used by the MCP server) re-exports every language's error messages; only English is used,
+// so the other locales are left out of the bundle (about 360 KB).
+const englishOnlyZod = {
+  name: 'english-only-zod',
+  setup(builder) {
+    builder.onLoad({ filter: /[\\/]zod[\\/]v4[\\/]locales[\\/]index\.js$/ }, () => ({
+      contents: 'export { default as en } from "./en.js";',
+      loader: 'js'
+    }));
+  }
+};
+
 // 1. The command and the local service, as one file.
 await build({
+  plugins: [englishOnlyZod],
   absWorkingDir: root,
   entryPoints: ['apps/cli/src/bin.ts'],
   outfile: join(dist, 'cli.mjs'),
@@ -110,7 +123,10 @@ for (const name of readdirSync(at('deploy', 'cloudflare', 'migrations'))
   .sort())
   cpSync(at('deploy', 'cloudflare', 'migrations', name), join(dist, 'schema', name));
 
-// 5. Metadata.
+// 5. The AI assistant skill, which `vizoalica skill` installs.
+cpSync(at('skills', 'vizoalica'), join(dist, 'skill', 'vizoalica'), { recursive: true });
+
+// 6. Metadata.
 const manifest = readFileSync(at('apps', 'cli', 'package.json.template'), 'utf8').replaceAll(
   '__VERSION__',
   version

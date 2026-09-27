@@ -14,7 +14,6 @@ import type {
   ActionsReport,
   AdminAuditEntry,
   AnalyticsOverview,
-  PageViewCounts,
   AnalyticsSummary,
   RequestAnalyticsContext
 } from '../domain/types.js';
@@ -71,12 +70,6 @@ export interface AdminRepository {
     changes: { name?: string; allowedOrigins?: string[]; status?: 'active' | 'disabled' }
   ): Promise<Source | undefined>;
   getSource(projectId: string, sourceId: string): Promise<Source | undefined>;
-  getPageViewCounts(
-    projectId: string,
-    sourceId: string,
-    startDate: string,
-    endDate: string
-  ): Promise<PageViewCounts | undefined>;
   getAnalyticsSummary(
     projectId: string,
     sourceId: string,

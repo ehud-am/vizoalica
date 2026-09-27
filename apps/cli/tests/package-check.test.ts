@@ -21,7 +21,9 @@ const good = [
   'dist/sdk/vizoalica-loader.js',
   'dist/schema/0001_initial.sql',
   'dist/worker/index.mjs',
-  'dist/worker/wrangler.template.toml'
+  'dist/worker/wrangler.template.toml',
+  'dist/skill/vizoalica/SKILL.md',
+  'dist/skill/vizoalica/reference/setup.md'
 ];
 
 describe('compareFileList', () => {

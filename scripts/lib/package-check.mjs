@@ -14,7 +14,9 @@ export const ALLOWED_FILES = [
   'dist/sdk/vizoalica-loader.js',
   'dist/schema/*.sql',
   'dist/worker/index.mjs',
-  'dist/worker/wrangler.template.toml'
+  'dist/worker/wrangler.template.toml',
+  'dist/skill/vizoalica/SKILL.md',
+  'dist/skill/vizoalica/reference/*.md'
 ];
 
 /** Files a working package cannot be without. */
@@ -28,7 +30,8 @@ export const REQUIRED_FILES = [
   'dist/sdk/vizoalica.js',
   'dist/sdk/vizoalica-loader.js',
   'dist/worker/index.mjs',
-  'dist/worker/wrangler.template.toml'
+  'dist/worker/wrangler.template.toml',
+  'dist/skill/vizoalica/SKILL.md'
 ];
 
 const toRegExp = (pattern) =>
