@@ -10,8 +10,8 @@ account. It works from the installed package (no source checkout). Most people n
 | See what would happen | `vizoalica deploy prod`         | Prints the resources and stops; nothing is created        |
 | Create it             | `vizoalica deploy prod --apply` | Creates everything, then adds `prod` to your environments |
 
-`deploy` is for a **new** backend; to update an existing one use `pnpm vizoalica backend` from a source
-checkout. Infrastructure-as-code output is not offered yet.
+`deploy` is for a **new** backend; to update an existing one use `pnpm vizoalica backend --update --env <name>`
+from a source checkout. Infrastructure-as-code output is not offered yet.
 
 ## Create it (`--apply`)
 

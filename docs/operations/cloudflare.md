@@ -432,6 +432,16 @@ It builds, deploys, keeps your data and secrets, and checks health. If this chec
 `wrangler.production.toml` (for example on a second computer), it rebuilds one from your existing
 install.
 
+A backend created with `vizoalica deploy <name>` (or `vizoalica env add <name>`) is named
+`<name>-vizoalica-…`. Update it with `--env <name>`, once per environment:
+
+```sh
+pnpm vizoalica backend --update --env prod
+pnpm vizoalica backend --update --env dev
+```
+
+Each environment keeps its rebuilt config in its own file, `deploy/cloudflare/wrangler.env.<name>.toml`.
+
 **Version 0.6 changes the D1 schema** (two new tables for actions in `0001_initial.sql`), so it is a
 fresh-install release: a new installation on a new, empty database is the supported path, and
 `pnpm vizoalica backend --update` cannot add the tables to an existing database. The change only adds
