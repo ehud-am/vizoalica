@@ -93,6 +93,8 @@ export interface AnalyticsRange {
 export interface CountItem {
   label: string;
   count: number;
+  /** Website name, set on page paths when the scope is all websites of a project. */
+  website?: string;
 }
 
 export interface RankedResult {

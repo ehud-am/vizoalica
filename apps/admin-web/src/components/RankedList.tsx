@@ -35,6 +35,8 @@ export function RankedList({
   const all = forcedShowAll || expanded;
   const rows = all ? result.items : result.items.slice(0, initialLimit);
   const hidden = result.items.length - rows.length;
+  // Name the website only when rows come from more than one, where a bare path is ambiguous.
+  const showWebsite = new Set(result.items.map((row) => row.website)).size > 1;
   const other =
     result.otherCount +
     (all ? 0 : result.items.slice(initialLimit).reduce((sum, row) => sum + row.count, 0));
@@ -62,11 +64,14 @@ export function RankedList({
                 {rows.map((item) => {
                   const label = describe(item.label);
                   return (
-                    <tr key={item.label}>
+                    <tr key={`${item.website ?? ''}\u0000${item.label}`}>
                       <th scope="row">
                         {label.name}
                         {label.secondary && (
                           <span className="secondary-text"> {label.secondary}</span>
+                        )}
+                        {showWebsite && item.website && (
+                          <span className="secondary-text website-name"> · {item.website}</span>
                         )}
                       </th>
                       <td className="numeric">{formatNumber(item.count)}</td>
