@@ -70,6 +70,7 @@ Run `vizoalica env add` once per name. Each environment gets its own Worker, sec
 :::
 
 ::: details Script it without questions
+
 ```sh
 export CLOUDFLARE_API_TOKEN=...
 vizoalica env add prod --deploy --yes --secrets-file ./prod-secrets.env --no-onecli
