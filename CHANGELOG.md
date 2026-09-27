@@ -4,11 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-09-27
+
 ### Changed
 
 - **Top pages name the website each page belongs to** when a project has more than one website and the console
   shows all websites ("/ · Blog"). The same path on two websites is now two rows, not one merged count. Page
-  rankings gain an optional `website` field on each item; single-website scopes are unchanged.
+  rankings gain an optional `website` field on each item; single-website scopes are unchanged. This is a
+  backend change (Worker query) with no D1 schema change.
+- **The docs site's analytics is on by default**; visitors can turn it off, and Global Privacy Control and Do Not
+  Track are honored. This affects this repository's own docs site only.
 
 ## [0.7.4] - 2026-09-26
 
