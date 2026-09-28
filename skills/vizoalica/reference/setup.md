@@ -12,9 +12,10 @@ account with R2 enabled.
    Storage: Edit, Account Settings: Read. It shows `VIZOALICA_TOKEN_SECRET` and the digest secret once;
    the user must save them in a password manager.
 3. `vizoalica console`: opens the console at `http://127.0.0.1:4318`.
-4. In the console, **Websites → Add website**, then follow its Install page: GitHub → Cloudflare Pages
-   (recommended) or paste a snippet. The site's token endpoint needs `VIZOALICA_TOKEN_SECRET`.
-5. Open the site, grant analytics consent, then **Check now** on the Install page.
+4. In the console, **Websites → Add website**, then follow its Install page. By default that is one
+   script tag, served by the backend, for any host. Only a website with **Require a signed token** on
+   needs a token endpoint (GitHub → Cloudflare Pages, or a pasted snippet) and `VIZOALICA_TOKEN_SECRET`.
+5. Publish the site, open it, then **Check now** on the Install page.
 
 ## AI assistant
 
@@ -43,7 +44,7 @@ account with R2 enabled.
 ## Secrets
 
 - `VIZOALICA_ADMIN_SECRET`: the console's admin credential; kept in the environment file or OneCLI.
-- `VIZOALICA_TOKEN_SECRET`: shared by the Worker and each website's token endpoint.
+- `VIZOALICA_TOKEN_SECRET`: shared by the Worker and the token endpoint of each website that requires signed tokens.
 - `VIZOALICA_ANALYTICS_DIGEST_SECRET`: Worker only.
 - Lost or leaked: `vizoalica rotate <name> <admin|token|digest|all>`. After rotating `token`, every
   installed website needs the new value.

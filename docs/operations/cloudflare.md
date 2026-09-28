@@ -4,7 +4,7 @@
 > adds it as an environment in one step: see [Create a backend](deploy.md). This guide is for deploying and
 > maintaining a backend from a reviewed source checkout.
 
-Run this guide **once per customer environment**. It creates and verifies the shared ingestion
+Run this guide **once per environment**. It creates and verifies the shared ingestion
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
 
@@ -15,7 +15,7 @@ install, select a new empty database; do not delete or alter an existing one. To
 Worker build to an installation that already has data, use
 [Update an existing backend](#update-an-existing-backend) instead.
 
-This guide does not configure an operator machine or connect a website. Its final handoff supplies
+This guide does not configure a console computer or connect a website. Its final setup record supplies
 the inputs for [operator setup without OneCLI](local-analytics.md),
 [operator setup with OneCLI](onecli.md), and [website activation](pages.md).
 
@@ -47,7 +47,7 @@ The manual procedure below does the same steps by hand. Use it when policy requi
 
 ## Manual install
 
-Everything from **Quick command reference** through **Backend handoff** is the manual procedure.
+Everything from **Quick command reference** through **Backend setup record** is the manual procedure.
 
 ## Quick command reference
 
@@ -104,14 +104,14 @@ Allow one setup session. Stop at the first failed **Check** and use
 
 Record these non-secret choices before starting:
 
-| Input                      | Example             | Rule                                                    |
-| -------------------------- | ------------------- | ------------------------------------------------------- |
-| Customer/environment label | `acme-production`   | Treat staging and production as separate environments   |
-| Cloudflare account         | Account name and ID | Must own every resource below                           |
-| Worker name                | `vizoalica-ingest`  | Must be unused for this fresh installation              |
-| D1 database name           | `vizoalica-config`  | Must be new and empty                                   |
-| R2 bucket name             | `vizoalica-events`  | Must be new for this environment                        |
-| Release                    | `v0.6.2`            | Use one reviewed checkout for setup and later operators |
+| Input              | Example             | Rule                                                    |
+| ------------------ | ------------------- | ------------------------------------------------------- |
+| Environment label  | `acme-production`   | Treat staging and production as separate environments   |
+| Cloudflare account | Account name and ID | Must own every resource below                           |
+| Worker name        | `vizoalica-ingest`  | Must be unused for this fresh installation              |
+| D1 database name   | `vizoalica-config`  | Must be new and empty                                   |
+| R2 bucket name     | `vizoalica-events`  | Must be new for this environment                        |
+| Release            | `v0.6.2`            | Use one reviewed checkout for setup and later operators |
 
 Step 1 creates the three secret values. They do not come from Cloudflare or this repository.
 
@@ -237,7 +237,7 @@ pnpm exec wrangler secret list --config deploy/cloudflare/wrangler.production.to
 ```
 
 **Check:** all three secret names appear. The values are never displayed. Retain the token-signing
-and administrator values in the password manager for their later, narrowly scoped handoffs.
+and administrator values in the password manager for their later, narrowly scoped sharing.
 
 ## 5. Review the fresh baseline and preflight
 
@@ -251,7 +251,7 @@ pnpm deploy:check
 
 The check prints the authenticated identity, confirms that the configured D1 name and R2 bucket
 exist, confirms all Worker secret names, inspects the D1 schema for freshness, and performs a
-Worker dry-run build. It cannot decide whether those resources are the customer's intended target;
+Worker dry-run build. It cannot decide whether those resources are your intended target;
 that is why the account, names, and D1 ID must be compared in step 3. Its D1 inspection is
 read-only. Any existing or ambiguous Vizoalica schema state stops the check with no schema
 mutation.
@@ -304,7 +304,7 @@ The deployed cron trigger runs daily at 03:17 UTC and does two jobs:
 A source quota limits accepted events, not every incoming request or the total account bill.
 
 **Check:** the R2 lifecycle rule targets only this environment's event prefix and account alerts go
-to the intended customer owner.
+to the account owner.
 
 ### Deleted websites and projects
 
@@ -370,13 +370,13 @@ the aggregate in the console, and checks that the website remains usable if anal
 Privacy behavior is documented in [privacy operations](privacy.md). For capacity planning, see the
 [dashboard cost model](cost-model.md).
 
-## Backend handoff
+## Backend setup record
 
-Record this redacted handoff for the customer. Do not include secret values:
+Keep this note of the setup for yourself or your team. Do not include secret values:
 
 ```text
 Deployment: Cloudflare backend
-Customer/environment: <label>
+Environment: <label>
 Release commit: <exact commit>
 Worker script name: <name>
 Worker origin: https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
@@ -478,7 +478,7 @@ pnpm deploy:check -- --profile /private/path/vizoalica-profile.json --plan /priv
 ```
 
 Review the exact account, provider, resources, mutations, and printed plan ID. The receipt is not
-approval. Only after the customer approves that exact plan ID:
+approval. Only after you approve that exact plan ID:
 
 ```sh
 pnpm deploy:apply -- --profile /private/path/vizoalica-profile.json --plan /private/path/plan.json --receipt /private/path/receipt.json --approve EXACT_PLAN_ID
@@ -527,6 +527,6 @@ If a secret may have been exposed, rotate it at once; see the recovery notes bel
   connected website, verify a new accepted event, then resume.
 - **Suspected administrator-secret exposure:** run `pnpm vizoalica rotate admin` and update every other
   operator (`pnpm vizoalica connect`). Revoke affected OneCLI agents or remove affected direct local files.
-- **Removal:** teardown is a separate destructive customer-owner decision. First revoke access and
+- **Removal:** teardown is a separate destructive decision for the account owner. First revoke access and
   export anything the owner is required to retain; then obtain distinct approval for the exact
   Worker, D1 database, and R2 bucket. Backend automation never deletes them.

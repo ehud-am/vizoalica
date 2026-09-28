@@ -201,7 +201,7 @@ test('fits at phone width and at 200% zoom on every page', async ({ page }) => {
   }
 });
 
-test('the intro video is muted, controllable, has a poster and a text version, and respects reduced motion', async ({
+test('the MCP demo video is muted, controllable, has a poster and a text version, and respects reduced motion', async ({
   browser
 }) => {
   const context = await browser.newContext({ reducedMotion: 'reduce' });
@@ -209,14 +209,14 @@ test('the intro video is muted, controllable, has a poster and a text version, a
   await page.goto('/');
   const video = page.locator('video');
   await expect(video).toHaveAttribute('controls', '');
-  await expect(video).toHaveAttribute('poster', '/media/vizoalica-intro-poster.jpg');
+  await expect(video).toHaveAttribute('poster', '/media/vizoalica-mcp-demo-poster.jpg');
   await expect(video).toHaveAttribute('aria-label', /Vizoalica/);
   expect(await video.evaluate((element: HTMLVideoElement) => element.muted)).toBe(true);
   await page.waitForTimeout(800);
   // Reduced motion: it waits for the visitor to press play.
   expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
   await page.getByText('Read the video’s text').click();
-  await expect(page.getByText('Privacy-first web analytics.').first()).toBeVisible();
+  await expect(page.getByText(/How did my websites do last week\?/).first()).toBeVisible();
   await context.close();
 });
 

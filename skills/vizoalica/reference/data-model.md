@@ -22,7 +22,7 @@
 - **Custom events**: sent by the site's code, with filtered properties.
 - **Context per event**: country and continent, browser, operating system, device type (desktop, mobile,
   tablet), bot vs human, referrer (minimised), consent state.
-- **Unique visitors**: counted from a privacy-preserving digest; there are no visitor identifiers to list.
+- **Unique visitors**: counted by the backend from a daily-rotating digest (daily salt, IP address, user agent; the salt is deleted after the day). Nothing is stored in the browser. A person counts once per website per day, so a multi-day range sums daily visitors. There are no visitor identifiers to list.
 
 ## What is never collected
 

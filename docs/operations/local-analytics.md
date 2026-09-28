@@ -1,4 +1,4 @@
-# Set up an operator machine without OneCLI
+# Set up a console computer without OneCLI
 
 Run this guide **once per operator or data analyst** who will store the Vizoalica administrator
 credential in a private local file. Use [the OneCLI setup](onecli.md) instead when OneCLI manages
@@ -18,14 +18,14 @@ switch modes merely by changing the startup command.
 
 ## Prerequisites
 
-- A completed [Cloudflare backend deployment](cloudflare.md) and its backend handoff.
+- A completed [Cloudflare backend deployment](cloudflare.md) and its backend setup record.
 - Node.js 22 or newer, Corepack, Git, and a current browser.
-- The exact Vizoalica release or commit recorded in the backend handoff.
+- The exact Vizoalica release or commit recorded in the backend setup record.
 - Permission to obtain and store the administrator credential on this machine.
 
 ## Inputs
 
-From the backend handoff, obtain the Worker HTTPS origin, release/commit, customer label, and
+From the backend setup record, obtain the Worker HTTPS origin, release/commit, environment label, and
 `VIZOALICA_ADMIN_SECRET`. Only the secret is sensitive. A project or website ID is not required;
 an empty project list is normal on a fresh backend.
 
@@ -50,7 +50,7 @@ mkdir -p "$HOME/.config/vizoalica"
 chmod 700 "$HOME/.config/vizoalica"
 ```
 
-Confirm that `git rev-parse HEAD` matches the backend handoff.
+Confirm that `git rev-parse HEAD` matches the backend setup record.
 
 ## 2. Create the private configuration
 
@@ -106,14 +106,14 @@ array without printing the credential. Then:
 If verification fails, check the Worker origin, file ownership and mode, credential freshness,
 browser origin, and release commit—in that order. Do not weaken origin checks or network binding.
 
-## Operator handoff
+## Console setup record
 
 Record only:
 
 ```text
 Credential method: Private local file
 Operator/machine: <redacted label>
-Customer/environment: <label>
+Environment: <label>
 Release commit: <exact commit>
 Worker origin: https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
 Configuration path: <private local path, no contents>
@@ -121,13 +121,13 @@ Loopback origin: http://127.0.0.1:<port>
 Project listing verified at: <timestamp>
 ```
 
-The operator can now [activate a website](pages.md). Never include the credential in the handoff.
+You can now [add a website](pages.md). Never include the credential in the setup record.
 
 ## Stop or remove access
 
 Press Ctrl+C in the `pnpm vizoalica console` terminal. To remove access, stop it, move only
 `~/.config/vizoalica/local-operations.json` to the operating system's trash, and clear browser
-data for the loopback origin if policy requires it. If exposure is possible, the customer owner
+data for the loopback origin if policy requires it. If exposure is possible, the account owner
 must rotate `VIZOALICA_ADMIN_SECRET` and update every remaining operator.
 
 Removing this file does not affect the backend, analytics data, websites, or other operators.

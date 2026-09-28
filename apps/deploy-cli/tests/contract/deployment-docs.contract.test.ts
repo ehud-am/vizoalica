@@ -142,14 +142,14 @@ describe('deployment documentation contract', () => {
         expect(known, `${path}: pnpm vizoalica ${command}`).toContain(command);
   });
 
-  it('defines a complete fresh customer-backend journey', async () => {
+  it('defines a complete fresh backend journey', async () => {
     const guide = await text('docs/operations/cloudflare.md');
-    expectJourney(guide, /once per customer/i, [
+    expectJourney(guide, /once per environment/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
       '## Verify deployment health',
-      '## Backend handoff',
+      '## Backend setup record',
       '## Recovery and removal'
     ]);
     expect(guide).toMatch(/fresh deployments only/i);
@@ -234,7 +234,7 @@ describe('deployment documentation contract', () => {
       '## Inputs',
       '## Security boundary',
       '## Verify the operator setup',
-      '## Operator handoff',
+      '## Console setup record',
       '## Stop or remove access'
     ]);
     expect(guide).toMatch(/without OneCLI/i);
@@ -259,7 +259,7 @@ describe('deployment documentation contract', () => {
       '## Inputs',
       '## Security boundary',
       '## Verify the operator setup',
-      '## Operator handoff',
+      '## Console setup record',
       '## Revoke access'
     ]);
     expect(guide).toContain('onecli-managed');
@@ -272,12 +272,10 @@ describe('deployment documentation contract', () => {
 
   it('defines a repeatable, complete website journey', async () => {
     const guide = await text('docs/operations/pages.md');
-    expectJourney(guide, /once per website/i, [
-      '## Prerequisites',
-      '## Inputs',
-      '## Security boundary',
-      '## Verify website activation',
-      '## Website handoff',
+    expectJourney(guide, /once for each website/i, [
+      '## One script tag',
+      '## Signed tokens (optional)',
+      '### Verify website activation',
       '## Rotate or remove'
     ]);
     expect(guide).toMatch(/consent/i);

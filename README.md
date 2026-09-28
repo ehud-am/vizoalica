@@ -2,7 +2,7 @@
   <img src="docs/assets/vizoalica-logo.svg" alt="Vizoalica: self-hosted, privacy-first web and product analytics on Cloudflare" width="380">
 </p>
 
-<p align="center"><strong>Open-source, self-hosted, privacy-first web and product analytics that runs in your own Cloudflare account. One command sets it up, and your visitors' data stays in infrastructure you control.</strong></p>
+<p align="center"><strong>Web analytics your AI assistant can read. Open source and cookieless, running in your own Cloudflare account: ask Claude, Cursor, or Codex how your site is doing, and it answers from your own data.</strong></p>
 
 [![CI](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ehud-am/vizoalica/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/website-vizoalica.dev-168bff)](https://vizoalica.dev)
@@ -13,19 +13,22 @@
 **Documentation, a product tour, and a short video: [vizoalica.dev](https://vizoalica.dev).**
 
 **Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
-Cloudflare Workers, D1, and R2. A small browser SDK sends privacy-filtered page views and custom events
-to your own backend, and a local console shows traffic over time, top pages, referrers, browsers,
-devices, unique visitors, and where they are (countries on a world map). Visitor data stays in your own Cloudflare account.
+Cloudflare Workers, D1, and R2. One script tag on your site sends privacy-filtered page views, clicks,
+and custom events to your own backend. A local console shows traffic over time, top pages, referrers,
+browsers, devices, unique visitors, and countries, and a local MCP server lets your AI assistant
+answer questions from the same data. Visitor data stays in your own Cloudflare account.
 
 ## At a glance
 
 <p align="center">
-  <img src="docs/assets/at-a-glance.svg" alt="Many websites send privacy-filtered events to a backend in your Cloudflare account (R2 and D1); analyst consoles read the results" width="900">
+  <img src="docs/assets/at-a-glance.svg" alt="Many websites send privacy-filtered events to a backend in your Cloudflare account (R2 and D1); consoles and AI assistants (through a local MCP server) read the results" width="900">
 </p>
 
+- **Ask your AI assistant:** a local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor ("How did my websites do last week?"). See [Use Vizoalica with AI](docs/operations/ai.md).
+- **Install on a website:** one script tag, on any host. Nothing is stored in the browser: no cookies, no local storage.
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
 - **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
-- **Standards:** CloudEvents batches, JSON Schema validation, and short-lived signed (JWT/JOSE) ingest tokens.
+- **Standards:** CloudEvents batches, JSON Schema validation, and optional short-lived signed (JWT/JOSE) ingest tokens.
 - **Setup:** `npm install -g vizoalica`, `vizoalica env add prod` (deploys the backend to your Cloudflare account, explaining each question), then `vizoalica console`. You need Node.js 22 or newer and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
 - **License:** MIT.
 
@@ -39,19 +42,19 @@ Set these up in order, because each step needs something the previous one produc
 
 The three parts you end up with:
 
-| Order | Part         | Runs on                             | What it does                                                                                              | Set up with                                          |
-| ----- | ------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| 1     | **Console**  | An admin's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.       | `npm install -g vizoalica`, then `vizoalica console` |
-| 2     | **Backend**  | Your Cloudflare account             | Receives signed event batches, filters them, and stores raw events (R2) and bounded aggregates (D1).      | `vizoalica deploy <name> --apply`                    |
-| 3     | **Websites** | Wherever each site is hosted        | Loads the browser SDK and a small token endpoint that lets visitors' browsers send events to the backend. | The console's **Websites** panel                     |
+| Order | Part         | Runs on                             | What it does                                                                                             | Set up with                                          |
+| ----- | ------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 1     | **Console**  | An admin's computer, only on demand | A local web app for projects, websites, and analytics. Its browser never holds a remote credential.      | `npm install -g vizoalica`, then `vizoalica console` |
+| 2     | **Backend**  | Your Cloudflare account             | Serves the script, receives event batches, filters them, and stores raw events (R2) and aggregates (D1). | `vizoalica deploy <name> --apply`                    |
+| 3     | **Websites** | Wherever each site is hosted        | One script tag. Optionally, a small token endpoint for signed events.                                    | The console's **Websites** panel                     |
 
-Three secrets keep it safe, and none of them is ever in browser code:
+The backend has three secrets, and none of them is ever in browser code. Day to day you need only the first:
 
-| Secret                              | Held by                                                    | You need it to…                         |
-| ----------------------------------- | ---------------------------------------------------------- | --------------------------------------- |
-| `VIZOALICA_ADMIN_SECRET`            | The Worker and each operator's console                     | Connect another computer as a console   |
-| `VIZOALICA_TOKEN_SECRET`            | The Worker and your website's token endpoint (server side) | Set up a website                        |
-| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing day to day; keep it as a backup |
+| Secret                              | Held by                                                    | You need it to…                          |
+| ----------------------------------- | ---------------------------------------------------------- | ---------------------------------------- |
+| `VIZOALICA_ADMIN_SECRET`            | The Worker and each admin's console                        | Connect another computer as a console    |
+| `VIZOALICA_TOKEN_SECRET`            | The Worker and your website's token endpoint (server side) | Set up a website that uses signed tokens |
+| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing day to day; keep it as a backup  |
 
 ## Step 1: Install the vizoalica cli
 
@@ -164,29 +167,37 @@ Returning operators: [Start the local operator console](docs/operations/operator
 ## Step 3: add your websites
 
 In the console, open **Websites** and choose **Add website**. Its first field is an
-empty, required project choice; then enter the exact production origin. Saving takes you to that
-website's **Install** page, which asks how the site is deployed and then gives numbered steps:
+empty, required project choice; then enter the site's address. Saving takes you to that
+website's **Install** page, which shows **one script tag** to paste into your pages:
 
-1. **GitHub → Cloudflare Pages** (recommended): add the loader tag to your pages, the generated
-   GitHub Actions workflow, and the repository variables and secrets it needs (in GitHub, or with
-   the `gh` command), then push. The workflow deploys the site to Cloudflare Pages together with
-   Vizoalica's loader and its configuration and token endpoints. The token endpoint needs
-   `VIZOALICA_TOKEN_SECRET`, the secret you saved when you set up the backend (lost it?
-   `vizoalica rotate <name> token` makes a new one; websites already installed then need it too). The
-   Install page says where to find each value, and the Cloudflare token it needs only Cloudflare Pages: Edit.
-2. **Paste a snippet**: add one script tag to your pages and host the SDK file and a token endpoint
-   yourself. Works with any host, including Direct Upload and Git-connected Pages.
+```html
+<script
+  defer
+  src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
+  data-source="<public key>"
+  data-token-url="none"
+></script>
+```
 
-Behind the two paths are a **dynamic configuration** (a generic loader and a versioned JSON
-document) and a **static snippet** (six values embedded in the page). Both are public browser configuration, not secrets.
+Your backend serves the script, and it accepts events only from the addresses you entered for the
+website. Any host works: GitHub Pages, Netlify, WordPress, or plain HTML. Nothing is stored in your
+visitors' browsers; unique visitors are counted with an identifier that changes every day (see
+[privacy defaults](#privacy-defaults)).
+
+**Signed tokens (optional).** Turn on **Require a signed token** for a website whose server can run a
+small function, so fake events are harder to send. The Install page then offers two paths:
+**GitHub → Cloudflare Pages** (a generated workflow deploys your site with Vizoalica's
+**dynamic configuration** and token endpoint) or **Paste a snippet** (a **static snippet**, with an
+SDK file and token endpoint you host). The token endpoint needs `VIZOALICA_TOKEN_SECRET`, the secret
+you saved when you set up the backend. The values in either snippet are public browser configuration,
+not secrets.
 
 Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK reference:
 [docs/operations/browser-sdk.md](docs/operations/browser-sdk.md).
 
 ## Step 4: verify it works
 
-Open your site and grant analytics consent, then choose **Check now** on the website's Install page to
-see the page views arrive. Want to see the console with data before your own site is connected? From a source
+Open your site, then choose **Check now** on the website's Install page to see the page views arrive. Want to see the console with data before your own site is connected? From a source
 checkout, `pnpm vizoalica demo --env <name>` adds sample page views for a make-believe website
 (`pnpm vizoalica demo --env <name> --remove` deletes them).
 
@@ -196,8 +207,9 @@ checkout, `pnpm vizoalica demo --env <name>` adds sample page views for a make-b
 
 _The console showing sample data sent through your own backend._
 
-If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step. A website
-whose events are rejected with `invalid_signature` has a different `VIZOALICA_TOKEN_SECRET` from its Worker.
+If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step. A
+signed-token website whose events are rejected with `invalid_signature` has a different
+`VIZOALICA_TOKEN_SECRET` from its Worker.
 
 ## Ask an AI assistant
 
@@ -230,8 +242,10 @@ pnpm browser-sdk:build                        # script-tag bundles for a website
 - **Backend:** Wrangler bundles the Worker from source when you deploy, so there is nothing to
   publish by hand.
 - **Console:** `pnpm vizoalica console` runs it from the checkout. Nothing is installed system-wide.
-- **Website:** `pnpm browser-sdk:build` writes `packages/browser-sdk/dist/vizoalica.js` and
-  `vizoalica-loader.js`, standalone bundles your site hosts itself.
+- **Website:** the Worker serves the SDK at `/vizoalica.js`. For a signed-token website that hosts
+  its own copy, `pnpm browser-sdk:build` writes `packages/browser-sdk/dist/vizoalica.js` and
+  `vizoalica-loader.js`. The same build refreshes the Worker's copy in
+  `apps/ingest-worker/src/generated/`.
 
 To check a checkout, run `pnpm validate` (type check and all tests), plus `pnpm lint` and
 `pnpm format:check`. `pnpm test:e2e` runs the Chromium responsive and accessibility scenarios and
@@ -248,6 +262,8 @@ its own push; the [website guide](docs/operations/pages.md) explains the differe
 
 Vizoalica avoids collecting sensitive information by default:
 
+- nothing stored in the visitor's browser: no cookies or local storage. Unique visitors are counted
+  by the backend with a daily-rotating identifier whose daily salt is deleted after the day ends;
 - no raw form values;
 - no passwords, payment data, API keys, cookies, or auth headers;
 - no raw URL query values;
@@ -266,19 +282,17 @@ alerts; included usage is not a guaranteed spending cap. See the
 
 ```text
 Website
-  └─ Static browser SDK or generic dynamic loader
+  └─ One script tag: the browser SDK, served by your Worker
       ├─ builds CloudEvents JSON events
-      ├─ redacts URL, query, and referrer data
+      ├─ redacts URL, query, and referrer data; stores nothing in the browser
       ├─ queues events in memory with bounded size
-      ├─ obtains a short-lived ingest token from the website's own backend
+      ├─ optionally obtains a short-lived ingest token from the website's own server
       └─ sends non-blocking event batches
 
-Website backend
-  └─ Token issuer: mints short-lived JWT/JOSE-compatible ingest tokens
-
 Cloudflare Worker
-  ├─ /healthz, /v1/events:batch, /v1/admin/*
-  ├─ token verification and source/origin authorization
+  ├─ /vizoalica.js, /healthz, /v1/events:batch, /v1/admin/*
+  ├─ origin authorization, and token verification for signed-token websites
+  ├─ daily-rotating visitor identifier (salt deleted after each day)
   ├─ CloudEvents + JSON Schema validation, event-age and token checks
   ├─ quota and payload-size enforcement, backend privacy guard
   └─ safe metrics and logging
@@ -287,14 +301,15 @@ Storage
   ├─ R2: immutable raw JSON event batches
   └─ D1: projects, websites, quotas, audit, and bounded daily/hourly/minute aggregates
 
-Operator machine (on demand)
-  ├─ React console → loopback API only
-  └─ loopback API → protected Worker administration and aggregates
+Your computer (on demand)
+  ├─ React console → loopback API → Worker administration and aggregates
+  └─ AI assistant → local MCP server (read-only) → the same aggregates
 ```
 
 Open standards in use: [CloudEvents](https://cloudevents.io/) envelopes and batches,
-[JSON Schema](https://json-schema.org/) validation, short-lived JWT/JOSE-compatible ingest
-tokens, and an explicit consent state on every event.
+[JSON Schema](https://json-schema.org/) validation, optional short-lived JWT/JOSE-compatible ingest
+tokens, the [Model Context Protocol](https://modelcontextprotocol.io/), and an explicit consent state
+on every event.
 
 ## Get involved
 

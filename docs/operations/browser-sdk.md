@@ -1,19 +1,38 @@
 # Browser SDK
 
-This is the advanced SDK reference. For a complete registration, trusted token issuer, deployment,
-consent, accepted-event check, and removal flow, follow [website activation](pages.md) once per
-website.
+This is the SDK reference. To install on a website, follow [Add a website](pages.md): for most
+sites that is one script tag.
+
+## One script tag (static websites)
+
+Your backend serves the SDK at `/vizoalica.js`. Loaded from there, the SDK sends events back to the
+same backend, so the tag needs only the website's public key:
+
+```html
+<script
+  defer
+  src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
+  data-source="<public key>"
+  data-token-url="none"
+></script>
+```
+
+`data-token-url="none"` sends events without a token. The backend accepts them only for a website
+that does not require signed tokens, and only from that website's allowed origins. The console's
+Install page shows this tag for such websites.
+
+## Hosting the SDK yourself
 
 Build both standalone assets with `pnpm browser-sdk:build`, then host
 `packages/browser-sdk/dist/vizoalica.js` and, when using dynamic configuration,
-`packages/browser-sdk/dist/vizoalica-loader.js` on your **website**. The ingestion Worker does not
-serve these files.
+`packages/browser-sdk/dist/vizoalica-loader.js` on your **website**. Loaded from your own site, the
+SDK needs `data-endpoint`.
 
-## Choose one installation mode
+## Signed tokens: choose one installation mode
 
-The console provides exactly two options, which its Install page presents as **Paste a snippet**
-(static snippet) and **GitHub → Cloudflare Pages** (dynamic configuration). Do not enable both on
-one page.
+For a website that requires signed tokens, the console provides two options, which its Install
+page presents as **Paste a snippet** (static snippet) and **GitHub → Cloudflare Pages** (dynamic
+configuration). Do not enable both on one page.
 
 - **Static snippet** is the compatibility path. Since 0.7.3 the console generates the short form: `src`,
   `data-endpoint` and `data-source` only, because everything else has a default (see the table below).
@@ -34,9 +53,9 @@ unsupported configuration fails closed without loading the SDK or affecting the 
 
 ## Recommended embed
 
-Use one async script tag with your actual Worker URL and public identifiers. Insert it only after
-analytics consent is granted. The SDK records `data-consent`; the attribute is not itself a
-consent gate.
+Use one async script tag with your actual Worker URL and public identifiers. The SDK records
+`data-consent` on every event; it is not a consent banner. To send nothing for a visitor who
+declines, do not load the script.
 
 ```html
 <script
@@ -66,14 +85,14 @@ Optional custom event:
 
 ## Data attributes
 
-| Attribute             | Required | Description                                                                                               |
-| --------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `data-endpoint`       | Yes      | Ingestion endpoint, usually `/v1/events:batch`.                                                           |
-| `data-source`         | Yes      | Public source key used for routing. This is not a secret.                                                 |
-| `data-project`        | No       | Project identifier. Optional: the backend takes the project from the source.                              |
-| `data-token-url`      | No       | Same-origin token endpoint. Default `/vizoalica/ingest-token`; `none` sends unsigned events (demos only). |
-| `data-consent`        | No       | Consent state such as `analytics-granted`, `analytics-denied`, or `unknown`. Default `unknown`.           |
-| `data-auto-page-view` | No       | Set to `false` to disable automatic page views, including in-page navigation.                             |
+| Attribute             | Required | Description                                                                                                    |
+| --------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `data-endpoint`       | Yes      | Ingestion endpoint, usually `/v1/events:batch`.                                                                |
+| `data-source`         | Yes      | Public source key used for routing. This is not a secret.                                                      |
+| `data-project`        | No       | Project identifier. Optional: the backend takes the project from the source.                                   |
+| `data-token-url`      | No       | Same-origin token endpoint. Default `/vizoalica/ingest-token`; `none` sends unsigned events (static websites). |
+| `data-consent`        | No       | Consent state such as `analytics-granted`, `analytics-denied`, or `unknown`. Default `unknown`.                |
+| `data-auto-page-view` | No       | Set to `false` to disable automatic page views, including in-page navigation.                                  |
 
 ## Pages and in-page navigation
 
@@ -215,6 +234,6 @@ client.stop();
 `init` also accepts `autoNavigation` and `autoActions` (both default to on) for programmatic use;
 the embed script deliberately offers no way to switch actions off.
 
-Production ingestion should use short-lived server-issued tokens; unsigned ingestion is only for explicitly configured demo/development mode.
+Unsigned ingestion is accepted only for a website that does not require signed tokens, from its allowed origins (or for a demo project on a backend in demo mode). A website that requires them needs short-lived server-issued tokens.
 
 For the Cloudflare profile, set `endpoint` to the deployed Worker URL ending in `/v1/events:batch` and provide the short-lived token through `tokenProvider`.

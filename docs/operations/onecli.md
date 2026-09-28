@@ -1,4 +1,4 @@
-# Set up an operator machine with OneCLI
+# Set up a console computer with OneCLI
 
 Run this guide **once per operator**. Use [direct setup](local-analytics.md) instead when OneCLI
 will not manage the administrator credential. Do not combine the two methods.
@@ -13,7 +13,7 @@ helper that runs under `onecli run` for that environment alone (see [Environment
 
 ## Prerequisites
 
-- A completed [backend deployment](cloudflare.md) and its verified handoff.
+- A completed [backend deployment](cloudflare.md) and its verified setup record.
 - Node.js 22 or newer, Corepack, Git, and a current browser.
 - OneCLI 2.11 or newer and authority to manage one dedicated operator agent.
 
@@ -22,7 +22,7 @@ Docker-only hostname will not work from the operator machine.
 
 ## Inputs
 
-From the backend handoff, obtain the customer/environment, exact release commit, Worker script
+From the backend setup record, obtain the environment, exact release commit, Worker script
 name, complete Worker origin, account label and abbreviated ID, deployment/version ID,
 administrator password-manager record name, and verification timestamp. From OneCLI, obtain the
 project slug, dedicated agent identifier and ID, and gateway address. A project or website ID is
@@ -39,7 +39,7 @@ Missing OneCLI access must fail closed; never copy the credential into local con
 > `onecli-managed` as the placeholder through the helper, OneCLI supplies the real secret, and the console
 > verifies it like any other environment. Nothing needs to be restarted to switch environments.
 
-## 1. Verify the handoff and checkout
+## 1. Verify the setup record and checkout
 
 Check the supplied origin before changing OneCLI:
 
@@ -62,7 +62,7 @@ pnpm install --frozen-lockfile
 pnpm vizoalica show
 ```
 
-The printed commit must exactly match the handoff.
+The printed commit must exactly match the setup record.
 
 ## 2. Inspect the OneCLI agent
 
@@ -83,15 +83,15 @@ exposure and rotate the affected agent token.
 
 In OneCLI, create a **Generic** secret and attach it only to the dedicated operator agent:
 
-| Field  | Value                                                                     |
-| ------ | ------------------------------------------------------------------------- |
-| Name   | `Vizoalica administrator — <customer/environment> — <Worker script name>` |
-| Host   | Exact Worker hostname, without scheme, path, or wildcard                  |
-| Header | `Authorization`                                                           |
-| Format | `Bearer {value}`                                                          |
-| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without `Bearer`                            |
+| Field  | Value                                                            |
+| ------ | ---------------------------------------------------------------- |
+| Name   | `Vizoalica administrator — <environment> — <Worker script name>` |
+| Host   | Exact Worker hostname, without scheme, path, or wildcard         |
+| Header | `Authorization`                                                  |
+| Format | `Bearer {value}`                                                 |
+| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without `Bearer`                   |
 
-Use the administrator password-manager record named in the same backend handoff. Never retarget
+Use the administrator password-manager record named in the same backend setup record. Never retarget
 only the host of an existing card: confirm or replace both its host and value together. Restrict
 the card to Vizoalica administrator and analytics routes where policy allows.
 
@@ -139,18 +139,18 @@ Then open **Projects** followed by **Websites**; the project list must load, and
 exists, open **Overview** and load `24h`. In browser developer tools, confirm requests go only to
 loopback and no authorization header or credential appears in browser-visible storage.
 
-On failure, check the handoff identity, card host and value, agent ID and grant, OneCLI project and
+On failure, check the setup record, card host and value, agent ID and grant, OneCLI project and
 authentication, gateway, and commit. Do not disable certificate validation or add a direct-secret
 fallback.
 
-## Operator handoff
+## Console setup record
 
 Record no secret or agent access material:
 
 ```text
 Credential method: OneCLI
 Operator/machine: <redacted label>
-Customer/environment: <label>
+Environment: <label>
 Release commit: <exact commit>
 Worker script/origin: <script name> / https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
 Cloudflare account: <label and safely abbreviated ID>

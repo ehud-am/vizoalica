@@ -4,6 +4,29 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **One script tag for static websites.** A website can turn off **Require a signed token** (new
+  websites start that way). Its events are then accepted without a token, only from its allowed
+  origins, and marked `origin-checked`; an invalid token is never downgraded. The Worker serves the
+  SDK at `/vizoalica.js`, and the SDK takes its endpoint from the script's address, so the tag names
+  only the website's public key. The console's Install page shows the tag and checks the home page
+  for it (`tag-missing`). Existing websites keep requiring tokens.
+- **A recorded demo** of Claude Code answering traffic questions through `vizoalica mcp`, on fictional
+  data, on the homepage (`pnpm promo:mcp-demo:record`, `pnpm promo:mcp-demo`).
+
+### Changed
+
+- **Unique visitors are counted without browser storage.** The SDK no longer keeps an identifier in
+  local storage. The Worker counts visitors with a keyed digest of a random per-day salt, the website,
+  the IP address, and the user agent; the daily job deletes each finished day's salt. A person counts
+  once per website per day. Visitor counts from before the update are not comparable day to day.
+- **Database migration `0003_static_sites_daily_visitors.sql`** (additive): `sources.token_required`
+  and `daily_visitor_salts`. Run `vizoalica deploy <name> --update`.
+- The homepage and README lead with the AI assistant, add an "Is this for you?" box, and the
+  architecture diagram shows AI assistants (through the local MCP server) as a client. Install and
+  privacy docs are rewritten around the script tag, with plainer wording.
+
 ## [0.8.0] - 2026-09-28
 
 ### Added

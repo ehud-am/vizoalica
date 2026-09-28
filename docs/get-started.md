@@ -1,6 +1,6 @@
 ---
 title: 'Quick start'
-description: 'Three commands: install Vizoalica from npm, deploy a backend to your own Cloudflare account, and open the console. Then add your website.'
+description: 'Three commands: install Vizoalica from npm, deploy a backend to your own Cloudflare account, and open the console. Then add one script tag to your website.'
 ---
 
 # Quick start
@@ -15,11 +15,12 @@ vizoalica console         # opens the console at http://127.0.0.1:4318
 
 ## How it fits together
 
-![Many websites send privacy-filtered events to a backend in your Cloudflare account, which stores raw events in R2 and summaries in D1. Analyst consoles on their own computers read the results from that backend.](./assets/at-a-glance.svg)
+![Many websites send privacy-filtered events to a backend in your Cloudflare account, which stores raw events in R2 and summaries in D1. Consoles on your computers, and AI assistants through a local MCP server, read the results from that backend.](./assets/at-a-glance.svg)
 
 - **Backend**: a Worker, a D1 database, and an R2 bucket in your Cloudflare account. It receives, filters, and stores events.
 - **Console**: a local web app on your computer, started on demand. Its browser never holds a remote credential.
-- **Websites**: each site loads the browser SDK and a small token endpoint that lets visitors' browsers send events.
+- **Websites**: each site adds one script tag. Your backend serves the script and accepts events only from the site's own addresses.
+- **AI assistants** (optional): Claude, Cursor, or Codex read your analytics through a local MCP server. See [Ask your AI assistant](/operations/ai).
 
 ## Before you start
 
@@ -41,7 +42,7 @@ vizoalica env add prod
 
 It asks one question at a time and explains each. Say **yes** to deploying. It creates a Worker, a D1 database, and an R2 bucket named `prod-vizoalica-…`, then checks that they work. Ctrl-C stops without changing anything.
 
-At the end it shows **two secrets once and waits until you type `saved`**. Put both in a password manager: every website you add needs `VIZOALICA_TOKEN_SECRET`. Lost one? `vizoalica rotate prod token` replaces it.
+At the end it shows **two secrets once and waits until you type `saved`**. Put both in a password manager. A website with one script tag needs neither; only a website that uses signed tokens needs `VIZOALICA_TOKEN_SECRET`. Lost one? `vizoalica rotate prod token` replaces it.
 
 ::: warning Run this step yourself
 If you use an AI coding agent, run `vizoalica env add` in your own terminal. The secrets are shown once and should not pass through an agent conversation.
@@ -57,7 +58,15 @@ It opens `http://127.0.0.1:4318` in your browser. If something is not set up yet
 
 ## 4. Add your website
 
-In the console, open **Websites** → **Add website** and enter the site's production origin. The website's **Install** page gives numbered steps for GitHub → Cloudflare Pages or a pasted snippet, and ends with **Check now**, which confirms page views are arriving. See the [tour](/tour) for screenshots.
+In the console, open **Websites** → **Add website** and enter the site's address. The website's **Install** page shows one script tag to paste into your pages. Publish your site, then choose **Check now** to confirm page views are arriving. Any host works, including GitHub Pages, Netlify, and WordPress. See the [tour](/tour) for screenshots.
+
+## 5. Ask your AI assistant (optional)
+
+```sh
+vizoalica mcp install --client claude-code   # or claude-desktop, codex, cursor
+```
+
+Then ask, for example, “How did my websites do last week?”. The assistant reads your analytics through a local, read-only MCP server. See [Ask your AI assistant](/operations/ai).
 
 ## More options
 
@@ -99,7 +108,7 @@ Add `--verbose` to any command. It prints each step with timings and never a sec
 
 ## Next
 
-- [Activate a website](/operations/pages) in detail
+- [Add a website](/operations/pages) in detail, including signed tokens
 - [Create a backend](/operations/deploy), or the [full backend guide](/operations/cloudflare) from a source checkout
 - [Start the console day to day](/operations/operator-local)
 - Update with `npm update -g vizoalica`; remove with `npm uninstall -g vizoalica`. Run `vizoalica help` for every command.
