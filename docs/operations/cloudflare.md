@@ -21,48 +21,29 @@ the inputs for [operator setup without OneCLI](local-analytics.md),
 
 ## Automated install (recommended)
 
-From a checkout of this repository (see [Build from source](../../README.md#for-contributors-build-from-source)),
-one command deploys the backend:
+One command creates the backend for an [environment](environments.md), from the installed package or from a
+checkout of this repository (`pnpm vizoalica deploy …` runs the same command):
 
 ```sh
-pnpm vizoalica backend
+vizoalica deploy prod --apply
 ```
 
-What it does, in order:
-
-1. Runs `pnpm build` and checks your Cloudflare login, opening a browser window to sign in if you
-   are not signed in. If your login has several accounts it asks which to use.
-2. Detects whether Vizoalica is already installed and asks **first install or update?**, offering
-   the detected answer as the default.
-3. **First install:** creates the D1 database and R2 bucket, writes
-   `deploy/cloudflare/wrangler.production.toml` from the example (nothing to copy or edit),
-   creates the tables, and deploys the Worker.
-4. **Generates the three secrets, stores them on the Worker, and shows them once.** You save them in
-   a password manager and type `saved`; the screen is then cleared. They travel to Wrangler over
-   standard input, never as a command argument or a file. It never asks you to invent or paste a key.
-5. Checks the Worker's `/healthz`, and prints its address.
-
-Next, run `pnpm vizoalica connect` to set up this computer as an operator console (pasting the
-administrator secret it just showed you), then `pnpm vizoalica demo` to send sample data through the
-new backend if you want something to see, and `pnpm vizoalica console` to start the console.
-
-Names default to `vizoalica-ingest`, `vizoalica-config`, and `vizoalica-events`. Override them with
-`--worker-name`, `--database`, and `--bucket`, and skip the question with `--first-run` or
-`--update`.
+It checks your Cloudflare access, creates the D1 database, the R2 bucket, and the Worker (all named
+`prod-vizoalica-…`), creates the tables, generates the three secrets, checks the Worker's `/healthz`, and adds
+`prod` to your environments. The administrator secret goes straight into the environment file; the other two
+are shown once. [Create a backend](deploy.md) covers the options, the token it needs, and what to do when a
+step fails.
 
 Safety properties worth knowing:
 
-- A first install **never adopts an existing database or bucket**. If either already exists it
-  stops and tells you to choose new names or answer "update".
-- If a first install fails after creating resources, it offers to delete **only the empty resources
-  that run created**, so you can retry cleanly. It never touches anything that existed before.
-- An old `wrangler.production.toml` is moved aside (`.bak-…`), never overwritten.
-- An update keeps your data and secrets. It only generates a secret if one is missing, which also
-  makes an interrupted install resumable: run the command again and answer "update".
-- R2 not being activated is detected and explained instead of surfacing a raw error.
+- It **never adopts an existing database or bucket**. If either already exists it stops and changes nothing;
+  `--resume` reuses only what an earlier, interrupted run of the same command created.
+- It never deletes anything.
+- Secrets travel to Wrangler over standard input, never as a command argument.
 
-The manual procedure below does the same steps by hand and is the reference for what the command
-runs. Use it when policy requires approving each step.
+To try it with sample data: `pnpm vizoalica demo --env prod` from a checkout (`--remove` deletes it).
+
+The manual procedure below does the same steps by hand. Use it when policy requires approving each step.
 
 ## Manual install
 
@@ -421,20 +402,22 @@ After one operator is verified, [activate a website](pages.md) once for each web
 
 ## Update an existing backend
 
-The quick way, from an approved checkout:
+The quick way, once per environment, with the `vizoalica` version you want the backend to run:
 
 ```sh
-git fetch --tags && git checkout YOUR_APPROVED_TAG_OR_COMMIT
-pnpm vizoalica backend --update
+vizoalica deploy prod --update
 ```
 
-It builds, deploys, keeps your data and secrets, and checks health. If this checkout has no
-`wrangler.production.toml` (for example on a second computer), it rebuilds one from your existing
-install.
+It deploys the packaged Worker over the existing one, applies the database migrations it has not had yet
+(`wrangler d1 migrations apply` applies only unapplied ones), keeps your data and secrets, generates only a
+secret the Worker is missing, checks health, and checks the environment still works. It uses the Cloudflare
+token saved with the environment if there is one, and the account it was deployed in. It works on a backend
+named `<name>-vizoalica-…`, as `vizoalica deploy` creates. For a backend installed by hand under other names,
+use the manual steps below.
 
 **Version 0.6 changes the D1 schema** (two new tables for actions in `0001_initial.sql`), so it is a
 fresh-install release: a new installation on a new, empty database is the supported path, and
-`pnpm vizoalica backend --update` cannot add the tables to an existing database. The change only adds
+an update cannot add the tables to an existing database. The change only adds
 tables, so someone who accepts that risk can create the two `CREATE TABLE` statements and two
 indexes at the end of `deploy/cloudflare/migrations/0001_initial.sql` in their existing database
 before deploying the Worker; nothing else is altered.
@@ -522,7 +505,7 @@ stores it on the Worker, shows it once, and updates what it can:
 | `token`  | Every website's token endpoint must be given the new value or its events are rejected with 401. Update the Pages secret or the GitHub Actions secret for each website.                                               |
 | `digest` | Unique-visitor counts restart (visitors seen before count as new once). Nothing is lost and nothing else needs updating.                                                                                             |
 
-Run it from the checkout that installed the backend, since it needs `wrangler.production.toml`. For a
+It needs the checkout's `deploy/cloudflare/wrangler.production.toml` from a manual install. For a
 backend created with `vizoalica deploy` (or `env add`), or any environment on this computer, use
 `vizoalica rotate NAME admin` (or `token`, `digest`, `all`) instead; see
 [Replace a secret](deploy.md#replace-a-secret-vizoalica-rotate).

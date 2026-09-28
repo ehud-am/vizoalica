@@ -85,7 +85,7 @@ describe.each(['analyst', 'owner'] as const)('a %s key', (role) => {
       }),
       env
     );
-    expect(mcp.status).not.toBe(200);
+    expect(mcp.status).toBe(404);
   });
 
   it('cannot use its key as if it were the administrator secret elsewhere', async () => {

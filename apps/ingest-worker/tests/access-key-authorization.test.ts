@@ -237,8 +237,8 @@ describe('writes: analysts never, owners only in scope', () => {
   });
 });
 
-describe('backend-level routes and the MCP interface: admin only', () => {
-  it('refuses purge-deleted, key management, and MCP for every key', async () => {
+describe('backend-level routes: admin only', () => {
+  it('refuses purge-deleted and key management for every key, and there is no /mcp route', async () => {
     const { env } = environment();
     const ownerKey = await issueKey(env, 'owner');
     const analystKey = await issueKey(env, 'analyst');
@@ -270,7 +270,7 @@ describe('backend-level routes and the MCP interface: admin only', () => {
         }),
         env
       );
-      expect(mcp.status).not.toBe(200);
+      expect(mcp.status).toBe(404);
     }
   });
 });

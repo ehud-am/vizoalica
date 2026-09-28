@@ -46,6 +46,8 @@ environments (`environments.json`, which you can also edit by hand) is readable 
 | `vizoalica deploy <name> [--apply]`               | Create a backend on its own (without `--apply`, only show the plan)  |
 | `vizoalica rotate <name> <secret>`                | Replace a secret: `admin`, `token`, `digest`, or `all`               |
 | `vizoalica console`                               | Start the console (`--no-open` to skip opening the browser)          |
+| `vizoalica mcp install --client <client>`         | Let Claude, Codex, or Cursor read your analytics and health          |
+| `vizoalica skill install --client <client>`       | Teach Claude Code or Codex how Vizoalica works                       |
 | `vizoalica help`, `vizoalica --version`           | Show the commands, or the installed version                          |
 
 Add `--verbose` to any command to see what it is doing, step by step. It never prints a secret or your answers,

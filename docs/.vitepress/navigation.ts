@@ -28,6 +28,7 @@ export const sidebar: NavGroup[] = [
       { text: 'Keep secrets in OneCLI', link: '/operations/onecli' },
       { text: 'Activate a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
+      { text: 'Use Vizoalica with AI', link: '/operations/ai' },
       { text: 'Backend from a source checkout', link: '/operations/cloudflare' },
       { text: 'Console from a source checkout', link: '/operations/local-analytics' },
       { text: 'Database and Worker versions', link: '/operations/schema-versions' },
@@ -60,6 +61,7 @@ export const sidebar: NavGroup[] = [
     // the accessibility check.
     text: 'Release notes',
     items: [
+      { text: 'v0.7.5', link: '/releases/v0.7.5' },
       { text: 'v0.7.4', link: '/releases/v0.7.4' },
       { text: 'v0.7.3', link: '/releases/v0.7.3' },
       { text: 'v0.7.2', link: '/releases/v0.7.2' },
@@ -82,7 +84,7 @@ export const nav = [
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
-  { text: 'Releases', link: '/releases/v0.7.4' }
+  { text: 'Releases', link: '/releases/v0.7.5' }
 ];
 
 /** Every page address the navigation reaches, without the leading slash. */

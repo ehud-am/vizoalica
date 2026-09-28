@@ -677,6 +677,185 @@ describe('vizoalica deploy --apply', () => {
   });
 });
 
+const UPDATE = ['--update', '--cloudflare-token-stdin', '--yes'];
+const EXISTING: Behavior = {
+  databases: ['prod-vizoalica-db'],
+  buckets: ['prod-vizoalica-bucket'],
+  secrets: ['VIZOALICA_ADMIN_SECRET', 'VIZOALICA_TOKEN_SECRET', 'VIZOALICA_ANALYTICS_DIGEST_SECRET']
+};
+const PROD = { url: 'https://prod-vizoalica-worker.acme.workers.dev', role: 'admin', secret: 's' };
+
+describe('vizoalica deploy --update', () => {
+  it('deploys this version over the existing backend, applies pending migrations, and keeps secrets', async () => {
+    const t = setup({ stdin: 'cf-token\n', behavior: EXISTING });
+    writePrivate(t.home, 'environments.json', { version: 1, environments: { prod: PROD } });
+    expect(await deployCommand(['prod', ...UPDATE], t.deps)).toBe(0);
+    const names = t.wrangler.names();
+    expect(names).not.toContain('d1 create');
+    expect(t.wrangler.calls.some((call) => call.args[2] === 'create')).toBe(false);
+    expect(names.indexOf('d1 migrations')).toBeLessThan(names.indexOf('deploy --config'));
+    expect(names).not.toContain('secret bulk');
+    expect(t.text()).toContain('will be updated to 0.7.0');
+    expect(t.text()).toContain('[5/7] Deploying the Worker');
+    expect(t.text()).toContain('"prod" works with it');
+    expect(t.environments().prod).toEqual(PROD);
+    const rendered = readFileSync(
+      join(t.home, '.config', 'vizoalica', 'deploy', 'prod-vizoalica-worker', 'wrangler.toml'),
+      'utf8'
+    );
+    expect(rendered).toContain('uuid-0');
+    expect(t.text() + t.errors()).not.toContain('cf-token');
+  });
+
+  it('uses the Cloudflare token saved with the environment and the remembered account', async () => {
+    const t = setup({
+      behavior: {
+        ...EXISTING,
+        accounts: [
+          ['Acme', ACCOUNT],
+          ['Other', OTHER]
+        ]
+      },
+      interactive: false
+    });
+    writePrivate(t.home, 'environments.json', {
+      version: 1,
+      environments: { prod: { ...PROD, cloudflare: { token: 'saved-token' } } }
+    });
+    const dir = join(t.home, '.config', 'vizoalica', 'deploy', 'prod-vizoalica-worker');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'account-id'), `${OTHER}\n`);
+    expect(
+      await deployCommand(
+        ['prod', '--update', '--yes', '--secrets-file', join(tempHome(), 's')],
+        t.deps
+      )
+    ).toBe(0);
+    expect(t.wrangler.calls.find((call) => call.args[0] === 'deploy')!.env).toMatchObject({
+      CLOUDFLARE_ACCOUNT_ID: OTHER
+    });
+  });
+
+  it('asks before updating, and changes nothing unless the answer is yes', async () => {
+    const t = setup({ stdin: 't\n', behavior: EXISTING, answers: ['no'] });
+    expect(await deployCommand(['prod', '--update', '--cloudflare-token-stdin'], t.deps)).toBe(1);
+    expect(t.asked.at(-1)).toContain('Update it now?');
+    expect(t.errors()).toContain('Nothing was changed');
+    expect(t.wrangler.names()).toEqual(['whoami']);
+  });
+
+  it('refuses when there is nothing to update, a non-admin environment, and --apply or --resume with it', async () => {
+    const none = setup({ stdin: 't\n', behavior: { databases: ['prod-vizoalica-db'] } });
+    expect(await deployCommand(['prod', ...UPDATE], none.deps)).toBe(1);
+    expect(none.errors()).toContain('There is nothing to update: "prod-vizoalica-bucket"');
+    expect(none.errors()).toContain('vizoalica deploy prod --apply');
+    expect(none.errors()).not.toContain('--resume');
+    expect(none.wrangler.names()).not.toContain('deploy --config');
+
+    const analyst = setup({ stdin: 't\n', behavior: EXISTING });
+    writePrivate(analyst.home, 'environments.json', {
+      version: 1,
+      environments: { prod: { ...PROD, role: 'analyst' } }
+    });
+    expect(await deployCommand(['prod', ...UPDATE], analyst.deps)).toBe(1);
+    expect(analyst.errors()).toContain('Only its administrator');
+
+    const both = setup();
+    expect(await deployCommand(['prod', '--update', '--apply'], both.deps)).toBe(1);
+    expect(await deployCommand(['prod', '--update', '--resume'], both.deps)).toBe(1);
+    expect(both.errors()).toContain('does not go with');
+    expect(both.wrangler.calls).toEqual([]);
+  });
+
+  it('points an existing environment, or an existing backend, at --update', async () => {
+    const t = setup();
+    writePrivate(t.home, 'environments.json', { version: 1, environments: { prod: PROD } });
+    expect(await deployCommand(['prod'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('vizoalica deploy prod --update');
+    const taken = setup({ stdin: 't\n', behavior: EXISTING });
+    expect(await deployCommand(['prod', ...APPLY], taken.deps)).toBe(1);
+    expect(taken.errors()).toContain('vizoalica deploy prod --update');
+  });
+
+  it('names the failed step without suggesting --resume', async () => {
+    const t = setup({
+      stdin: 't\n',
+      behavior: { ...EXISTING, failStep: 'migrate', failOutput: 'boom' }
+    });
+    expect(await deployCommand(['prod', ...UPDATE], t.deps)).toBe(1);
+    expect(t.errors()).toContain('Stopped at: Applying database changes');
+    expect(t.errors()).toContain('Applying the database changes failed');
+    expect(t.errors()).not.toContain('--resume');
+  });
+
+  it('generates only missing secrets, and adds the environment when this computer lacks it', async () => {
+    const t = setup({
+      stdin: 't\n',
+      answers: ['saved'],
+      behavior: { ...EXISTING, secrets: ['VIZOALICA_TOKEN_SECRET'] }
+    });
+    expect(await deployCommand(['prod', ...UPDATE], t.deps)).toBe(0);
+    expect(Object.keys(t.wrangler.stored).sort()).toEqual([
+      'VIZOALICA_ADMIN_SECRET',
+      'VIZOALICA_ANALYTICS_DIGEST_SECRET'
+    ]);
+    expect(t.environments().prod!.secret).toBe(t.wrangler.stored.VIZOALICA_ADMIN_SECRET);
+    expect(t.text()).toContain('was added to your environments');
+    expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
+    expect(t.text()).toContain('SAVE THIS SECRET');
+
+    const known = setup({
+      stdin: 't\n',
+      answers: ['saved'],
+      behavior: {
+        ...EXISTING,
+        secrets: ['VIZOALICA_TOKEN_SECRET', 'VIZOALICA_ANALYTICS_DIGEST_SECRET']
+      }
+    });
+    writePrivate(known.home, 'environments.json', { version: 1, environments: { prod: PROD } });
+    expect(await deployCommand(['prod', ...UPDATE], known.deps)).toBe(0);
+    expect(known.errors()).toContain('vizoalica env update prod --secret-stdin');
+    expect(known.text()).toContain(known.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
+
+    const unknown = setup({ stdin: 't\n', behavior: EXISTING });
+    expect(
+      await deployCommand(
+        ['prod', ...UPDATE, '--secrets-file', join(tempHome(), 's')],
+        unknown.deps
+      )
+    ).toBe(0);
+    expect(unknown.text()).toContain('vizoalica env add prod --url');
+
+    const broken = setup({
+      stdin: 't\n',
+      behavior: { ...EXISTING, secrets: [] }
+    });
+    writePrivate(broken.home, 'environments.json', {
+      version: 1,
+      environments: { other: { url: 'nope' } }
+    });
+    expect(
+      await deployCommand(
+        ['prod', ...UPDATE, '--secrets-file', join(tempHome(), 's2')],
+        broken.deps
+      )
+    ).toBe(0);
+    expect(broken.errors()).toContain('could not be added');
+  });
+
+  it('says so when the environment does not verify after the update', async () => {
+    const t = setup({ stdin: 't\n', behavior: EXISTING });
+    writePrivate(t.home, 'environments.json', { version: 1, environments: { prod: PROD } });
+    t.deps.fetch = vi.fn(async (input: URL | string) =>
+      String(input).endsWith('/healthz')
+        ? Response.json({ ok: true })
+        : Response.json({}, { status: 401 })
+    );
+    expect(await deployCommand(['prod', ...UPDATE], t.deps)).toBe(0);
+    expect(t.text()).toContain('does not verify yet');
+  });
+});
+
 describe('deploy pieces', () => {
   it('checkAccess lists accounts and turns an empty answer into a plain error with a hint', async () => {
     const accounts = await checkAccess(async () => ({

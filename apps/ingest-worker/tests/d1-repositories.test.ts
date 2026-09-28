@@ -240,23 +240,8 @@ describe('D1 repositories', () => {
     ).toBeUndefined();
   });
 
-  it('reads page-view and fixed-window aggregates for every supported window', async () => {
+  it('reads fixed-window aggregates for every supported window', async () => {
     const repositories = new D1Repositories(fakeDb().db);
-    expect(await repositories.getPageViewCounts('p1', 's1', '2026-01-01', '2026-01-02')).toEqual({
-      total: 5,
-      byDateAndPath: [
-        { date: '2026-01-01', path: '/', count: 3 },
-        { date: '2026-01-02', path: '/docs', count: 2 }
-      ]
-    });
-    expect(
-      await new D1Repositories(fakeDb({ missingSource: true }).db).getPageViewCounts(
-        'p1',
-        's1',
-        'a',
-        'b'
-      )
-    ).toBeUndefined();
     for (const window of ['24h', '7d', '30d'] as const)
       expect(
         await repositories.getAnalyticsSummary('p1', 's1', window, new Date('2026-01-31T00:00:00Z'))

@@ -5,17 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { help, main, run } from '../../../../scripts/vizoalica.js';
 import { generateSecret } from '../../../../scripts/cli/secrets.js';
-import {
-  D1_LIST,
-  DEPLOY_OUT,
-  R2_LIST,
-  WHOAMI,
-  WORKER_URL,
-  fakeCtx,
-  fakePrompt,
-  fakeRun,
-  tempCheckout
-} from '../cli-support.js';
+import { WORKER_URL, fakeCtx, fakePrompt, fakeRun, tempCheckout } from '../cli-support.js';
 
 const consoleConfig = (secret: string) => {
   const path = join(mkdtempSync(join(tmpdir(), 'vizoalica-cli-')), 'cfg', 'local-operations.json');
@@ -44,15 +34,12 @@ const deps = (guided?: () => ReturnType<typeof fakeCtx>['ctx'], isTTY = true) =>
 });
 
 describe('guided commands need an interactive terminal', () => {
-  it.each(['backend', 'connect', 'demo', 'rotate admin'])(
-    '%s refuses to run without one',
-    async (line) => {
-      const path = consoleConfig(generateSecret());
-      await expect(
-        run([...line.split(' '), '--console-config', path], deps(undefined, false))
-      ).rejects.toThrow(/interactive terminal/);
-    }
-  );
+  it.each(['connect', 'demo', 'rotate admin'])('%s refuses to run without one', async (line) => {
+    const path = consoleConfig(generateSecret());
+    await expect(
+      run([...line.split(' '), '--console-config', path], deps(undefined, false))
+    ).rejects.toThrow(/interactive terminal/);
+  });
 });
 
 describe('pnpm vizoalica rotate', () => {
@@ -85,80 +72,8 @@ describe('pnpm vizoalica rotate', () => {
 });
 
 describe('pnpm vizoalica backend', () => {
-  const empty = () => ({
-    whoami: { stdout: WHOAMI },
-    'd1 list': [{ stdout: '[]' }, { stdout: D1_LIST.replace('vizoalica-config', 'my-db') }],
-    'r2 bucket list': { stdout: 'Listing buckets...' },
-    'd1 create': {},
-    'r2 bucket create': {},
-    'd1 migrations apply': {},
-    deploy: { stdout: DEPLOY_OUT },
-    'secret list': { stdout: '[]' },
-    'secret bulk': {}
-  });
-
-  it('maps --first-run and the name flags, then points at the next step', async () => {
-    const wrangler = fakeRun(empty());
-    const { ctx, output } = fakeCtx({
-      cwd: tempCheckout(),
-      run: wrangler.run,
-      fetch: (async () => Response.json({ ok: true })) as typeof fetch
-    });
-    await run(
-      [
-        'backend',
-        '--first-run',
-        '--worker-name',
-        'my-worker',
-        '--database',
-        'my-db',
-        '--bucket',
-        'my-bucket'
-      ],
-      deps(() => ctx)
-    );
-    expect(wrangler.has('d1 create my-db')).toBe(true);
-    expect(wrangler.has('r2 bucket create my-bucket')).toBe(true);
-    expect(output()).toContain('Next: pnpm vizoalica connect');
-  });
-
-  it('--update on an account with nothing installed explains itself', async () => {
-    const wrangler = fakeRun({ ...empty(), 'd1 list': { stdout: '[]' } });
-    const { ctx } = fakeCtx({ cwd: tempCheckout(), run: wrangler.run });
-    await expect(
-      run(
-        ['backend', '--update'],
-        deps(() => ctx)
-      )
-    ).rejects.toThrow(/nothing to update/i);
-  });
-
-  it('says "Updated." after an update', async () => {
-    const wrangler = fakeRun({
-      whoami: { stdout: WHOAMI },
-      'd1 list': { stdout: D1_LIST },
-      'r2 bucket list': { stdout: R2_LIST },
-      deploy: { stdout: DEPLOY_OUT },
-      'secret list': {
-        stdout: JSON.stringify(
-          [
-            'VIZOALICA_ADMIN_SECRET',
-            'VIZOALICA_TOKEN_SECRET',
-            'VIZOALICA_ANALYTICS_DIGEST_SECRET'
-          ].map((name) => ({ name }))
-        )
-      }
-    });
-    const { ctx, output } = fakeCtx({
-      cwd: tempCheckout(),
-      run: wrangler.run,
-      fetch: (async () => Response.json({ ok: true })) as typeof fetch
-    });
-    await run(
-      ['backend', '--update'],
-      deps(() => ctx)
-    );
-    expect(output()).toContain('Updated.');
+  it('was retired and points at vizoalica deploy', async () => {
+    await expect(run(['backend'], deps())).rejects.toThrow(/vizoalica deploy <name> --update/);
   });
 });
 
@@ -219,6 +134,58 @@ describe('pnpm vizoalica connect and demo', () => {
       process.stdout.write = write;
     }
     expect(lines.join('')).toMatch(/no sample data/);
+  });
+
+  it('demo --env uses an environment of this computer, and says why one cannot be used', async () => {
+    const secret = generateSecret();
+    const home = mkdtempSync(join(tmpdir(), 'vizoalica-home-'));
+    const file = join(home, '.config', 'vizoalica', 'environments.json');
+    mkdirSync(dirname(file), { recursive: true });
+    const write = (environments: Record<string, unknown>) => {
+      writeFileSync(file, JSON.stringify({ version: 1, environments }));
+      chmodSync(file, 0o600);
+    };
+    write({
+      demo: { url: WORKER_URL, role: 'admin', secret },
+      viewer: { url: WORKER_URL, role: 'analyst', secret },
+      vault: {
+        url: WORKER_URL,
+        role: 'admin',
+        secret: { onecli: { workspace: 'w', agent: 'a', gateway: '127.0.0.1:1' } }
+      },
+      bad: { url: 'nope' }
+    });
+    const before = process.env.HOME;
+    process.env.HOME = home;
+    try {
+      const { ctx, output } = fakeCtx({ cwd: '.', fetch: okWorker(secret) });
+      await run(
+        ['demo', '--remove', '--env', 'demo'],
+        deps(() => ctx)
+      );
+      expect(output()).toMatch(/no sample data/);
+      for (const [name, reason] of [
+        ['missing', /no environment named "missing"/],
+        ['viewer', /used as analyst/],
+        ['vault', /OneCLI keeps/],
+        ['bad', /not a valid environment/]
+      ] as const)
+        await expect(
+          run(
+            ['demo', '--remove', '--env', name],
+            deps(() => fakeCtx({ cwd: '.' }).ctx)
+          )
+        ).rejects.toThrow(reason);
+      writeFileSync(file, '{');
+      await expect(
+        run(
+          ['demo', '--remove', '--env', 'demo'],
+          deps(() => fakeCtx({ cwd: '.' }).ctx)
+        )
+      ).rejects.toThrow(/cannot be used/);
+    } finally {
+      process.env.HOME = before;
+    }
   });
 
   it('demo cannot use a OneCLI-managed secret and says why', async () => {

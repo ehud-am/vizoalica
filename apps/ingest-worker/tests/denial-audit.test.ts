@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDenialAuditGate } from '../src/http/denial-audit.js';
 import { handleAdminRequest } from '../src/http/admin-adapter.js';
-import { handleMcpRequest } from '../src/http/mcp-adapter.js';
 
 const SECRET = 'admin-secret-0123456789abcdefghijklmn';
 
@@ -48,37 +47,6 @@ describe('unauthenticated requests cannot make the Worker write to D1 as often a
       outcome: 'denied',
       reasonCode: 'unauthorized'
     });
-  });
-
-  it('does the same for MCP, whatever the method', async () => {
-    const repositories = repository();
-    const gate = createDenialAuditGate(60_000, () => 0);
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      const response = await handleMcpRequest(
-        new Request('https://worker.test/mcp', {
-          method: attempt % 2 ? 'GET' : 'POST',
-          headers: { authorization: attempt % 3 ? 'Bearer guess' : '' }
-        }),
-        { repositories: repositories as never, adminSecret: SECRET, auditDenial: gate }
-      );
-      expect(response!.status).toBe(401);
-    }
-    expect(repositories.saveAdminAudit).toHaveBeenCalledTimes(1);
-  });
-
-  it('shares one budget by default, so admin and MCP together stay within one write per interval', async () => {
-    const repositories = repository();
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      await handleAdminRequest(new Request('https://worker.test/v1/admin/projects'), {
-        repositories: repositories as never,
-        adminSecret: SECRET
-      });
-      await handleMcpRequest(new Request('https://worker.test/mcp', { method: 'POST' }), {
-        repositories: repositories as never,
-        adminSecret: SECRET
-      });
-    }
-    expect(repositories.saveAdminAudit.mock.calls.length).toBeLessThanOrEqual(1);
   });
 
   it('never throttles the audit of authenticated operations', async () => {

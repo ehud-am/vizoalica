@@ -6,6 +6,40 @@ All notable changes to Vizoalica are documented in this file.
 
 ### Added
 
+- **Ask an AI assistant about your analytics: `vizoalica mcp`.** A local, read-only MCP server that works on
+  every environment in `vizoalica env list` and starts every answer with the environment it came from. Tools:
+  `list_environments`, `use_environment`, `get_environment_status`, `list_websites`, `get_website_status`,
+  `get_traffic_overview`, `compare_periods`, `get_actions`, plus three prompts. Secrets stay in the `vizoalica`
+  process. `vizoalica mcp install --client claude-code|claude-desktop|codex|cursor` adds it to a client.
+- **A Vizoalica skill** for AI assistants (setup, health, operations, analytics), shipped in the package.
+  `vizoalica skill install --client claude-code|codex` installs it; `vizoalica skill path` shows where it is.
+  See [Use Vizoalica with AI](docs/operations/ai.md).
+- **`vizoalica deploy <name> --update`** updates a backend created by `vizoalica deploy` to the installed
+  version, from the package: it deploys the packaged Worker, applies pending migrations, keeps data and
+  secrets, generates only a missing secret, and checks the environment still works. It uses the Cloudflare
+  token saved with the environment and the account it was deployed in.
+- **`pnpm vizoalica demo --env <name>`** adds sample data to an environment of this computer.
+
+### Removed
+
+- **`pnpm vizoalica backend`** (checkout-only install or update). Use `vizoalica deploy <name> --apply` to
+  create a backend and `vizoalica deploy <name> --update` to update one; `backend` now says so and exits 2.
+- **`pnpm vizoalica deploy-pages`** and the Pages settings of `pnpm vizoalica setup` (unused). Deploy a website
+  with `wrangler pages deploy`, as in [Activate a website](docs/operations/pages.md).
+
+- **The Worker's `/mcp` endpoint** (admin secret only, two tools, never documented) and the page-view-count
+  query only it used. `/mcp` now answers 404. Use `vizoalica mcp` instead.
+
+## [0.7.5] - 2026-09-27
+
+### Changed
+
+- **Top pages name the website each page belongs to** when a project has more than one website and the console
+  shows all websites ("/ · Blog"). The same path on two websites is now two rows, not one merged count. Page
+  rankings gain an optional `website` field on each item; single-website scopes are unchanged. This is a
+  backend change (Worker query) with no D1 schema change.
+- **The docs site's analytics is on by default**; visitors can turn it off, and Global Privacy Control and Do Not
+  Track are honored. This affects this repository's own docs site only.
 - **The console asks for alpha feedback.** An **Alpha** badge sits beside the logo, and the footer has a
   **Send feedback** link that opens a new GitHub Discussion in Ideas with three short questions, the console's
   version and the screen you were on already filled in. It carries nothing else: no project, website,

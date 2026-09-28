@@ -61,7 +61,7 @@ const lastLines = (text: string): string =>
     .slice(-6)
     .join('\n');
 
-const STEPS = [
+const CREATE_STEPS = [
   'Checking Cloudflare access',
   'Checking for existing resources',
   'Creating the database',
@@ -73,6 +73,16 @@ const STEPS = [
   'Checking the Worker is healthy'
 ] as const;
 
+const UPDATE_STEPS = [
+  'Checking Cloudflare access',
+  'Finding the existing backend',
+  'Writing the deployment configuration',
+  'Applying database changes',
+  'Deploying the Worker',
+  'Checking the secrets',
+  'Checking the Worker is healthy'
+] as const;
+
 /** The accounts a credential can see. An empty list means Cloudflare did not accept it. */
 export async function checkAccess(run: Run): Promise<Array<{ id: string; name: string }>> {
   const whoami = await run(['whoami']);
@@ -80,7 +90,7 @@ export async function checkAccess(run: Run): Promise<Array<{ id: string; name: s
   if (accounts.length === 0) {
     const output = whoami.stdout + whoami.stderr;
     throw new DeployError(
-      STEPS[0],
+      CREATE_STEPS[0],
       `Cloudflare did not recognize the credential.\n${lastLines(output)}`,
       explain(output, 'check access') ?? explain('invalid api token', 'check access')
     );
@@ -92,12 +102,18 @@ export async function checkAccess(run: Run): Promise<Array<{ id: string; name: s
  * Creates one environment's backend from the packaged files, in order. It only ever creates: an existing
  * database or bucket stops it (or, with `resume`, is reused, since a previous run of this command may have made
  * it), and nothing is deleted.
+ *
+ * With `update`, both must already exist instead: it deploys the packaged Worker over them, applies the
+ * migrations the database has not had yet, and generates only the secrets the Worker is missing. Data and
+ * existing secrets are kept.
  */
 export async function applyDeploy(
   deps: ApplyDeps,
   plan: DeployPlan,
-  options: { resume: boolean }
+  options: { resume?: boolean; update?: boolean }
 ): Promise<ApplyResult> {
+  const update = options.update === true;
+  const STEPS: readonly string[] = update ? UPDATE_STEPS : CREATE_STEPS;
   const { names } = plan;
   const env: Record<string, string> = plan.accountId
     ? { CLOUDFLARE_ACCOUNT_ID: plan.accountId }
@@ -139,28 +155,37 @@ export async function applyDeploy(
   if (buckets.code !== 0) fail(label2, 'Listing the storage buckets failed.', buckets);
   let database = parseDatabases(listed.stdout).find((item) => item.name === names.database);
   const bucketExists = parseBuckets(buckets.stdout).includes(names.bucket);
-  if (!options.resume && (database || bucketExists))
-    throw new DeployError(
-      label2,
-      `"${database ? names.database : names.bucket}" already exists in this Cloudflare account.`,
-      `Nothing was changed. Choose another environment name, or use --resume if an earlier run of this command left it behind.`
-    );
+  if (update) {
+    if (!database || !bucketExists)
+      throw new DeployError(
+        label2,
+        `There is nothing to update: "${database ? names.bucket : names.database}" does not exist in this Cloudflare account.`,
+        `Nothing was changed. Check the account (--account <id>), or create the backend with: vizoalica deploy ${plan.environment} --apply`
+      );
+  } else {
+    if (!options.resume && (database || bucketExists))
+      throw new DeployError(
+        label2,
+        `"${database ? names.database : names.bucket}" already exists in this Cloudflare account.`,
+        `Nothing was changed. To deploy this version over it: vizoalica deploy ${plan.environment} --update. Or choose another environment name, or use --resume if an earlier run of this command left it behind.`
+      );
 
-  const label3 = step();
-  if (!database) {
-    const created = await wr(['d1', 'create', names.database], { stdin: '' });
-    if (created.code !== 0) fail(label3, 'Creating the database failed.', created);
-    database = parseDatabases((await wr(['d1', 'list', '--json'])).stdout).find(
-      (item) => item.name === names.database
-    );
-  }
-  if (!database)
-    throw new DeployError(label3, 'The database was created but its id could not be read.');
+    const label3 = step();
+    if (!database) {
+      const created = await wr(['d1', 'create', names.database], { stdin: '' });
+      if (created.code !== 0) fail(label3, 'Creating the database failed.', created);
+      database = parseDatabases((await wr(['d1', 'list', '--json'])).stdout).find(
+        (item) => item.name === names.database
+      );
+    }
+    if (!database)
+      throw new DeployError(label3, 'The database was created but its id could not be read.');
 
-  const label4 = step();
-  if (!bucketExists) {
-    const created = await wr(['r2', 'bucket', 'create', names.bucket], { stdin: '' });
-    if (created.code !== 0) fail(label4, 'Creating the storage bucket failed.', created);
+    const label4 = step();
+    if (!bucketExists) {
+      const created = await wr(['r2', 'bucket', 'create', names.bucket], { stdin: '' });
+      if (created.code !== 0) fail(label4, 'Creating the storage bucket failed.', created);
+    }
   }
 
   step();
@@ -176,13 +201,19 @@ export async function applyDeploy(
   writeFileSync(rendered, filled, { mode: 0o600 });
 
   const label6 = step();
+  // Applies only the migrations the database has not had: all of them for a new one.
   const migrated = await wr(
     ['d1', 'migrations', 'apply', names.database, '--remote', ...configArgs],
     {
       stdin: ''
     }
   );
-  if (migrated.code !== 0) fail(label6, 'Creating the tables failed.', migrated);
+  if (migrated.code !== 0)
+    fail(
+      label6,
+      update ? 'Applying the database changes failed.' : 'Creating the tables failed.',
+      migrated
+    );
 
   const label7 = step();
   const deployed = await wr(['deploy', ...configArgs, deps.workerBundle]);
@@ -242,7 +273,7 @@ export async function applyDeploy(
   }
   if (!healthy)
     throw new DeployError(
-      STEPS[8],
+      STEPS[STEPS.length - 1]!,
       `The Worker at ${workerUrl} did not answer its health check.`,
       'Wait a minute and open it in a browser. If it returns an error, open the Worker in the Cloudflare dashboard → Workers & Pages → Logs. Everything is created; add it with `vizoalica env add` once it answers.'
     );

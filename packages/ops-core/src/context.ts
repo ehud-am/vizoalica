@@ -7,7 +7,6 @@ export type Ctx = {
   fetch: typeof fetch;
   out: (text: string) => void;
   cwd: string;
-  build: () => Promise<{ ok: boolean; output: string }>;
   sleep: (ms: number) => Promise<void>;
   clear: () => void;
 };
@@ -60,21 +59,4 @@ export async function checkAdminAccess(
   } catch {
     return 'unreachable';
   }
-}
-
-/** A brand-new workers.dev name can take a moment to resolve, so poll briefly. */
-export async function waitForHealth(ctx: Ctx, workerUrl: string, attempts = 10): Promise<boolean> {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const response = await ctx.fetch(`${workerUrl}/healthz`, {
-        signal: AbortSignal.timeout(10_000)
-      });
-      const body = (await response.json().catch(() => undefined)) as { ok?: unknown } | undefined;
-      if (response.status === 200 && body?.ok === true) return true;
-    } catch {
-      // Not resolvable yet.
-    }
-    if (attempt < attempts - 1) await ctx.sleep(3000);
-  }
-  return false;
 }

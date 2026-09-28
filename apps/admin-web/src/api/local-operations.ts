@@ -86,7 +86,12 @@ export type Status = {
   configuration?: 'healthy' | 'attention';
   dataAccess: 'available' | 'unavailable';
 };
-export type CountItem = { label: string; count: number };
+export type CountItem = {
+  label: string;
+  count: number;
+  /** Website name, set on page paths when the scope is all websites of a project. */
+  website?: string;
+};
 export type RankedResult = { items: CountItem[]; otherCount: number; total: number };
 export type DistributionResult = { items: CountItem[]; total: number };
 export type AnalyticsOverview = {

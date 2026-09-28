@@ -18,7 +18,7 @@ body:
       label: Steps to reproduce
       description: The commands you ran or the screens you used, in order.
       placeholder: |
-        1. pnpm vizoalica backend
+        1. vizoalica deploy prod --apply
         2. …
     validations:
       required: true

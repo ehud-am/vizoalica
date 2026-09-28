@@ -5,7 +5,6 @@ import type {
   AccessKeySummary,
   AdminAuditEntry,
   IngestionDecision,
-  PageViewCounts,
   Project,
   QuotaPolicy,
   Source,
@@ -705,25 +704,6 @@ export class D1Repositories
       .run();
     return (result.meta?.changes ?? 0) ? this.getSource(projectId, sourceId) : undefined;
   }
-  async getPageViewCounts(
-    projectId: string,
-    sourceId: string,
-    startDate: string,
-    endDate: string
-  ): Promise<PageViewCounts | undefined> {
-    const source = await this.db
-      .prepare('SELECT * FROM sources WHERE id = ? AND project_id = ?')
-      .bind(sourceId, projectId)
-      .first<SourceRow>();
-    if (!source) return undefined;
-    const { results } = await this.db
-      .prepare(
-        "SELECT event_date AS date, page_path AS path, event_count AS count FROM dashboard_rollups WHERE project_id = ? AND source_id = ? AND event_type = 'com.vizoalica.page_view.v1' AND event_date BETWEEN ? AND ? ORDER BY event_date, page_path"
-      )
-      .bind(projectId, sourceId, startDate, endDate)
-      .all<{ date: string; path: string; count: number }>();
-    return { total: results.reduce((total, row) => total + row.count, 0), byDateAndPath: results };
-  }
   async getAnalyticsSummary(
     projectId: string,
     sourceId: string,
@@ -836,12 +816,22 @@ export class D1Repositories
         `SELECT DISTINCT identity_kind AS kind FROM dashboard_minute_visitors WHERE ${inRange}`
       ),
       ...dimensions.map(([kind]) =>
-        rangeQuery(
-          `SELECT dimension_value AS label, SUM(event_count) AS count
-           FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
-           GROUP BY dimension_value ORDER BY count DESC, label ASC`,
-          kind
-        )
+        // Across all websites, the same path on two websites is two different pages, so page
+        // paths are ranked per website and carry that website's name.
+        kind === 'page_path' && !sourceId
+          ? rangeQuery(
+              `SELECT dimension_value AS label, SUM(event_count) AS count,
+                 (SELECT name FROM sources WHERE sources.id = dashboard_minute_dimensions.source_id) AS website
+               FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
+               GROUP BY source_id, dimension_value ORDER BY count DESC, label ASC, website ASC`,
+              kind
+            )
+          : rangeQuery(
+              `SELECT dimension_value AS label, SUM(event_count) AS count
+               FROM dashboard_minute_dimensions WHERE ${inRange} AND dimension_kind = ?
+               GROUP BY dimension_value ORDER BY count DESC, label ASC`,
+              kind
+            )
       )
     ]);
 
@@ -873,9 +863,12 @@ export class D1Repositories
     }
 
     const counted = (index: number) =>
-      ((dimensionResults[index] ?? []) as Array<{ label: string; count: number }>).map((row) => ({
+      (
+        (dimensionResults[index] ?? []) as Array<{ label: string; count: number; website?: string }>
+      ).map((row) => ({
         label: row.label,
-        count: Number(row.count)
+        count: Number(row.count),
+        ...(row.website ? { website: row.website } : {})
       }));
     const sum = (rows: Array<{ count: number }>) => rows.reduce((all, row) => all + row.count, 0);
     const ranked = (index: number): RankedResult => {

@@ -135,7 +135,7 @@ vizoalica console
 browser, on the environment you used last. If no environment works yet, it shows a welcome page that says what
 is wrong with each one and which `vizoalica env` command fixes it. A picker in the top bar switches between
 working environments. The console never creates, edits, or removes environments, and it does not deploy or
-update a backend; updating an existing backend is `pnpm vizoalica backend` from a source checkout
+update a backend; update one to the installed version with `vizoalica deploy <name> --update`
 ([backend guide](docs/operations/cloudflare.md#update-an-existing-backend)).
 
 **Environments live in one file you can edit**, `~/.config/vizoalica/environments.json`, managed with
@@ -187,8 +187,8 @@ Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK refere
 
 Open your site and grant analytics consent, then choose **Check now** on the website's Install page to
 see the page views arrive. Want to see the console with data before your own site is connected? From a source
-checkout, `pnpm vizoalica demo` adds sample page views for a make-believe website (`pnpm vizoalica demo --remove`
-deletes them).
+checkout, `pnpm vizoalica demo --env <name>` adds sample page views for a make-believe website
+(`pnpm vizoalica demo --env <name> --remove` deletes them).
 
 <p align="center">
   <img src="docs/assets/console-overview-light.png" alt="The Vizoalica web analytics console showing 96 page views and 29 unique visitors from sample data" width="900">
@@ -198,6 +198,18 @@ _The console showing sample data sent through your own backend._
 
 If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step. A website
 whose events are rejected with `invalid_signature` has a different `VIZOALICA_TOKEN_SECRET` from its Worker.
+
+## Ask an AI assistant
+
+Let Claude, Codex, or Cursor answer questions about your analytics and the health of your backends, read-only:
+
+```sh
+vizoalica mcp install --client claude-code      # or claude-desktop, codex, cursor
+vizoalica skill install --client claude-code    # or codex
+```
+
+The MCP server runs on your computer, works on every environment you have, names the environment in every
+answer, and never hands a secret to the AI client. See [Use Vizoalica with AI](docs/operations/ai.md).
 
 ## For contributors: build from source
 
@@ -305,6 +317,7 @@ goes.
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | Create a backend, and replace its secrets (`deploy`, `rotate`)     | [Create a backend](docs/operations/deploy.md)                                                  |
 | Environments and `vizoalica env`                                   | [Environments](docs/operations/environments.md)                                                |
+| Ask Claude, Codex, or Cursor about your analytics (MCP and skill)  | [Use Vizoalica with AI](docs/operations/ai.md)                                                 |
 | Deploy, update, and maintain the backend from a source checkout    | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
 | Console from a checkout, private credential file                   | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                                 | [With OneCLI](docs/operations/onecli.md)                                                       |

@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Ctx } from '../../../scripts/cli/context.js';
@@ -76,7 +76,6 @@ export function fakeCtx(overrides: Partial<Ctx> & { cwd: string }) {
     prompt: fakePrompt().prompt,
     fetch: (async () => new Response('{}', { status: 404 })) as typeof fetch,
     out: (text) => void lines.push(text),
-    build: async () => ({ ok: true, output: '' }),
     sleep: async () => void (slept += 1),
     clear: () => void (cleared += 1),
     ...overrides
@@ -84,29 +83,14 @@ export function fakeCtx(overrides: Partial<Ctx> & { cwd: string }) {
   return { ctx, lines, output: () => lines.join('\n'), cleared: () => cleared, slept: () => slept };
 }
 
-/** A temp checkout containing the real example config. */
+/** A temp checkout with an empty deploy/cloudflare folder. */
 export function tempCheckout(): string {
   const cwd = mkdtempSync(join(tmpdir(), 'vizoalica-cli-'));
   mkdirSync(join(cwd, 'deploy', 'cloudflare'), { recursive: true });
-  copyFileSync(
-    join(process.cwd(), 'deploy/cloudflare/wrangler.example.toml'),
-    join(cwd, 'deploy/cloudflare/wrangler.example.toml')
-  );
   return cwd;
 }
 
-export const ACCOUNT_ID = 'a'.repeat(32);
-export const WHOAMI = `┌──────────────┬──────────────────────────────────┐
-│ Account Name │ Account ID                       │
-├──────────────┼──────────────────────────────────┤
-│ Test Account │ ${ACCOUNT_ID} │
-└──────────────┴──────────────────────────────────┘`;
-export const DB_UUID = '11111111-2222-3333-4444-555555555555';
-export const D1_LIST = JSON.stringify([{ uuid: DB_UUID, name: 'vizoalica-config' }]);
-export const R2_LIST =
-  'Listing buckets...\nname:           vizoalica-events\ncreation_date:  2026-01-01';
 export const WORKER_URL = 'https://vizoalica-ingest.test-sub.workers.dev';
-export const DEPLOY_OUT = `Uploaded vizoalica-ingest\n  ${WORKER_URL}\nCurrent Version ID: abc`;
 
 /** Fetch double for a Worker: /healthz plus a switchable admin secret. */
 export function workerFetch(

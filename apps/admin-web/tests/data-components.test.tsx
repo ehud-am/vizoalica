@@ -92,6 +92,22 @@ describe('RankedList', () => {
     );
     expect(screen.queryByRole('button', { name: /Show all/ })).toBeNull();
   });
+
+  it('names the website of each page only when pages come from more than one', () => {
+    const pages = (websites: string[]) => ({
+      items: websites.map((website, index) => ({ label: '/', count: 5 - index, website })),
+      otherCount: 0,
+      total: 10
+    });
+    const { unmount } = render(
+      <RankedList title="Pages" countLabel="Page views" result={pages(['Shop', 'Blog'])} />
+    );
+    const rows = screen.getAllByRole('rowheader').map((row) => row.textContent);
+    expect(rows).toEqual(['/ · Shop', '/ · Blog']);
+    unmount();
+    render(<RankedList title="Pages" countLabel="Page views" result={pages(['Shop'])} />);
+    expect(screen.getByRole('rowheader', { name: '/' })).toBeTruthy();
+  });
 });
 
 describe('MetricCard', () => {

@@ -164,6 +164,7 @@ coverage/
 
 # Operator-owned Cloudflare production configuration
 deploy/cloudflare/wrangler.production.toml
+deploy/cloudflare/wrangler.env.*.toml
 
 # Operator-owned deployment profiles and generated authorization artifacts
 deploy/cloudflare/deployment-profile.json

@@ -1,5 +1,5 @@
 /**
- * Denied admin and MCP requests are audited, but never once per request: an unauthenticated caller
+ * Denied admin requests are audited, but never once per request: an unauthenticated caller
  * must not be able to make the Worker write to D1 as often as they like. A gate lets one denial
  * through per interval per Worker instance; the rest are still refused, just not recorded, so a
  * flood costs the caller a rejected request and costs the operator no database writes.
@@ -21,5 +21,5 @@ export function createDenialAuditGate(
   };
 }
 
-/** Shared by the admin and MCP adapters, so together they stay within one write per interval. */
+/** One gate per Worker instance, so denials stay within one write per interval. */
 export const shouldAuditDenial: DenialAuditGate = createDenialAuditGate();

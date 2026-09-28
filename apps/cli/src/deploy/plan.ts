@@ -46,3 +46,13 @@ export function describePlan(plan: DeployPlan): string {
     'Three secrets are generated. Nothing that already exists is changed or deleted.'
   ].join('\n');
 }
+
+export function describeUpdate(plan: DeployPlan, version: string): string {
+  return [
+    `Environment "${plan.environment}" will be updated to ${version}:`,
+    `  Worker       ${plan.names.worker}   gets this version`,
+    `  D1 database  ${plan.names.database}   gets the database changes it has not had yet`,
+    `  R2 bucket    ${plan.names.bucket}   unchanged`,
+    'Data and secrets are kept; a secret the Worker is missing is generated. Nothing is deleted.'
+  ].join('\n');
+}

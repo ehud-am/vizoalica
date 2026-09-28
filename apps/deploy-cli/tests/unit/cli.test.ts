@@ -3,7 +3,6 @@ import {
   oneCliNodeOptions,
   SILENCE_ENV_PROXY_WARNING,
   normalizeWorkerUrl,
-  pagesDeployArguments,
   parseGateway,
   parseOptions,
   purgeArguments,
@@ -20,15 +19,6 @@ const config: OpsConfig = {
     project: 'example-project',
     agent: 'vizoalica-console',
     gateway: '127.0.0.1:10255'
-  },
-  pages: {
-    siteDir: '/tmp/vizoalica-site',
-    project: 'vizoalica-site',
-    branch: 'main',
-    assetsDir: '.',
-    origin: 'https://example-site.pages.dev',
-    analyticsProjectId: 'project-id',
-    sourceId: 'source-id'
   }
 };
 
@@ -88,22 +78,6 @@ describe('operations CLI safety', () => {
       '--max-old-space-size=512 --disable-warning=UNDICI-EHPA'
     );
     expect(verifyArguments(config)).toContain(SILENCE_ENV_PROXY_WARNING);
-  });
-
-  it('keeps Pages uploads on native Wrangler', () => {
-    expect(pagesDeployArguments(config)).toEqual([
-      'exec',
-      'wrangler',
-      'pages',
-      'deploy',
-      '.',
-      '--cwd',
-      '/tmp/vizoalica-site',
-      '--project-name',
-      'vizoalica-site',
-      '--branch',
-      'main'
-    ]);
   });
 
   it('fails closed when the placeholder client file is missing', () => {

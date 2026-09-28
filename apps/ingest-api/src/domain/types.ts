@@ -52,10 +52,6 @@ export type Principal =
   | { role: 'admin' }
   | { role: AccessKeyRole; keyId: string; keyLabel: string; scope: AccessKeyScope };
 
-export interface PageViewCounts {
-  total: number;
-  byDateAndPath: Array<{ date: string; path: string; count: number }>;
-}
 export interface AnalyticsSummary {
   projectId: string;
   sourceId: string;
@@ -93,6 +89,8 @@ export interface AnalyticsRange {
 export interface CountItem {
   label: string;
   count: number;
+  /** Website name, set on page paths when the scope is all websites of a project. */
+  website?: string;
 }
 
 export interface RankedResult {

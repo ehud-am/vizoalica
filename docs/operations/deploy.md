@@ -5,13 +5,13 @@ and a Worker in your Cloudflare account, all named `<name>-vizoalica-…` so sev
 account. It works from the installed package (no source checkout). Most people never type it:
 `vizoalica env add <name>` asks whether to deploy a new backend and runs it for you.
 
-| You want to…          | Run                             | What happens                                              |
-| --------------------- | ------------------------------- | --------------------------------------------------------- |
-| See what would happen | `vizoalica deploy prod`         | Prints the resources and stops; nothing is created        |
-| Create it             | `vizoalica deploy prod --apply` | Creates everything, then adds `prod` to your environments |
+| You want to…          | Run                              | What happens                                              |
+| --------------------- | -------------------------------- | --------------------------------------------------------- |
+| See what would happen | `vizoalica deploy prod`          | Prints the resources and stops; nothing is created        |
+| Create it             | `vizoalica deploy prod --apply`  | Creates everything, then adds `prod` to your environments |
+| Update it             | `vizoalica deploy prod --update` | Deploys this version over it; data and secrets are kept   |
 
-`deploy` is for a **new** backend; to update an existing one use `pnpm vizoalica backend` from a source
-checkout. Infrastructure-as-code output is not offered yet.
+Infrastructure-as-code output is not offered yet.
 
 ## Create it (`--apply`)
 
@@ -48,6 +48,25 @@ The token is given to Wrangler only through its environment, never as an argumen
 message names the step and the likely cause (not signed in, a missing permission, R2 not enabled, no network)
 and tells you to continue with `--resume`. A custom domain is not attached by `--apply`: attach it in Cloudflare,
 then `vizoalica env update prod --url https://analytics.example.com`.
+
+## Update it (`--update`)
+
+After you update the `vizoalica` package (`npm update -g vizoalica`), bring each backend to the same version:
+
+```sh
+vizoalica deploy prod --update
+```
+
+It shows what it will change and asks you to type `yes`. Then it checks access, finds the existing database and
+bucket (it stops and changes nothing if either is missing), rewrites the kept deployment configuration, applies
+the database migrations this version adds (only those not applied yet), deploys the packaged Worker, generates a
+secret only if the Worker is missing one, checks `/healthz`, and checks the environment still works. The console
+says when a backend needs this: its Health page shows the Worker and schema versions against the console's.
+
+It takes the same credential and account options as `--apply` (`--resume` does not apply), and uses the
+Cloudflare token saved with the environment (`--save-cloudflare`) when there is one, and the account the
+backend was deployed in. On this computer the environment must be `admin`; if this computer does not have it
+yet, a new administrator secret (only when the Worker was missing one) adds it.
 
 ## Replace a secret: `vizoalica rotate`
 
