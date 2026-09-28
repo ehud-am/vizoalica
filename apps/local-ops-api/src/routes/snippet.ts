@@ -100,7 +100,11 @@ export function integrationSnippet(
   projectId: string,
   sourceId: string
 ): InstallationGuidance {
-  const item = metadata as { publicSourceKey?: unknown; allowedOrigins?: unknown } | null;
+  const item = metadata as {
+    publicSourceKey?: unknown;
+    allowedOrigins?: unknown;
+    tokenRequired?: unknown;
+  } | null;
   if (!item || typeof item.publicSourceKey !== 'string' || !validOrigins(item.allowedOrigins))
     throw new Error('remote_unavailable');
   const origin = new URL(item.allowedOrigins[0]!);
@@ -121,6 +125,9 @@ export function integrationSnippet(
   };
   if (!isDynamicConfigV1(config)) throw new Error('remote_unavailable');
   const dynamicSnippet = '<script async src="/vizoalica-loader.js"></script>';
+  // The backend serves the SDK and is the endpoint, so the tag names only the website's key.
+  const sdkUrl = new URL('/vizoalica.js', remoteUrl).href;
+  const scriptTag = `<script defer src="${attribute(sdkUrl)}" data-source="${attribute(item.publicSourceKey)}" data-token-url="none"></script>`;
   return {
     publicSourceKey: item.publicSourceKey,
     allowedOrigins: item.allowedOrigins,
@@ -143,6 +150,9 @@ export function integrationSnippet(
         cloudflare: cloudflareGuidance(config, sourceId, item.allowedOrigins)
       }
     ],
+    // A backend older than this release does not say, and requires tokens.
+    tokenRequired: item.tokenRequired !== false,
+    scriptTag: { snippet: scriptTag, sdkUrl },
     privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true },
     projectId,
     sourceId,

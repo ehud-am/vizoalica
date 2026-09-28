@@ -141,4 +141,36 @@ describe('complete installation snippet', () => {
     const serialized = JSON.stringify([one, two]);
     expect(serialized).not.toMatch(/ADMIN_SECRET|authorization|Bearer|top-secret|must-not-leak/i);
   });
+
+  it('offers the one-tag install, served by the backend, and says whether the website needs tokens', async () => {
+    const api = await startApi(() =>
+      Response.json({
+        publicSourceKey: 'static-key',
+        allowedOrigins: ['https://static.test'],
+        tokenRequired: false
+      })
+    );
+    const body = (
+      await api.call('/api/projects/project-1/websites/source-1/snippet', {
+        cookie: await api.session()
+      })
+    ).body;
+    expect(body.tokenRequired).toBe(false);
+    expect(body.scriptTag).toEqual({
+      sdkUrl: 'https://worker.test/vizoalica.js',
+      snippet:
+        '<script defer src="https://worker.test/vizoalica.js" data-source="static-key" data-token-url="none"></script>'
+    });
+    // An older backend does not say, and requires tokens.
+    const older = await startApi(() =>
+      Response.json({ publicSourceKey: 'k', allowedOrigins: ['https://site.test'] })
+    );
+    expect(
+      (
+        await older.call('/api/projects/project-1/websites/source-1/snippet', {
+          cookie: await older.session()
+        })
+      ).body.tokenRequired
+    ).toBe(true);
+  });
 });

@@ -29,7 +29,8 @@ export function WebsiteAddPage() {
     try {
       const created = await createWebsite(target.id, {
         name: input.name,
-        allowedOrigins: input.allowedOrigins
+        allowedOrigins: input.allowedOrigins,
+        tokenRequired: input.tokenRequired
       });
       void setup.refresh();
       await scope.refreshWebsites();

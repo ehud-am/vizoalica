@@ -604,3 +604,28 @@ describe('loading the guidance', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
   });
 });
+
+describe('a static website', () => {
+  it('shows one script tag, a publish step, and the check, with no deployment paths', async () => {
+    const snippet =
+      '<script defer src="https://w.test/vizoalica.js" data-source="k" data-token-url="none"></script>';
+    api.getSnippet.mockResolvedValue({
+      ...primaryIntegration,
+      tokenRequired: false,
+      scriptTag: { snippet, sdkUrl: 'https://w.test/vizoalica.js' }
+    });
+    window.location.hash = '#/manage/websites/s1/install';
+    render(<App />);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Add one script tag' })
+    ).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Script tag' }).textContent).toBe(snippet);
+    expect(stepTitles()).toEqual([
+      'Add the script tag to your pages',
+      'Publish your website',
+      'Check that it works'
+    ]);
+    expect(screen.queryByRole('tablist', { name: 'Deployment path' })).toBeNull();
+    expect(screen.queryByText(/token endpoint/i)).toBeNull();
+  });
+});

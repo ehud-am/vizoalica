@@ -82,18 +82,26 @@ export function InstallCheck({
         ) : (
           'your website'
         )}
-        , allow analytics when your consent banner asks, then check for data.
+        {path === 'script-tag'
+          ? ', then check for data.'
+          : ', allow analytics when your consent banner asks, then check for data.'}
       </p>
       {website.status === 'disabled' && (
         <p className="notice" role="status">
           This website is disabled, so it will not collect anything until you enable it.
         </p>
       )}
-      <p className="hint">
-        The check asks {website.allowedOrigins.length > 1 ? 'each allowed address' : 'your site'}{' '}
-        for <code>/vizoalica.js</code> and for a token from your token endpoint. It throws the token
-        away unread, and it expires in five minutes.
-      </p>
+      {path === 'script-tag' ? (
+        <p className="hint">
+          The check opens your home page and looks for the script tag with this website’s key.
+        </p>
+      ) : (
+        <p className="hint">
+          The check asks {website.allowedOrigins.length > 1 ? 'each allowed address' : 'your site'}{' '}
+          for <code>/vizoalica.js</code> and for a token from your token endpoint. It throws the
+          token away unread, and it expires in five minutes.
+        </p>
+      )}
       <button
         className="primary"
         type="button"
@@ -154,9 +162,9 @@ function Outcome({
         </p>
       ) : (
         <p className="notice">
-          <strong>No page views yet</strong> in the last 24 hours. Open your website, allow
-          analytics, wait a minute or two (new page views take a short while to appear), and check
-          again. If nothing arrives, look at{' '}
+          <strong>No page views yet</strong> in the last 24 hours. Open your website
+          {path === 'script-tag' ? '' : ', allow analytics'}, wait a minute or two (new page views
+          take a short while to appear), and check again. If nothing arrives, look at{' '}
           <a href={hrefFor('manage/health')} onClick={() => scope.selectWebsite(website.id)}>
             Health
           </a>{' '}

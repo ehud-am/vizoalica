@@ -70,9 +70,13 @@ export async function ingestBatch(
   const token = dependencies.verifyAuthorization
     ? await dependencies.verifyAuthorization(request.authorization)
     : new TokenVerifier(dependencies.tokenSecret).verifyAuthorizationHeader(request.authorization);
-  // Without the unsigned-demo bypass, a missing or invalid token can never be accepted,
-  // so refuse it before any D1 lookup: unauthenticated traffic then costs no database reads.
-  if (!token.ok && !dependencies.allowUnsignedDemo) return reject(401, token.reason);
+  // An unsigned batch can only be accepted with no token at all and from a browser origin (a static
+  // website), or through the unsigned-demo bypass. Anything else is refused before any D1 lookup,
+  // so that traffic costs no database reads. A token that is present but invalid is never
+  // downgraded to an unsigned batch.
+  const unsigned = !token.ok && token.reason === 'missing_token';
+  if (!token.ok && !dependencies.allowUnsignedDemo && !(unsigned && request.origin))
+    return reject(401, token.reason);
   let claims: TokenClaims | undefined;
   if (token.ok) claims = token.verified.claims;
 
@@ -86,8 +90,10 @@ export async function ingestBatch(
   if (!authz.ok) return reject(403, authz.reason);
 
   const { project, source } = authz;
-  if (!token.ok && !(dependencies.allowUnsignedDemo && project.mode === 'demo'))
-    return reject(401, token.reason, project, source);
+  // authorizeSource has already matched the origin against the website's allowed origins.
+  const staticSite = unsigned && !!request.origin && source.tokenRequired === false;
+  const demo = !!dependencies.allowUnsignedDemo && project.mode === 'demo';
+  if (!token.ok && !staticSite && !demo) return reject(401, token.reason, project, source);
 
   if (claims) {
     const constraintInput: Parameters<typeof validateTokenConstraints>[0] = {
@@ -130,7 +136,7 @@ export async function ingestBatch(
     if (!reserved) return reject(429, 'project_quota_exceeded', project, source);
   }
 
-  const trustLevel = claims ? 'signed-session' : 'unsigned-demo';
+  const trustLevel = claims ? 'signed-session' : staticSite ? 'origin-checked' : 'unsigned-demo';
   const storedEvents: StoredEvent[] = privacy.events.map((event) => ({
     projectId: project.id,
     sourceId: source.id,

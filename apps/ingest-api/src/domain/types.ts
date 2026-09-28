@@ -17,6 +17,11 @@ export interface Source {
   publicSourceKey: string;
   status: 'active' | 'disabled' | 'deleted' | 'rotating';
   quotaPolicyId?: string;
+  /**
+   * Whether every batch needs a signed token from the website's token endpoint. False lets a
+   * static website send unsigned batches from its allowed origins. Absent means true.
+   */
+  tokenRequired?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -77,6 +82,11 @@ export interface RequestAnalyticsContext {
   userAgentFamily: string;
   taxonomyVersion: 1;
   projectVisitorId?: string;
+  /**
+   * The Worker's identifier for this visitor on this UTC day, from a salt that is deleted once the
+   * day is over. Counts unique visitors with nothing stored in the browser.
+   */
+  dailyVisitorId?: string;
 }
 
 export interface AnalyticsRange {

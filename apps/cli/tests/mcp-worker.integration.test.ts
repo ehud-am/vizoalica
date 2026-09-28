@@ -16,8 +16,8 @@ function backend(): Env {
   sqlite.exec(`
     INSERT INTO quota_policies VALUES ('q1', 131072, 25, 25, 100, 100000, 25, 256, 7);
     INSERT INTO projects VALUES ('p1','Shop','demo',7,'q1','active');
-    INSERT INTO sources VALUES ('s1','p1','Storefront','k1','["https://shop.test"]','active','q1','t','t');
-    INSERT INTO sources VALUES ('s2','p1','Blog','k2','["https://blog.test"]','active','q1','t','t');
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Storefront','k1','["https://shop.test"]','active','q1','t','t');
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s2','p1','Blog','k2','["https://blog.test"]','active','q1','t','t');
     INSERT INTO dashboard_minute_dimensions (project_id, source_id, minute_utc, dimension_kind, dimension_value, event_count) VALUES
       ('p1','s1','2026-01-01T12:00:00.000Z','page_path','/',5),
       ('p1','s2','2026-01-01T12:00:00.000Z','page_path','/',3),

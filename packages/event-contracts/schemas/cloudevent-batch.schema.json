@@ -24,7 +24,7 @@
       "datacontenttype": { "const": "application/json" },
       "vizoalicaproject": { "type": "string", "maxLength": 128 },
       "vizoalicasource": { "type": "string", "maxLength": 128 },
-      "vizoalicaauth": { "enum": ["signed-session", "unsigned-demo"] },
+      "vizoalicaauth": { "enum": ["signed-session", "origin-checked", "unsigned-demo"] },
       "vizoalicaconsent": { "enum": ["analytics-granted", "analytics-denied", "unknown"] },
       "traceparent": { "type": "string", "maxLength": 128 },
       "tracestate": { "type": "string", "maxLength": 512 },

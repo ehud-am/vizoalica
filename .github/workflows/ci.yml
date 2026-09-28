@@ -59,6 +59,10 @@ jobs:
       - name: Build the standalone browser SDK
         run: pnpm browser-sdk:build
 
+      # The Worker serves the SDK from a generated module that is committed; it must match the build.
+      - name: Check the Worker's copy of the SDK is up to date
+        run: git diff --exit-code -- apps/ingest-worker/src/generated/
+
       # The publish workflow installs the latest npm before packing; npm 12 changed the shape of
       # `npm pack --json`, which this check tripped over only at release time. Do the same here.
       - name: Use the latest npm, as the publish workflow does

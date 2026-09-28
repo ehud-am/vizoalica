@@ -419,7 +419,8 @@ describe('edit page', () => {
     await waitFor(() =>
       expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's1', {
         name: 'Docs v2',
-        allowedOrigins: ['https://s1.test']
+        allowedOrigins: ['https://s1.test'],
+        tokenRequired: true
       })
     );
     expect(await screen.findByRole('heading', { level: 1, name: /Docs v2/ })).toBeTruthy();
@@ -446,7 +447,8 @@ describe('edit page', () => {
     await waitFor(() =>
       expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's1', {
         name: 'Docs',
-        allowedOrigins: ['https://s1.test', 'https://www.s1.test']
+        allowedOrigins: ['https://s1.test', 'https://www.s1.test'],
+        tokenRequired: true
       })
     );
     const note = await screen.findByText(/keeps its own list of origins/);
@@ -527,7 +529,8 @@ describe('add page', () => {
     await waitFor(() =>
       expect(api.createWebsite).toHaveBeenCalledWith('p2', {
         name: 'launch.test',
-        allowedOrigins: ['https://launch.test']
+        allowedOrigins: ['https://launch.test'],
+        tokenRequired: false
       })
     );
     expect(
@@ -557,7 +560,8 @@ describe('add page', () => {
     await waitFor(() =>
       expect(api.createWebsite).toHaveBeenCalledWith('p1', {
         name: 'Wiki',
-        allowedOrigins: ['https://s8.test', 'https://www.s8.test']
+        allowedOrigins: ['https://s8.test', 'https://www.s8.test'],
+        tokenRequired: false
       })
     );
     expect(await screen.findByRole('heading', { level: 1, name: 'Install on Wiki' })).toBeTruthy();

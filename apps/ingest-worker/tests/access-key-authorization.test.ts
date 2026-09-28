@@ -22,8 +22,8 @@ function environment() {
     INSERT INTO quota_policies VALUES ('q2', 131072, 25, 25, 100, 100000, 25, 256, 7);
     INSERT INTO projects VALUES ('p1','Shop','demo',7,'q1','active');
     INSERT INTO projects VALUES ('p2','Other','demo',7,'q2','active');
-    INSERT INTO sources VALUES ('s1','p1','Storefront','shop-key','["https://shop.test"]','active','q1','t','t');
-    INSERT INTO sources VALUES ('s2','p1','Blog','blog-key','["https://blog.test"]','active','q1','t','t');
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Storefront','shop-key','["https://shop.test"]','active','q1','t','t');
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s2','p1','Blog','blog-key','["https://blog.test"]','active','q1','t','t');
   `);
   const env = {
     VIZOALICA_DB: d1(sqlite),

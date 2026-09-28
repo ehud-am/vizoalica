@@ -49,9 +49,26 @@ type SourceRow = {
   allowed_origins_json: string;
   status: Source['status'];
   quota_policy_id?: string | null;
+  /** Absent on a database older than schema 3, where every website needs a token. */
+  token_required?: number | null;
   created_at?: string;
   updated_at?: string;
 };
+
+function sourceFromRow(row: SourceRow): Source {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    publicSourceKey: row.public_source_key,
+    allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
+    status: row.status,
+    ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
+    tokenRequired: row.token_required !== 0,
+    ...(row.created_at ? { createdAt: row.created_at } : {}),
+    ...(row.updated_at ? { updatedAt: row.updated_at } : {})
+  };
+}
 type QuotaRow = {
   id: string;
   max_request_bytes: number;
@@ -163,17 +180,7 @@ export class D1Repositories
       .first<SourceRow>();
     if (!row) return undefined;
     try {
-      return {
-        id: row.id,
-        projectId: row.project_id,
-        name: row.name,
-        publicSourceKey: row.public_source_key,
-        allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
-        status: row.status,
-        ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
-        ...(row.created_at ? { createdAt: row.created_at } : {}),
-        ...(row.updated_at ? { updatedAt: row.updated_at } : {})
-      };
+      return sourceFromRow(row);
     } catch {
       return undefined;
     }
@@ -300,9 +307,14 @@ export class D1Repositories
           )
           .bind(stored.projectId, stored.sourceId, hour)
           .run();
-        const visitorId = (stored.event.data as { visitor?: { anonymous_id?: unknown } }).visitor
-          ?.anonymous_id;
-        if (typeof visitorId === 'string' && visitorId) {
+        // The Worker's daily identifier when there is one; the browser's per-page-load id only for
+        // callers without it (tests, a local ingest).
+        const browserVisitorId = (stored.event.data as { visitor?: { anonymous_id?: unknown } })
+          .visitor?.anonymous_id;
+        const visitorId =
+          context?.dailyVisitorId ??
+          (typeof browserVisitorId === 'string' && browserVisitorId ? browserVisitorId : undefined);
+        if (visitorId) {
           await this.db
             .prepare(
               'INSERT OR IGNORE INTO dashboard_hourly_visitors (project_id, source_id, hour_utc, visitor_digest) VALUES (?, ?, ?, ?)'
@@ -608,9 +620,12 @@ export class D1Repositories
   }
   async createSource(source: Source): Promise<void> {
     const createdAt = source.createdAt ?? new Date().toISOString();
+    // token_required is only written when it differs from the column default, so a website that
+    // needs tokens can still be created on a database older than schema 3.
+    const staticSite = source.tokenRequired === false;
     await this.db
       .prepare(
-        'INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''})`
       )
       .bind(
         source.id,
@@ -638,17 +653,7 @@ export class D1Repositories
       .prepare('SELECT * FROM sources WHERE project_id = ? ORDER BY id')
       .bind(projectId)
       .all<SourceRow>();
-    return results.map((row) => ({
-      id: row.id,
-      projectId: row.project_id,
-      name: row.name,
-      publicSourceKey: row.public_source_key,
-      allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
-      status: row.status,
-      ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
-      ...(row.created_at ? { createdAt: row.created_at } : {}),
-      ...(row.updated_at ? { updatedAt: row.updated_at } : {})
-    }));
+    return results.map(sourceFromRow);
   }
   async setSourceStatus(
     projectId: string,
@@ -668,36 +673,31 @@ export class D1Repositories
       .prepare('SELECT * FROM sources WHERE id = ? AND project_id = ?')
       .bind(sourceId, projectId)
       .first<SourceRow>();
-    return row
-      ? {
-          id: row.id,
-          projectId: row.project_id,
-          name: row.name,
-          publicSourceKey: row.public_source_key,
-          allowedOrigins: JSON.parse(row.allowed_origins_json) as string[],
-          status: row.status,
-          ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
-          ...(row.created_at ? { createdAt: row.created_at } : {}),
-          ...(row.updated_at ? { updatedAt: row.updated_at } : {})
-        }
-      : undefined;
+    return row ? sourceFromRow(row) : undefined;
   }
   async updateSource(
     projectId: string,
     sourceId: string,
-    changes: { name?: string; allowedOrigins?: string[]; status?: 'active' | 'disabled' }
+    changes: {
+      name?: string;
+      allowedOrigins?: string[];
+      status?: 'active' | 'disabled';
+      tokenRequired?: boolean;
+    }
   ): Promise<Source | undefined> {
     const existing = await this.getSource(projectId, sourceId);
     if (!existing || existing.status === 'deleted') return undefined;
+    const withToken = changes.tokenRequired !== undefined;
     const result = await this.db
       .prepare(
-        "UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ? WHERE id = ? AND project_id = ? AND status != 'deleted'"
+        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
       )
       .bind(
         changes.name ?? existing.name,
         JSON.stringify(changes.allowedOrigins ?? existing.allowedOrigins),
         changes.status ?? existing.status,
         new Date().toISOString(),
+        ...(withToken ? [changes.tokenRequired ? 1 : 0] : []),
         sourceId,
         projectId
       )
@@ -962,6 +962,28 @@ export class D1Repositories
       }
     });
     return shape(await this.readAll(statements));
+  }
+
+  /** Today's visitor salt, created on first use; the same value for every caller that day. */
+  async dailyVisitorSalt(dayUtc: string): Promise<string | undefined> {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const fresh = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    await this.db
+      .prepare(
+        'INSERT OR IGNORE INTO daily_visitor_salts (day_utc, salt, created_at) VALUES (?, ?, ?)'
+      )
+      .bind(dayUtc, fresh, new Date().toISOString())
+      .run();
+    const row = await this.db
+      .prepare('SELECT salt FROM daily_visitor_salts WHERE day_utc = ?')
+      .bind(dayUtc)
+      .first<{ salt: string }>();
+    return row?.salt;
+  }
+
+  /** Deletes every salt for a day before `dayUtc`, which makes those days' visitor ids unlinkable. */
+  async deleteVisitorSaltsBefore(dayUtc: string): Promise<void> {
+    await this.db.prepare('DELETE FROM daily_visitor_salts WHERE day_utc < ?').bind(dayUtc).run();
   }
 
   async deleteExpiredDashboardData(beforeUtc: string): Promise<void> {

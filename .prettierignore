@@ -15,6 +15,7 @@ examples/cloudflare-pages/public/vizoalica-loader.js
 specs/
 apps/admin-web/src/geo/countries.ts
 apps/admin-web/src/geo/world-paths.ts
+apps/ingest-worker/src/generated/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/public/_headers

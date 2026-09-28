@@ -450,10 +450,12 @@ export async function handleAdminRequest(
       return forbidden();
     }
     const body = (await request.json().catch(() => undefined)) as
-      { name?: unknown; allowedOrigins?: unknown; origins?: unknown } | undefined;
+      | { name?: unknown; allowedOrigins?: unknown; origins?: unknown; tokenRequired?: unknown }
+      | undefined;
     const allowedOrigins = body && origins(body.allowedOrigins ?? body.origins);
     if (
       !allowedOrigins ||
+      (body.tokenRequired !== undefined && typeof body.tokenRequired !== 'boolean') ||
       typeof body?.name !== 'string' ||
       body.name.trim().length < 1 ||
       body.name.length > 120 ||
@@ -468,7 +470,9 @@ export async function handleAdminRequest(
       publicSourceKey: crypto.randomUUID(),
       allowedOrigins,
       status: 'active',
-      quotaPolicyId: policy.id
+      quotaPolicyId: policy.id,
+      // A client that does not say keeps the earlier behaviour: tokens required.
+      tokenRequired: body.tokenRequired !== false
     };
     await dependencies.repositories.createQuotaPolicy(policy);
     await dependencies.repositories.createSource(source);
@@ -522,7 +526,14 @@ export async function handleAdminRequest(
       return guarded;
     }
     const body = (await request.json().catch(() => undefined)) as
-      { name?: unknown; allowedOrigins?: unknown; origins?: unknown; status?: unknown } | undefined;
+      | {
+          name?: unknown;
+          allowedOrigins?: unknown;
+          origins?: unknown;
+          status?: unknown;
+          tokenRequired?: unknown;
+        }
+      | undefined;
     const allowedOrigins =
       body && body.allowedOrigins !== undefined
         ? origins(body.allowedOrigins)
@@ -532,9 +543,14 @@ export async function handleAdminRequest(
     const name = typeof body?.name === 'string' ? body.name.trim() : undefined;
     const status =
       body?.status === 'active' || body?.status === 'disabled' ? body.status : undefined;
+    const tokenRequired = typeof body?.tokenRequired === 'boolean' ? body.tokenRequired : undefined;
     const valid =
       !!body &&
-      (name !== undefined || allowedOrigins !== undefined || status !== undefined) &&
+      (name !== undefined ||
+        allowedOrigins !== undefined ||
+        status !== undefined ||
+        tokenRequired !== undefined) &&
+      (body.tokenRequired === undefined || tokenRequired !== undefined) &&
       (body.name === undefined || (name !== undefined && name.length > 0 && name.length <= 120)) &&
       ((body.allowedOrigins === undefined && body.origins === undefined) ||
         allowedOrigins !== undefined) &&
@@ -543,7 +559,8 @@ export async function handleAdminRequest(
       ? await dependencies.repositories.updateSource(item[1]!, item[2]!, {
           ...(name !== undefined ? { name } : {}),
           ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
-          ...(status !== undefined ? { status } : {})
+          ...(status !== undefined ? { status } : {}),
+          ...(tokenRequired !== undefined ? { tokenRequired } : {})
         })
       : undefined;
     if (!source) return invalid();
@@ -587,7 +604,8 @@ export async function handleAdminRequest(
       ? Response.json({
           publicSourceKey: source.publicSourceKey,
           allowedOrigins: source.allowedOrigins,
-          tokenIssuer: 'website-owned'
+          tokenRequired: source.tokenRequired !== false,
+          tokenIssuer: source.tokenRequired === false ? 'none' : 'website-owned'
         })
       : notFound();
   }

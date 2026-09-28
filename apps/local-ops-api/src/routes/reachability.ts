@@ -184,12 +184,63 @@ async function checkOrigin(
  * The token endpoint is asked for a token, which is discarded unread and lives five minutes: that
  * is the only way to see whether its secret and origin list are right.
  */
+const MAX_PAGE_BYTES = 512 * 1024;
+
+/**
+ * A static website's install: its home page is reachable and carries the tag with this website's
+ * key. The SDK itself comes from the backend, so there is no file or endpoint on the site to check.
+ */
+async function checkScriptTag(
+  base: URL,
+  publicSourceKey: string,
+  fetchImpl: typeof fetch
+): Promise<InstallCheck> {
+  let response: Response;
+  try {
+    response = await fetchImpl(new URL('/', base), {
+      method: 'GET',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5_000)
+    });
+  } catch {
+    return {
+      code: 'site-unreachable',
+      nextAction: `Could not reach ${base.origin}. Check that the address is live, then check again.`
+    };
+  }
+  const location = response.headers.get('location');
+  if (response.status >= 300 && response.status < 400 && location) {
+    await response.body?.cancel();
+    return {
+      code: 'site-redirects',
+      nextAction: `${base.origin} redirects to ${new URL(location, base).origin}. List the address that actually serves your site as the website’s origin.`
+    };
+  }
+  const page = response.ok ? await readCapped(response, MAX_PAGE_BYTES).catch(() => '') : '';
+  if (!page.includes(publicSourceKey))
+    return {
+      code: 'tag-missing',
+      nextAction: `The home page of ${base.origin} does not have the script tag yet. Paste it into your pages (or your shared layout), publish, then check again.`
+    };
+  return { code: 'ok', nextAction: 'No action needed.' };
+}
+
 export async function checkInstall(
   origins: readonly string[],
-  path: 'github' | 'snippet',
+  path: 'github' | 'snippet' | 'script-tag',
   configReachable: boolean,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  publicSourceKey = ''
 ): Promise<InstallCheck> {
+  if (path === 'script-tag') {
+    let base: URL;
+    try {
+      base = new URL(origins[0] ?? '');
+    } catch {
+      return { code: 'site-unreachable', nextAction: 'Edit the website and enter a valid origin.' };
+    }
+    return checkScriptTag(base, publicSourceKey, fetchImpl);
+  }
   const bases: URL[] = [];
   for (const origin of origins.slice(0, 10)) {
     try {

@@ -39,6 +39,25 @@ describe('embed defaults', () => {
     expect(fetcher.mock.calls.every(([url]) => url !== '/vizoalica/ingest-token')).toBe(true);
   });
 
+  it('takes the endpoint from the backend that served the script, when loaded from one', () => {
+    const tag = {
+      dataset: { source: 'public_src', tokenUrl: 'none' },
+      src: 'https://prod-vizoalica.example.workers.dev/vizoalica.js'
+    } as unknown as HTMLScriptElement;
+    expect(configFromScript(tag).endpoint).toBe(
+      'https://prod-vizoalica.example.workers.dev/v1/events:batch'
+    );
+    expect(configFromScript(tag).tokenUrl).toBeUndefined();
+  });
+
+  it('still needs data-endpoint when the script is served from the website itself', () => {
+    const tag = {
+      dataset: { source: 'public_src' },
+      src: 'https://example.com/assets/vizoalica.js'
+    } as unknown as HTMLScriptElement;
+    expect(() => configFromScript(tag)).toThrow('data-endpoint');
+  });
+
   it('keeps an explicit token path and an explicit project exactly as given', () => {
     const config = configFromScript(
       script({

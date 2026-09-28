@@ -42,9 +42,13 @@ describe('GET /v1/admin/backend', () => {
     expect(await response.json()).toEqual({
       workerVersion: '0.6.4',
       schema: {
-        applied: 2,
-        expected: 2,
-        appliedNames: ['0001_initial.sql', '0002_access_keys.sql'],
+        applied: 3,
+        expected: 3,
+        appliedNames: [
+          '0001_initial.sql',
+          '0002_access_keys.sql',
+          '0003_static_sites_daily_visitors.sql'
+        ],
         status: 'current'
       },
       health: { database: 'ok', storage: 'ok' }

@@ -25,7 +25,9 @@ export function validateProjectBody(body: unknown): { name: string } {
 }
 
 export function validateWebsiteBody(body: unknown, partial = false) {
-  const value = body as { name?: unknown; allowedOrigins?: unknown; status?: unknown } | undefined;
+  const value = body as
+    | { name?: unknown; allowedOrigins?: unknown; status?: unknown; tokenRequired?: unknown }
+    | undefined;
   if (!value || (!partial && (!validName(value.name) || !validOrigins(value.allowedOrigins))))
     throw new Error('invalid_request');
   if (value.name !== undefined && !validName(value.name)) throw new Error('invalid_request');
@@ -33,17 +35,21 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     throw new Error('invalid_request');
   if (value.status !== undefined && value.status !== 'active' && value.status !== 'disabled')
     throw new Error('invalid_request');
+  if (value.tokenRequired !== undefined && typeof value.tokenRequired !== 'boolean')
+    throw new Error('invalid_request');
   if (
     partial &&
     value.name === undefined &&
     value.allowedOrigins === undefined &&
-    value.status === undefined
+    value.status === undefined &&
+    value.tokenRequired === undefined
   )
     throw new Error('invalid_request');
   return {
     ...(value.name !== undefined ? { name: value.name.trim() } : {}),
     ...(value.allowedOrigins !== undefined ? { allowedOrigins: value.allowedOrigins } : {}),
-    ...(value.status !== undefined ? { status: value.status } : {})
+    ...(value.status !== undefined ? { status: value.status } : {}),
+    ...(value.tokenRequired !== undefined ? { tokenRequired: value.tokenRequired } : {})
   };
 }
 

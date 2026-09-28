@@ -67,7 +67,12 @@ export interface AdminRepository {
   updateSource(
     projectId: string,
     sourceId: string,
-    changes: { name?: string; allowedOrigins?: string[]; status?: 'active' | 'disabled' }
+    changes: {
+      name?: string;
+      allowedOrigins?: string[];
+      status?: 'active' | 'disabled';
+      tokenRequired?: boolean;
+    }
   ): Promise<Source | undefined>;
   getSource(projectId: string, sourceId: string): Promise<Source | undefined>;
   getAnalyticsSummary(

@@ -77,7 +77,7 @@ export async function expandActionEvent(
 
   // The same keyed identity page views use, so "visitors" means the same thing everywhere.
   const visitorId = data?.visitor?.anonymous_id;
-  const identity = context?.projectVisitorId ?? visitorId;
+  const identity = context?.projectVisitorId ?? context?.dailyVisitorId ?? visitorId;
   const identityKind = context?.projectVisitorId ? 'project-supplied' : 'source-local';
   const visitorDigest =
     typeof identity === 'string' && identity

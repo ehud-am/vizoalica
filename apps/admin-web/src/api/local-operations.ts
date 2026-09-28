@@ -11,6 +11,8 @@ export type Website = {
   publicSourceKey: string;
   allowedOrigins: string[];
   status: 'active' | 'disabled' | 'deleted';
+  /** False for a static website (one script tag); absent from an older backend, meaning true. */
+  tokenRequired?: boolean;
 };
 export type DynamicConfigV1 = {
   version: 1;
@@ -60,6 +62,10 @@ export type Integration = {
   publicSourceKey: string;
   allowedOrigins: string[];
   modes: [StaticInstallation, DynamicInstallation];
+  /** Absent from an older local API; treat as true. */
+  tokenRequired?: boolean;
+  /** The one-tag install for a static website; absent from an older local API. */
+  scriptTag?: { snippet: string; sdkUrl: string };
   privateSetup: { tokenIssuer: 'website-owned'; tokenSecretRequired: true };
   /** Transitional compatibility alias; identical to modes[0].snippet. */
   html?: string;
@@ -72,7 +78,8 @@ export type InstallCode =
   | 'token-endpoint-missing'
   | 'token-endpoint-rejecting'
   | 'origin-not-allowed'
-  | 'config-file-missing';
+  | 'config-file-missing'
+  | 'tag-missing';
 export type Reachability = {
   configEndpointReachable: boolean;
   configEndpointCheckedAt: string;
@@ -205,13 +212,13 @@ export const listWebsites = (projectId: string) =>
   request<Website[]>(`/api/projects/${encodeURIComponent(projectId)}/websites`);
 export const createWebsite = (
   projectId: string,
-  input: { name: string; allowedOrigins: string[] }
+  input: { name: string; allowedOrigins: string[]; tokenRequired?: boolean }
 ) =>
   request<Website>(`/api/projects/${encodeURIComponent(projectId)}/websites`, json('POST', input));
 export const updateWebsite = (
   projectId: string,
   websiteId: string,
-  input: Partial<Pick<Website, 'name' | 'allowedOrigins' | 'status'>>
+  input: Partial<Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired'>>
 ) =>
   request<Website>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}`,
@@ -233,7 +240,7 @@ export const getStatus = (projectId: string, websiteId: string) =>
 export const getReachability = (
   projectId: string,
   websiteId: string,
-  installPath?: 'github' | 'snippet'
+  installPath?: 'github' | 'snippet' | 'script-tag'
 ) =>
   request<Reachability>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/reachability${

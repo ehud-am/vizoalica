@@ -14,6 +14,8 @@ export type Website = {
   publicSourceKey: string;
   allowedOrigins: string[];
   status: WebsiteStatus;
+  /** False for a static website that sends unsigned events from its allowed origins. */
+  tokenRequired?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -23,6 +25,13 @@ export type IntegrationSnippet = {
   publicSourceKey: string;
   allowedOrigins: string[];
   modes: [StaticInstallation, DynamicInstallation];
+  /** Whether the website needs a token endpoint; false for a static website. */
+  tokenRequired: boolean;
+  /**
+   * The one-tag install for a static website: the backend serves the SDK, and the tag carries
+   * only the website's public key.
+   */
+  scriptTag: { snippet: string; sdkUrl: string };
   privateSetup: {
     tokenIssuer: 'website-owned';
     tokenSecretRequired: true;
@@ -89,7 +98,8 @@ export type InstallCode =
   | 'token-endpoint-missing'
   | 'token-endpoint-rejecting'
   | 'origin-not-allowed'
-  | 'config-file-missing';
+  | 'config-file-missing'
+  | 'tag-missing';
 /** What the install check found, as one code and the single next thing to do. */
 export type InstallCheck = { code: InstallCode; nextAction: string };
 export type ReachabilityStatus = {

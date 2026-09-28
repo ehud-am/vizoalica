@@ -13,6 +13,7 @@ import {
   writePath,
   type InstallPath
 } from './install/paths.js';
+import { ScriptTagPath } from './install/ScriptTagPath.js';
 import { SnippetPath } from './install/SnippetPath.js';
 import { WebsiteGate } from './WebsiteGate.js';
 
@@ -119,7 +120,19 @@ function Install({ website }: { website: Website }) {
         </p>
       )}
 
-      {integration && modes && (
+      {integration && integration.tokenRequired === false && integration.scriptTag && (
+        <section className="install-choice" aria-labelledby="install-choice-heading">
+          <h2 id="install-choice-heading">Add one script tag</h2>
+          <ScriptTagPath
+            website={website}
+            snippet={integration.scriptTag.snippet}
+            runSignal={runSignal}
+            onDeployed={onDeployed}
+          />
+        </section>
+      )}
+
+      {integration && modes && integration.tokenRequired !== false && (
         <>
           <section className="install-choice" aria-labelledby="install-choice-heading">
             <h2 id="install-choice-heading">How is this website deployed?</h2>

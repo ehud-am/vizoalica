@@ -67,6 +67,7 @@ export default {
           schema: await readSchemaVersion(env.VIZOALICA_DB),
           health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS)
         }),
+        visitorSalts: configuration,
         ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes
@@ -82,6 +83,11 @@ export default {
     const before = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
     before.setUTCSeconds(0, 0);
     await repositories.deleteExpiredDashboardData(before.toISOString());
+    // Yesterday's and older visitor salts: once gone, those days' visitor ids cannot be linked to
+    // anyone. Tolerates a database older than schema 3, which has no salts.
+    await repositories
+      .deleteVisitorSaltsBefore(new Date().toISOString().slice(0, 10))
+      .catch(() => undefined);
     // Deletion is terminal, so whatever operators deleted is physically removed on the next run.
     // A run that hits its operation budget resumes on the next one.
     const purged = await purgeDeleted({
