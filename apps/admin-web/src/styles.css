@@ -283,6 +283,22 @@ pre:focus-visible {
   min-width: 0;
   text-decoration: none;
 }
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.stage-badge {
+  padding: 2px 8px;
+  color: var(--color-text-brand);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 .brand-logo {
   display: block;
   width: 152px;
