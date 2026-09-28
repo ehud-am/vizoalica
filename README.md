@@ -199,6 +199,18 @@ _The console showing sample data sent through your own backend._
 If a step fails, see [troubleshooting](docs/operations/troubleshooting.md) and resume at that step. A website
 whose events are rejected with `invalid_signature` has a different `VIZOALICA_TOKEN_SECRET` from its Worker.
 
+## Ask an AI assistant
+
+Let Claude, Codex, or Cursor answer questions about your analytics and the health of your backends, read-only:
+
+```sh
+vizoalica mcp install --client claude-code      # or claude-desktop, codex, cursor
+vizoalica skill install --client claude-code    # or codex
+```
+
+The MCP server runs on your computer, works on every environment you have, names the environment in every
+answer, and never hands a secret to the AI client. See [Use Vizoalica with AI](docs/operations/ai.md).
+
 ## For contributors: build from source
 
 You do not need this to use Vizoalica. It is for contributors and for anyone who deploys a reviewed tag
@@ -305,6 +317,7 @@ goes.
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | Create a backend, and replace its secrets (`deploy`, `rotate`)     | [Create a backend](docs/operations/deploy.md)                                                  |
 | Environments and `vizoalica env`                                   | [Environments](docs/operations/environments.md)                                                |
+| Ask Claude, Codex, or Cursor about your analytics (MCP and skill)  | [Use Vizoalica with AI](docs/operations/ai.md)                                                 |
 | Deploy, update, and maintain the backend from a source checkout    | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
 | Console from a checkout, private credential file                   | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                                 | [With OneCLI](docs/operations/onecli.md)                                                       |

@@ -5,7 +5,6 @@ import type {
   AccessKeySummary,
   AdminAuditEntry,
   IngestionDecision,
-  PageViewCounts,
   Project,
   QuotaPolicy,
   Source,
@@ -704,25 +703,6 @@ export class D1Repositories
       )
       .run();
     return (result.meta?.changes ?? 0) ? this.getSource(projectId, sourceId) : undefined;
-  }
-  async getPageViewCounts(
-    projectId: string,
-    sourceId: string,
-    startDate: string,
-    endDate: string
-  ): Promise<PageViewCounts | undefined> {
-    const source = await this.db
-      .prepare('SELECT * FROM sources WHERE id = ? AND project_id = ?')
-      .bind(sourceId, projectId)
-      .first<SourceRow>();
-    if (!source) return undefined;
-    const { results } = await this.db
-      .prepare(
-        "SELECT event_date AS date, page_path AS path, event_count AS count FROM dashboard_rollups WHERE project_id = ? AND source_id = ? AND event_type = 'com.vizoalica.page_view.v1' AND event_date BETWEEN ? AND ? ORDER BY event_date, page_path"
-      )
-      .bind(projectId, sourceId, startDate, endDate)
-      .all<{ date: string; path: string; count: number }>();
-    return { total: results.reduce((total, row) => total + row.count, 0), byDateAndPath: results };
   }
   async getAnalyticsSummary(
     projectId: string,

@@ -4,6 +4,22 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Ask an AI assistant about your analytics: `vizoalica mcp`.** A local, read-only MCP server that works on
+  every environment in `vizoalica env list` and starts every answer with the environment it came from. Tools:
+  `list_environments`, `use_environment`, `get_environment_status`, `list_websites`, `get_website_status`,
+  `get_traffic_overview`, `compare_periods`, `get_actions`, plus three prompts. Secrets stay in the `vizoalica`
+  process. `vizoalica mcp install --client claude-code|claude-desktop|codex|cursor` adds it to a client.
+- **A Vizoalica skill** for AI assistants (setup, health, operations, analytics), shipped in the package.
+  `vizoalica skill install --client claude-code|codex` installs it; `vizoalica skill path` shows where it is.
+  See [Use Vizoalica with AI](docs/operations/ai.md).
+
+### Removed
+
+- **The Worker's `/mcp` endpoint** (admin secret only, two tools, never documented) and the page-view-count
+  query only it used. `/mcp` now answers 404. Use `vizoalica mcp` instead.
+
 ### Fixed
 
 - **`pnpm vizoalica backend --update --env <name>` updates a backend created by `vizoalica deploy <name>`.**

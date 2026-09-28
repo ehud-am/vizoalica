@@ -4,7 +4,6 @@ import type { PipelineDependencies } from '../../../ingest-api/src/ingestion/pip
 import type { AdminRepository } from '../../../ingest-api/src/storage/repositories.js';
 import { handleAdminRequest, type BackendInfo } from './admin-adapter.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
-import { handleMcpRequest } from './mcp-adapter.js';
 import { classifyRequest } from '../analytics/classifier.js';
 import type { RateLimiter } from '../env.js';
 
@@ -75,11 +74,6 @@ export async function handleWorkerRequest(
   const url = new URL(request.url);
   if (request.method === 'GET' && url.pathname === '/healthz') return healthResponse();
   if (dependencies.adminSecret && dependencies.adminRepositories) {
-    const mcpResponse = await handleMcpRequest(request, {
-      adminSecret: dependencies.adminSecret,
-      repositories: dependencies.adminRepositories
-    });
-    if (mcpResponse) return mcpResponse;
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,
       repositories: dependencies.adminRepositories,

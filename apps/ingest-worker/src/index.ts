@@ -31,7 +31,6 @@ export default {
       setSourceStatus: configuration.setSourceStatus.bind(configuration),
       updateSource: configuration.updateSource.bind(configuration),
       getSource: configuration.getSource.bind(configuration),
-      getPageViewCounts: configuration.getPageViewCounts.bind(configuration),
       getAnalyticsSummary: configuration.getAnalyticsSummary.bind(configuration),
       getAnalyticsOverview: configuration.getAnalyticsOverview.bind(configuration),
       getActionsReport: configuration.getActionsReport.bind(configuration),

@@ -28,6 +28,7 @@ export const sidebar: NavGroup[] = [
       { text: 'Keep secrets in OneCLI', link: '/operations/onecli' },
       { text: 'Activate a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
+      { text: 'Use Vizoalica with AI', link: '/operations/ai' },
       { text: 'Backend from a source checkout', link: '/operations/cloudflare' },
       { text: 'Console from a source checkout', link: '/operations/local-analytics' },
       { text: 'Database and Worker versions', link: '/operations/schema-versions' },
