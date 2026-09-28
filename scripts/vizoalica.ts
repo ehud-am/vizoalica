@@ -625,6 +625,15 @@ export function help(): string {
       ['demo', 'Add sample data (--env <name>; --remove deletes it)']
     ]),
     '',
+    'AI assistants (read-only)',
+    ...rows([
+      [
+        'mcp install --client <c>',
+        'Let Claude Code, Claude Desktop, Codex, or Cursor read your analytics'
+      ],
+      ['skill install --client <c>', 'Teach Claude Code or Codex how Vizoalica works']
+    ]),
+    '',
     'Look after it',
     ...rows([
       ['rotate <admin|token|digest|all>', 'Replace a secret and show the new value once'],
@@ -666,11 +675,15 @@ const dependencies: Dependencies = {
  * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
  * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
  */
+const PACKAGED = new Set(['env', 'deploy', 'mcp', 'skill']);
+
 async function packagedCommand(
-  command: 'env' | 'deploy' | 'rotate',
+  command: 'env' | 'deploy' | 'rotate' | 'mcp' | 'skill',
   argv: readonly string[]
 ): Promise<void> {
   const { envCommand } = await import('../apps/cli/src/env-command.js');
+  const { mcpCommand } = await import('../apps/cli/src/mcp-command.js');
+  const { skillCommand } = await import('../apps/cli/src/skill-command.js');
   const { deployCommand } = await import('../apps/cli/src/deploy-command.js');
   const { rotateCommand } = await import('../apps/cli/src/rotate-command.js');
   const { Cancelled, terminalAsk } = await import('../apps/cli/src/prompt.js');
@@ -680,7 +693,9 @@ async function packagedCommand(
   const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
   const args = argv.filter((item) => item !== '--verbose');
   const out = (message: string) => void stdout.write(message);
-  const trace = args.length < argv.length ? makeTrace(out) : undefined;
+  const err = (message: string) => void process.stderr.write(message);
+  // The MCP server's stdout carries only protocol messages, so its trace goes to stderr.
+  const trace = args.length < argv.length ? makeTrace(command === 'mcp' ? err : out) : undefined;
   trace?.(`vizoalica ${version} (checkout), Node.js ${process.versions.node}, ${process.platform}`);
   trace?.(`Command: ${command} ${args.join(' ')}`);
   const deps = {
@@ -689,7 +704,7 @@ async function packagedCommand(
     assetDir: resolve('apps', 'cli', 'package', 'dist'),
     env: process.env,
     out,
-    err: (message: string) => void process.stderr.write(message),
+    err,
     interactive: Boolean(stdin.isTTY && stdout.isTTY),
     ask: terminalAsk(),
     readStdin: async () => {
@@ -707,7 +722,11 @@ async function packagedCommand(
         ? await envCommand(args, { ...deps, deploy })
         : command === 'rotate'
           ? await rotateCommand(args, deps)
-          : await deploy(args);
+          : command === 'mcp'
+            ? await mcpCommand(args, { ...deps, platform: process.platform })
+            : command === 'skill'
+              ? await skillCommand(args, { ...deps, source: resolve('skills', 'vizoalica') })
+              : await deploy(args);
   } catch (error) {
     if (!(error instanceof Cancelled)) throw error;
     process.stderr.write(`${error.message}\n`);
@@ -718,7 +737,8 @@ async function packagedCommand(
 }
 
 export async function run(argv: readonly string[], injected = dependencies): Promise<void> {
-  if (argv[0] === 'env' || argv[0] === 'deploy') return packagedCommand(argv[0], argv.slice(1));
+  if (argv[0] && PACKAGED.has(argv[0]))
+    return packagedCommand(argv[0] as 'env' | 'deploy' | 'mcp' | 'skill', argv.slice(1));
   // `rotate <environment> <secret>` is for environments; `rotate <secret>` is this checkout's own install.
   if (
     argv[0] === 'rotate' &&

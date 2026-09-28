@@ -200,6 +200,24 @@ describe('pnpm vizoalica connect and demo', () => {
   });
 });
 
+describe('pnpm vizoalica mcp and skill', () => {
+  it('run the packaged commands from the checkout, with the skill from skills/', async () => {
+    const lines: string[] = [];
+    const write = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: string) => void lines.push(String(chunk))) as never;
+    try {
+      await run(['skill', 'path'], deps());
+      await run(['mcp', 'help'], deps());
+    } finally {
+      process.stdout.write = write;
+    }
+    expect(lines.join('')).toContain(join('skills', 'vizoalica'));
+    expect(lines.join('')).toContain('Usage: vizoalica mcp');
+    expect(help()).toContain('pnpm vizoalica mcp install --client');
+    expect(help()).toContain('pnpm vizoalica skill install --client');
+  });
+});
+
 describe('vizoalica install (retired)', () => {
   it('deploys and configures nothing, prints where to go, and exits with code 2', async () => {
     const path = consoleConfig(generateSecret());
