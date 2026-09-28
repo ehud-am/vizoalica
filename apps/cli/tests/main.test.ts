@@ -91,12 +91,27 @@ describe('main', () => {
   });
 
   it('points commands that need a checkout at the checkout', async () => {
-    for (const command of ['install', 'backend', 'deploy-pages']) {
+    for (const command of ['connect', 'demo']) {
       const d = deps();
       expect(await main([command], d)).toBe(2);
       expect(d.errors.join('')).toContain(`vizoalica ${command}`);
       expect(d.errors.join('')).toContain('git clone');
     }
+  });
+
+  it('says what replaced a retired command', async () => {
+    for (const [command, replacement] of [
+      ['install', 'vizoalica env add'],
+      ['backend', 'vizoalica deploy <name> --update']
+    ]) {
+      const d = deps();
+      expect(await main([command!], d)).toBe(2);
+      expect(d.errors.join('')).toContain(`"vizoalica ${command}" was retired`);
+      expect(d.errors.join('')).toContain(replacement!);
+    }
+    const gone = deps();
+    expect(await main(['deploy-pages'], gone)).toBe(1);
+    expect(gone.errors.join('')).toContain('Unknown command');
   });
 
   it('rejects unexpected console arguments', async () => {

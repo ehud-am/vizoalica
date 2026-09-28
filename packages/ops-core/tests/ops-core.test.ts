@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_NAMES,
   OpsCoreError,
   SECRETS,
   SECRET_KINDS,
-  assertAccountId,
-  assertResourceName,
   formatSecretBlock,
   generateSecret,
   generateSecrets,
@@ -13,27 +10,10 @@ import {
   parseAccounts,
   parseBuckets,
   parseDatabases,
-  parsePendingMigrations,
   parseSecretKind,
   parseWorkerUrl,
-  readConfigNames,
   renderProductionConfig
 } from '../src/index.js';
-
-describe('names', () => {
-  it('accepts DEFAULT_NAMES and rejects malformed resource names', () => {
-    for (const name of Object.values(DEFAULT_NAMES))
-      expect(() => assertResourceName('x', name)).not.toThrow();
-    for (const bad of ['AB', 'a', '-abc', 'abc-', 'has spaces', 'Has_Upper'])
-      expect(() => assertResourceName('Worker', bad)).toThrow(OpsCoreError);
-  });
-
-  it('validates a Cloudflare account id', () => {
-    expect(() => assertAccountId('0123456789abcdef0123456789abcdef')).not.toThrow();
-    for (const bad of ['too-short', '0123456789ABCDEF0123456789ABCDEF', ''])
-      expect(() => assertAccountId(bad)).toThrow(OpsCoreError);
-  });
-});
 
 describe('parsers', () => {
   it('parses accounts, databases, buckets, and a deployed Worker URL', () => {
@@ -52,23 +32,6 @@ describe('parsers', () => {
       'https://x.example.workers.dev'
     );
     expect(parseWorkerUrl('nothing here')).toBeUndefined();
-  });
-
-  it('reads the names a rendered config carries', () => {
-    expect(readConfigNames('name = "w"\ndatabase_name = "d"\nbucket_name = "b"')).toEqual({
-      worker: 'w',
-      database: 'd',
-      bucket: 'b'
-    });
-    expect(readConfigNames('nothing')).toBeUndefined();
-  });
-
-  it('parses pending migration names from a plain listing', () => {
-    expect(parsePendingMigrations('0002_access_keys.sql\n0003_next.sql\n')).toEqual([
-      '0002_access_keys.sql',
-      '0003_next.sql'
-    ]);
-    expect(parsePendingMigrations('No migrations to apply!')).toEqual([]);
   });
 });
 

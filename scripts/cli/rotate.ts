@@ -1,9 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { presentSecrets } from './backend.js';
 import { connectConsole } from './connect.js';
 import { type Ctx, OpsError, checkAdminAccess, done, step } from './context.js';
-import { SECRETS, SECRET_KINDS, type SecretKind, generateSecrets } from './secrets.js';
+import {
+  SECRETS,
+  SECRET_KINDS,
+  type SecretKind,
+  formatSecretBlock,
+  generateSecrets
+} from './secrets.js';
 
 const IMPACT: Record<SecretKind, string[]> = {
   admin: [
@@ -22,6 +27,14 @@ const IMPACT: Record<SecretKind, string[]> = {
   ]
 };
 
+/** Shows new secrets once, makes the operator confirm they saved them, then wipes the screen. */
+async function presentSecrets(ctx: Ctx, secrets: Record<string, string>): Promise<void> {
+  ctx.out(`\n${formatSecretBlock(secrets)}\n`);
+  await ctx.prompt.typeToContinue('Type "saved" once they are in your password manager:', 'saved');
+  ctx.clear();
+  done(ctx, 'Secrets saved. They were cleared from this screen and are stored nowhere else.');
+}
+
 export type RotateOptions = { kind: SecretKind | 'all'; localConfigPath: string };
 
 /** Replaces one secret (or all three) on the Worker, shows the new value once, and updates what it can. */
@@ -29,7 +42,7 @@ export async function rotateSecrets(ctx: Ctx, options: RotateOptions): Promise<v
   const configPath = join(ctx.cwd, 'deploy', 'cloudflare', 'wrangler.production.toml');
   if (!existsSync(configPath))
     throw new OpsError(
-      'This checkout has no deploy/cloudflare/wrangler.production.toml, so it does not know which Worker to change.\nRun "pnpm vizoalica backend" here first; it rebuilds that file from your existing install.'
+      'This checkout has no deploy/cloudflare/wrangler.production.toml, so it does not know which Worker to change.\nFor a backend made by vizoalica deploy, use: vizoalica rotate <environment> <admin|token|digest|all>'
     );
   const kinds = options.kind === 'all' ? SECRET_KINDS : [options.kind];
 

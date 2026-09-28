@@ -10,17 +10,15 @@ import {
   writeFileSync
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { formatReport, purgeDeleted } from './purge-deleted.js';
-import { DEFAULT_NAMES, defaultNames, setUpBackend } from './cli/backend.js';
 import { connectConsole } from './cli/connect.js';
 import { type Ctx, OpsError } from './cli/context.js';
 import { addDemoData, removeDemoData } from './cli/demo.js';
 import { rotateSecrets } from './cli/rotate.js';
 import { parseSecretKind } from './cli/secrets.js';
 import {
-  buildRunner,
   clearScreen,
   noTerminalPrompter,
   openBrowser,
@@ -35,15 +33,6 @@ export type OpsConfig = {
   workerUrl: string;
   consoleConfigPath: string;
   onecli: { project: string; agent: string; gateway: string };
-  pages?: {
-    siteDir: string;
-    project: string;
-    branch: string;
-    assetsDir: string;
-    origin?: string;
-    analyticsProjectId?: string;
-    sourceId?: string;
-  };
 };
 
 type Options = Record<string, string | boolean>;
@@ -109,16 +98,6 @@ function assertSafePath(path: string): string {
   if (!isAbsolute(resolved) || resolved === '/' || resolved === homedir())
     throw new Error('Refusing an unsafe configuration path.');
   return resolved;
-}
-
-function resolvePagesAssets(siteDir: string, assetsDir: string): string {
-  const site = assertSafePath(siteDir);
-  if (isAbsolute(assetsDir))
-    throw new Error('Pages asset folder must be relative to the website folder.');
-  const assets = resolve(site, assetsDir);
-  if (assets !== site && !assets.startsWith(`${site}${sep}`))
-    throw new Error('Pages asset folder must stay inside the website folder.');
-  return assets;
 }
 
 function writePrivateJson(path: string, value: unknown): void {
@@ -219,35 +198,12 @@ async function ask(
   return value;
 }
 
-async function askOptional(
-  prompt: ReturnType<typeof createInterface>,
-  label: string,
-  fallback = ''
-): Promise<string | undefined> {
-  const suffix = fallback ? ` [${fallback}]` : ' [skip]';
-  return (await prompt.question(`${label}${suffix}: `)).trim() || fallback || undefined;
-}
-
-async function askYesNo(
-  prompt: ReturnType<typeof createInterface>,
-  label: string,
-  fallback = false
-): Promise<boolean> {
-  const answer = (await prompt.question(`${label} [${fallback ? 'Y/n' : 'y/N'}]: `))
-    .trim()
-    .toLowerCase();
-  if (!answer) return fallback;
-  return answer === 'y' || answer === 'yes';
-}
-
 function setupHelp(): string {
   return [
     'pnpm vizoalica setup needs:',
     '  --worker-url  Cloudflare dashboard → Workers & Pages → ingestion Worker → workers.dev URL',
     '  --project     OneCLI dashboard → project slug',
     '  --agent       OneCLI dashboard → dedicated console agent identifier',
-    'Optional Pages settings:',
-    '  --site-dir --pages-project --branch --assets-dir --site-origin --analytics-project --source-id',
     'No secret is accepted. Put the raw administrator secret only in OneCLI.'
   ].join('\n');
 }
@@ -269,63 +225,13 @@ async function setup(options: Options, dependencies: Dependencies): Promise<void
       text(options, 'console-config') ?? DEFAULT_CLIENT_CONFIG
     );
 
-    let siteDir = text(options, 'site-dir');
-    let pagesProject = text(options, 'pages-project');
-    let branch = text(options, 'branch');
-    let assetsDir = text(options, 'assets-dir');
-    let siteOrigin = text(options, 'site-origin');
-    let analyticsProject = text(options, 'analytics-project');
-    let sourceId = text(options, 'source-id');
-
-    const configurePages =
-      Boolean(siteDir || pagesProject) ||
-      Boolean(prompt && (await askYesNo(prompt, 'Configure a Cloudflare Pages website now?')));
-    if (configurePages && prompt) {
-      siteDir ??= await ask(prompt, 'Website folder (contains the assets and functions/)');
-      pagesProject ??= await ask(
-        prompt,
-        'Cloudflare Pages project name (Workers & Pages → your site)'
-      );
-      branch ??= await ask(prompt, 'Production branch', 'main');
-      assetsDir ??= await ask(
-        prompt,
-        'Asset folder relative to the website folder (use . when index.html is at its root)',
-        'public'
-      );
-      siteOrigin ??= await askOptional(prompt, 'Production https:// origin for verification');
-      analyticsProject ??= await askOptional(
-        prompt,
-        'Analytics Project ID (console → Integration snippet)'
-      );
-      sourceId ??= await askOptional(
-        prompt,
-        'Internal Source ID (console → Integration snippet; not the public source key)'
-      );
-    }
-    if ((siteDir && !pagesProject) || (!siteDir && pagesProject))
-      throw new Error('--site-dir and --pages-project must be supplied together.');
-
     const parsedGateway = parseGateway(gateway);
-    if (siteDir && pagesProject) resolvePagesAssets(siteDir, assetsDir ?? 'public');
 
     const value: OpsConfig = {
       version: 1,
       workerUrl: normalizeWorkerUrl(worker),
       consoleConfigPath,
-      onecli: { project, agent, gateway: `${parsedGateway.host}:${parsedGateway.port}` },
-      ...(siteDir && pagesProject
-        ? {
-            pages: {
-              siteDir: assertSafePath(siteDir),
-              project: pagesProject,
-              branch: branch ?? 'main',
-              assetsDir: assetsDir ?? 'public',
-              ...(siteOrigin ? { origin: siteOrigin } : {}),
-              ...(analyticsProject ? { analyticsProjectId: analyticsProject } : {}),
-              ...(sourceId ? { sourceId } : {})
-            }
-          }
-        : {})
+      onecli: { project, agent, gateway: `${parsedGateway.host}:${parsedGateway.port}` }
     };
 
     if (
@@ -522,30 +428,8 @@ function guidedContext(
     fetch: dependencies.fetch,
     out: (text) => void stdout.write(`${text}\n`),
     cwd: process.cwd(),
-    build: buildRunner(process.cwd()),
     sleep: (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms)),
     clear: clearScreen
-  };
-}
-
-/**
- * Resource names for `backend`. `--env <name>` targets a backend made by `vizoalica deploy <name>`
- * (`<name>-vizoalica-…`) and keeps its Wrangler config in its own file, so several environments on
- * one account can be updated from the same checkout. Without it, the single-install names apply.
- */
-export function backendOptions(options: Options) {
-  const environment = text(options, 'env');
-  const names = environment ? defaultNames(environment) : DEFAULT_NAMES;
-  return {
-    worker: text(options, 'worker-name') ?? names.worker,
-    database: text(options, 'database') ?? names.database,
-    bucket: text(options, 'bucket') ?? names.bucket,
-    ...(environment ? { configFile: `wrangler.env.${environment}.toml` } : {}),
-    ...(options['first-run'] === true
-      ? { firstRun: true }
-      : options.update === true
-        ? { firstRun: false }
-        : {})
   };
 }
 
@@ -562,17 +446,6 @@ function localAdmin(options: Options): { workerUrl: string; adminSecret: string 
   return { workerUrl: client.workerUrl, adminSecret: client.adminSecret };
 }
 
-async function backendCommand(options: Options, dependencies: Dependencies): Promise<void> {
-  const ctx = guidedContext(dependencies);
-  const result = await setUpBackend(ctx, backendOptions(options));
-  ctx.out(`\nWorker: ${result.workerUrl}`);
-  ctx.out(
-    result.firstRun
-      ? 'Next: pnpm vizoalica connect   (set up this computer as an operator console)'
-      : 'Updated.'
-  );
-}
-
 async function connectCommand(options: Options, dependencies: Dependencies): Promise<void> {
   const ctx = guidedContext(dependencies);
   const workerUrl = text(options, 'worker-url');
@@ -583,9 +456,38 @@ async function connectCommand(options: Options, dependencies: Dependencies): Pro
   ctx.out('Next: pnpm vizoalica console');
 }
 
+/**
+ * The administrator credential of an environment in ~/.config/vizoalica/environments.json, for `--env <name>`.
+ * Only a secret kept in the file itself can be used directly; OneCLI keeps its own.
+ */
+async function environmentAdmin(name: string): Promise<{ workerUrl: string; adminSecret: string }> {
+  const { environmentsPath, readEnvironments } =
+    await import('../apps/local-ops-api/src/environments/file.js');
+  const loaded = readEnvironments(environmentsPath(join(homedir(), '.config', 'vizoalica')));
+  if (loaded.status === 'broken')
+    throw new OpsError(`The environments file cannot be used:\n${loaded.reason}`);
+  const entry = loaded.entries.find((item) => item.name === name);
+  if (!entry)
+    throw new OpsError(
+      `There is no environment named "${name}". See them with: vizoalica env list`
+    );
+  if (!('def' in entry))
+    throw new OpsError(`"${name}" is not a valid environment: ${entry.problem}`);
+  if (entry.def.role !== 'admin')
+    throw new OpsError(
+      `On this computer "${name}" is used as ${entry.def.role}; this needs its administrator.`
+    );
+  if (typeof entry.def.secret !== 'string')
+    throw new OpsError(
+      `OneCLI keeps the administrator secret of "${name}", so this command cannot use it directly.`
+    );
+  return { workerUrl: entry.def.url, adminSecret: entry.def.secret };
+}
+
 async function demoCommand(options: Options, dependencies: Dependencies): Promise<void> {
   const ctx = guidedContext(dependencies, { needsTerminal: options.remove !== true });
-  const admin = localAdmin(options);
+  const environment = text(options, 'env');
+  const admin = environment ? await environmentAdmin(environment) : localAdmin(options);
   if (options.remove === true) {
     await removeDemoData(ctx, admin);
     return;
@@ -615,6 +517,13 @@ async function rotateCommand(
 function installCommand(): never {
   throw new OpsError(
     'vizoalica install was retired. Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.',
+    2
+  );
+}
+
+function backendCommand(): never {
+  throw new OpsError(
+    'pnpm vizoalica backend was retired. Create a backend with `vizoalica deploy <name> --apply`, and update one with `vizoalica deploy <name> --update`.',
     2
   );
 }
@@ -694,75 +603,6 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
   ).finally(stop);
 }
 
-export function pagesDeployArguments(config: OpsConfig): string[] {
-  if (!config.pages)
-    throw new Error('Pages settings are missing; rerun pnpm vizoalica setup with them.');
-  return [
-    'exec',
-    'wrangler',
-    'pages',
-    'deploy',
-    config.pages.assetsDir,
-    '--cwd',
-    config.pages.siteDir,
-    '--project-name',
-    config.pages.project,
-    '--branch',
-    config.pages.branch
-  ];
-}
-
-async function deployPages(options: Options, dependencies: Dependencies): Promise<void> {
-  const config = loadOpsConfig(text(options, 'config'));
-  if (!config.pages)
-    throw new Error('Pages settings are missing; rerun pnpm vizoalica setup with them.');
-  const assets = resolvePagesAssets(config.pages.siteDir, config.pages.assetsDir);
-  if (!existsSync(assets)) throw new Error(`Pages asset directory does not exist: ${assets}`);
-  if (!existsSync(join(config.pages.siteDir, 'functions')))
-    throw new Error(
-      `Pages functions directory does not exist: ${join(config.pages.siteDir, 'functions')}`
-    );
-  stdout.write(
-    [
-      'Cloudflare Pages deployment plan:',
-      `  Website: ${assets}`,
-      `  Functions: ${join(config.pages.siteDir, 'functions')}`,
-      `  Project: ${config.pages.project}`,
-      `  Branch: ${config.pages.branch}`,
-      '  Authentication: native Wrangler (OneCLI is not used for this upload)'
-    ].join('\n') + '\n'
-  );
-  if (text(options, 'confirm') !== config.pages.project)
-    throw new Error(`No changes made. Rerun with --confirm ${config.pages.project}.`);
-
-  stdout.write(
-    `Deploying ${assets} plus sibling functions/ to Pages project ${config.pages.project} (${config.pages.branch}).\n`
-  );
-  const auth = dependencies.spawnSync('pnpm', ['exec', 'wrangler', 'whoami'], {
-    stdio: 'inherit'
-  });
-  if (auth.status !== 0) throw new Error('Wrangler authentication failed.');
-  const deployed = dependencies.spawnSync('pnpm', pagesDeployArguments(config), {
-    stdio: 'inherit'
-  });
-  if (deployed.status !== 0) throw new Error('Pages deployment failed.');
-
-  const { origin, analyticsProjectId, sourceId } = config.pages;
-  if (origin && analyticsProjectId && sourceId) {
-    const verified = dependencies.spawnSync(
-      'pnpm',
-      ['website:verify', '--', origin, analyticsProjectId, sourceId],
-      { stdio: 'inherit' }
-    );
-    if (verified.status !== 0)
-      throw new Error('Pages deployed, but Vizoalica verification failed.');
-  } else {
-    stdout.write(
-      'Deployment finished. Add site-origin, analytics-project, and source-id to enable automatic verification.\n'
-    );
-  }
-}
-
 export function help(): string {
   const rows = (entries: Array<[string, string]>): string[] => {
     const width = Math.max(...entries.map(([command]) => command.length));
@@ -776,14 +616,13 @@ export function help(): string {
     'Get going',
     ...rows([
       ['env', 'List, add, update, remove, and check environments (dev, stage, prod)'],
-      ['deploy', 'Create a backend for an environment in your Cloudflare account (--apply)'],
-      ['console', 'Start the private API and the web console (alias: run)'],
       [
-        'backend',
-        'Install or update the Cloudflare backend (asks first install or update; --env <name> for an environment)'
+        'deploy',
+        'Create a backend for an environment in your Cloudflare account (--apply), or update it (--update)'
       ],
+      ['console', 'Start the private API and the web console (alias: run)'],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
-      ['demo', 'Add sample data (--remove deletes it)']
+      ['demo', 'Add sample data (--env <name>; --remove deletes it)']
     ]),
     '',
     'Look after it',
@@ -791,8 +630,7 @@ export function help(): string {
       ['rotate <admin|token|digest|all>', 'Replace a secret and show the new value once'],
       ['purge-deleted', 'Dry-run; add --apply to permanently remove deleted websites/projects'],
       ['status', 'Report the credential mode, ports, and access checks'],
-      ['verify', 'Verify authenticated project access'],
-      ['deploy-pages', 'Deploy a Direct Upload site with native Wrangler, then verify it']
+      ['verify', 'Verify authenticated project access']
     ]),
     '',
     'OneCLI (optional, keeps the administrator secret out of a local file)',
@@ -808,21 +646,12 @@ export function help(): string {
 
 function show(): string {
   return [
-    'Three lanes; never mix their credentials:',
+    'Two lanes; never mix their credentials:',
     '',
-    '1. Worker + D1 + R2 → pnpm deploy:* (native Wrangler by default; approval-gated OneCLI profile optional)',
-    '2. Website on Pages → pnpm vizoalica deploy-pages (native Wrangler; never inside onecli run)',
-    '3. Local console → pnpm vizoalica console (OneCLI injects only the Worker administrator header)',
+    '1. Worker + D1 + R2 → vizoalica deploy <name> (--apply creates, --update updates), or pnpm deploy:* (manual lane)',
+    '2. Local console → pnpm vizoalica console (OneCLI injects only the Worker administrator header)',
     '',
-    setupHelp(),
-    '',
-    'Pages values:',
-    '  site-dir          local website root containing public/ and functions/',
-    '  pages-project     Cloudflare dashboard → Workers & Pages → project name',
-    '  branch            Pages project production branch (usually main)',
-    '  site-origin       stable production https://…pages.dev origin',
-    '  analytics-project local console → Integration snippet → Project ID',
-    '  source-id         local console → Integration snippet → Source ID (not public source key)'
+    setupHelp()
   ].join('\n');
 }
 
@@ -915,11 +744,10 @@ export async function run(argv: readonly string[], injected = dependencies): Pro
   else if (command === 'purge-deleted') await purgeDeletedData(options, injected);
   else if (command === 'status') await status(options, injected);
   else if (command === 'install') installCommand();
-  else if (command === 'backend') await backendCommand(options, injected);
+  else if (command === 'backend') backendCommand();
   else if (command === 'connect') await connectCommand(options, injected);
   else if (command === 'demo') await demoCommand(options, injected);
   else if (command === 'console' || command === 'run') await runConsole(options, injected);
-  else if (command === 'deploy-pages') await deployPages(options, injected);
   else throw new Error(`Unknown command: ${command}\n\n${help()}`);
 }
 

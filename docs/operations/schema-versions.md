@@ -40,7 +40,7 @@ either a stock 0.5.2 database or one with those tables already present reaches t
 
 The console shows the Worker's and the schema's current and expected versions on the Health page (Backend section), for every
 role, and tells you when the backend is behind (or newer than the console). It does not change the backend.
-Update it from the checkout that installed it with `pnpm vizoalica backend` (answer "update"), or by hand as
+Update it with `vizoalica deploy <name> --update`, which applies the pending migrations, or by hand as
 below. An environment whose database is newer than the console expects is not usable until you update the
 console (`npm update -g vizoalica`); `vizoalica env check` says so.
 

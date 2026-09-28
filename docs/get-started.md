@@ -86,11 +86,11 @@ From a source checkout (Node.js 22, Git, and Corepack), deploy a demo backend an
 ```sh
 git clone https://github.com/ehud-am/vizoalica.git && cd vizoalica
 corepack enable && pnpm install
-pnpm vizoalica backend && pnpm vizoalica connect && pnpm vizoalica demo
-pnpm vizoalica env add demo && pnpm vizoalica console
+pnpm vizoalica deploy demo --apply && pnpm vizoalica demo --env demo
+pnpm vizoalica console
 ```
 
-`pnpm vizoalica demo --remove` deletes the sample.
+`pnpm vizoalica demo --env demo --remove` deletes the sample.
 :::
 
 ::: tip Something not working?

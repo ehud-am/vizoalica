@@ -5,6 +5,5 @@ export {
   done,
   normalizeWorkerUrl,
   type AccessResult,
-  checkAdminAccess,
-  waitForHealth
+  checkAdminAccess
 } from '../../packages/ops-core/src/index.js';

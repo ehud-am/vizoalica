@@ -46,7 +46,7 @@ describe('deployment documentation contract', () => {
       'vizoalica deploy',
       'vizoalica env',
       'vizoalica console',
-      'pnpm vizoalica backend',
+      'vizoalica deploy <name> --update',
       'pnpm vizoalica demo'
     ])
       expect(readme).toContain(command);
@@ -173,8 +173,8 @@ describe('deployment documentation contract', () => {
       guide.indexOf('## Quick command reference')
     );
     for (const command of [
-      'pnpm vizoalica backend',
-      'pnpm vizoalica backend --update',
+      'vizoalica deploy prod --apply',
+      'vizoalica deploy prod --update',
       'pnpm vizoalica rotate admin'
     ])
       expect(guide).toContain(command);

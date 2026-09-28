@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  OpsCoreError,
-  assertEnvironmentName,
-  assertEnvironmentResourceName,
-  defaultNames
-} from '../src/index.js';
+import { OpsCoreError, assertEnvironmentName, defaultNames } from '../src/index.js';
 
 describe('assertEnvironmentName', () => {
   it('accepts lowercase letters, digits, and dashes starting with a letter', () => {
@@ -46,28 +41,5 @@ describe('defaultNames', () => {
 
   it('validates the environment name first', () => {
     expect(() => defaultNames('Bad Name')).toThrow(OpsCoreError);
-  });
-});
-
-describe('assertEnvironmentResourceName', () => {
-  it('accepts a name carrying the environment prefix', () => {
-    expect(() =>
-      assertEnvironmentResourceName('Worker', 'stage-vizoalica-worker', 'stage')
-    ).not.toThrow();
-  });
-
-  it('rejects a name missing the environment prefix, even if otherwise valid', () => {
-    expect(() => assertEnvironmentResourceName('Worker', 'dev-vizoalica-worker', 'stage')).toThrow(
-      OpsCoreError
-    );
-    expect(() => assertEnvironmentResourceName('Worker', 'vizoalica-worker', 'stage')).toThrow(
-      OpsCoreError
-    );
-  });
-
-  it('still applies the underlying resource-name character and length rules', () => {
-    expect(() => assertEnvironmentResourceName('Worker', 'stage-BAD', 'stage')).toThrow(
-      OpsCoreError
-    );
   });
 });

@@ -89,7 +89,7 @@ screen reports the applied and expected schema versions and the Worker's version
 [Database and Worker versions](schema-versions.md) for what changed and how to author a migration.
 
 **Since 0.7.0**, the console only reads a backend's versions (per selected environment); it does not update
-one. Update a backend with `pnpm vizoalica backend` (answer "update") from the checkout that installed it, or
+one. Update a backend with `vizoalica deploy <name> --update`, or
 apply a migration by hand (`wrangler d1 migrations apply <database> --remote --config <config>`); see
 [Update an existing backend](cloudflare.md#update-an-existing-backend).
 
