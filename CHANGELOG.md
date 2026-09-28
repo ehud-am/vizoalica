@@ -4,6 +4,8 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-28
+
 ### Added
 
 - **Ask an AI assistant about your analytics: `vizoalica mcp`.** A local, read-only MCP server that works on
@@ -20,6 +22,10 @@ All notable changes to Vizoalica are documented in this file.
   token saved with the environment and the account it was deployed in.
 - **`pnpm vizoalica demo --env <name>`** adds sample data to an environment of this computer.
 - `mcp` and `skill` also run from a source checkout (`pnpm vizoalica mcp install …`), and its help lists them.
+- **The console asks for alpha feedback.** An **Alpha** badge sits beside the logo, and the footer has a
+  **Send feedback** link that opens a new GitHub Discussion in Ideas with three short questions, the console's
+  version and the screen you were on already filled in. It carries nothing else: no project, website,
+  environment or analytics value.
 
 ### Removed
 
@@ -27,9 +33,9 @@ All notable changes to Vizoalica are documented in this file.
   create a backend and `vizoalica deploy <name> --update` to update one; `backend` now says so and exits 2.
 - **`pnpm vizoalica deploy-pages`** and the Pages settings of `pnpm vizoalica setup` (unused). Deploy a website
   with `wrangler pages deploy`, as in [Activate a website](docs/operations/pages.md).
-
 - **The Worker's `/mcp` endpoint** (admin secret only, two tools, never documented) and the page-view-count
-  query only it used. `/mcp` now answers 404. Use `vizoalica mcp` instead.
+  query only it used. `/mcp` now answers 404. Use `vizoalica mcp` instead. This is a backend (Worker) change with
+  no D1 schema change.
 
 ## [0.7.5] - 2026-09-27
 
@@ -41,10 +47,6 @@ All notable changes to Vizoalica are documented in this file.
   backend change (Worker query) with no D1 schema change.
 - **The docs site's analytics is on by default**; visitors can turn it off, and Global Privacy Control and Do Not
   Track are honored. This affects this repository's own docs site only.
-- **The console asks for alpha feedback.** An **Alpha** badge sits beside the logo, and the footer has a
-  **Send feedback** link that opens a new GitHub Discussion in Ideas with three short questions, the console's
-  version and the screen you were on already filled in. It carries nothing else: no project, website,
-  environment or analytics value.
 
 ## [0.7.4] - 2026-09-26
 
