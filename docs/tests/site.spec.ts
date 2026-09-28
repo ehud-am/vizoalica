@@ -16,6 +16,7 @@ const PAGES = [
   '/privacy/action-collection-review',
   '/privacy/access-keys-review',
   '/brand',
+  '/releases/v0.8.0',
   '/releases/v0.7.5',
   '/releases/v0.7.4',
   '/releases/v0.7.3',
