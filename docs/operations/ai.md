@@ -23,6 +23,9 @@ vizoalica mcp install --client claude-code      # or claude-desktop, codex, curs
 vizoalica skill install --client claude-code    # or codex
 ```
 
+From a source checkout, run the same commands as `pnpm vizoalica mcp install …` and `pnpm vizoalica skill
+install …`; the client then starts the server from the checkout.
+
 Restart the client. `vizoalica mcp install` adds a server named `vizoalica` to the client's MCP settings: for
 Claude Code it runs `claude mcp add --scope user`; for Claude Desktop, Codex, and Cursor it edits their settings
 file, changing only the `vizoalica` entry and asking before it replaces one. Add `--print` to see the change

@@ -19,6 +19,7 @@ All notable changes to Vizoalica are documented in this file.
   secrets, generates only a missing secret, and checks the environment still works. It uses the Cloudflare
   token saved with the environment and the account it was deployed in.
 - **`pnpm vizoalica demo --env <name>`** adds sample data to an environment of this computer.
+- `mcp` and `skill` also run from a source checkout (`pnpm vizoalica mcp install …`), and its help lists them.
 
 ### Removed
 

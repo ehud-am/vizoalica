@@ -9,6 +9,8 @@ export type SkillDeps = {
   err: (text: string) => void;
   interactive: boolean;
   ask: Ask;
+  /** The skill folder; defaults to the packaged copy under `assetDir`. A checkout passes `skills/vizoalica`. */
+  source?: string | undefined;
 };
 
 /** Clients with a skills folder on this computer. Claude Desktop and claude.ai take an uploaded zip. */
@@ -36,7 +38,7 @@ export const skillSource = (assetDir: string) => join(assetDir, 'skill', 'vizoal
 /** `vizoalica skill`: find or install the packaged skill. */
 export async function skillCommand(args: readonly string[], deps: SkillDeps): Promise<number> {
   const [sub, ...rest] = args;
-  const source = skillSource(deps.assetDir);
+  const source = deps.source ?? skillSource(deps.assetDir);
   if (sub === 'path') {
     if (!existsSync(join(source, 'SKILL.md'))) {
       deps.err(`The skill was not found next to this command (${source}).\n`);
