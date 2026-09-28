@@ -11,8 +11,8 @@ test('shows a one-line footer on Overview and Manage', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     const footer = page.getByRole('contentinfo');
     await expect(footer).toBeVisible();
-    await expect(footer).toHaveText('Vizoalica·vizoalica.dev·GitHub');
-    await expect(footer.getByRole('link')).toHaveCount(2);
+    await expect(footer).toHaveText('Vizoalica·vizoalica.dev·GitHub·Send feedback');
+    await expect(footer.getByRole('link')).toHaveCount(3);
     await expect(footer.getByRole('navigation')).toHaveCount(0);
     await expect(footer).not.toContainText(/Version|©|Privacy-first/);
   }
@@ -53,14 +53,14 @@ for (const width of [320, 768, 1440] as const) {
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
       );
       expect(overflow).toBeLessThanOrEqual(1);
-      // The three items share one row wherever they fit, and never overlap where they wrap.
+      // The four items share one row wherever they fit, and never overlap where they wrap.
       const boxes = await page.locator('.app-footer-line > *').evaluateAll((items) =>
         items.map((item) => {
           const box = item.getBoundingClientRect();
           return { top: Math.round(box.top), left: box.left, right: box.right };
         })
       );
-      expect(boxes).toHaveLength(3);
+      expect(boxes).toHaveLength(4);
       if (width >= 768) expect(new Set(boxes.map((box) => box.top)).size).toBe(1);
       for (const [index, box] of boxes.entries())
         if (index > 0 && boxes[index - 1]!.top === box.top)
@@ -85,7 +85,7 @@ test('is fully keyboard reachable with a visible focus ring', async ({ page }) =
   await page.goto('/');
   const links = page.getByRole('contentinfo').getByRole('link');
   const count = await links.count();
-  expect(count).toBe(2);
+  expect(count).toBe(3);
   await links.first().focus();
   for (let index = 0; index < count; index += 1) {
     const focused = page.locator(':focus');

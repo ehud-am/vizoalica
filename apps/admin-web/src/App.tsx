@@ -126,6 +126,7 @@ function BackendNotice() {
 }
 
 function Console({ route }: { route: Route }) {
+  const { state } = useSetup();
   const area = routeArea(route.path);
   const controls = scopeControls(route.path);
   return (
@@ -154,7 +155,7 @@ function Console({ route }: { route: Route }) {
               <ManageRoute route={route} />
             )}
           </main>
-          <AppFooter />
+          <AppFooter version={state?.version} page={route.path} />
         </div>
       </div>
     </FlashProvider>
@@ -234,6 +235,12 @@ export function App() {
       <BrandLogo theme={theme.theme} />
     </a>
   );
+  // Tells people the console is early and that their ideas are wanted; the footer says where.
+  const stage = (
+    <span className="stage-badge" title="Vizoalica is in alpha. Ideas and problems are welcome.">
+      Alpha
+    </span>
+  );
   if (access === 'ready')
     return (
       <div className="app-shell">
@@ -245,7 +252,10 @@ export function App() {
             onProjectChange={(id) => (lastProjectId.current = id)}
           >
             <header className="topbar">
-              {brand}
+              <div className="topbar-brand">
+                {brand}
+                {stage}
+              </div>
               <div className="topbar-actions">
                 <ScopeSwitcher
                   list={environments}
@@ -263,7 +273,10 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        {brand}
+        <div className="topbar-brand">
+          {brand}
+          {stage}
+        </div>
         <div className="topbar-actions">{toggle}</div>
       </header>
       <div className="workspace workspace-single">

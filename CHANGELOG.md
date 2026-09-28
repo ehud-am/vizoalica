@@ -4,6 +4,13 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **The console asks for alpha feedback.** An **Alpha** badge sits beside the logo, and the footer has a
+  **Send feedback** link that opens a new GitHub Discussion in Ideas with three short questions, the console's
+  version and the screen you were on already filled in. It carries nothing else: no project, website,
+  environment or analytics value.
+
 ## [0.7.4] - 2026-09-26
 
 ### Changed
