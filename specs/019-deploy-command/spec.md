@@ -22,6 +22,8 @@ deploy` gives the npm-installed CLI a way to create the backend for an environme
   must not be there already, so a deploy can never repoint an environment that exists.
 - Without `--apply` the command is a dry run (it prints the plan); with `--apply` it creates.
 - First install only. Updating an existing backend stays `pnpm vizoalica backend` (out of scope here).
+  [Later: `--update` was added and `pnpm vizoalica backend` retired, 2026-09-28. With `--update` the name may
+  already be an environment, and must be `admin` there.]
 - The Cloudflare account is chosen, never guessed, when the credential can see more than one.
 
 ## Stories

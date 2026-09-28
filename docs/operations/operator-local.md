@@ -86,7 +86,7 @@ Actions appear for websites whose SDK file is version 0.6 or later. Nothing on t
 setting.
 
 The complete country list, and lists of more than ten pages or sources, need the current backend.
-After updating Vizoalica, redeploy the Worker (`pnpm vizoalica backend`). Until then the console
+After updating Vizoalica, update the backend (`vizoalica deploy <name> --update`). Until then the console
 still works and shows the top ten with the rest grouped as "Other".
 
 ## Never switch modes casually

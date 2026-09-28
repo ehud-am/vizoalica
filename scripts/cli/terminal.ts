@@ -6,7 +6,6 @@ export {
   noTerminalPrompter,
   terminalPrompter,
   wranglerRunner,
-  buildRunner,
   clearScreen,
   openBrowser
 } from '../../packages/ops-core/src/index.js';

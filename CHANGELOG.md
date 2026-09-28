@@ -14,19 +14,21 @@ All notable changes to Vizoalica are documented in this file.
 - **A Vizoalica skill** for AI assistants (setup, health, operations, analytics), shipped in the package.
   `vizoalica skill install --client claude-code|codex` installs it; `vizoalica skill path` shows where it is.
   See [Use Vizoalica with AI](docs/operations/ai.md).
+- **`vizoalica deploy <name> --update`** updates a backend created by `vizoalica deploy` to the installed
+  version, from the package: it deploys the packaged Worker, applies pending migrations, keeps data and
+  secrets, generates only a missing secret, and checks the environment still works. It uses the Cloudflare
+  token saved with the environment and the account it was deployed in.
+- **`pnpm vizoalica demo --env <name>`** adds sample data to an environment of this computer.
 
 ### Removed
 
+- **`pnpm vizoalica backend`** (checkout-only install or update). Use `vizoalica deploy <name> --apply` to
+  create a backend and `vizoalica deploy <name> --update` to update one; `backend` now says so and exits 2.
+- **`pnpm vizoalica deploy-pages`** and the Pages settings of `pnpm vizoalica setup` (unused). Deploy a website
+  with `wrangler pages deploy`, as in [Activate a website](docs/operations/pages.md).
+
 - **The Worker's `/mcp` endpoint** (admin secret only, two tools, never documented) and the page-view-count
   query only it used. `/mcp` now answers 404. Use `vizoalica mcp` instead.
-
-### Fixed
-
-- **`pnpm vizoalica backend --update --env <name>` updates a backend created by `vizoalica deploy <name>`.**
-  Without it, `--update` looked only for the single-install names (`vizoalica-config`) and reported "nothing to
-  update" on an account whose backends are `prod-vizoalica-…` and `dev-vizoalica-…`. Each environment keeps its
-  Wrangler config in `deploy/cloudflare/wrangler.env.<name>.toml`, and the "nothing to update" message now names
-  the environments it finds on the account.
 
 ## [0.7.5] - 2026-09-27
 

@@ -134,18 +134,6 @@ export function wranglerRunner(cwd: string): Run {
 }
 
 /** Runs `pnpm build`, quietly unless it fails. */
-export function buildRunner(cwd: string): () => Promise<{ ok: boolean; output: string }> {
-  return () =>
-    new Promise((resolve) => {
-      const child = spawn('pnpm', ['build'], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-      let output = '';
-      child.stdout!.on('data', (chunk: Buffer) => (output += chunk.toString('utf8')));
-      child.stderr!.on('data', (chunk: Buffer) => (output += chunk.toString('utf8')));
-      child.on('error', (error) => resolve({ ok: false, output: error.message }));
-      child.on('close', (code) => resolve({ ok: code === 0, output }));
-    });
-}
-
 export function clearScreen(): void {
   if (process.stdout.isTTY) process.stdout.write('\u001b[2J\u001b[3J\u001b[H');
 }

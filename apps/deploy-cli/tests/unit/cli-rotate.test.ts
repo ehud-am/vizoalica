@@ -53,11 +53,11 @@ describe('rotating secrets', () => {
     expect(wrangler.calls).toHaveLength(0);
   });
 
-  it('needs the checkout that installed the backend', async () => {
+  it('needs the rendered production config, and points at the environment rotate', async () => {
     const { ctx } = fakeCtx({ cwd: tempCheckout(), run: fakeRun({}).run });
     await expect(
       rotateSecrets(ctx, { kind: 'admin', localConfigPath: localPath() })
-    ).rejects.toThrow(/pnpm vizoalica backend/);
+    ).rejects.toThrow(/vizoalica rotate <environment>/);
   });
 
   it('rotates the admin secret on the Worker and on this computer, verifying before it writes', async () => {

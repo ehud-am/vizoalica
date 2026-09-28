@@ -18,8 +18,6 @@ export type MainDeps = ConsoleDeps &
 
 /** Commands that still need a source checkout of the repository. */
 const CHECKOUT_COMMANDS = new Set([
-  'install',
-  'backend',
   'connect',
   'purge-deleted',
   'demo',
@@ -27,9 +25,15 @@ const CHECKOUT_COMMANDS = new Set([
   'doctor',
   'verify',
   'status',
-  'show',
-  'deploy-pages'
+  'show'
 ]);
+
+/** Retired commands, and what replaced them. */
+const RETIRED: Record<string, string> = {
+  install: 'Add an environment with `vizoalica env add <name>`, then run `vizoalica console`.',
+  backend:
+    'Create a backend with `vizoalica deploy <name> --apply`, and update one with `vizoalica deploy <name> --update`.'
+};
 
 export function help(): string {
   return [
@@ -40,7 +44,8 @@ export function help(): string {
     '  env <command>         Create and manage your environments (dev, stage, prod, ...):',
     '                        add (offers to deploy its backend), list, update, remove, check',
     '  deploy <name>         Deploy the backend for an environment in your Cloudflare account',
-    '                        (--apply to create it). Run "vizoalica deploy" for details',
+    '                        (--apply creates it, --update updates it to this version).',
+    '                        Run "vizoalica deploy" for details',
     '  rotate <name> <secret>  Replace a secret of an environment (admin, token, digest, or all)',
     '  console [--no-open]   Start the console: websites, results, and access for the',
     '                        environment you pick',
@@ -108,6 +113,10 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
   if (command === 'skill') return skillCommand(rest, deps);
   if (command === 'rotate')
     return rotateCommand(rest, { ...deps, trace, ...(deps.deployTestHooks ?? {}) });
+  if (RETIRED[command]) {
+    deps.err(`"vizoalica ${command}" was retired. ${RETIRED[command]}\n`);
+    return 2;
+  }
   if (CHECKOUT_COMMANDS.has(command)) {
     deps.err(
       `"vizoalica ${command}" is not part of the installed package yet.\nTo use this command now, work from a source checkout:\n  git clone https://github.com/ehud-am/vizoalica && cd vizoalica && pnpm install && pnpm vizoalica ${command}\n`

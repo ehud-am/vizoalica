@@ -37,8 +37,8 @@ account with R2 enabled.
 ## Updates
 
 - Console/command: `npm update -g vizoalica`.
-- Backend (Worker and database): from a source checkout, `pnpm vizoalica backend --update --env <name>`
-  (see docs/operations/cloudflare.md). `get_environment_status` says which side needs updating.
+- Backend (Worker and database): `vizoalica deploy <name> --update`, after updating the package
+  (see docs/operations/deploy.md). `get_environment_status` says which side needs updating.
 
 ## Secrets
 
