@@ -14,9 +14,13 @@ describe('readSchemaVersion', () => {
   it('is the highest number recorded in d1_migrations', async () => {
     const info = await readSchemaVersion(d1(freshDatabase()));
     expect(info).toEqual({
-      applied: 2,
-      expected: 2,
-      appliedNames: ['0001_initial.sql', '0002_access_keys.sql'],
+      applied: 3,
+      expected: 3,
+      appliedNames: [
+        '0001_initial.sql',
+        '0002_access_keys.sql',
+        '0003_static_sites_daily_visitors.sql'
+      ],
       status: 'current'
     });
   });
@@ -28,7 +32,7 @@ describe('readSchemaVersion', () => {
 
   it('is ahead when the database has migrations this build does not know about', async () => {
     const info = await readSchemaVersion(d1(freshDatabase()), 1);
-    expect(info).toMatchObject({ applied: 2, expected: 1, status: 'ahead' });
+    expect(info).toMatchObject({ applied: 3, expected: 1, status: 'ahead' });
   });
 
   it('is unknown when there is no d1_migrations table', async () => {
@@ -36,7 +40,7 @@ describe('readSchemaVersion', () => {
     const sqlite = new DatabaseSync(':memory:');
     sqlite.exec('CREATE TABLE projects (id TEXT)');
     const info = await readSchemaVersion(d1(sqlite));
-    expect(info).toEqual({ applied: null, expected: 2, appliedNames: [], status: 'unknown' });
+    expect(info).toEqual({ applied: null, expected: 3, appliedNames: [], status: 'unknown' });
   });
 
   it('is unknown when the table exists but has nothing recognizable in it', async () => {

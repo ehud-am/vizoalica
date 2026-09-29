@@ -282,3 +282,39 @@ describe('install check across addresses and redirects', () => {
     expect((await checkInstall(['not a url', bare], 'snippet', false, ok)).code).toBe('ok');
   });
 });
+
+describe('install check for a static website (script tag)', () => {
+  const site = 'https://static.test';
+  const page = (body: string, init: ResponseInit = {}) =>
+    (async () =>
+      new Response(body, {
+        headers: { 'content-type': 'text/html' },
+        ...init
+      })) as unknown as typeof fetch;
+
+  it('is fine when the home page carries the tag with this website’s key', async () => {
+    const html = '<script defer src="https://w.test/vizoalica.js" data-source="key-123"></script>';
+    expect((await checkInstall([site], 'script-tag', false, page(html), 'key-123')).code).toBe(
+      'ok'
+    );
+  });
+
+  it('says the tag is missing when the page does not have the key', async () => {
+    const result = await checkInstall([site], 'script-tag', false, page('<p>hi</p>'), 'key-123');
+    expect(result.code).toBe('tag-missing');
+    expect(result.nextAction).toContain(site);
+  });
+
+  it('reports an unreachable site and a redirect, and never follows the redirect', async () => {
+    const down = (async () => {
+      throw new Error('down');
+    }) as unknown as typeof fetch;
+    expect((await checkInstall([site], 'script-tag', false, down, 'k')).code).toBe(
+      'site-unreachable'
+    );
+    const moved = page('', { status: 301, headers: { location: 'https://elsewhere.test/' } });
+    expect((await checkInstall([site], 'script-tag', false, moved, 'k')).code).toBe(
+      'site-redirects'
+    );
+  });
+});

@@ -68,7 +68,8 @@ describe('website form', () => {
     await waitFor(() =>
       expect(submit).toHaveBeenCalledWith({
         name: 'example.com',
-        allowedOrigins: ['https://example.com', 'https://www.example.com']
+        allowedOrigins: ['https://example.com', 'https://www.example.com'],
+        tokenRequired: false
       })
     );
     // The form is ready for the next one.
@@ -89,7 +90,8 @@ describe('website form', () => {
     await waitFor(() =>
       expect(submit).toHaveBeenCalledWith({
         name: 'Marketing site',
-        allowedOrigins: ['https://example.com']
+        allowedOrigins: ['https://example.com'],
+        tokenRequired: false
       })
     );
   });
@@ -103,14 +105,14 @@ describe('website form', () => {
     ).toContain('https://example.com');
     await user.clear(address());
     await user.type(address(), 'blog.example.com');
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Also allow/ })).toBeNull();
     await user.clear(address());
     await user.type(address(), 'localhost:3000');
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Also allow/ })).toBeNull();
     // With several addresses typed there is nothing to guess.
     await user.clear(address());
     await user.type(address(), 'a.com b.com');
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Also allow/ })).toBeNull();
   });
 
   it('accepts several addresses separated by spaces, lines or commas, without repeats', async () => {
@@ -122,7 +124,8 @@ describe('website form', () => {
     await waitFor(() =>
       expect(submit).toHaveBeenCalledWith({
         name: 'a.test',
-        allowedOrigins: ['https://a.test', 'https://b.test']
+        allowedOrigins: ['https://a.test', 'https://b.test'],
+        tokenRequired: false
       })
     );
   });
@@ -191,7 +194,7 @@ describe('website form', () => {
     const form = screen.getByRole('form', { name: 'Edit website' });
     expect(form.querySelectorAll('input, textarea')[0]).toBe(name());
     expect(form.querySelector('.form-project')).toBeNull();
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Also allow/ })).toBeNull();
     await user.clear(name());
     await user.type(name(), 'Docs retained');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -220,6 +223,26 @@ describe('website form', () => {
     expect(document.querySelector('.origin-preview')).toBeNull();
   });
 
+  it('starts a new website as a static site, and sends the signed-token choice when switched on', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<WebsiteForm projectName="P" onSubmit={submit} />);
+    const token = screen.getByRole('checkbox', {
+      name: /Require a signed token/
+    }) as HTMLInputElement;
+    expect(token.checked).toBe(false);
+    await user.type(address(), 'shop.test');
+    await user.click(token);
+    await user.click(screen.getByRole('button', { name: 'Add website' }));
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith({
+        name: 'shop.test',
+        allowedOrigins: ['https://shop.test', 'https://www.shop.test'],
+        tokenRequired: true
+      })
+    );
+  });
+
   it('tidies pasted origins when editing too', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -235,7 +258,11 @@ describe('website form', () => {
     await user.type(screen.getByRole('textbox', { name: 'Allowed origins' }), 'Other.test/x');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() =>
-      expect(submit).toHaveBeenCalledWith({ name: 'Docs', allowedOrigins: ['https://other.test'] })
+      expect(submit).toHaveBeenCalledWith({
+        name: 'Docs',
+        allowedOrigins: ['https://other.test'],
+        tokenRequired: false
+      })
     );
   });
 

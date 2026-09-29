@@ -13,7 +13,7 @@ export const eventTypes = [
   'com.vizoalica.action.v1'
 ] as const;
 export type VizoalicaEventType = (typeof eventTypes)[number];
-export type TrustLevel = 'signed-session' | 'unsigned-demo';
+export type TrustLevel = 'signed-session' | 'origin-checked' | 'unsigned-demo';
 export type ConsentState = 'analytics-granted' | 'analytics-denied' | 'unknown';
 
 export interface CloudEvent<TData = unknown> {

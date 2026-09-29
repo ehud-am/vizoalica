@@ -19,9 +19,8 @@ export function Welcome({
     <section className="welcome" aria-labelledby="welcome-heading">
       <h1 id="welcome-heading">Welcome to Vizoalica</h1>
       <p>
-        The console needs at least one working environment: a Vizoalica backend, the role you use it
-        with, and its secret. Environments are set up outside the console, so they are ready before
-        it opens.
+        The console needs at least one working backend: its address, the role you use it with, and
+        its secret. Backends are set up in your terminal, before the console opens.
       </p>
       {broken ? (
         <div className="notice error" role="alert">
@@ -32,14 +31,14 @@ export function Welcome({
             <code>{list?.file.path}</code>
           </p>
           <p>
-            Fix it by hand, or move it aside and add your environments again with{' '}
+            Fix it by hand, or move it aside and add your backends again with{' '}
             <code>vizoalica env add &lt;name&gt;</code>.
           </p>
         </div>
       ) : environments.length === 0 ? (
         <div className="notice" role="status">
           <p>
-            <strong>No environments are set up yet.</strong>
+            <strong>No backend is set up yet.</strong>
           </p>
           <p>
             Add one in your terminal: <code>vizoalica env add &lt;name&gt;</code>
@@ -48,8 +47,7 @@ export function Welcome({
       ) : (
         <div role="status">
           <p>
-            <strong>None of your environments can be used yet.</strong> Here is what is wrong with
-            each:
+            <strong>None of your backends can be used yet.</strong> Here is what is wrong with each:
           </p>
           <ul className="welcome-problems">
             {environments.map((environment) => (
@@ -70,8 +68,8 @@ export function Welcome({
         </div>
       )}
       <p>
-        See every environment and its state with <code>vizoalica env list</code>. The list is a
-        plain file you can also edit by hand.
+        See every backend and its state with <code>vizoalica env list</code>. The list is a plain
+        file you can also edit by hand.
       </p>
       <button className="primary" type="button" onClick={onRecheck} disabled={checking}>
         {checking ? 'Checking…' : 'Check again'}

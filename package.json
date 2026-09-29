@@ -1,6 +1,6 @@
 {
   "name": "vizoalica-workspace",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
   "keywords": [
     "analytics",
@@ -66,6 +66,8 @@
     "typecheck:examples": "tsc --noEmit --ignoreConfig --types node --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",
     "promo:snapshots": "node --import tsx scripts/promo/capture-snapshots.ts",
     "promo:video": "node --import tsx scripts/promo/render-video.ts",
+    "promo:mcp-demo:record": "node --import tsx scripts/promo/mcp-demo-record.ts",
+    "promo:mcp-demo": "node --import tsx scripts/promo/render-mcp-demo.ts",
     "docs:dev": "pnpm --filter @vizoalica/docs site:dev",
     "docs:build": "pnpm --filter @vizoalica/docs site:build",
     "docs:preview": "pnpm --filter @vizoalica/docs site:preview",
@@ -103,7 +105,7 @@
     "overrides": {
       "sharp@<0.35.4": "0.35.4",
       "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
-      "fast-uri@<3.1.6": "3.1.6",
+      "fast-uri@<3.1.7": "3.1.7",
       "vitepress>vite": "^6.4.3"
     }
   }

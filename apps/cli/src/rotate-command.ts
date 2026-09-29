@@ -39,7 +39,8 @@ const USAGE = [
   'and the old one stops working.',
   '',
   '  admin    VIZOALICA_ADMIN_SECRET: this computer’s environment is updated for you',
-  '  token    VIZOALICA_TOKEN_SECRET: every website’s token endpoint needs the new value',
+  '  token    VIZOALICA_TOKEN_SECRET, for websites that require signed tokens. Rotating it is also',
+  '           how you get it the first time; no website uses it until then',
   '  digest   VIZOALICA_ANALYTICS_DIGEST_SECRET: unique-visitor counts restart',
   '  all      all three',
   '',
@@ -50,6 +51,8 @@ const USAGE = [
   '  --worker <name>             The Worker, when it cannot be worked out from the environment',
   '  --cloudflare-token-stdin    Read the Cloudflare API token from stdin (else the one saved with the',
   '                              environment, else $CLOUDFLARE_API_TOKEN, else asked)',
+  '',
+  'Advanced: keep the Cloudflare API token in a vault (OneCLI):',
   '  --cloudflare-onecli         OneCLI holds the Cloudflare API token; needs the --onecli-* options',
   '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '',
@@ -77,7 +80,7 @@ function impact(kind: SecretKind, environment: string, inOnecli: boolean): strin
     ];
   if (kind === 'token')
     return [
-      'Every website’s token endpoint must get the new value, or its visitors’ events are rejected until',
+      'Every website that requires signed tokens must get the new value, or its visitors’ events are rejected until',
       'it does: update the VIZOALICA_TOKEN_SECRET GitHub secret of each website, then re-run its deploy',
       'workflow (it copies the value to Cloudflare Pages).'
     ];

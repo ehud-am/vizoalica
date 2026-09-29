@@ -1,86 +1,95 @@
-# Activate a website
+# Add a website
 
-Run this guide **once per website**. It registers one website, installs the browser SDK and a
-trusted server-side token Function, deploys them, and proves that a consented event reaches
-Vizoalica without making the website depend on analytics availability.
+Do this once for each website. You add the website in the console, put Vizoalica on its pages,
+and check that page views arrive. Your backend does not change, and nothing else needs to run on
+your computer once the website is live.
 
-Repeat the complete activation, with a separate registration and completion record, for every
-additional website. Do not redeploy the backend or repeat workstation setup for each site.
+There are two ways to install:
 
-## Prerequisites
+| Way                                                     | Use it when                                                                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [**One script tag**](#one-script-tag)                   | Almost always. Any host works: GitHub Pages, Netlify, WordPress, plain HTML files. Nothing to run on your site.            |
+| [**Signed tokens**](#signed-tokens-optional) (optional) | Your site can run a small server function (for example on Cloudflare Pages) and you want fake events to be harder to send. |
 
-- A verified [customer backend](cloudflare.md) and its redacted handoff.
-- One authorized operator with a working console, configured either
-  [without OneCLI](local-analytics.md) or [with OneCLI](onecli.md).
-- Control of the production website, its build/deployment settings, and its consent integration.
-- Node.js 22 or newer, pnpm 9, and the reviewed Vizoalica release used by the backend.
+## One script tag
+
+1. Open the console, choose **Websites**, then **Add website**. Enter the address people open
+   (for example `example.com`) and leave **Require a signed token** off. Save.
+2. The console opens the website's **Install** page with one line to copy:
+
+   ```html
+   <script
+     defer
+     src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
+     data-source="<public key>"
+     data-token-url="none"
+   ></script>
+   ```
+
+   Paste it before `</body>` on every page, or once in your shared layout or theme.
+
+3. Publish your site, then choose **I've deployed, check now**. The console opens your home page,
+   looks for the tag, and shows whether page views have arrived.
+
+The tag holds only public values. Your backend serves the script, so there is no file to copy and
+nothing to update on your site when you update Vizoalica. The backend accepts events only from the
+addresses you entered for the website; everything else is refused.
+
+**How visitors are counted.** Vizoalica stores nothing in your visitors' browsers: no cookies and no
+local storage. The backend counts unique visitors with an identifier made from a random value that
+changes every day, the visitor's IP address, and their browser's user agent. The IP address and user
+agent are never stored, and each day's random value is deleted after the day ends, so nobody can link
+a visitor to that identifier or to another day. The same person on two days, or on two of your
+websites, counts as two visitors. See [Privacy defaults](privacy.md).
+
+**Limits to know.** Anyone can send events that claim to come from your site, because a browser's
+origin header can be faked outside a browser. Rate limits and per-website quotas cap how much
+such traffic can cost you. If that matters for your site, use signed tokens.
+
+A content security policy, if your site has one, must allow your backend's address in
+`script-src` and `connect-src`.
+
+## Signed tokens (optional)
+
+With **Require a signed token** on, every batch of events needs a short-lived token that your
+site's own server signs with `VIZOALICA_TOKEN_SECRET`. That secret is shared by every website on
+the backend, so treat it like a password: a leak from one website lets someone sign tokens for all
+of them (see "Suspected signing-secret exposure" in [the backend guide](cloudflare.md)). Keep
+rate limits on, and keep your site's own login for private pages: a token proves the request came
+through your server, not who the visitor is.
+
+You need:
+
+- A working backend and console.
+- The backend's `VIZOALICA_TOKEN_SECRET`. It is not shown when the backend is created. The first time a
+  website needs it, run `vizoalica rotate <backend> token`: it makes a new one and shows it once. Save it
+  in a password manager. Reuse that value for every later signed-token website.
+- Control of the website's build and deployment.
+- Node.js 22 or newer and pnpm 9, for the manual path.
 - For the GitHub Actions path: the website's GitHub repository, and a Cloudflare API token scoped
-  to **Cloudflare Pages: Edit** only. For the manual path: Cloudflare-native login for Direct
-  Upload, or a working production Git integration.
+  to **Cloudflare Pages: Edit** only. For the manual path: `wrangler login`, or a working Git
+  integration.
 
-The Pages Function runs in the hosted website environment, so the operator machine can be off
-while the website collects events.
+The token Function runs with your website, so your computer can be off while the site collects
+events.
 
-## Inputs
+### 1. Create the website in the console
 
-| Input                           | Source                                                      |
-| ------------------------------- | ----------------------------------------------------------- |
-| Worker HTTPS origin             | Backend handoff                                             |
-| `VIZOALICA_TOKEN_SECRET`        | Customer-approved secret manager; same value as the Worker  |
-| Analytics project ID            | Create or select in the local console                       |
-| Website/source ID               | Created by the local console; not the public source key     |
-| Public source key               | The website's page or Install page in the local console     |
-| Exact production origin(s)      | Website hosting settings, with scheme and no trailing slash |
-| Website folder and asset output | Website build configuration                                 |
-| Deployment path                 | GitHub Actions, existing Git integration, or Direct Upload  |
+Open the console, select **Websites**, then **Add website**. Enter the address with `https://`
+and no trailing slash, turn on **Require a signed token**, and save. The Install page opens. The
+website's own page lists its project ID, website ID, and public key, each with a copy button; all
+three are public values, and they are different from each other.
 
-## Security boundary
+### 2. Choose a deployment path
 
-Project IDs, source IDs, public source keys, Worker origins, and website origins are non-secret.
-The token-signing secret belongs only on the Worker and the website's trusted server-side Function.
-`VIZOALICA_TOKEN_SECRET` is one backend-wide secret shared by every website on the same backend, so
-a leak from any one website lets an attacker mint tokens for any of them. Treat it like the
-administrator secret, and follow "Suspected signing-secret exposure" in [the backend
-guide](cloudflare.md) to rotate the Worker and every website together. Per-website signing secrets
-are a planned design change, not part of this release.
-The administrator secret and Cloudflare deployment credential never belong in website assets.
-
-A public token issuer is not visitor authentication: non-browser callers can forge origin headers.
-Keep ingestion quotas enabled and retain existing application authentication for private sites.
-Only load analytics after the site's consent system grants analytics consent. The consent attribute
-records the state; it is not itself a consent gate.
-
-For the manual path, use a normal terminal with Cloudflare-native login. OneCLI can still hold the
-local console credential. Some OneCLI proxy configurations overwrite Wrangler's temporary Pages upload
-authorization; see [the known limitation](troubleshooting.md#onecli-and-pages-uploads).
-
-## 1. Create the website in the console
-
-Open the configured local console. Select **Projects**, create or explicitly select the ownership
-boundary, open **Websites**, then choose **Add website**. Its first field is an empty required
-project dropdown; confirm the project even when the surrounding view already shows it. Enter a
-clear display name and the exact production origin,
-including `https://` and without a trailing slash. Save the website; the console opens its
-**Install** page. The website's own page lists the generated project ID, website/source ID, and
-public source key, each with a copy control; these are three different non-secret values. Start with the default low quota and seven-day retention.
-
-**Check:** the new website belongs to the intended customer project, lists only its real allowed
-origin(s), and has its own source ID and public key.
-
-If you ran `pnpm vizoalica demo`, the console also shows a project called "Vizoalica demo (sample
-data)". It is separate from your websites; remove it whenever you like with
-`pnpm vizoalica demo --remove`.
-
-## 2. Choose a deployment path
-
-| Path                                                             | Use it when                                                                    |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [A. GitHub Actions](#path-a-github-actions-recommended)          | The website's source is in its own GitHub repository. **Recommended.**         |
-| [B. Manual](#path-b-manual-direct-upload-or-git-connected-pages) | Direct Upload, an existing Git-connected Pages project, or the static snippet. |
+| Path                                                             | Use it when                                                                   |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [A. GitHub Actions](#path-a-github-actions-recommended)          | The website's source is in its own GitHub repository. **Recommended.**        |
+| [B. Manual](#path-b-manual-direct-upload-or-git-connected-pages) | Direct Upload, an existing Git-connected Pages project, or your own endpoint. |
 
 Both paths end at [Verify website activation](#verify-website-activation).
 
-## Path A: GitHub Actions (recommended)
+### Path A: GitHub Actions (recommended)
 
 A push to the website's repository deploys it automatically, with no per-deploy manual steps and
 no analytics values ever committed to the website's source.
@@ -105,12 +114,12 @@ for the full technical contract, including the caveat that a **public** website 
 call a reusable workflow hosted in a private repository — vendor the workflow's steps directly
 into the website's own repo instead in that case (see the contract for the exact reason).
 
-## Path B: manual (Direct Upload or Git-connected Pages)
+### Path B: manual (Direct Upload or Git-connected Pages)
 
-For a website not using GitHub Actions, or for the static snippet. Each step is run from your
+For a website not using GitHub Actions, or a snippet with your own token endpoint. Each step is run from your
 Vizoalica checkout unless it says otherwise.
 
-### B1. Prepare the website project
+#### B1. Prepare the website project
 
 From your Vizoalica checkout, choose an unused Pages project name and a private working copy for
 the example. Replace the two paths/names below. The name determines your `pages.dev` origin.
@@ -131,7 +140,7 @@ explained below.
 **Check:** the Pages project exists in the intended Cloudflare account. Record the exact origin
 shown in the dashboard, normally `https://YOUR_PAGES_PROJECT.pages.dev`.
 
-### The console's install check
+#### The console's install check
 
 On a website's install page, "I've deployed, check now" looks at each allowed address for
 `/vizoalica.js`, then asks `/vizoalica/ingest-token` for a token (with the site's own `Origin`),
@@ -141,7 +150,7 @@ redirect, never reads a response body, and discards the token, which expires in 
 reads the last day's page views. Add the address a site redirects to (for example `www`) to the
 allowed origins and to the endpoint's list, or list only the address that serves the site.
 
-### B2. Fill in the public configuration
+#### B2. Fill in the public configuration
 
 > **Defaults (0.7.3).** `VIZOALICA_SDK_SRC` (`/vizoalica.js`), `VIZOALICA_TOKEN_URL`
 > (`/vizoalica/ingest-token`) and `VIZOALICA_CONSENT` (`unknown`) follow a convention, so the deploy
@@ -159,21 +168,21 @@ Edit the working copy's `wrangler.toml`:
 | `name`                        | Pages project name                                                                                                       |
 | `VIZOALICA_SDK_SRC`           | Public SDK path, normally `/vizoalica.js`                                                                                |
 | `VIZOALICA_INGEST_ENDPOINT`   | Console's dynamic public configuration                                                                                   |
-| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's public source key                                                                                              |
+| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's website key                                                                                                    |
 | `VIZOALICA_PROJECT_ID`        | Console's Project ID                                                                                                     |
 | `VIZOALICA_TOKEN_URL`         | Same-origin `/vizoalica/ingest-token`                                                                                    |
 | `VIZOALICA_CONSENT`           | Recorded state after the host grants analytics consent                                                                   |
-| `VIZOALICA_SOURCE_ID`         | Console's Source ID; server-side token scope                                                                             |
+| `VIZOALICA_SOURCE_ID`         | Console's website ID; server-side token scope                                                                            |
 | `VIZOALICA_SITE_ORIGINS`      | Comma-separated exact website origin(s), no trailing slash; list every hostname (e.g. apex + `www`) that serves the site |
 
 Edit `public/index.html`, replacing its three `REPLACE_…` values with your Worker hostname,
-public source key and project ID. The Worker hostname excludes `https://`; keep the full endpoint
+website key and project ID. The Worker hostname excludes `https://`; keep the full endpoint
 ending in `/v1/events:batch`. The demo serves its SDK at `/vizoalica.js`.
 
 **Check:** no `REPLACE_…` values remain in `wrangler.toml` or `public/index.html`. Do not put a
-secret in either file. The source ID is **not** necessarily the public source key.
+secret in either file. The website ID is **not** the website key.
 
-### B3. Build and copy the browser SDK
+#### B3. Build and copy the browser SDK
 
 Run from the Vizoalica checkout:
 
@@ -210,7 +219,7 @@ vizoalica-demo/
 The public [`configuration Function`](../../examples/cloudflare-pages/functions/vizoalica/config.json.ts)
 maps six plaintext variables to the portable version 1 JSON contract with no-store/nosniff headers
 and no partial fallback. The [`token Function`](../../examples/cloudflare-pages/functions/vizoalica/ingest-token.ts)
-uses server configuration for project/source/origin, signs HS256 tokens with
+uses server configuration for project/website/origin, signs HS256 tokens with
 Web Crypto, sets a five-minute lifetime and a 25-event token limit, and returns `text/plain` with
 `Cache-Control: no-store`. Request parameters cannot select another project or origin. It rejects
 missing configuration, foreign provenance and requests on unconfigured preview domains.
@@ -218,7 +227,7 @@ missing configuration, foreign provenance and requests on unconfigured preview d
 The shared signing secret stays on trusted servers. Use the site's existing session authentication
 as an additional requirement if the site is private.
 
-#### Review sequence for dynamic Cloudflare configuration
+##### Review sequence for dynamic Cloudflare configuration
 
 Keep this order and stop before deployment until the account, Pages project, environment,
 production branch, site directory, output directory, public-variable block, Function, loader, and
@@ -232,10 +241,10 @@ pnpm exec wrangler pages dev public --cwd "$VIZOALICA_SITE_DIR"
 # After review, use the site's actual Git-connected flow or the Direct Upload command below.
 pnpm exec wrangler pages deploy public --cwd "$VIZOALICA_SITE_DIR" --project-name "$VIZOALICA_PAGES_PROJECT" --branch main
 pnpm exec wrangler pages deployment list --project-name "$VIZOALICA_PAGES_PROJECT"
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID --mode dynamic
 ```
 
-### B4. Save the same signing secret on Pages
+#### B4. Save the same signing secret on Pages
 
 Paste **the same `VIZOALICA_TOKEN_SECRET` value used by the ingestion Worker** into the hidden prompt:
 
@@ -250,7 +259,7 @@ for Pages. The administrator secret and Cloudflare deployment token never go on 
 For an existing project with separate preview/production settings, confirm the secret and variables
 in the **Production** environment in the dashboard, then redeploy for changes to take effect.
 
-### B5. Deploy the website and Function together
+#### B5. Deploy the website and Function together
 
 For this Direct Upload example, run from the Vizoalica checkout:
 
@@ -268,7 +277,7 @@ without the Function. `functions/` belongs beside `public/`, **not inside it**. 
 flags follow Cloudflare's [Function setup](https://developers.cloudflare.com/pages/functions/get-started/)
 and [Pages command reference](https://developers.cloudflare.com/workers/wrangler/commands/pages/).
 
-#### Existing website: Git-connected or Direct Upload?
+##### Existing website: Git-connected or Direct Upload?
 
 In Cloudflare **Workers & Pages → your Pages project**, inspect the connected repository and build
 settings, production branch, and latest deployment commit. A Git-connected project has a repository
@@ -291,13 +300,13 @@ See Cloudflare's [Git integration](https://developers.cloudflare.com/pages/get-s
 and [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) guides.
 Dashboard drag-and-drop does not compile a `functions/` directory; use Wrangler or a Git build.
 
-## Verify website activation
+### Verify website activation
 
-From the Vizoalica checkout, substitute your stable origin, project ID and **source ID**:
+From the Vizoalica checkout, substitute your stable origin, project ID and **website ID**:
 
 ```sh
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID --mode dynamic
 ```
 
 **Check:** the command reports that website content and token claims passed. It checks:
@@ -305,7 +314,7 @@ pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR
 - Static mode checks `/vizoalica.js`; dynamic mode checks `/vizoalica-loader.js` and the complete,
   project-scoped `/vizoalica/config.json` response.
 - `/vizoalica/ingest-token`: `text/plain`, `no-store`, three JWT parts, HS256 header, expected
-  project/source/origin, audience/scope, expiry and five-minute lifetime.
+  project/website/origin, audience/scope, expiry and five-minute lifetime.
 
 It sends a same-origin referrer like a browser GET. It never prints the token. It checks token
 structure and claims, **not the signature**: only the Worker's accepted event proves that the
@@ -315,34 +324,12 @@ for either missing path.
 Now open the website and grant analytics consent (the demo page has an **Allow analytics**
 button). In the browser Network panel, confirm the
 batch request to the Worker returns **202**, then refresh the local console's `24h` view. In a
-fresh test source, one visit produces one page view and one privacy-safe unique user. See
+fresh test website, one visit produces one page view and one privacy-safe unique user. See
 [privacy operations](privacy.md) for the data boundary. The demo makes the choice per visit;
 refresh to choose again. Finally, block the Worker request in
 the browser and reload: the website's primary content and controls must remain usable.
 
-## Website handoff
-
-Record one non-secret completion note for this website:
-
-```text
-Activation: Website data collection
-Customer/environment: <label>
-Website: <display name>
-Production origin: https://<website-origin>
-Release/commit: <release and commit>
-Analytics project ID: <public identifier>
-Internal source ID: <public identifier>
-Public source key: <public identifier>
-Deployment mode/commit: <Git or Direct Upload and deployment identity>
-Content/token checks: <timestamp and result>
-Accepted event observed: <timestamp>
-Analytics unavailable test: website remained usable
-```
-
-Do not include the token-signing secret, administrator credential, issued JWT, deployment token, or
-visitor data.
-
-## Add the integration to your own pages
+### Add the integration to your own pages
 
 Choose exactly one path on the website's Install page after hosting the SDK and token Function.
 **Paste a snippet** (the static option) is the existing complete website-specific snippet. Dynamic configuration keeps the generic
@@ -352,11 +339,10 @@ For several allowed origins, hosting at the same `/vizoalica.js` path lets you u
 Install on **every page or shared layout** where you want collection. Check the deployed page
 source; an integration that used to exist in a sample repository may have been removed.
 
-Only load the SDK after the visitor grants analytics consent, and set `data-consent` to
-`analytics-granted` at that point. The attribute records consent; it is **not a consent banner or
-an automatic collection gate**. Do not assume `unknown` prevents network requests. The included
-demo delays loading the script until Allow is selected. For a production site, use its consent
-manager and stop further tracking calls when consent is withdrawn.
+`data-consent` records the consent state on each event; it is not a consent banner. To send
+nothing for a visitor who declines, do not load the script.
+Whether your site needs a banner for analytics depends on the rules that apply to it; Vizoalica
+itself stores nothing in the browser.
 
 For CSP-restricted sites, allow the SDK's host in `script-src` and the Worker origin in
 `connect-src`; retain your existing policy. Keep same-origin referrers enabled for the token GET.
@@ -377,14 +363,14 @@ all website verification. Updating the backend itself is a separate operation; s
 For signing-key rotation, pause collection across every connected website, replace the secret on
 the Worker and every trusted token issuer, redeploy, verify a new token and accepted event, then
 resume. This single-key example has no overlapping-key rotation; old tokens fail after the Worker
-key changes. Keep preview sources and secrets separate from production.
+key changes. Keep preview websites and secrets separate from production.
 
-To stop one website, disable its source in the console and remove the SDK load from the site's
+To stop one website, disable it in the console and remove the SDK load from the site's
 shared layout. Confirm new events are rejected while the website remains usable. Delete is
 terminal and permanent: new events are rejected at once, and the daily Cron run then removes the
 website's raw event batches in R2 and every D1 row for it, including audit entries. Deleting a
 project does the same for the project and all its websites. It does not remove the backend,
-another website registration, or an operator workstation.
+another website, or your console.
 
 To purge immediately instead of waiting for the Cron run, use `pnpm vizoalica purge-deleted` to list
 what would go, then `pnpm vizoalica purge-deleted --apply`. Each run is bounded and resumes on the next,

@@ -5,7 +5,7 @@ on /pricing get clicked?", "Is my new site sending data?", "Does prod need an up
 assistant two things:
 
 - **An MCP server**, `vizoalica mcp`, that reads analytics and health from your backends. It runs on your
-  computer, started by the AI client, and works on **every environment** you have set up with `vizoalica env`.
+  computer, started by the AI client, and works on **every backend** you have set up with `vizoalica env`.
 - **A skill** that teaches the assistant how Vizoalica works: its data, setup, health, operations, and
   troubleshooting.
 
@@ -15,7 +15,7 @@ returns only results.
 
 ## Set it up
 
-You need the `vizoalica` command (`npm install -g vizoalica`) and at least one working environment
+You need the `vizoalica` command (`npm install -g vizoalica`) and at least one working backend
 (`vizoalica env list`). Then, for your client:
 
 ```sh
@@ -38,10 +38,10 @@ For Claude Desktop or claude.ai, add the skill by uploading `vizoalica-skill.zip
 
 Any other MCP client: configure it to run `vizoalica mcp` over stdio.
 
-## Which environment an answer is about
+## Which backend an answer is about
 
-One server covers all your environments, like the console. Every answer starts with a line naming the
-environment it came from, its role, and address:
+One server covers all your backends, like the console. Every answer starts with a line naming the
+backend (the environment) it came from, your role on it, and its address:
 
 ```text
 Environment: prod (admin, https://analytics.example.com; default: the one last used in the console)
@@ -75,7 +75,7 @@ three ready-made prompts: `weekly_report`, `compare_weeks`, and `page_actions`.
 - `get_website_status` probes the website's own public address (the same requests as the console's
   **Check now**); pass `check_site: false` to skip it.
 - Your AI provider receives the results you ask for, just as if you pasted them into a chat. Use an access
-  key with a narrower scope (Manage, Access keys) in an environment meant for AI use if you want to limit that.
+  key with a narrower scope (Manage, Share access) in an environment meant for AI use if you want to limit that.
 - Commands that create or show secrets (`vizoalica env add`, `deploy`, `rotate`) stay in your own terminal; the
   skill tells the assistant to hand them to you rather than run them.
 

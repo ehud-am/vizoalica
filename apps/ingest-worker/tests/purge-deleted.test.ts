@@ -45,7 +45,7 @@ function seed() {
       ('q-keep',1,1,1,1,1,1,1,7), ('q-gone',1,1,1,1,1,1,1,7), ('q-dead-site',1,1,1,1,1,1,1,7);
     INSERT INTO projects VALUES ('live','Live','production',7,'q-live','active'),
                                 ('dead','Dead','production',7,'q-dead','deleted');
-    INSERT INTO sources VALUES
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES
       ('keep','live','Keep','k1','[]','active','q-keep','t','t'),
       ('gone','live','Gone','k2','[]','deleted','q-gone','t','t'),
       ('dead-site','dead','Dead site','k3','[]','deleted','q-dead-site','t','t');

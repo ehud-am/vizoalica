@@ -10,20 +10,21 @@ const two = {
 };
 const none = { file, environments: [], selected: null };
 
-const environmentButton = (page: Page) => page.getByRole('button', { name: /^Environment/ });
+const environmentButton = (page: Page) => page.getByRole('button', { name: /^Backend/ });
 
-test('a single environment shows its name and role, and only an administrator gets a menu', async ({
+test('a single environment shows its name, and only an administrator gets a menu', async ({
   page
 }) => {
   await mockConsole(page, { setup: setupState('admin') });
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
   await expect(environmentButton(page)).toContainText('prod');
-  await expect(environmentButton(page).locator('.menu-badge')).toHaveText('admin');
-  // The only thing in its menu is the administrator's Access keys entry.
+  // Admin is the default, your own backend, so it carries no role badge.
+  await expect(environmentButton(page).locator('.menu-badge')).toHaveCount(0);
+  // The only thing in its menu is the administrator's Share access entry.
   await environmentButton(page).click();
   await expect(page.getByRole('menuitemradio')).toHaveCount(1);
-  await expect(page.getByRole('menuitem', { name: 'Access keys' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Share access' })).toBeVisible();
 });
 
 test('a single environment is plain text for someone who cannot manage keys', async ({ page }) => {
@@ -37,7 +38,13 @@ test('a single environment is plain text for someone who cannot manage keys', as
 test('with several environments, the menu opens on the selected one and lists them all', async ({
   page
 }) => {
-  await mockConsole(page, { setup: setupState('admin'), environments: two });
+  await mockConsole(page, {
+    setup: setupState('admin'),
+    environments: {
+      ...two,
+      environments: [mockEnvironment('dev', 'analyst'), mockEnvironment('prod')]
+    }
+  });
   await page.goto('/');
   await expect(environmentButton(page)).toContainText('prod');
   await environmentButton(page).click();
@@ -45,9 +52,10 @@ test('with several environments, the menu opens on the selected one and lists th
   await expect(items).toHaveCount(2);
   await expect(items.nth(0)).toContainText('dev');
   await expect(items.nth(1)).toHaveAttribute('aria-checked', 'true');
-  // The role is its own element, not part of the name.
+  // A shared role is its own element, not part of the name; admin, the default, has no badge.
   await expect(items.nth(0).locator('.menu-item-label')).toHaveText('dev');
-  await expect(items.nth(0).locator('.menu-badge')).toHaveText('admin');
+  await expect(items.nth(0).locator('.menu-badge')).toHaveText('analyst');
+  await expect(items.nth(1).locator('.menu-badge')).toHaveCount(0);
 });
 
 test('an environment that is not usable is shown disabled with the reason', async ({ page }) => {
@@ -116,7 +124,7 @@ test('the environment control never overlaps its own text, at any width', async 
     expect(boxes.chevronRight).toBeLessThanOrEqual(boxes.buttonRight + 0.5);
     expect(boxes.pageOverflow).toBeLessThanOrEqual(1);
     await trigger.click();
-    const list = page.getByRole('menu', { name: 'Environment' });
+    const list = page.getByRole('menu', { name: 'Backend' });
     await expect(list).toBeVisible();
     const inside = await list.evaluate((element) => {
       const box = element.getBoundingClientRect();
@@ -134,7 +142,7 @@ test('the environment menu works from the keyboard and reports no accessibility 
   await page.goto('/');
   await environmentButton(page).focus();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('menu', { name: 'Environment' })).toBeVisible();
+  await expect(page.getByRole('menu', { name: 'Backend' })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
   await page.keyboard.press('Escape');
@@ -146,7 +154,15 @@ test('there is no way to add, edit, or remove an environment in the console', as
   for (const route of ['/', '/#/manage/health', '/#/manage/projects']) {
     await page.goto(route);
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
-    for (const name of [/new environment/i, /add environment/i, /remove environment/i, /deploy/i])
+    for (const name of [
+      /new environment/i,
+      /add environment/i,
+      /remove environment/i,
+      /new backend/i,
+      /add backend/i,
+      /remove backend/i,
+      /deploy/i
+    ])
       await expect(page.getByRole('button', { name })).toHaveCount(0);
   }
 });

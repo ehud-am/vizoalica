@@ -207,6 +207,13 @@ function setup(
 }
 const APPLY = ['--apply', '--cloudflare-token-stdin', '--yes'];
 
+/** An entry that saving would drop, so a new environment cannot be added to the file. */
+const unsavable = (home: string) =>
+  writePrivate(home, 'environments.json', {
+    version: 1,
+    environments: { broken: { url: 'nope' } }
+  });
+
 describe('vizoalica deploy: without --apply', () => {
   it('shows usage, and refuses a missing name or an unknown option', async () => {
     const t = setup({ interactive: false });
@@ -268,8 +275,8 @@ describe('vizoalica deploy: without --apply', () => {
 });
 
 describe('vizoalica deploy --apply', () => {
-  it('creates the backend in order, registers the environment, and reveals only the other secrets', async () => {
-    const t = setup({ stdin: 'cf-token\n', answers: ['saved'] });
+  it('creates the backend in order, registers the environment, and shows no secret', async () => {
+    const t = setup({ stdin: 'cf-token\n' });
     expect(await deployCommand(['prod', ...APPLY], t.deps)).toBe(0);
     const names = t.wrangler.names();
     expect(names[0]).toBe('whoami');
@@ -289,20 +296,25 @@ describe('vizoalica deploy --apply', () => {
     expect(entry.cloudflare).toBeUndefined();
     expect(statSync(t.file).mode & 0o777).toBe(0o600);
 
+    // The Worker gets all three secrets; none is shown, and nothing waits for "saved".
+    expect(Object.keys(t.wrangler.stored).sort()).toEqual([
+      'VIZOALICA_ADMIN_SECRET',
+      'VIZOALICA_ANALYTICS_DIGEST_SECRET',
+      'VIZOALICA_TOKEN_SECRET'
+    ]);
     const output = t.text() + t.errors();
-    expect(output).toContain(
-      `VIZOALICA_TOKEN_SECRET\n    ${t.wrangler.stored.VIZOALICA_TOKEN_SECRET}\n`
-    );
-    expect(output).toContain(
-      `VIZOALICA_ANALYTICS_DIGEST_SECRET\n    ${t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET}\n`
-    );
+    expect(output).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
+    expect(output).not.toContain(t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET!);
     expect(output).not.toContain(admin);
     expect(output).not.toContain('cf-token');
-    // The secrets come last, after everything else, and it waits until they are saved.
-    expect(output.indexOf('was added and works')).toBeLessThan(
-      output.indexOf('SAVE THESE 2 SECRETS')
+    expect(output).not.toContain('SAVE TH');
+    expect(output).toContain(
+      'Backend "prod" is saved on this computer and works. Next: vizoalica console'
     );
-    expect(output).toContain('vizoalica rotate prod');
+    // Last: how to get the token secret when a website first needs it.
+    expect(t.text().trimEnd().split('\n').at(-1)).toBe(
+      'Websites that require signed tokens need the token secret. Get it when you first need it with: vizoalica rotate prod token'
+    );
     // The account is remembered, so rotating later need not look it up.
     expect(
       readFileSync(
@@ -310,7 +322,19 @@ describe('vizoalica deploy --apply', () => {
         'utf8'
       )
     ).toBe(`${ACCOUNT}\n`);
-    expect(t.asked.at(-1)).toBe('When you have saved them, type "saved": ');
+    expect(t.asked.filter((question) => question.includes('saved'))).toEqual([]);
+  });
+
+  it('shows the administrator secret, and waits until it is saved, when it cannot be added', async () => {
+    const t = setup({ stdin: 'cf-token\n', answers: ['saved'] });
+    unsavable(t.home);
+    expect(await deployCommand(['prod', ...APPLY], t.deps)).toBe(1);
+    const output = t.text();
+    expect(output).toContain('SAVE THIS SECRET');
+    expect(output).toContain(t.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
+    expect(output).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
+    expect(output).not.toContain(t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET!);
+    expect(t.asked.at(-1)).toBe('When you have saved it, type "saved": ');
   });
 
   it('gives Wrangler the account, the version, and the packaged files, and the token never as an argument', async () => {
@@ -407,15 +431,36 @@ describe('vizoalica deploy --apply', () => {
     expect(t.environments().prod!.cloudflare).toEqual({ token: 'cf-token' });
   });
 
-  it('writes the other secrets to a new private file instead of printing them, and never overwrites', async () => {
+  it('with --secrets-file writes the generated secrets to a new private file, and never overwrites', async () => {
     const file = join(tempHome(), 'secrets.env');
     const t = setup({ stdin: 'cf-token\n' });
     expect(await deployCommand(['prod', ...APPLY, '--secrets-file', file], t.deps)).toBe(0);
     expect(statSync(file).mode & 0o777).toBe(0o600);
     const saved = readFileSync(file, 'utf8');
-    expect(saved).toContain('VIZOALICA_TOKEN_SECRET=');
+    expect(saved).toContain(`VIZOALICA_TOKEN_SECRET=${t.wrangler.stored.VIZOALICA_TOKEN_SECRET}\n`);
+    expect(saved).toContain(
+      `VIZOALICA_ANALYTICS_DIGEST_SECRET=${t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET}\n`
+    );
+    // The administrator secret is in the environments file already.
     expect(saved).not.toContain('VIZOALICA_ADMIN_SECRET');
     expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
+    expect(t.text()).not.toContain('vizoalica rotate prod token');
+    expect(t.asked).toEqual([]);
+    // When the administrator secret cannot be added, the file gets all three.
+    const allFile = join(tempHome(), 'all.env');
+    const unsaved = setup({ stdin: 'cf-token\n' });
+    unsavable(unsaved.home);
+    expect(await deployCommand(['prod', ...APPLY, '--secrets-file', allFile], unsaved.deps)).toBe(
+      1
+    );
+    const all = readFileSync(allFile, 'utf8');
+    for (const name of [
+      'VIZOALICA_ADMIN_SECRET',
+      'VIZOALICA_TOKEN_SECRET',
+      'VIZOALICA_ANALYTICS_DIGEST_SECRET'
+    ])
+      expect(all).toContain(`${name}=${unsaved.wrangler.stored[name]}\n`);
+    expect(unsaved.text()).not.toContain(unsaved.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
     const again = setup({ stdin: 'cf-token\n' });
     expect(await deployCommand(['prod2', ...APPLY, '--secrets-file', file], again.deps)).toBe(1);
     expect(again.errors()).toContain('already exists');
@@ -432,20 +477,28 @@ describe('vizoalica deploy --apply', () => {
     expect(nowhere.wrangler.calls).toEqual([]);
   });
 
-  it('without a terminal needs --yes and somewhere to put the secrets, before creating anything', async () => {
+  it('without a terminal needs --yes before creating anything, but no --secrets-file', async () => {
     const t = setup({ stdin: 'cf-token\n', interactive: false });
+    expect(await deployCommand(['prod', '--apply', '--cloudflare-token-stdin'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('--yes');
+    expect(t.wrangler.calls).toEqual([]);
+    expect(
+      await deployCommand(['prod', '--apply', '--cloudflare-token-stdin', '--yes'], t.deps)
+    ).toBe(0);
+    expect(t.environments().prod!.secret).toBe(t.wrangler.stored.VIZOALICA_ADMIN_SECRET);
+    expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
+    expect(t.asked).toEqual([]);
+  });
+
+  it('without a terminal prints the administrator secret when it cannot be added', async () => {
+    const t = setup({ stdin: 'cf-token\n', interactive: false });
+    unsavable(t.home);
     expect(
       await deployCommand(['prod', '--apply', '--cloudflare-token-stdin', '--yes'], t.deps)
     ).toBe(1);
-    expect(t.errors()).toContain('--secrets-file');
-    expect(
-      await deployCommand(
-        ['prod', '--apply', '--cloudflare-token-stdin', '--secrets-file', join(tempHome(), 's')],
-        t.deps
-      )
-    ).toBe(1);
-    expect(t.errors()).toContain('--yes');
-    expect(t.wrangler.calls).toEqual([]);
+    expect(t.text()).toContain(t.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
+    expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
+    expect(t.asked).toEqual([]);
   });
 
   it('asks before creating, and creates nothing unless the answer is yes', async () => {
@@ -660,6 +713,7 @@ describe('vizoalica deploy --apply', () => {
     expect(t.text()).toContain(
       `VIZOALICA_ADMIN_SECRET\n    ${t.wrangler.stored.VIZOALICA_ADMIN_SECRET}\n`
     );
+    expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_TOKEN_SECRET!);
   });
 
   it('adds the environment but says so when it does not verify yet', async () => {
@@ -802,7 +856,10 @@ describe('vizoalica deploy --update', () => {
     expect(t.environments().prod!.secret).toBe(t.wrangler.stored.VIZOALICA_ADMIN_SECRET);
     expect(t.text()).toContain('was added to your environments');
     expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_ADMIN_SECRET!);
-    expect(t.text()).toContain('SAVE THIS SECRET');
+    // The new digest secret stays with the Worker: nothing is shown or asked.
+    expect(t.text()).not.toContain(t.wrangler.stored.VIZOALICA_ANALYTICS_DIGEST_SECRET!);
+    expect(t.text()).not.toContain('SAVE TH');
+    expect(t.asked.filter((question) => question.includes('saved'))).toEqual([]);
 
     const known = setup({
       stdin: 't\n',

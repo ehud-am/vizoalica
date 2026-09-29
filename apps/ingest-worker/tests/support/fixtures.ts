@@ -23,7 +23,7 @@ export function seededRepositories(): { sqlite: DatabaseSync; repositories: D1Re
   sqlite.exec(`
     INSERT INTO quota_policies VALUES ('q1',1,1,1,1,1,1,1,7);
     INSERT INTO projects VALUES ('p1','One','production',7,'q1','active'), ('p2','Two','production',7,'q1','active');
-    INSERT INTO sources VALUES
+    INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES
       ('s1','p1','Shop','k1','[]','active','q1','t','t'),
       ('s2','p1','Docs','k2','[]','active','q1','t','t'),
       ('s3','p1','Old','k3','[]','deleted','q1','t','t'),

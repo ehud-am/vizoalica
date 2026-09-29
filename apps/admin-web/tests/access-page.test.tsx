@@ -48,7 +48,7 @@ afterEach(() => {
 async function open() {
   window.location.hash = '#/manage/access';
   render(<App />);
-  await screen.findByRole('heading', { level: 1, name: 'Access keys' });
+  await screen.findByRole('heading', { level: 1, name: 'Share access' });
   await waitFor(() => expect(screen.queryByText('Loading…')).toBeNull());
 }
 /** A dropdown of the issue form (the header has its own Project menu, so search only the form). */
@@ -223,7 +223,7 @@ describe('After the key is issued', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Who is it for?'));
   });
 
-  it('says what to do with it: nothing to deploy, and how to add a console environment', async () => {
+  it('says what to do with it: nothing to deploy, and how to add the backend to a console', async () => {
     const user = userEvent.setup();
     await open();
     await issueOne(user);
@@ -232,7 +232,7 @@ describe('After the key is issued', () => {
     expect(panel.textContent).toContain('privately');
     expect(panel.textContent).toContain('npm install -g vizoalica');
     // The default way: a private file.
-    const add = within(panel as HTMLElement).getByRole('region', { name: 'Add the environment' });
+    const add = within(panel as HTMLElement).getByRole('region', { name: 'Add the backend' });
     expect(add.textContent).toBe(
       'vizoalica env add dev-analyst --connect --url https://w.example.workers.dev --role analyst'
     );
@@ -243,11 +243,13 @@ describe('After the key is issued', () => {
     expect(panel.textContent).not.toContain(KEY);
   });
 
-  it('gives OneCLI steps: the secret to store, then the environment that points at it', async () => {
+  it('gives OneCLI steps: the secret to store, then the backend entry that points at it', async () => {
     const user = userEvent.setup();
     await open();
     await issueOne(user, /Website owner/);
-    await user.click(reveal().getByRole('tab', { name: 'In OneCLI' }));
+    // OneCLI is the advanced way, after the plain steps.
+    expect(reveal().queryByRole('tab', { name: 'In OneCLI' })).toBeNull();
+    await user.click(reveal().getByText('Advanced: keep the key in OneCLI'));
     const store = reveal().getByRole('region', { name: 'Store the key in OneCLI' });
     expect(store.textContent).toContain('--host-pattern w.example.workers.dev');
     expect(store.textContent).toContain("--value-format 'Bearer {value}'");
@@ -256,7 +258,7 @@ describe('After the key is issued', () => {
     const step = store.closest('li')!;
     expect(step.textContent).toContain('Generic');
     expect(step.textContent).toContain('Authorization');
-    const add = reveal().getByRole('region', { name: 'Add the environment' }).textContent!;
+    const add = reveal().getByRole('region', { name: 'Add the backend with OneCLI' }).textContent!;
     expect(add).toContain('--role owner');
     expect(add).toContain('--secret-onecli');
     expect(add).toContain('--onecli-workspace WORKSPACE --onecli-agent AGENT --onecli-gateway');
@@ -268,7 +270,7 @@ describe('After the key is issued', () => {
     await open();
     await issueOne(user);
     await user.click(reveal().getByRole('tab', { name: 'From a script' }));
-    const add = reveal().getByRole('region', { name: 'Add the environment' }).textContent!;
+    const add = reveal().getByRole('region', { name: 'Add the backend' }).textContent!;
     expect(add).toContain('read -rs KEY');
     expect(add).toContain('--secret-stdin --no-onecli');
     expect(add).not.toContain(KEY);
@@ -368,7 +370,7 @@ describe('KeyInstructions', () => {
         access="Docs (Acme)"
       />
     );
-    expect(screen.getByRole('region', { name: 'Add the environment' }).textContent).toBe(
+    expect(screen.getByRole('region', { name: 'Add the backend' }).textContent).toBe(
       'vizoalica env add prod-owner --connect --url https://analytics.example.com --role owner'
     );
     expect(document.body.textContent).toContain('who then reaches Docs (Acme)');
@@ -377,7 +379,7 @@ describe('KeyInstructions', () => {
 
   it('still gives usable commands when the backend address is not known', () => {
     render(<KeyInstructions workerUrl="" environment="" role="analyst" />);
-    expect(screen.getByRole('region', { name: 'Add the environment' }).textContent).toContain(
+    expect(screen.getByRole('region', { name: 'Add the backend' }).textContent).toContain(
       '--url https://YOUR_WORKER_ADDRESS'
     );
     expect(document.body.textContent).toContain('see analytics and settings but change nothing');

@@ -292,6 +292,7 @@ export function createLocalServer(options: ServerOptions) {
           // The Worker has no read of a bare source, only of its snippet, which carries the origins.
           const metadata = (await workerJson(client, `${basePath}/snippet`)) as {
             allowedOrigins?: unknown;
+            publicSourceKey?: unknown;
           };
           if (!validOrigins(metadata.allowedOrigins)) throw new Error('remote_unavailable');
           const origin = metadata.allowedOrigins[0]!;
@@ -299,8 +300,14 @@ export function createLocalServer(options: ServerOptions) {
           // The install probes run when the page says which path it is checking.
           const path = url.searchParams.get('path');
           const install =
-            path === 'github' || path === 'snippet'
-              ? await checkInstall(metadata.allowedOrigins, path, reach.configEndpointReachable)
+            path === 'github' || path === 'snippet' || path === 'script-tag'
+              ? await checkInstall(
+                  metadata.allowedOrigins,
+                  path,
+                  reach.configEndpointReachable,
+                  fetch,
+                  typeof metadata.publicSourceKey === 'string' ? metadata.publicSourceKey : ''
+                )
               : undefined;
           return send(response, 200, install ? { ...reach, install } : reach);
         }

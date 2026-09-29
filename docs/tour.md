@@ -49,6 +49,6 @@ A look at the console. Everything on this page is **fictional demo data** for an
 <figcaption><strong>Dark theme.</strong> Every screen has a dark theme that follows your system or your choice.</figcaption>
 </figure>
 
-<p class="promo-note">The console has two areas: <strong>Analytics</strong> for reading, where nothing can be changed, and <strong>Manage</strong> for setup. See <a href="/operations/operator-local">start the local operator console</a>.</p>
+<p class="promo-note">The console has two areas: <strong>Analytics</strong> for reading, where nothing can be changed, and <strong>Manage</strong> for setup. See <a href="/operations/operator-local">start the console day to day</a>.</p>
 
 Ready to try it? [Read the quick start](/get-started).

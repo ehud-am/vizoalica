@@ -62,12 +62,18 @@ describe('site assets', () => {
     for (const file of [
       'vizoalica-intro.mp4',
       'vizoalica-intro.webm',
-      'vizoalica-intro-poster.jpg'
+      'vizoalica-intro-poster.jpg',
+      'vizoalica-mcp-demo.mp4',
+      'vizoalica-mcp-demo.webm',
+      'vizoalica-mcp-demo-poster.jpg'
     ])
       expect(statSync(join(DOCS, 'public/media', file)).size, file).toBeGreaterThan(10_000);
     expect(statSync(join(DOCS, 'public/og.jpg')).size).toBeGreaterThan(10_000);
     // The MP4 is meant to stay light enough to embed.
     expect(statSync(join(DOCS, 'public/media/vizoalica-intro.mp4')).size).toBeLessThan(5_000_000);
+    expect(statSync(join(DOCS, 'public/media/vizoalica-mcp-demo.mp4')).size).toBeLessThan(
+      5_000_000
+    );
   });
 
   it('uses the official logo assets in the video, unmodified and not redrawn', () => {

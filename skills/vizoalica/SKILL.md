@@ -60,8 +60,8 @@ omitted when there is only one, `website` omitted for the whole project), and ei
 - **"Is everything working?"** `list_environments`, then `get_environment_status` for the one in question.
   If a Worker or schema update is needed, give the command from the status message.
 - **"Is my new site sending data?"** `get_website_status`; follow its `nextAction`. Then
-  `get_traffic_overview` with `last_24_hours`. Zero with a healthy install usually means no visitor has
-  granted analytics consent yet.
+  `get_traffic_overview` with `last_24_hours`. Zero with a healthy install usually means no one has visited
+  since the tag went live, or the data is still processing (a minute or two).
 - **"Compare prod and stage"** Call the same tool twice with `environment` set, and label each number.
 
 More detail: [data model](reference/data-model.md), [setup and operations](reference/setup.md),

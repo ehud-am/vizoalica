@@ -4,7 +4,7 @@ import type {
   StaticInstallation
 } from '../../api/local-operations.js';
 
-export type InstallPath = 'github' | 'snippet';
+export type InstallPath = 'github' | 'snippet' | 'script-tag';
 
 /** The path the docs recommend, and the one selected when nothing was chosen before. */
 export const RECOMMENDED_PATH: InstallPath = 'github';

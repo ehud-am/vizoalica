@@ -15,7 +15,12 @@ examples/cloudflare-pages/public/vizoalica-loader.js
 specs/
 apps/admin-web/src/geo/countries.ts
 apps/admin-web/src/geo/world-paths.ts
+apps/ingest-worker/src/generated/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 docs/public/_headers
 apps/cli/package/
+# Generated from the recorded MCP demo transcripts (scripts/promo/render-mcp-demo.ts).
+scripts/promo/mcp-demo/transcript.js
+scripts/promo/mcp-demo/questions.json
+scripts/promo/mcp-demo/*.jsonl

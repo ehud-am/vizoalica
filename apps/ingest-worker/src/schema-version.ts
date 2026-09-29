@@ -4,7 +4,7 @@ import type { D1Database } from './env.js';
  * The highest numbered database change this Worker was built with. Bumped alongside a new file in
  * `deploy/cloudflare/migrations/`; a test compares it to the directory so the two cannot drift.
  */
-export const EXPECTED_SCHEMA_VERSION = 2;
+export const EXPECTED_SCHEMA_VERSION = 3;
 
 export type SchemaStatus = 'current' | 'behind' | 'ahead' | 'unknown';
 export type SchemaInfo = {

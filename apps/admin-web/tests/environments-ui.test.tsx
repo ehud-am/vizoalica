@@ -61,7 +61,7 @@ describe('Welcome', () => {
       />
     );
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome to Vizoalica' })).toBeTruthy();
-    expect(screen.getByText('No environments are set up yet.')).toBeTruthy();
+    expect(screen.getByText('No backend is set up yet.')).toBeTruthy();
     expect(screen.getByText('vizoalica env add <name>')).toBeTruthy();
   });
 
@@ -158,23 +158,28 @@ describe('EnvironmentMenu', () => {
       </SetupProvider>
     );
     expect(screen.getByText('dev')).toBeTruthy();
-    expect(screen.getByText('admin')).toBeTruthy();
-    // With no setup state the administrator's "Access keys" entry is there, so it can open.
-    expect(screen.getByRole('button', { name: /Environment/ })).toBeTruthy();
+    // Admin is the default, your own backend, so it gets no badge.
+    expect(screen.queryByText('admin')).toBeNull();
+    // With no setup state the administrator's "Share access" entry is there, so it can open.
+    expect(screen.getByRole('button', { name: /Backend/ })).toBeTruthy();
   });
 
-  it('lists every environment with its role apart from its name, and disables an unusable one with its reason', async () => {
+  it('lists every environment with a shared role apart from its name, and disables an unusable one with its reason', async () => {
     api.selectEnvironment.mockResolvedValue({});
     const onChanged = vi.fn();
     renderMenu(
       list({
-        environments: [environment('dev'), environment('prod'), environment('stage', false)],
+        environments: [
+          environment('dev'),
+          { ...environment('prod'), role: 'analyst' as const },
+          environment('stage', false)
+        ],
         selected: 'dev'
       }),
       onChanged
     );
-    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
-    const menu = screen.getByRole('menu', { name: 'Environment' });
+    await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
+    const menu = screen.getByRole('menu', { name: 'Backend' });
     const items = within(menu).getAllByRole('menuitemradio');
     expect(items.map((item) => item.getAttribute('aria-checked'))).toEqual([
       'true',
@@ -183,8 +188,9 @@ describe('EnvironmentMenu', () => {
     ]);
     expect(items.map((item) => item.getAttribute('aria-disabled'))).toEqual([null, null, 'true']);
     // The name and the role are separate elements, never one "name (role)" string.
-    expect(items[0]!.querySelector('.menu-item-label')!.textContent).toBe('dev');
-    expect(items[0]!.querySelector('.menu-badge')!.textContent).toBe('admin');
+    expect(items[1]!.querySelector('.menu-item-label')!.textContent).toBe('prod');
+    expect(items[1]!.querySelector('.menu-badge')!.textContent).toBe('analyst');
+    expect(items[0]!.querySelector('.menu-badge')).toBeNull();
     expect(within(items[2]!).getByText('The Worker rejected this secret.')).toBeTruthy();
     await userEvent.click(items[1]!);
     expect(api.selectEnvironment).toHaveBeenCalledWith('prod');
@@ -195,9 +201,9 @@ describe('EnvironmentMenu', () => {
     renderMenu(
       list({ environments: [environment('dev'), environment('stage', false)], selected: 'dev' })
     );
-    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: /dev/ }));
-    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: /stage/ }));
     expect(api.selectEnvironment).not.toHaveBeenCalled();
   });
@@ -205,15 +211,15 @@ describe('EnvironmentMenu', () => {
   it('says so when a selection is refused', async () => {
     api.selectEnvironment.mockRejectedValue(new Error('refused'));
     renderMenu(list({ environments: [environment('dev'), environment('prod')], selected: 'dev' }));
-    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     expect((await screen.findByRole('alert')).textContent).toContain('could not be selected');
   });
 
-  it('offers Access keys to an administrator, at the foot of the menu', async () => {
+  it('offers Share access to an administrator, at the foot of the menu', async () => {
     renderMenu(list({ environments: [environment('dev'), environment('prod')], selected: 'dev' }));
-    await userEvent.click(screen.getByRole('button', { name: /Environment/ }));
-    expect(screen.getByRole('menuitem', { name: 'Access keys' }).getAttribute('href')).toBe(
+    await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
+    expect(screen.getByRole('menuitem', { name: 'Share access' }).getAttribute('href')).toBe(
       '#/manage/access'
     );
   });
@@ -227,7 +233,7 @@ describe('App with environments', () => {
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Welcome to Vizoalica' })).toBeTruthy();
     expect(api.listProjects).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: /Environment/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Backend/ })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -236,7 +242,7 @@ describe('App with environments', () => {
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
     );
     render(<App />);
-    const trigger = await screen.findByRole('button', { name: /Environment/ });
+    const trigger = await screen.findByRole('button', { name: /Backend/ });
     expect(trigger.textContent).toContain('prod');
     expect(api.listProjects).toHaveBeenCalled();
   });
@@ -258,7 +264,7 @@ describe('App with environments', () => {
     );
     api.selectEnvironment.mockResolvedValue({});
     render(<App />);
-    const trigger = await screen.findByRole('button', { name: /Environment/ });
+    const trigger = await screen.findByRole('button', { name: /Backend/ });
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(1));
     api.listEnvironments.mockResolvedValue(
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
@@ -266,9 +272,7 @@ describe('App with environments', () => {
     await userEvent.click(trigger);
     await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(2));
-    expect((await screen.findByRole('button', { name: /Environment/ })).textContent).toContain(
-      'prod'
-    );
+    expect((await screen.findByRole('button', { name: /Backend/ })).textContent).toContain('prod');
   });
 
   it('keeps the project across an environment switch even when browser storage is blocked', async () => {
@@ -292,7 +296,7 @@ describe('App with environments', () => {
     api.listEnvironments.mockResolvedValue(
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
     );
-    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Backend/ }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledTimes(2));
     const project = await screen.findByRole('button', { name: /^Project/ });
@@ -317,7 +321,7 @@ describe('App with environments', () => {
     api.listEnvironments.mockResolvedValue(
       list({ environments: [environment('dev'), environment('prod')], selected: 'prod' })
     );
-    await userEvent.click(screen.getByRole('button', { name: /^Environment/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Backend/ }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: /prod/ }));
     expect(
       await screen.findByText(/previous project is no longer available. Showing Other/)
@@ -328,7 +332,14 @@ describe('App with environments', () => {
     render(<App />);
     await screen.findByRole('main');
     await waitFor(() => expect(api.listProjects).toHaveBeenCalled());
-    for (const text of [/first run/i, /deploy/i, /add environment/i, /new environment/i])
+    for (const text of [
+      /first run/i,
+      /deploy/i,
+      /add environment/i,
+      /new environment/i,
+      /add backend/i,
+      /new backend/i
+    ])
       expect(screen.queryByText(text)).toBeNull();
   });
 });

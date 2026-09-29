@@ -415,7 +415,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
             defaults: {
               'data-token-url': '/vizoalica/ingest-token',
               'data-consent': 'unknown',
-              'data-project': 'taken from the source key'
+              'data-project': 'taken from the website key'
             }
           },
           {

@@ -21,16 +21,18 @@ function EditForm({ website }: { website: Website }) {
   async function save(input: WebsiteInput) {
     await updateWebsite(scope.projectId, website.id, {
       name: input.name,
-      allowedOrigins: input.allowedOrigins
+      allowedOrigins: input.allowedOrigins,
+      tokenRequired: input.tokenRequired
     });
     await scope.refreshWebsites();
-    const originsChanged = !sameOrigins(website.allowedOrigins, input.allowedOrigins);
+    const originsChanged =
+      input.tokenRequired && !sameOrigins(website.allowedOrigins, input.allowedOrigins);
     // The embed itself does not depend on the origins, but the site's own token endpoint keeps a
     // list of them, so a changed list is the one edit that can need a matching change on the site.
     flash.carry(
       originsChanged
-        ? 'Website updated and audit recorded. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
-        : 'Website updated and audit recorded. Nothing needs to change on your installed site.'
+        ? 'Website saved. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
+        : 'Website saved. Nothing needs to change on your installed site.'
     );
     navigate('manage/websites/:id', website.id);
   }
@@ -46,7 +48,7 @@ function EditForm({ website }: { website: Website }) {
         ]}
         back={{ label: `Back to ${website.name}`, href: hub, onClick: guard(hub) }}
         title={`Edit ${website.name}`}
-        description="Change the name, or where this website is allowed to send analytics from."
+        description="Change the name, where this website may send analytics from, or whether it needs a signed token."
       />
       <section className="panel form-panel" aria-label="Edit website details">
         <WebsiteForm
@@ -54,6 +56,7 @@ function EditForm({ website }: { website: Website }) {
           autoFocus
           initialName={website.name}
           initialOrigins={website.allowedOrigins}
+          initialTokenRequired={website.tokenRequired !== false}
           submitLabel="Save changes"
           onSubmit={save}
           onDirtyChange={setDirty}

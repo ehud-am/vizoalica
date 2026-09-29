@@ -76,8 +76,8 @@ describe('single scope control', () => {
       render(<App />);
       await screen.findByRole('heading', { level: 1 });
       // The environment and the project are chosen once, in the header, on every page but Projects.
-      const header = screen.getByRole('group', { name: 'Environment and project' });
-      expect(within(header).getAllByRole('button', { name: /^Environment/ })).toHaveLength(1);
+      const header = screen.getByRole('group', { name: 'Backend and project' });
+      expect(within(header).getAllByRole('button', { name: /^Backend/ })).toHaveLength(1);
       expect(within(header).queryAllByRole('button', { name: /^Project/ })).toHaveLength(
         address === 'manage/projects' ? 0 : 1
       );
@@ -100,7 +100,7 @@ describe('single scope control', () => {
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: 'Projects' });
     expect(screen.queryByRole('button', { name: /^Project/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Environment/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Backend/ })).toBeTruthy();
     window.location.hash = '#/manage/websites';
     await projectButton();
     expect(screen.queryByRole('button', { name: /^Last/ })).toBeNull();

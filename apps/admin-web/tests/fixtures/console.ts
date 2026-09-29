@@ -48,7 +48,7 @@ export const primaryIntegration: Integration = {
       defaults: {
         'data-token-url': '/vizoalica/ingest-token',
         'data-consent': 'unknown',
-        'data-project': 'taken from the source key'
+        'data-project': 'taken from the website key'
       }
     },
     {

@@ -15,20 +15,12 @@ function randomId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
+/**
+ * A random identifier for this page load only. Nothing is stored in the browser: the backend counts
+ * unique visitors with its own daily-rotating identifier, so no cookie or storage is needed.
+ */
 export function resolveAnonymousId(config: VizoalicaConfig): string {
-  if (config.anonymousId) return config.anonymousId;
-  const generated = randomId('anon');
-  if (config.consentState !== 'analytics-granted') return generated;
-  try {
-    const storage = globalThis.localStorage;
-    const key = `vizoalica:anonymous:${config.sourceKey}`;
-    const saved = storage?.getItem(key);
-    if (saved && /^anon_[A-Za-z0-9-]{1,96}$/.test(saved)) return saved;
-    storage?.setItem(key, generated);
-  } catch {
-    // Storage can be unavailable in private modes; analytics must remain non-blocking.
-  }
-  return generated;
+  return config.anonymousId ?? randomId('anon');
 }
 
 export function resolveSessionId(config: VizoalicaConfig): string {
@@ -55,7 +47,8 @@ function baseEvent<T>(
     time: new Date().toISOString(),
     datacontenttype: 'application/json',
     vizoalicasource: config.sourceKey,
-    vizoalicaauth: config.tokenProvider ? 'signed-session' : 'unsigned-demo',
+    // The backend decides the trust level; a signed batch says so, an unsigned one leaves it out.
+    ...(config.tokenProvider ? { vizoalicaauth: 'signed-session' as const } : {}),
     vizoalicaconsent: config.consentState ?? 'unknown',
     data
   };

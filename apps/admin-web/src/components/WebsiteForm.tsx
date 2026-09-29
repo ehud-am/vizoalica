@@ -6,6 +6,8 @@ import { isInsecureRemote, nameFromOrigin, normalizeOrigin, wwwCounterpart } fro
 export interface WebsiteInput {
   name: string;
   allowedOrigins: string[];
+  /** False for a static website: one script tag, events accepted only from its addresses. */
+  tokenRequired: boolean;
 }
 
 const MAX_NAME = 120;
@@ -61,6 +63,7 @@ export function WebsiteForm({
   projectName,
   initialName = '',
   initialOrigins = [''],
+  initialTokenRequired = false,
   submitLabel = 'Add website',
   onDirtyChange,
   cancel,
@@ -71,6 +74,8 @@ export function WebsiteForm({
   projectName?: string;
   initialName?: string;
   initialOrigins?: string[];
+  /** A new website starts without; an existing one shows its current setting. */
+  initialTokenRequired?: boolean;
   submitLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
   /** A leave control (for example Cancel) shown next to the submit button. */
@@ -81,6 +86,7 @@ export function WebsiteForm({
   const [name, setName] = useState(initialName);
   const [origins, setOrigins] = useState(initialOrigins.join('\n'));
   const [includeWww, setIncludeWww] = useState(true);
+  const [tokenRequired, setTokenRequired] = useState(initialTokenRequired);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -107,6 +113,7 @@ export function WebsiteForm({
   const dirty = creating
     ? name !== '' || origins.trim() !== ''
     : name !== initialName ||
+      tokenRequired !== initialTokenRequired ||
       resolved.origins.join('\n') !==
         resolveOrigins(initialOrigins.join('\n'), undefined).origins.join('\n');
 
@@ -129,7 +136,8 @@ export function WebsiteForm({
       await onSubmit({
         // An empty name is the domain, so nobody has to invent one to get started.
         name: name.trim() || defaultName,
-        allowedOrigins: resolved.origins
+        allowedOrigins: resolved.origins,
+        tokenRequired
       });
       if (creating) {
         setName('');
@@ -250,6 +258,22 @@ export function WebsiteForm({
           </span>
         </label>
       )}
+      <div className="field">
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={tokenRequired}
+            aria-describedby={`${id}-token-help`}
+            onChange={(event) => setTokenRequired(event.target.checked)}
+          />
+          <span>Require a signed token from my site’s server</span>
+        </label>
+        <small id={`${id}-token-help`}>
+          Leave this off for a static site (GitHub Pages, Netlify, WordPress, any host): one script
+          tag is enough, and only the addresses above can send data. Turn it on if your site can run
+          a small server function, such as on Cloudflare Pages, to make fake events harder to send.
+        </small>
+      </div>
       {error && (
         <p id={errorId} className="notice error" role="alert">
           {error}

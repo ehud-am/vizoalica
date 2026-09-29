@@ -6,6 +6,23 @@ import { handleAdminRequest, type BackendInfo } from './admin-adapter.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { classifyRequest } from '../analytics/classifier.js';
 import type { RateLimiter } from '../env.js';
+import { dailyVisitorId, type DailySaltStore } from '../analytics/daily-visitor.js';
+import { BROWSER_SDK } from '../generated/browser-sdk.js';
+
+/**
+ * The browser SDK this Worker was deployed with, so a static website needs only a script tag. It
+ * is public code with no settings in it; the tag's data attributes carry the website's key.
+ */
+function sdkResponse(): Response {
+  return new Response(BROWSER_SDK, {
+    headers: {
+      'content-type': 'text/javascript; charset=utf-8',
+      'cache-control': 'public, max-age=3600',
+      'access-control-allow-origin': '*',
+      'x-content-type-options': 'nosniff'
+    }
+  });
+}
 
 async function readBoundedBody(request: Request, maxBytes: number): Promise<string | undefined> {
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
@@ -68,11 +85,14 @@ export async function handleWorkerRequest(
     purgeDeleted?: (dryRun: boolean) => Promise<PurgeSummary>;
     backendInfo?: () => Promise<BackendInfo>;
     rateLimiter?: RateLimiter;
+    visitorSalts?: DailySaltStore;
   },
   maxRequestBytes: number
 ): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === 'GET' && url.pathname === '/healthz') return healthResponse();
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/vizoalica.js')
+    return sdkResponse();
   if (dependencies.adminSecret && dependencies.adminRepositories) {
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,
@@ -95,8 +115,10 @@ export async function handleWorkerRequest(
   const body = await readBoundedBody(request, maxRequestBytes);
   if (body === undefined)
     return withCors(request, Response.json({ error: 'request_too_large' }, { status: 413 }));
-  return withCors(
-    request,
-    await eventsBatchResponseForBody(request, body, dependencies, classifyRequest(request))
-  );
+  const context = classifyRequest(request);
+  const daily = dependencies.visitorSalts
+    ? await dailyVisitorId(request, dependencies.visitorSalts)
+    : undefined;
+  if (daily) context.dailyVisitorId = daily;
+  return withCors(request, await eventsBatchResponseForBody(request, body, dependencies, context));
 }

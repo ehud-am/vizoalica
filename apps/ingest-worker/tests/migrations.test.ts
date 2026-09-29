@@ -105,7 +105,7 @@ describe('applying the real migrations', () => {
       )
     );
     fixture.exec(readFileSync(join(migrationsDir, '0002_access_keys.sql'), 'utf8'));
-    const fresh = freshDatabase();
+    const fresh = freshDatabase({ upTo: 2 });
     expect(tableNames(fixture)).toEqual(tableNames(fresh));
     for (const table of [
       'dashboard_minute_actions',
@@ -123,7 +123,20 @@ describe('applying the real migrations', () => {
     expect(() =>
       handAdded.exec(readFileSync(join(migrationsDir, '0002_access_keys.sql'), 'utf8'))
     ).not.toThrow();
-    expect(tableNames(handAdded)).toEqual(tableNames(freshDatabase()));
+    expect(tableNames(handAdded)).toEqual(tableNames(freshDatabase({ upTo: 2 })));
+  });
+
+  it('0003 on a schema-2 database keeps every existing website token-only and adds the salts table', () => {
+    const sqlite = freshDatabase({ upTo: 2 });
+    sqlite.exec(
+      "INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Site','k1','[]','active',NULL,'t','t')"
+    );
+    sqlite.exec(readFileSync(join(migrationsDir, '0003_static_sites_daily_visitors.sql'), 'utf8'));
+    expect(sqlite.prepare('SELECT token_required FROM sources').get()).toEqual({
+      token_required: 1
+    });
+    expect(tableNames(sqlite)).toEqual(tableNames(freshDatabase()));
+    expect(() => sqlite.exec('UPDATE sources SET token_required = 2')).toThrow();
   });
 
   it('0002 refuses to be applied twice by the CREATE TABLE (without IF NOT EXISTS) for access_keys', () => {

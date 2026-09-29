@@ -56,7 +56,7 @@ describe('Manage > Projects', () => {
     expect(screen.getAllByText('Developer Tools')).toHaveLength(2);
     // Projects run outside the environment/project pair: the environment stays, the project goes.
     expect(screen.queryByRole('button', { name: /^Project/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Environment/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Backend/ })).toBeTruthy();
     expect(screen.queryByLabelText('Website')).toBeNull();
     // Projects is not in the sidebar: it is reached from the project menu.
     expect(screen.queryByRole('link', { name: 'Projects' })).toBeNull();

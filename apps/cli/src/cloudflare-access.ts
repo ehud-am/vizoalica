@@ -175,7 +175,7 @@ const KEEP: Record<string, string> = {
   [SECRETS.admin.name]:
     'Lets you administer this backend. Update it wherever you use this environment as admin.',
   [SECRETS.token.name]:
-    "Every website you install needs it: it is the VIZOALICA_TOKEN_SECRET GitHub secret on a\n    website's Install page (GitHub → Cloudflare Pages).",
+    'Only websites that require signed tokens use it. It is the VIZOALICA_TOKEN_SECRET of those websites.',
   [SECRETS.digest.name]: 'Used by the Worker only; nothing else needs it. Keep it as a backup.'
 };
 

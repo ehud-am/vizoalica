@@ -27,7 +27,7 @@ export function AccessState({
         {denied
           ? sessionExpired
             ? 'Your browser session expired. Reconnect to create a new private local session.'
-            : "The Worker rejected this environment's secret. It may have been rotated or revoked. Fix it with vizoalica env update <name>, then try again."
+            : 'The backend rejected this secret. It may have been rotated or revoked. Fix it with vizoalica env update <name>, then try again.'
           : 'The local API or remote data plane could not be reached. Your website collection is unaffected.'}
       </p>
       <button className="primary" onClick={onRetry}>

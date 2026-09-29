@@ -264,9 +264,9 @@ export function AccessPage() {
   return (
     <div className="page access-page" data-page="access">
       <PageHeader
-        crumbs={[{ label: 'Access keys' }]}
-        title="Access keys"
-        description="A key lets an analyst (who can only view) or a website owner (who can manage) connect to this environment without your administrator secret. Issue one to share access, and revoke it to end that access."
+        crumbs={[{ label: 'Share access' }]}
+        title="Share access"
+        description="Give someone else access to this backend without your administrator secret. An analyst can only view results; a website owner can also manage projects and websites. Revoke a key to end that access."
       />
 
       {revealed && (

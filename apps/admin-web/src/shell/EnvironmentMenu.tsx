@@ -5,6 +5,9 @@ import { hrefFor } from '../router.js';
 import { isAbsent } from '../setup/availability.js';
 import { useSetup } from '../setup/SetupProvider.js';
 
+/** Admin is the default (your own backend), so only a shared role is worth a badge. */
+const shownRole = (role: string | undefined | null): boolean => !!role && role !== 'admin';
+
 /**
  * The environment control in the header: choose which usable environment to work on. The name, the
  * role and, for one that cannot be chosen, the reason are separate parts of the item. With one
@@ -24,7 +27,7 @@ export function EnvironmentMenu({
   const items: MenuItem[] = list.environments.map((environment) => ({
     id: environment.name,
     label: environment.name,
-    ...(environment.role ? { badge: environment.role } : {}),
+    ...(shownRole(environment.role) ? { badge: environment.role! } : {}),
     ...(environment.usable
       ? {}
       : {
@@ -32,16 +35,16 @@ export function EnvironmentMenu({
           detail: environment.problems[0]?.message ?? 'Needs attention'
         })
   }));
-  // Access keys are an administrator's tool: absent, not disabled, for anyone else.
+  // Sharing access is an administrator's tool: absent, not disabled, for anyone else.
   const links: MenuLink[] = isAbsent(state, 'manage-access-keys')
     ? []
-    : [{ id: 'access-keys', label: 'Access keys', href: hrefFor('manage/access') }];
+    : [{ id: 'access-keys', label: 'Share access', href: hrefFor('manage/access') }];
   return (
     <div className="environment-menu">
       <MenuButton
-        caption="Environment"
+        caption="Backend"
         value={list.selected}
-        {...(current?.role ? { badge: current.role } : {})}
+        {...(shownRole(current?.role) ? { badge: current!.role! } : {})}
         items={items}
         selected={list.selected}
         links={links}
@@ -52,7 +55,7 @@ export function EnvironmentMenu({
           setError('');
           selectEnvironment(name)
             .then(onChanged)
-            .catch(() => setError('That environment could not be selected.'));
+            .catch(() => setError('That backend could not be selected.'));
         }}
       />
       {error && (

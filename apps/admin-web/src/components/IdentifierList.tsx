@@ -29,6 +29,6 @@ export const identifiersFor = (
   website: { id: string; publicSourceKey: string }
 ): IdentifierItem[] => [
   { label: 'Project ID', value: projectId, what: 'project ID' },
-  { label: 'Website ID (source ID)', value: website.id, what: 'website ID' },
-  { label: 'Public source key', value: website.publicSourceKey, what: 'public source key' }
+  { label: 'Website ID', value: website.id, what: 'website ID' },
+  { label: 'Website key', value: website.publicSourceKey, what: 'website key' }
 ];

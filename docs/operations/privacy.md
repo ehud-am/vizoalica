@@ -11,9 +11,35 @@ Vizoalica is designed to collect minimal product analytics data by default.
   origin and path. See [what actions record](#actions-clicks-on-buttons-and-links).
 - A boolean indicating whether a query string was present and redacted.
 - Optional page title, capped in length.
-- Anonymous visitor and session identifiers.
+- A random identifier for each page load (not stored in the browser, so it cannot link visits).
 - Explicit custom events created by the site owner.
 - Safe scalar custom properties after filtering.
+
+## How unique visitors are counted
+
+The SDK stores nothing in the browser: no cookies, no local storage, no session storage. The
+backend counts unique visitors itself. For each event it computes a keyed hash of a random value
+for the current UTC day, the website, the visitor's IP address, and their user agent, and stores
+only that hash. The IP address and user agent are never stored.
+
+Each day's random value is kept in the backend's database and deleted by the daily scheduled job
+once the day has ended. After that, nobody, including you, can recompute a day's hashes or link
+them to a visitor or to another day. This is the same approach as other cookieless analytics
+tools.
+
+What this means for reports:
+
+- One person on one website on one day is one visitor.
+- The same person on two days, or on two of your websites, counts as two visitors. A range of
+  several days adds up each day's visitors.
+- Several people behind one IP address with the same browser version count as one visitor.
+
+A signed-token website can still pass its own visitor identifier in the token (`visitor_id`), for
+example for signed-in users. Reports show that as a separate identity mode.
+
+Whether your site needs a consent banner for analytics depends on the rules that apply to it.
+`data-consent` records the state on every event. To send nothing for a visitor who declines, do not
+load the script.
 
 ## What is not collected by default
 

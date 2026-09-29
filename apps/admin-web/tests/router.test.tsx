@@ -93,13 +93,13 @@ describe('router', () => {
     expect(
       NAV_ROUTES.filter((route) => route.area === 'manage').map((route) => route.label)
     ).toEqual(['Websites', 'Health']);
-    // They are still pages: Projects from the project menu, Access keys from Share and the
+    // They are still pages: Projects from the project menu, Share access from Share and the
     // environment menu, and the old Backend address opens Health.
     for (const path of ['manage/projects', 'manage/backend', 'manage/access'] as const)
       expect(NAV_ROUTES.some((route) => route.path === path)).toBe(false);
     expect(parseRoute('#/manage/backend').path).toBe('manage/backend');
     expect(navKey('manage/backend')).toBe('manage/health');
-    expect(routeLabel('manage/access')).toBe('Access keys');
+    expect(routeLabel('manage/access')).toBe('Share access');
     expect(ROUTES.some((route) => route.path.endsWith('installation'))).toBe(false);
     expect(new Set(ROUTES.map((route) => route.path)).size).toBe(ROUTES.length);
   });
