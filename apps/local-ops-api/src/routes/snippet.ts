@@ -139,7 +139,7 @@ export function integrationSnippet(
         defaults: {
           'data-token-url': DEFAULTS.VIZOALICA_TOKEN_URL,
           'data-consent': DEFAULTS.VIZOALICA_CONSENT,
-          'data-project': 'taken from the source key'
+          'data-project': 'taken from the website key'
         }
       },
       {

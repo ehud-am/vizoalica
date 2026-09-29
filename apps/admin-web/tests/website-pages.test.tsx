@@ -156,7 +156,7 @@ describe('website page', () => {
     expect(screen.getByText('Project ID')).toBeTruthy();
     expect(screen.getByText('p1')).toBeTruthy();
     expect(screen.getByText('key-s1')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy public source key' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy website key' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '#/manage/websites/s1/edit'
     );
@@ -251,7 +251,7 @@ describe('website page', () => {
     await waitFor(() =>
       expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's2', { status: 'active' })
     );
-    expect(await screen.findByText(/Website Blog enabled and audit recorded/)).toBeTruthy();
+    expect(await screen.findByText(/Website Blog enabled\./)).toBeTruthy();
     expect(screen.queryByText(/This website is disabled/)).toBeNull();
   });
 
@@ -273,7 +273,7 @@ describe('website page', () => {
     await waitFor(() =>
       expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's1', { status: 'disabled' })
     );
-    expect(await screen.findByText(/Website Docs disabled and audit recorded/)).toBeTruthy();
+    expect(await screen.findByText(/Website Docs disabled\./)).toBeTruthy();
     expect(await screen.findByText(/This website is disabled/)).toBeTruthy();
   });
 
@@ -346,12 +346,12 @@ describe('install state on the website page', () => {
     go('manage/websites/s1');
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: /Docs/ });
-    expect(screen.getAllByText('Public source key')).toHaveLength(1);
+    expect(screen.getAllByText('Website key')).toHaveLength(1);
     cleanup();
     go('manage/websites/s1/install');
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: /^Install on/ });
-    expect(screen.queryByText('Public source key')).toBeNull();
+    expect(screen.queryByText('Website key')).toBeNull();
   });
 });
 
@@ -426,9 +426,7 @@ describe('edit page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /Docs v2/ })).toBeTruthy();
     // A new name changes nothing on the installed site, and the page says so.
     expect(
-      screen.getByText(
-        'Website updated and audit recorded. Nothing needs to change on your installed site.'
-      )
+      screen.getByText('Website saved. Nothing needs to change on your installed site.')
     ).toBeTruthy();
     expect(window.location.hash).toBe(hubHash);
   });

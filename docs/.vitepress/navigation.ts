@@ -22,17 +22,23 @@ export const sidebar: NavGroup[] = [
   {
     text: 'Set it up',
     items: [
-      { text: 'Create a backend, rotate secrets', link: '/operations/deploy' },
-      { text: 'Environments and `vizoalica env`', link: '/operations/environments' },
-      { text: 'Start the console day to day', link: '/operations/operator-local' },
-      { text: 'Keep secrets in OneCLI', link: '/operations/onecli' },
-      { text: 'Activate a website', link: '/operations/pages' },
+      { text: 'Create a backend', link: '/operations/deploy' },
+      { text: 'Add a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
-      { text: 'Use Vizoalica with AI', link: '/operations/ai' },
-      { text: 'Backend from a source checkout', link: '/operations/cloudflare' },
-      { text: 'Console from a source checkout', link: '/operations/local-analytics' },
-      { text: 'Database and Worker versions', link: '/operations/schema-versions' },
+      { text: 'Ask your AI assistant', link: '/operations/ai' },
+      { text: 'Start the console day to day', link: '/operations/operator-local' },
+      { text: 'Share with someone', link: '/operations/share' },
       { text: 'Troubleshooting', link: '/operations/troubleshooting' }
+    ]
+  },
+  {
+    text: 'Advanced',
+    items: [
+      { text: 'Run more than one backend', link: '/operations/environments' },
+      { text: 'Keep secrets in a vault (OneCLI)', link: '/operations/onecli' },
+      { text: 'Manual install: backend from source', link: '/operations/cloudflare' },
+      { text: 'Manual install: console from source', link: '/operations/local-analytics' },
+      { text: 'Database and Worker versions', link: '/operations/schema-versions' }
     ]
   },
   {

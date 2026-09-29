@@ -87,9 +87,7 @@ function WebsiteHub({ website }: { website: Website }) {
   const setAvailability = (next: 'active' | 'disabled') =>
     run(async () => {
       await updateWebsite(projectId, website.id, { status: next });
-      flash.show(
-        `Website ${website.name} ${next === 'active' ? 'enabled' : 'disabled'} and audit recorded.`
-      );
+      flash.show(`Website ${website.name} ${next === 'active' ? 'enabled' : 'disabled'}.`);
       await scope.refreshWebsites();
       void setup.refresh();
     });

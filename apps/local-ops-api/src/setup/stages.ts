@@ -33,8 +33,7 @@ function backendAction(input: StageInput): NextAction {
     };
   return {
     id: 'fix-environment',
-    label:
-      'The backend rejected the saved credential. Fix this environment with: vizoalica env update <name>'
+    label: 'The backend rejected the saved credential. Fix it with: vizoalica env update <name>'
   };
 }
 

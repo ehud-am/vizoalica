@@ -1,4 +1,10 @@
-# Set up a console computer with OneCLI
+# Advanced: keep secrets in a vault (OneCLI)
+
+> **Most people do not need this page.** `vizoalica env add` keeps your secret in a private file on your
+> computer and asks nothing about OneCLI. Use this guide only if you already use [OneCLI](https://onecli.sh) and
+> want it to hold the secret instead. `vizoalica env add` and `vizoalica deploy` use OneCLI only when you pass
+> their OneCLI options (`--onecli`, `--secret-onecli`, `--cloudflare-onecli`, with `--onecli-workspace`,
+> `--onecli-agent`, and `--onecli-gateway`).
 
 Run this guide **once per operator**. Use [direct setup](local-analytics.md) instead when OneCLI
 will not manage the administrator credential. Do not combine the two methods.
@@ -6,7 +12,7 @@ will not manage the administrator credential. Do not combine the two methods.
 ## Returning operator: start here
 
 If this machine is already configured with OneCLI, use the one-terminal commands in
-[Start the local operator console](operator-local.md): run `pnpm vizoalica verify`, then
+[Start the console day to day](operator-local.md): run `pnpm vizoalica verify`, then
 `pnpm vizoalica console`. Keep that terminal open and press Ctrl+C once to stop both processes. The
 console is not started under OneCLI: an environment whose secret OneCLI holds is reached through a small
 helper that runs under `onecli run` for that environment alone (see [Environments](environments.md)).
@@ -162,7 +168,7 @@ Backend verified at: <timestamp>
 Authenticated and fail-closed verification completed at: <timestamp>
 ```
 
-The operator can now [activate a website](pages.md).
+You can now [add a website](pages.md).
 
 ## Revoke access
 

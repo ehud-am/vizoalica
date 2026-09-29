@@ -57,16 +57,18 @@ const USAGE = [
   'Options for add and update:',
   '  --deploy                  add: create the backend now (else asked; --url means it exists already)',
   '  --connect                 add: the backend already exists (else asked; needs --url)',
-  '  --onecli | --no-onecli    Let OneCLI hold the secrets, or keep them in a private file (else asked)',
   '  --url <https-address>     The Worker address: workers.dev or your own domain',
   '  --role admin|owner|analyst',
   '  --secret-stdin            Read the secret (admin secret or access key) from stdin',
-  '  --secret-onecli           OneCLI holds the secret (needs the --onecli-* options)',
   '  --cloudflare-token-stdin  Admin only: read a Cloudflare API token from stdin',
-  '  --cloudflare-onecli       Admin only: OneCLI holds the Cloudflare API token',
   '  --no-cloudflare           Remove the Cloudflare API token',
-  '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '  --no-verify               Save without checking (for offline edits)',
+  '',
+  'Advanced: keep secrets in a vault (OneCLI). Without these options, OneCLI is not used:',
+  '  --onecli | --no-onecli    Let OneCLI hold the secrets, or keep them in a private file (the default)',
+  '  --secret-onecli           OneCLI holds the secret (needs the --onecli-* options)',
+  '  --cloudflare-onecli       Admin only: OneCLI holds the Cloudflare API token',
+  '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '',
   'With --deploy, these are passed to "vizoalica deploy": --yes, --account, --secrets-file,',
   '--resume, --save-cloudflare, --cloudflare-token-stdin. In a terminal, add asks for anything',
@@ -528,18 +530,8 @@ async function saveCommand(
   }
 
   if (deploying) {
-    let useOnecli = onecliChosen || has('--cloudflare-onecli');
-    if (!useOnecli && !has('--no-onecli') && !has('--cloudflare-token-stdin') && deps.interactive)
-      useOnecli = await ask.yesNo(
-        {
-          label: 'whether OneCLI holds the Cloudflare API token',
-          about:
-            'Deploying needs a Cloudflare API token. Where is yours?\n  y  It is already stored in OneCLI. Vizoalica gets it from OneCLI, and you never paste it.\n  n  You have it yourself. You paste it next (nothing is shown), or it is read from\n     CLOUDFLARE_API_TOKEN if that is set.\nIf you do not use OneCLI, answer n.',
-          prompt: 'Is your Cloudflare API token stored in OneCLI?',
-          option: '--onecli or --no-onecli'
-        },
-        true
-      );
+    // OneCLI only when an option asks for it; else deploy reads or asks for the token itself.
+    const useOnecli = onecliChosen || has('--cloudflare-onecli');
     const ref = useOnecli ? await onecliRef() : undefined;
     trace(
       ref
@@ -601,46 +593,31 @@ async function saveCommand(
       await ask.value({
         label: 'the role',
         about:
-          'Your role on this backend decides which secret you give next:\n  1) admin    you run the backend and hold its administrator secret\n  2) owner    a website owner, with an access key\n  3) analyst  you read results, with an access key',
-        prompt: 'Role (1-3, or admin, owner, analyst): ',
+          'Who are you on this backend? It decides which secret you give next.\n  1) admin    you deployed it (default for your own backend)\n  2) owner    someone shared an access key with you, to manage their websites\n  3) analyst  someone shared an access key with you, to read results',
+        prompt: 'Role (1-3, or admin, owner, analyst) [admin]: ',
         option: '--role admin|owner|analyst',
+        fallback: 'admin',
         check: (answer) => (parseRole(answer) ? undefined : 'Type 1, 2, or 3, or the role name.')
       })
     )!;
 
-  // The secret: stdin, OneCLI, kept (update), or asked.
+  // The secret: stdin, OneCLI (only when an option says so), kept (update), or asked.
   const secretName = role === 'admin' ? 'administrator secret' : 'access key';
   let secret: EnvironmentDef['secret'] | undefined = current?.secret;
   if (has('--secret-stdin')) secret = await fromStdin(secretName);
   else if (has('--secret-onecli') || onecliChosen) secret = { onecli: await onecliRef() };
-  else if (secret === undefined) {
-    const useOnecli =
-      !has('--no-onecli') &&
-      deps.interactive &&
-      (await ask.yesNo(
-        {
-          label: `where the ${secretName} is`,
-          about: `Where is the ${secretName} for "${name}"?\n  y  It is already stored in OneCLI. Vizoalica asks OneCLI for it when needed and never saves\n     it on this computer. You then say which OneCLI workspace and agent hold it.\n  n  You have it yourself, for example in a password manager. You paste it next (nothing is\n     shown), and it is saved in ~/.config/vizoalica/environments.json, readable only by you.\nIf you do not use OneCLI, answer n.`,
-          prompt: `Is the ${secretName} stored in OneCLI?`,
-          option: '--secret-onecli or --secret-stdin'
-        },
-        false
-      ));
-    secret = useOnecli
-      ? { onecli: await onecliRef() }
-      : await ask.value({
-          label: `the ${secretName}`,
-          about:
-            role === 'admin'
-              ? 'The administrator secret of this backend. Whoever deployed it has it in their\n~/.config/vizoalica/environments.json. Nothing is shown as you type or paste.'
-              : `The ${role} access key an administrator made for you. Nothing is shown as you type or paste.`,
-          prompt: role === 'admin' ? 'Administrator secret (hidden): ' : 'Access key (hidden): ',
-          option: '--secret-stdin or --secret-onecli',
-          secret: true,
-          check: (answer) =>
-            answer.length > 512 ? 'That is too long to be the secret.' : undefined
-        });
-  }
+  else if (secret === undefined)
+    secret = await ask.value({
+      label: `the ${secretName}`,
+      about:
+        role === 'admin'
+          ? 'The administrator secret of this backend. Whoever deployed it has it in their\n~/.config/vizoalica/environments.json. Nothing is shown as you type or paste.'
+          : `The ${role} access key an administrator made for you. Nothing is shown as you type or paste.`,
+      prompt: role === 'admin' ? 'Administrator secret (hidden): ' : 'Access key (hidden): ',
+      option: '--secret-stdin or --secret-onecli',
+      secret: true,
+      check: (answer) => (answer.length > 512 ? 'That is too long to be the secret.' : undefined)
+    });
   trace(
     typeof secret === 'string'
       ? 'The secret is kept in the private file (not OneCLI)'

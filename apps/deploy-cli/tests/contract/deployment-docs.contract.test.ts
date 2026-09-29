@@ -16,7 +16,7 @@ describe('deployment documentation contract', () => {
     const headings = [
       '## Deployment in four steps',
       '## Step 1: Install the vizoalica cli',
-      '## Step 2: Create and deploy your first environment',
+      '## Step 2: Create your backend',
       '## Step 3: add your websites',
       '## Step 4: verify it works',
       '## For contributors: build from source'
@@ -26,22 +26,23 @@ describe('deployment documentation contract', () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     // The diagram states the sequence explicitly.
     expect(readme).toContain('Step 1: install the vizoalica cli');
-    expect(readme).toContain('Step 2: create and deploy your first environment');
-    expect(readme).toContain('Step 3: define websites in the console');
+    expect(readme).toContain('Step 2: create your backend');
+    expect(readme).toContain('Step 3: add websites in the console');
     // Step 2 creates or adds the environment before the console starts, and says what the console does not do.
     const step2 = readme.slice(
-      readme.indexOf('## Step 2: Create and deploy your first environment'),
+      readme.indexOf('## Step 2: Create your backend'),
       readme.indexOf('## Step 3: add your websites')
     );
-    expect(step2).toContain('vizoalica deploy prod --apply');
     expect(step2).toContain('vizoalica env add prod');
-    expect(step2).toContain('Deploy a new backend for "prod" now?');
-    expect(step2).toMatch(/already exists/);
-    expect(step2.indexOf('vizoalica deploy prod --apply')).toBeLessThan(
+    expect(step2).toMatch(/already\s+exists/);
+    expect(step2.indexOf('vizoalica env add prod')).toBeLessThan(
       step2.indexOf('vizoalica console')
     );
-    expect(step2).toMatch(/never creates, edits, or removes environments/);
+    expect(step2).toMatch(/does not deploy or\s+update a backend/);
     expect(step2).toContain('environments.json');
+    // Nothing to copy at setup; OneCLI is an advanced option, not a first-run question.
+    expect(step2).toMatch(/no secret to copy/i);
+    expect(step2).not.toMatch(/stored in OneCLI\?/);
     for (const command of [
       'vizoalica deploy',
       'vizoalica env',
@@ -57,11 +58,6 @@ describe('deployment documentation contract', () => {
     expect(readme).toContain('(docs/operations/local-analytics.md)');
     expect(readme).toContain('(docs/operations/onecli.md)');
     expect(readme).toContain('(docs/operations/pages.md)');
-    // OneCLI is offered as a question, for those who use it; the private file is the default when connecting.
-    expect(readme).toMatch(/OneCLI is the more secure option if you use it/);
-    expect(readme).toMatch(
-      /Answer no \(the default when connecting\) to keep the[\s>]+secret in a private file/
-    );
     expect(readme).not.toContain('## Try it');
   });
 
@@ -144,7 +140,7 @@ describe('deployment documentation contract', () => {
 
   it('defines a complete fresh backend journey', async () => {
     const guide = await text('docs/operations/cloudflare.md');
-    expectJourney(guide, /once per environment/i, [
+    expectJourney(guide, /once per backend/i, [
       '## Prerequisites',
       '## Inputs',
       '## Security boundary',
@@ -249,7 +245,7 @@ describe('deployment documentation contract', () => {
     expect(guide).toContain('pnpm vizoalica env list');
     expect(guide).toContain('pnpm vizoalica console');
     expect(guide).toMatch(/never started under OneCLI/i);
-    expect(guide).toMatch(/never managed inside the console/i);
+    expect(guide).toMatch(/never added or removed inside the console/i);
   });
 
   it('defines the complete OneCLI workstation journey', async () => {

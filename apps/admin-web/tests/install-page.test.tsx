@@ -245,7 +245,7 @@ describe('GitHub → Cloudflare Pages path', () => {
     const page = document.querySelector('main')!.textContent!;
     expect(page).not.toMatch(/Bearer|admin-secret|issued JWT/i);
     expect(screen.queryByText('Identifiers for this website')).toBeNull();
-    expect(screen.queryByText('Public source key')).toBeNull();
+    expect(screen.queryByText('Website key')).toBeNull();
   });
 
   it('copies each block and says so in place and in a live region', async () => {

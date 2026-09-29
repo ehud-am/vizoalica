@@ -61,6 +61,9 @@ through your server, not who the visitor is.
 You need:
 
 - A working backend and console.
+- The backend's `VIZOALICA_TOKEN_SECRET`. It is not shown when the backend is created. The first time a
+  website needs it, run `vizoalica rotate <backend> token`: it makes a new one and shows it once. Save it
+  in a password manager. Reuse that value for every later signed-token website.
 - Control of the website's build and deployment.
 - Node.js 22 or newer and pnpm 9, for the manual path.
 - For the GitHub Actions path: the website's GitHub repository, and a Cloudflare API token scoped
@@ -68,8 +71,7 @@ You need:
   integration.
 
 The token Function runs with your website, so your computer can be off while the site collects
-events. If you use OneCLI, run the manual path from a normal terminal; some OneCLI proxy setups
-break Wrangler's Pages upload ([known limitation](troubleshooting.md#onecli-and-pages-uploads)).
+events.
 
 ### 1. Create the website in the console
 
@@ -166,19 +168,19 @@ Edit the working copy's `wrangler.toml`:
 | `name`                        | Pages project name                                                                                                       |
 | `VIZOALICA_SDK_SRC`           | Public SDK path, normally `/vizoalica.js`                                                                                |
 | `VIZOALICA_INGEST_ENDPOINT`   | Console's dynamic public configuration                                                                                   |
-| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's public source key                                                                                              |
+| `VIZOALICA_PUBLIC_SOURCE_KEY` | Console's website key                                                                                                    |
 | `VIZOALICA_PROJECT_ID`        | Console's Project ID                                                                                                     |
 | `VIZOALICA_TOKEN_URL`         | Same-origin `/vizoalica/ingest-token`                                                                                    |
 | `VIZOALICA_CONSENT`           | Recorded state after the host grants analytics consent                                                                   |
-| `VIZOALICA_SOURCE_ID`         | Console's Source ID; server-side token scope                                                                             |
+| `VIZOALICA_SOURCE_ID`         | Console's website ID; server-side token scope                                                                            |
 | `VIZOALICA_SITE_ORIGINS`      | Comma-separated exact website origin(s), no trailing slash; list every hostname (e.g. apex + `www`) that serves the site |
 
 Edit `public/index.html`, replacing its three `REPLACE_…` values with your Worker hostname,
-public source key and project ID. The Worker hostname excludes `https://`; keep the full endpoint
+website key and project ID. The Worker hostname excludes `https://`; keep the full endpoint
 ending in `/v1/events:batch`. The demo serves its SDK at `/vizoalica.js`.
 
 **Check:** no `REPLACE_…` values remain in `wrangler.toml` or `public/index.html`. Do not put a
-secret in either file. The source ID is **not** necessarily the public source key.
+secret in either file. The website ID is **not** the website key.
 
 #### B3. Build and copy the browser SDK
 
@@ -217,7 +219,7 @@ vizoalica-demo/
 The public [`configuration Function`](../../examples/cloudflare-pages/functions/vizoalica/config.json.ts)
 maps six plaintext variables to the portable version 1 JSON contract with no-store/nosniff headers
 and no partial fallback. The [`token Function`](../../examples/cloudflare-pages/functions/vizoalica/ingest-token.ts)
-uses server configuration for project/source/origin, signs HS256 tokens with
+uses server configuration for project/website/origin, signs HS256 tokens with
 Web Crypto, sets a five-minute lifetime and a 25-event token limit, and returns `text/plain` with
 `Cache-Control: no-store`. Request parameters cannot select another project or origin. It rejects
 missing configuration, foreign provenance and requests on unconfigured preview domains.
@@ -239,7 +241,7 @@ pnpm exec wrangler pages dev public --cwd "$VIZOALICA_SITE_DIR"
 # After review, use the site's actual Git-connected flow or the Direct Upload command below.
 pnpm exec wrangler pages deploy public --cwd "$VIZOALICA_SITE_DIR" --project-name "$VIZOALICA_PAGES_PROJECT" --branch main
 pnpm exec wrangler pages deployment list --project-name "$VIZOALICA_PAGES_PROJECT"
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID --mode dynamic
 ```
 
 #### B4. Save the same signing secret on Pages
@@ -300,11 +302,11 @@ Dashboard drag-and-drop does not compile a `functions/` directory; use Wrangler 
 
 ### Verify website activation
 
-From the Vizoalica checkout, substitute your stable origin, project ID and **source ID**:
+From the Vizoalica checkout, substitute your stable origin, project ID and **website ID**:
 
 ```sh
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID
-pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_SOURCE_ID --mode dynamic
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID
+pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR_WEBSITE_ID --mode dynamic
 ```
 
 **Check:** the command reports that website content and token claims passed. It checks:
@@ -312,7 +314,7 @@ pnpm website:verify -- https://YOUR_PAGES_PROJECT.pages.dev YOUR_PROJECT_ID YOUR
 - Static mode checks `/vizoalica.js`; dynamic mode checks `/vizoalica-loader.js` and the complete,
   project-scoped `/vizoalica/config.json` response.
 - `/vizoalica/ingest-token`: `text/plain`, `no-store`, three JWT parts, HS256 header, expected
-  project/source/origin, audience/scope, expiry and five-minute lifetime.
+  project/website/origin, audience/scope, expiry and five-minute lifetime.
 
 It sends a same-origin referrer like a browser GET. It never prints the token. It checks token
 structure and claims, **not the signature**: only the Worker's accepted event proves that the
@@ -322,7 +324,7 @@ for either missing path.
 Now open the website and grant analytics consent (the demo page has an **Allow analytics**
 button). In the browser Network panel, confirm the
 batch request to the Worker returns **202**, then refresh the local console's `24h` view. In a
-fresh test source, one visit produces one page view and one privacy-safe unique user. See
+fresh test website, one visit produces one page view and one privacy-safe unique user. See
 [privacy operations](privacy.md) for the data boundary. The demo makes the choice per visit;
 refresh to choose again. Finally, block the Worker request in
 the browser and reload: the website's primary content and controls must remain usable.
@@ -361,9 +363,9 @@ all website verification. Updating the backend itself is a separate operation; s
 For signing-key rotation, pause collection across every connected website, replace the secret on
 the Worker and every trusted token issuer, redeploy, verify a new token and accepted event, then
 resume. This single-key example has no overlapping-key rotation; old tokens fail after the Worker
-key changes. Keep preview sources and secrets separate from production.
+key changes. Keep preview websites and secrets separate from production.
 
-To stop one website, disable its source in the console and remove the SDK load from the site's
+To stop one website, disable it in the console and remove the SDK load from the site's
 shared layout. Confirm new events are rejected while the website remains usable. Delete is
 terminal and permanent: new events are rejected at once, and the daily Cron run then removes the
 website's raw event batches in R2 and every D1 row for it, including audit entries. Deleting a

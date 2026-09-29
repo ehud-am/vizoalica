@@ -31,8 +31,8 @@ function EditForm({ website }: { website: Website }) {
     // list of them, so a changed list is the one edit that can need a matching change on the site.
     flash.carry(
       originsChanged
-        ? 'Website updated and audit recorded. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
-        : 'Website updated and audit recorded. Nothing needs to change on your installed site.'
+        ? 'Website saved. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
+        : 'Website saved. Nothing needs to change on your installed site.'
     );
     navigate('manage/websites/:id', website.id);
   }

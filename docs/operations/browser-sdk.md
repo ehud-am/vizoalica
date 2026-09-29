@@ -88,8 +88,8 @@ Optional custom event:
 | Attribute             | Required | Description                                                                                                    |
 | --------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `data-endpoint`       | Yes      | Ingestion endpoint, usually `/v1/events:batch`.                                                                |
-| `data-source`         | Yes      | Public source key used for routing. This is not a secret.                                                      |
-| `data-project`        | No       | Project identifier. Optional: the backend takes the project from the source.                                   |
+| `data-source`         | Yes      | The website key, from the website's Install page. It is not a secret.                                          |
+| `data-project`        | No       | Project identifier. Optional: the backend takes the project from the website key.                              |
 | `data-token-url`      | No       | Same-origin token endpoint. Default `/vizoalica/ingest-token`; `none` sends unsigned events (static websites). |
 | `data-consent`        | No       | Consent state such as `analytics-granted`, `analytics-denied`, or `unknown`. Default `unknown`.                |
 | `data-auto-page-view` | No       | Set to `false` to disable automatic page views, including in-page navigation.                                  |
@@ -203,7 +203,7 @@ click time, so they can be added or removed while the page is open.
 - Query values, fragments that are not routes, identifiers in paths, referrers, and custom
   properties are minimized before delivery. Action names never contain typed text or field values.
 - Browser code can receive short-lived ingest tokens, but must never receive signing secrets.
-- Dynamic loading initializes at most once and never falls back to another project, source, or
+- Dynamic loading initializes at most once and never falls back to another project, website, or
   endpoint.
 
 For CSP-restricted sites, allow the website-hosted SDK/loader in `script-src`, the analytics Worker

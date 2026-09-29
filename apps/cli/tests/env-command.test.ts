@@ -73,34 +73,35 @@ const onecliArgs = [
 ];
 
 describe('vizoalica env add offers to deploy', () => {
-  it('deploys the backend when asked, passing OneCLI along', async () => {
-    const t = setup(['y', 'y', 'acme', 'vz', '']);
+  it('deploys the backend when asked, and asks nothing about OneCLI', async () => {
+    const t = setup(['y']);
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add', 'prod'], { ...t.deps, deploy })).toBe(0);
+    expect(t.asked).toEqual(['Deploy a new backend for "prod" now? (Y/n): ']);
+    expect(deploy).toHaveBeenCalledWith(['prod', '--apply']);
+    expect(() => t.read()).toThrow();
+  });
+
+  it('deploys with OneCLI when --onecli says so, asking where it is', async () => {
+    const t = setup(['y', 'acme', 'vz', '']);
+    const deploy = vi.fn(async () => 0);
+    expect(await envCommand(['add', 'prod', '--onecli'], { ...t.deps, deploy })).toBe(0);
     expect(t.asked).toEqual([
       'Deploy a new backend for "prod" now? (Y/n): ',
-      'Is your Cloudflare API token stored in OneCLI? (Y/n): ',
       'OneCLI workspace: ',
       'OneCLI agent: ',
       'OneCLI gateway (host:port) [localhost:10255]: '
     ]);
     expect(deploy).toHaveBeenCalledWith(['prod', '--apply', '--cloudflare-onecli', ...onecliArgs]);
-    expect(() => t.read()).toThrow();
   });
 
   it('connects to an existing backend, with the secret held by OneCLI, when deploy is declined', async () => {
-    const t = setup([
-      'n',
-      'https://w.example.com',
-      'admin',
-      'y',
-      'acme',
-      'vz',
-      'localhost:10255',
-      'n'
-    ]);
+    const t = setup(['n', 'https://w.example.com', 'admin', 'acme', 'vz', 'localhost:10255', 'n']);
     const deploy = vi.fn(async () => 0);
-    const code = await envCommand(['add', 'prod', '--no-verify'], { ...t.deps, deploy });
+    const code = await envCommand(['add', 'prod', '--secret-onecli', '--no-verify'], {
+      ...t.deps,
+      deploy
+    });
     expect(code).toBe(0);
     expect(deploy).not.toHaveBeenCalled();
     expect(t.read().environments.prod).toEqual({
@@ -123,22 +124,19 @@ describe('vizoalica env add offers to deploy', () => {
 
 describe('vizoalica env add: every question, or only options', () => {
   it('with no options asks each question in turn, starting with the name', async () => {
-    const t = setup(['prod', 'y', 'n']);
+    const t = setup(['prod', 'y']);
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
-    expect(t.asked).toEqual([
-      'Environment name: ',
-      'Deploy a new backend for "prod" now? (Y/n): ',
-      'Is your Cloudflare API token stored in OneCLI? (Y/n): '
-    ]);
+    expect(t.asked).toEqual(['Environment name: ', 'Deploy a new backend for "prod" now? (Y/n): ']);
+    expect(t.full.join('')).not.toContain('OneCLI');
     expect(deploy).toHaveBeenCalledWith(['prod', '--apply']);
   });
 
   it('explains every question on the lines above its prompt', async () => {
     worker(['good']);
-    const t = setup(['prod', 'n', 'https://w.example.com', 'admin', 'n', 'good', '']);
+    const t = setup(['prod', 'n', 'https://w.example.com', 'admin', 'good', '']);
     expect(await envCommand(['add'], { ...t.deps, deploy: async () => 0 })).toBe(0);
-    expect(t.full).toHaveLength(7);
+    expect(t.full).toHaveLength(6);
     for (const question of t.full) {
       const lines = question.split('\n');
       expect(lines.length).toBeGreaterThan(2);
@@ -148,16 +146,17 @@ describe('vizoalica env add: every question, or only options', () => {
 
   it('asks the connect questions, name first, when the backend already exists', async () => {
     worker(['good']);
-    const t = setup(['prod', 'n', 'https://w.example.com', 'admin', 'n', 'good', '']);
+    const t = setup(['prod', 'n', 'https://w.example.com', '', 'good', '']);
     const deploy = vi.fn(async () => 0);
     expect(await envCommand(['add'], { ...t.deps, deploy })).toBe(0);
     expect(deploy).not.toHaveBeenCalled();
+    expect(t.full[3]).toContain('Who are you on this backend?');
+    expect(t.full.join('')).not.toContain('OneCLI');
     expect(t.asked).toEqual([
       'Environment name: ',
       'Deploy a new backend for "prod" now? (Y/n): ',
       'Worker address (https://…): ',
-      'Role (1-3, or admin, owner, analyst): ',
-      'Is the administrator secret stored in OneCLI? (y/N): ',
+      'Role (1-3, or admin, owner, analyst) [admin]: ',
       'Administrator secret (hidden): ',
       'Cloudflare API token (hidden, Enter to skip): '
     ]);
@@ -180,7 +179,6 @@ describe('vizoalica env add: every question, or only options', () => {
       'https://w.example.com',
       'boss',
       '3',
-      'n',
       '',
       'key'
     ]);
@@ -500,11 +498,10 @@ describe('vizoalica env add', () => {
         ? Response.json({ result: { status: 'active' } })
         : cf(input, init)
     );
-    const t = setup(['https://w.example.com', 'admin', 'n', 'good', 'cf-token']);
+    const t = setup(['https://w.example.com', 'admin', 'good', 'cf-token']);
     const ask = vi.spyOn(t.deps, 'ask');
     expect(await envCommand(['add', 'prod', '--connect'], t.deps)).toBe(0);
     expect(ask.mock.calls.map((call) => Boolean(call[1]?.secret))).toEqual([
-      false,
       false,
       false,
       true,

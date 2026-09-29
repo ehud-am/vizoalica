@@ -17,7 +17,7 @@ export function ScopeSwitcher({
   onEnvironmentChanged: () => void;
 }) {
   return (
-    <div className="scope-switcher" role="group" aria-label="Environment and project">
+    <div className="scope-switcher" role="group" aria-label="Backend and project">
       <EnvironmentMenu list={list} onChanged={onEnvironmentChanged} />
       {showsScopeHeader(route.path) && <ProjectMenu route={route} />}
     </div>

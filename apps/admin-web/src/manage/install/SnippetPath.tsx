@@ -59,7 +59,7 @@ export function SnippetPath({
           {staticMode?.defaults && (
             <p className="hint">
               Everything else is assumed: the token path is <code>/vizoalica/ingest-token</code>,
-              consent starts as <code>unknown</code>, and the project comes from the source key.
+              consent starts as <code>unknown</code>, and the project comes from the website key.
               Need to change one? <a href="#install-customize">Customize the snippet</a>.
             </p>
           )}

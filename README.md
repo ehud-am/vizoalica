@@ -37,7 +37,7 @@ answer questions from the same data. Visitor data stays in your own Cloudflare a
 Set these up in order, because each step needs something the previous one produces.
 
 <p align="center">
-  <img src="docs/assets/deploy-steps.svg" alt="Step 1: install the vizoalica cli on one admin machine. Step 2: create and deploy your first environment, or connect it to a backend that already exists, then open the console. Step 3: define websites in the console and paste the code snippet into your web assets. Step 4: verify everything works." width="900">
+  <img src="docs/assets/deploy-steps.svg" alt="Step 1: install the vizoalica cli on one admin machine. Step 2: create your backend, or connect to one that already exists, then open the console. Step 3: add websites in the console and paste one script tag into your pages. Step 4: verify everything works." width="900">
 </p>
 
 The three parts you end up with:
@@ -48,13 +48,14 @@ The three parts you end up with:
 | 2     | **Backend**  | Your Cloudflare account             | Serves the script, receives event batches, filters them, and stores raw events (R2) and aggregates (D1). | `vizoalica deploy <name> --apply`                    |
 | 3     | **Websites** | Wherever each site is hosted        | One script tag. Optionally, a small token endpoint for signed events.                                    | The console's **Websites** panel                     |
 
-The backend has three secrets, and none of them is ever in browser code. Day to day you need only the first:
+The backend has three secrets, and none of them is ever in browser code. `vizoalica env add` saves the first for
+you and shows none of them:
 
 | Secret                              | Held by                                                    | You need it to…                          |
 | ----------------------------------- | ---------------------------------------------------------- | ---------------------------------------- |
 | `VIZOALICA_ADMIN_SECRET`            | The Worker and each admin's console                        | Connect another computer as a console    |
 | `VIZOALICA_TOKEN_SECRET`            | The Worker and your website's token endpoint (server side) | Set up a website that uses signed tokens |
-| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing day to day; keep it as a backup  |
+| `VIZOALICA_ANALYTICS_DIGEST_SECRET` | The Worker only                                            | Nothing                                  |
 
 ## Step 1: Install the vizoalica cli
 
@@ -73,96 +74,52 @@ It prints, with timings, what the command is doing: the files and settings it us
 request it makes, and each Wrangler step with its output. It never prints a secret, a credential, or your
 answers, so the output is safe to paste into an issue.
 
-## Step 2: Create and deploy your first environment
+## Step 2: Create your backend
 
-The console works on **environments** (`dev`, `stage`, `prod`, or any names): a backend, the role you use it
-with, and its secret. You create them in the terminal **before** the console opens, and one command does it:
+One command creates your backend in your Cloudflare account and saves it on this computer:
 
 ```sh
 vizoalica env add prod
 ```
 
-To deploy, have a Cloudflare API token ready with **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and
-Account Settings: Read** (My Profile → API Tokens → Create Token → Custom token), and R2 enabled on the account.
-It asks, in order, explaining each question above its prompt:
+Have a Cloudflare API token ready with **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account
+Settings: Read** (My Profile → API Tokens → Create Token → Custom token), and R2 enabled on the account. It asks
+one question at a time and explains each. Say **yes** to deploying. It creates a D1 database, an R2 bucket, and
+a Worker named `prod-vizoalica-…`, then checks that they work. It never changes or deletes anything that already
+exists, and Ctrl-C stops without changing anything. Add `--verbose` to see each step.
 
-1. **Deploy a new backend for "prod" now?** Yes creates it in your Cloudflare account and adds `prod` as an
-   environment. No connects `prod` to a backend that **already exists** (yours, or a teammate's): it asks for the
-   Worker address, your role, and the secret, and checks them against the Worker before saving.
-2. **Is the secret stored in OneCLI?** When deploying, this is about your Cloudflare API token, and the
-   default is yes. When connecting, it is about the administrator secret or access key, and the default is
-   no. Answer yes only if OneCLI already holds it (see below); if you do not use OneCLI, answer no.
+**There is no secret to copy.** The administrator secret is saved in `~/.config/vizoalica/environments.json`,
+readable only by you, and never printed. The token secret is needed only by websites that require signed
+tokens; get it when you first need it with `vizoalica rotate prod token`. Setting this up with an AI coding
+agent? Run this step yourself, so your Cloudflare API token does not pass through an agent conversation.
 
-An answer that cannot be used (a name that is taken, an address with a path, a role that does not exist) is
-asked again with the reason. Ctrl-C stops without changing anything. Add `--verbose` to see each step.
-
-Run it with no name and it asks for that too, so `vizoalica env add` alone walks through every question. To skip
-the questions, give the answers as options; a script needs no terminal:
-
-```sh
-# create the backend and the environment
-vizoalica env add prod --deploy --yes --secrets-file ./prod-secrets.env --onecli \
-  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>
-
-# connect to a backend that already exists
-vizoalica env add prod --connect --url https://prod.example.workers.dev --role admin --secret-stdin --no-onecli
-```
-
-**Deploying is also a step of its own.** Run it directly whenever you like, for example to create the backend
-later or from a script, with the same token:
+To script it, give the answers as options; a script needs no terminal:
 
 ```sh
 export CLOUDFLARE_API_TOKEN=...
-vizoalica deploy prod            # shows what will be created; creates nothing
-vizoalica deploy prod --apply    # creates it, then adds "prod" as an environment
+vizoalica env add prod --deploy --yes
 ```
 
-`--apply` asks first, then creates a D1 database, an R2 bucket, and a Worker, named `prod-vizoalica-…`. It
-never changes or deletes anything that already exists, and `--resume` continues after a failure. It
-**generates your three secrets and shows two of them once, at the very end, then waits until you type
-`saved`** (or writes them to a new private file with `--secrets-file`); the administrator secret goes straight
-into the environment file and is never printed. Save the others in a password manager: every website you install
-needs `VIZOALICA_TOKEN_SECRET`. It never asks you to invent or paste a key, and if you lose one,
-`vizoalica rotate prod token` (or `admin`, `digest`, `all`) replaces it. Setting this up with an AI coding
-agent? Do this step yourself: the secrets are shown once and should not pass through an agent conversation.
-See [Create a backend](docs/operations/deploy.md).
+Deploying is also a command of its own (`vizoalica deploy prod` shows the plan, `--apply` creates it, and
+`--update` brings it to the installed version). See [Create a backend](docs/operations/deploy.md).
 
 **Then open the console:**
 
 ```sh
-vizoalica env list       # every environment, and whether it works
 vizoalica console
 ```
 
-`vizoalica console` starts the console on your computer at `http://127.0.0.1:4318` and opens it in your
-browser, on the environment you used last. If no environment works yet, it shows a welcome page that says what
-is wrong with each one and which `vizoalica env` command fixes it. A picker in the top bar switches between
-working environments. The console never creates, edits, or removes environments, and it does not deploy or
-update a backend; update one to the installed version with `vizoalica deploy <name> --update`
-([backend guide](docs/operations/cloudflare.md#update-an-existing-backend)).
+It starts the console on your computer at `http://127.0.0.1:4318` and opens it in your browser. If something is
+not set up yet, a welcome page says what is wrong and which command fixes it. The console does not deploy or
+update a backend; update one with `vizoalica deploy <name> --update`.
 
-**Environments live in one file you can edit**, `~/.config/vizoalica/environments.json`, managed with
-`vizoalica env list | add | update | remove | check`. Each has its own address, role (admin, owner, or
-analyst), and secret, kept in the file or held by OneCLI as a local vault, plus an optional Cloudflare API
-token for admins. Every one is checked against its Worker, including that the credential really has the role you
-chose. See [Environments](docs/operations/environments.md).
+**More than one backend, or someone else's.** Say **no** to deploying to connect to a backend that already
+exists, with the access key you were given. Run `vizoalica env add` once per name to keep `dev` and `prod` side
+by side; a picker in the console switches between them. See
+[Run more than one backend](docs/operations/environments.md) and [Share with someone](docs/operations/share.md).
+To keep secrets in a vault instead of a file, see [OneCLI](docs/operations/onecli.md).
 
-**Multiple environments, one console.** Keep more than one independent backend, each with its own Worker,
-database, storage bucket, and access keys. Every resource is named `<environment>-something`, so environments
-can share one Cloudflare account without colliding, or each point at a different account.
-
-**Another computer, another admin.** Install the command there (step 1) and add your existing backend with
-`vizoalica env add`. The secret is saved in a private file (`0600`) on that computer, after being checked.
-
-> **OneCLI is the more secure option if you use it, and `vizoalica env add` asks about it.** With
-> [OneCLI](https://onecli.sh) the secret is held by a gateway and injected into requests to your Worker, so it
-> is never written to a file on the operator's computer. Answer yes only if OneCLI already holds the secret, and
-> give the workspace, agent, and gateway, or pass `--secret-onecli` (and `--cloudflare-onecli` for `deploy`)
-> yourself; the console is not started any differently. Answer no (the default when connecting) to keep the
-> secret in a private file (`0600`) instead.
-
-Guides: **[Environments](docs/operations/environments.md)** and **[with OneCLI](docs/operations/onecli.md)**.
-Returning operators: [Start the local operator console](docs/operations/operator-local.md).
+Returning operators: [Start the console day to day](docs/operations/operator-local.md).
 
 ## Step 3: add your websites
 
@@ -174,7 +131,7 @@ website's **Install** page, which shows **one script tag** to paste into your pa
 <script
   defer
   src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
-  data-source="<public key>"
+  data-source="<website key>"
   data-token-url="none"
 ></script>
 ```
@@ -188,8 +145,8 @@ visitors' browsers; unique visitors are counted with an identifier that changes 
 small function, so fake events are harder to send. The Install page then offers two paths:
 **GitHub → Cloudflare Pages** (a generated workflow deploys your site with Vizoalica's
 **dynamic configuration** and token endpoint) or **Paste a snippet** (a **static snippet**, with an
-SDK file and token endpoint you host). The token endpoint needs `VIZOALICA_TOKEN_SECRET`, the secret
-you saved when you set up the backend. The values in either snippet are public browser configuration,
+SDK file and token endpoint you host). The token endpoint needs `VIZOALICA_TOKEN_SECRET`; get it with
+`vizoalica rotate <backend> token` the first time. The values in either snippet are public browser configuration,
 not secrets.
 
 Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK reference:

@@ -99,7 +99,7 @@ export function SharePanel({ projectId, websiteId }: { projectId: string; websit
       )}
       <p className="hint">
         Each setup creates a key. To see the keys that exist, or to end someone&rsquo;s access, open{' '}
-        <a href={hrefFor('manage/access')}>Access keys</a>.
+        <a href={hrefFor('manage/access')}>Share access</a>.
       </p>
     </section>
   );

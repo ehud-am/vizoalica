@@ -1,8 +1,7 @@
-# Start the local operator console
+# Start the console day to day
 
-Returning operators start here. The console works on **environments** (`dev`, `stage`, `prod`, or any
-names you chose), which you add once with `vizoalica env` and can review or edit any time. Then one
-command starts the console:
+Start here when your backend is already set up. You added it once with `vizoalica env add`; if you run more
+than one (`dev`, `prod`), each is listed. One command starts the console:
 
 ```sh
 vizoalica env list        # what is configured, and whether each one works
@@ -14,11 +13,11 @@ checkout it starts the private API and the web console beside it; open `http://1
 prints). Keep the terminal open and press Ctrl+C once to stop both processes. Keep only one console
 instance running. `pnpm vizoalica run` is an alias for the same command.
 
-Environments are never managed inside the console. When none is usable (none added yet, a token that was
+Backends are never added or removed inside the console. When none is usable (none added yet, a token that was
 revoked, a wrong role, an unreachable Worker), the console opens a welcome page that says what is wrong
 with each one and which `vizoalica env` command fixes it. With at least one usable environment it opens on
 the one you used last; the picker in the top bar switches between them. See
-[Environments](environments.md) for the file, the commands, and what is checked.
+[Run more than one backend](environments.md) for the file, the commands, and what is checked.
 
 | Where the secret lives | In `environments.json`                            | What happens on a request                                                        |
 | ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------- |

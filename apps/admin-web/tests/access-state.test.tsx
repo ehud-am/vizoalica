@@ -5,7 +5,7 @@ describe('access state UI', () => {
   it('shows credential repair guidance after Worker authorization fails', () => {
     const html = renderToStaticMarkup(<AccessState state="denied" onRetry={() => undefined} />);
     expect(html).toContain('Authorization required');
-    expect(html).toContain('Worker rejected');
+    expect(html).toContain('The backend rejected this secret');
     expect(html).toContain('vizoalica env update');
     expect(html).not.toMatch(/credential[^.]*[:=]/i);
   });

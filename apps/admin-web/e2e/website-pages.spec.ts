@@ -46,9 +46,7 @@ test('edit is keyboard-only, protects unsaved changes, and saves back to the web
   await page.getByRole('button', { name: 'Save changes' }).focus();
   await page.keyboard.press('Enter');
   await expect(
-    page.getByText(
-      'Website updated and audit recorded. Nothing needs to change on your installed site.'
-    )
+    page.getByText('Website saved. Nothing needs to change on your installed site.')
   ).toBeVisible();
   await expect(page).toHaveURL(/#\/manage\/websites\/site-1$/);
 });

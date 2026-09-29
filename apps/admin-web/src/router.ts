@@ -150,7 +150,7 @@ export const ROUTES = define([
   {
     path: 'manage/access',
     area: 'manage',
-    label: 'Access keys',
+    label: 'Share access',
     // Reached from a website's Share section and the environment menu, not from the sidebar.
     nav: false,
     scope: 'none',

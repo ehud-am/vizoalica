@@ -1,10 +1,10 @@
-# Deploy the Vizoalica backend on Cloudflare
+# Advanced: manual backend install from source
 
-> **Installed from npm?** `vizoalica env add NAME` (or `vizoalica deploy NAME --apply`) creates the backend and
-> adds it as an environment in one step: see [Create a backend](deploy.md). This guide is for deploying and
-> maintaining a backend from a reviewed source checkout.
+> **Most people do not need this page.** `vizoalica env add NAME` creates the backend and saves it on your
+> computer in one step: see [Create a backend](deploy.md). This guide is for deploying and maintaining a backend
+> from a reviewed source checkout, step by step.
 
-Run this guide **once per environment**. It creates and verifies the shared ingestion
+Run this guide **once per backend**. It creates and verifies the shared ingestion
 backend: one Worker, one new D1 database, one new R2 bucket, three Worker secrets, safe defaults,
 and scheduled aggregate cleanup.
 
@@ -398,7 +398,7 @@ administrator credential:
 - [OneCLI-managed credential](onecli.md), once for an operator whose organization injects it
   through OneCLI.
 
-After one operator is verified, [activate a website](pages.md) once for each website.
+After the console works, [add a website](pages.md) once for each website.
 
 ## Update an existing backend
 

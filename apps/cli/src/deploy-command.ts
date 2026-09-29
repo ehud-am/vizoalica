@@ -59,11 +59,13 @@ const USAGE = [
   '  --yes                       Do not ask for confirmation (required without a terminal)',
   '  --account <id>              The Cloudflare account, when the credential can see more than one',
   '  --cloudflare-token-stdin    Read the Cloudflare API token from stdin (else $CLOUDFLARE_API_TOKEN, else asked)',
+  '  --save-cloudflare           Keep the Cloudflare credential in the new environment (admin only, optional)',
+  '  --secrets-file <path>       Also write every generated secret to a new private file, as a backup',
+  '  --resume                    Continue after a failure: reuse the database or bucket an earlier run created',
+  '',
+  'Advanced: keep the Cloudflare API token in a vault (OneCLI):',
   '  --cloudflare-onecli         Run Wrangler under OneCLI, which holds the token; needs the --onecli-* options',
   '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
-  '  --save-cloudflare           Keep the Cloudflare credential in the new environment (admin only, optional)',
-  '  --secrets-file <path>       Write generated secrets to a new private file instead of printing them',
-  '  --resume                    Continue after a failure: reuse the database or bucket an earlier run created',
   '',
   '--update uses the Cloudflare credential saved with the environment, if there is one.',
   '',
@@ -204,12 +206,6 @@ async function applyCommand(
     deps.err(`${fileProblem}\n`);
     return 1;
   }
-  if (!deps.interactive && !secretsFile) {
-    deps.err(
-      'The generated secrets are shown once. Without a terminal, say where to put them: --secrets-file <new file>.\n'
-    );
-    return 1;
-  }
   if (!deps.interactive && !flags.switches.has('--yes')) {
     deps.err('Without a terminal, confirm with --yes.\n');
     return 1;
@@ -344,13 +340,20 @@ async function applyCommand(
       );
       deps.out(
         check.usable
-          ? `Environment "${name}" was added and works. Next: vizoalica console\n`
-          : `Environment "${name}" was added, but it does not verify yet (${check.problems[0]?.message ?? 'unknown'}). Try: vizoalica env check ${name}\n`
+          ? `Backend "${name}" is saved on this computer and works. Next: vizoalica console\n`
+          : `Backend "${name}" is saved on this computer, but it does not verify yet (${check.problems[0]?.message ?? 'unknown'}). Try: vizoalica env check ${name}\n`
       );
     }
     // Last, so nothing scrolls it away, and it waits until they are saved.
-    await revealSecrets(revealed, secretsFile, deps, name);
-    if (registered) return 0;
+    const handed = handOver(revealed, secretsFile);
+    await revealSecrets(handed, secretsFile, deps, name);
+    if (registered) {
+      if (result.secrets[SECRETS.token.name] && !handed[SECRETS.token.name])
+        deps.out(
+          `\nWebsites that require signed tokens need the token secret. Get it when you first need it with: vizoalica rotate ${name} token\n`
+        );
+      return 0;
+    }
     return adminSecret ? 1 : 0;
   } catch (error) {
     trace(
@@ -418,6 +421,21 @@ async function finishUpdate(
     deps.out(
       `This computer has no "${name}" environment. Add it with: vizoalica env add ${name} --url ${result.workerUrl} --role admin\n`
     );
-  await revealSecrets(revealed, secretsFile, deps, name);
+  await revealSecrets(handOver(revealed, secretsFile), secretsFile, deps, name);
   return 0;
+}
+
+/**
+ * The generated secrets the person gets. With --secrets-file, every one not saved elsewhere goes to that
+ * file as a backup. Without it, only an administrator secret that could not be saved on this computer is
+ * shown: the Worker keeps the token and digest secrets, and `vizoalica rotate` makes a token secret to
+ * hand over when a website first needs one.
+ */
+function handOver(
+  secrets: Record<string, string>,
+  secretsFile: string | undefined
+): Record<string, string> {
+  if (secretsFile) return secrets;
+  const admin = secrets[SECRETS.admin.name];
+  return admin === undefined ? {} : { [SECRETS.admin.name]: admin };
 }

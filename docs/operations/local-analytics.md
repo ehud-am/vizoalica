@@ -1,18 +1,18 @@
-# Set up a console computer without OneCLI
+# Advanced: manual console install from source
 
 Run this guide **once per operator or data analyst** who will store the Vizoalica administrator
 credential in a private local file. Use [the OneCLI setup](onecli.md) instead when OneCLI manages
 the credential. Do not complete both paths on the same machine.
 
-> **Without a checkout (recommended):** `npm install -g vizoalica`, then `vizoalica env add NAME` replaces
-> steps 1 to 3 below: it asks for the Worker address, your role, and the secret (hidden), checks them against
+> **Most people do not need this page.** Without a checkout (recommended): `npm install -g vizoalica`, then `vizoalica env add NAME` replaces
+> steps 1 to 3 below: it asks for the Worker address, who you are on it, and the secret (hidden), checks them against
 > the Worker, and saves them privately (`0600`). Then run `vizoalica console`. See
 > [Environments](environments.md). This page is for running the console from a reviewed source checkout.
 
 ## Returning operator: start here
 
 If this machine is already configured without OneCLI, run `pnpm vizoalica console` from your checkout
-(see [Start the local operator console](operator-local.md)). Keep that terminal open and press
+(see [Start the console day to day](operator-local.md)). Keep that terminal open and press
 Ctrl+C once to stop. Run `pnpm vizoalica status` first whenever the configured mode is unclear. Do not
 switch modes merely by changing the startup command.
 

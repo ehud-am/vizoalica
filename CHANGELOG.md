@@ -26,6 +26,19 @@ All notable changes to Vizoalica are documented in this file.
 - The homepage and README lead with the AI assistant, add an "Is this for you?" box, and the
   architecture diagram shows AI assistants (through the local MCP server) as a client. Install and
   privacy docs are rewritten around the script tag, with plainer wording.
+- **Nothing to copy at setup.** `vizoalica deploy` and `vizoalica env add` no longer show the token and
+  digest secrets or wait for `saved`. The administrator secret is saved in `environments.json` as before;
+  the token secret is needed only by signed-token websites and is fetched the first time with
+  `vizoalica rotate <name> token`. `--secrets-file` still writes a backup of every generated secret, and a
+  deploy without a terminal no longer requires it.
+- **OneCLI is opt-in.** `vizoalica env add` no longer asks whether OneCLI holds a secret; it is used only
+  with `--onecli`, `--secret-onecli`, or `--cloudflare-onecli`. The help lists these under "Advanced".
+- **Plainer words.** "Website key" and "website ID" replace "public source key" and "source ID" in the
+  console and docs (API names are unchanged). "Access keys" is now **Share access**, with a new
+  [Share with someone](docs/operations/share.md) page. The header control is "Backend", and shows a
+  role only for a shared key. Console success messages say what happened, without "audit recorded".
+  The docs say "backend" for one backend, and move multiple backends, OneCLI, and the manual
+  source-checkout guides under **Advanced**.
 
 ## [0.8.0] - 2026-09-28
 
