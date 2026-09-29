@@ -4,6 +4,8 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-29
+
 ### Added
 
 - **One script tag for static websites.** A website can turn off **Require a signed token** (new

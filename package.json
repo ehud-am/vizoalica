@@ -1,6 +1,6 @@
 {
   "name": "vizoalica-workspace",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
   "keywords": [
     "analytics",
