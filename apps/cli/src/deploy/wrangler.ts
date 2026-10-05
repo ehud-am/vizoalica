@@ -17,10 +17,13 @@ function commandRunner(command: readonly string[], baseEnv: NodeJS.ProcessEnv): 
   const [file, ...baseArgs] = command;
   return (args, options: RunOptions = {}) =>
     new Promise<RunResult>((resolve) => {
+      // An interactive command (a browser sign-in) talks to the terminal itself; its output is not kept.
       const child = spawn(file!, [...baseArgs, ...args], {
         shell: false,
         env: { ...baseEnv, ...options.env },
-        stdio: [options.stdin !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe']
+        stdio: options.interactive
+          ? 'inherit'
+          : [options.stdin !== undefined ? 'pipe' : 'ignore', 'pipe', 'pipe']
       });
       let stdout = '';
       let stderr = '';
@@ -47,8 +50,11 @@ export function wranglerCommand(env: NodeJS.ProcessEnv = process.env): string[] 
     : ['npm', 'exec', '--yes', `--package=wrangler@${PINNED_WRANGLER_VERSION}`, '--', 'wrangler'];
 }
 
-/** How Wrangler reaches Cloudflare: an API token in its environment, or every call under `onecli run`. */
-export type CloudflareAccess = { token: string } | { onecli: OnecliRef };
+/**
+ * How Wrangler reaches Cloudflare: an API token in its environment, every call under `onecli run`, or
+ * Wrangler's own browser sign-in (`wrangler login`), which Wrangler keeps and refreshes itself.
+ */
+export type CloudflareAccess = { token: string } | { onecli: OnecliRef } | { login: true };
 
 /**
  * The credential is only ever an environment variable of the child process (a token) or held by OneCLI;
@@ -60,6 +66,7 @@ export function wranglerFor(access: CloudflareAccess, env: NodeJS.ProcessEnv = p
   delete clean.CLOUDFLARE_API_TOKEN;
   delete clean.CLOUDFLARE_API_KEY;
   delete clean.CLOUDFLARE_EMAIL;
+  if ('login' in access) return commandRunner(wranglerCommand(env), clean);
   if ('token' in access) {
     const base = commandRunner(wranglerCommand(env), clean);
     return (args, options = {}) =>
@@ -72,4 +79,11 @@ export function wranglerFor(access: CloudflareAccess, env: NodeJS.ProcessEnv = p
     ['onecli', ...wrapped.slice(0, separator + 1), ...wranglerCommand(env)],
     clean
   );
+}
+
+/** Said before the first Wrangler call: `npm exec` downloads Wrangler the first time, which takes a while. */
+export function firstRunNote(env: NodeJS.ProcessEnv = process.env): string {
+  return env.VIZOALICA_WRANGLER
+    ? ''
+    : ' (the first time, npm also downloads Wrangler; allow a minute)';
 }

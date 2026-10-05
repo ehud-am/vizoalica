@@ -4,6 +4,23 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Sign in to Cloudflare in your browser.** `vizoalica env add` and `vizoalica deploy` ask whether to
+  sign in with the browser (Wrangler's own sign-in, the default) or paste an API token; there is no token to
+  create for the first. `--cloudflare-login` chooses it without the question. For a token, the prompt links to
+  Cloudflare's token form with the four permissions already filled in.
+- **`vizoalica deploy --update --all`** updates every environment you administer on this computer, with the
+  Cloudflare credential settled once, and stops at the first failure.
+- A note before the first Cloudflare call that npm is downloading Wrangler.
+
+### Fixed
+
+- From a source checkout, `vizoalica deploy` and `env add` built nothing: they deployed whatever
+  `pnpm package:build` last wrote, so `--update` after a `git pull` shipped the old Worker under the new
+  version. They now build the Worker files and database changes from the checkout on every run.
+- The npm README, npm description, and homepage no longer describe the removed "save two secrets" step.
+
 ## [0.9.0] - 2026-09-29
 
 ### Added

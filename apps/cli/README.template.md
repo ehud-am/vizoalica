@@ -15,11 +15,12 @@ vizoalica env add prod    # deploys a new backend for "prod", or connects one yo
 vizoalica console
 ```
 
-`vizoalica env add` asks one question at a time and says what each is for. To deploy, it needs a Cloudflare
-API token with Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read. It
-creates a D1 database, an R2 bucket, and a Worker named `prod-vizoalica-…`, then shows the two secrets you must
-keep, **last, and waits until you type `saved`**. Save them in a password manager: every website you add needs
-`VIZOALICA_TOKEN_SECRET`. Lost one? `vizoalica rotate prod token` replaces it.
+`vizoalica env add` asks one question at a time and says what each is for. To deploy, it asks how to reach your
+Cloudflare account: sign in in your browser (the default), or paste an API token with Workers Scripts: Edit,
+D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read (it links to a form with those filled in). It
+creates a D1 database, an R2 bucket, and a Worker named `prod-vizoalica-…`. There is no secret to copy: the
+administrator secret is saved for you in `~/.config/vizoalica/environments.json`, readable only by you. A website
+with one script tag needs nothing else. Lost the secret? `vizoalica rotate prod admin` replaces it.
 
 `vizoalica console` starts the console on your computer at <http://127.0.0.1:4318> and opens it in your browser,
 on the environment you used last. If no environment works yet, it shows a welcome page that says what is wrong
@@ -43,7 +44,7 @@ environments (`environments.json`, which you can also edit by hand) is readable 
 | ------------------------------------------------- | -------------------------------------------------------------------- |
 | `vizoalica env add [name]`                        | Add an environment: deploy a new backend, or connect an existing one |
 | `vizoalica env list`, `update`, `remove`, `check` | Show, change, forget, or verify environments                         |
-| `vizoalica deploy <name> [--apply]`               | Create a backend on its own (without `--apply`, only show the plan)  |
+| `vizoalica deploy <name> [--apply \| --update]`   | Create a backend on its own, or update it; `--update --all` does all |
 | `vizoalica rotate <name> <secret>`                | Replace a secret: `admin`, `token`, `digest`, or `all`               |
 | `vizoalica console`                               | Start the console (`--no-open` to skip opening the browser)          |
 | `vizoalica mcp install --client <client>`         | Let Claude, Codex, or Cursor read your analytics and health          |

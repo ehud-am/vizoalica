@@ -1,7 +1,7 @@
 {
   "name": "vizoalica",
   "version": "__VERSION__",
-  "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2. Run `vizoalica console` to set it up and see your results.",
+  "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2. Add one script tag to your site, then read results in a local console or ask your AI assistant (MCP). Run `vizoalica env add` to set it up.",
   "keywords": [
     "analytics",
     "web-analytics",
@@ -13,7 +13,12 @@
     "cloudflare",
     "cloudflare-workers",
     "cloudflare-d1",
-    "cloudflare-r2"
+    "cloudflare-r2",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "plausible-alternative",
+    "google-analytics-alternative"
   ],
   "license": "MIT",
   "homepage": "https://vizoalica.dev",

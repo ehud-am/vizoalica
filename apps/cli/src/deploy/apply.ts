@@ -15,6 +15,7 @@ import {
 import { noTrace, type Trace } from '../../../local-ops-api/src/trace.js';
 import { explain } from './explain.js';
 import type { DeployPlan } from './plan.js';
+import type { CloudflareAccess } from './wrangler.js';
 
 export type ApplyDeps = {
   run: Run;
@@ -96,6 +97,32 @@ export async function checkAccess(run: Run): Promise<Array<{ id: string; name: s
     );
   }
   return accounts;
+}
+
+/**
+ * The accounts a credential can see. With browser sign-in, Wrangler's saved sign-in is used when it still
+ * works; otherwise `wrangler login` opens the browser first.
+ */
+export async function checkAccessOrSignIn(
+  run: Run,
+  access: CloudflareAccess,
+  log: (line: string) => void
+): Promise<Array<{ id: string; name: string }>> {
+  if (!('login' in access)) return checkAccess(run);
+  try {
+    return await checkAccess(run);
+  } catch (error) {
+    if (!(error instanceof DeployError)) throw error;
+  }
+  log('Opening Cloudflare in your browser. Sign in and allow access there, then come back here.');
+  const login = await run(['login'], { interactive: true });
+  if (login.code !== 0)
+    throw new DeployError(
+      CREATE_STEPS[0],
+      'Signing in to Cloudflare did not finish.',
+      'Run this again to retry, or choose to paste an API token instead.'
+    );
+  return checkAccess(run);
 }
 
 /**

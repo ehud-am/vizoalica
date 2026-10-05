@@ -61,6 +61,7 @@ const USAGE = [
   '  --role admin|owner|analyst',
   '  --secret-stdin            Read the secret (admin secret or access key) from stdin',
   '  --cloudflare-token-stdin  Admin only: read a Cloudflare API token from stdin',
+  '  --cloudflare-login        With --deploy: sign in to Cloudflare in your browser instead of a token',
   '  --no-cloudflare           Remove the Cloudflare API token',
   '  --no-verify               Save without checking (for offline edits)',
   '',
@@ -71,7 +72,7 @@ const USAGE = [
   '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '',
   'With --deploy, these are passed to "vizoalica deploy": --yes, --account, --secrets-file,',
-  '--resume, --save-cloudflare, --cloudflare-token-stdin. In a terminal, add asks for anything',
+  '--resume, --save-cloudflare, --cloudflare-token-stdin, --cloudflare-login. In a terminal, add asks for anything',
   'not given as an option, explaining each question. Add --verbose to see each step.',
   '',
   'The list is a plain file you can also edit by hand: ~/.config/vizoalica/environments.json'
@@ -97,6 +98,7 @@ const SWITCHES = new Set([
   '--secret-onecli',
   '--cloudflare-token-stdin',
   '--cloudflare-onecli',
+  '--cloudflare-login',
   '--no-cloudflare',
   '--no-verify',
   '--yes',
@@ -334,7 +336,13 @@ const gatewayProblem = (answer: string) =>
     ? undefined
     : 'Give it as host:port, for example localhost:10255.';
 
-const DEPLOY_ONLY = ['--account', '--secrets-file', '--resume', '--save-cloudflare'] as const;
+const DEPLOY_ONLY = [
+  '--account',
+  '--secrets-file',
+  '--resume',
+  '--save-cloudflare',
+  '--cloudflare-login'
+] as const;
 const ONECLI_VALUES = ['--onecli-workspace', '--onecli-agent', '--onecli-gateway'] as const;
 
 /** Options that cannot be given together, found before anything is asked. */
@@ -348,6 +356,8 @@ function conflict(command: 'add' | 'update', flags: Flags): string | undefined {
     ['--secret-stdin', '--secret-onecli'],
     ['--secret-stdin', '--onecli'],
     ['--cloudflare-token-stdin', '--cloudflare-onecli'],
+    ['--cloudflare-login', '--cloudflare-token-stdin'],
+    ['--cloudflare-login', '--cloudflare-onecli'],
     ['--no-cloudflare', '--cloudflare-token-stdin'],
     ['--no-cloudflare', '--cloudflare-onecli']
   ];
@@ -548,6 +558,7 @@ async function saveCommand(
       ...carry('--resume'),
       ...carry('--save-cloudflare'),
       ...carry('--cloudflare-token-stdin'),
+      ...carry('--cloudflare-login'),
       ...pass('--account'),
       ...pass('--secrets-file'),
       ...(ref

@@ -14,15 +14,16 @@ import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
 import {
   chooseAccount,
   cloudflareAccess,
+  DEPLOY_NEED,
   rememberAccount,
   rememberedAccount,
   revealSecrets,
   secretsFileProblem
 } from './cloudflare-access.js';
 import { tracedAsk } from './prompt.js';
-import { applyDeploy, checkAccess, DeployError, type ApplyResult } from './deploy/apply.js';
+import { applyDeploy, checkAccessOrSignIn, DeployError, type ApplyResult } from './deploy/apply.js';
 import { buildPlan, describePlan, describeUpdate } from './deploy/plan.js';
-import { wranglerCommand, wranglerFor } from './deploy/wrangler.js';
+import { firstRunNote, wranglerCommand, wranglerFor } from './deploy/wrangler.js';
 
 export type DeployDeps = {
   home: string;
@@ -46,6 +47,7 @@ export type DeployDeps = {
 
 const USAGE = [
   'Usage: vizoalica deploy <name> [--apply | --update] [options]',
+  '       vizoalica deploy --update --all [options]',
   '',
   'Creates the backend for the environment <name>: a D1 database, an R2 bucket, and a Worker, all named',
   '<name>-vizoalica-…, then adds <name> to your environments. Or updates one it created to this version.',
@@ -54,10 +56,12 @@ const USAGE = [
   '  --apply               Create it now in your Cloudflare account',
   '  --update              Deploy this version over the existing backend: its data and secrets are kept,',
   '                        and the database changes this version needs are applied',
+  '  --update --all        Update every environment on this computer that you administer, one after the other',
   '',
   'Options for --apply and --update:',
   '  --yes                       Do not ask for confirmation (required without a terminal)',
   '  --account <id>              The Cloudflare account, when the credential can see more than one',
+  '  --cloudflare-login          Sign in to Cloudflare in your browser (Wrangler keeps the sign-in)',
   '  --cloudflare-token-stdin    Read the Cloudflare API token from stdin (else $CLOUDFLARE_API_TOKEN, else asked)',
   '  --save-cloudflare           Keep the Cloudflare credential in the new environment (admin only, optional)',
   '  --secrets-file <path>       Also write every generated secret to a new private file, as a backup',
@@ -69,7 +73,9 @@ const USAGE = [
   '',
   '--update uses the Cloudflare credential saved with the environment, if there is one.',
   '',
-  'The Cloudflare API token needs: Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, Account Settings: Read.'
+  'Without an option, you choose: sign in in your browser, or paste an API token. The token needs Workers',
+  'Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read; the prompt links to a form',
+  'with those filled in.'
 ].join('\n');
 
 const VALUE_FLAGS = new Set([
@@ -82,10 +88,12 @@ const VALUE_FLAGS = new Set([
 const SWITCHES = new Set([
   '--apply',
   '--update',
+  '--all',
   '--yes',
   '--resume',
   '--save-cloudflare',
   '--cloudflare-token-stdin',
+  '--cloudflare-login',
   '--cloudflare-onecli'
 ]);
 
@@ -105,6 +113,91 @@ function parseFlags(args: readonly string[]): Flags | string {
     else flags.positional.push(arg);
   }
   return flags;
+}
+
+/**
+ * `--update --all`: updates each environment this computer administers, one after the other. The Cloudflare
+ * credential is settled once, so it is not asked for again per environment. Stops at the first failure.
+ */
+async function updateAll(args: readonly string[], flags: Flags, deps: DeployDeps): Promise<number> {
+  if (!flags.switches.has('--update') || flags.positional.length > 0) {
+    deps.err('--all goes with --update and no name: vizoalica deploy --update --all\n');
+    return 1;
+  }
+  if (flags.switches.has('--apply') || flags.switches.has('--resume')) {
+    deps.err('--update does not go with --apply or --resume.\n');
+    return 1;
+  }
+  const path = environmentsPath(join(deps.home, '.config', 'vizoalica'));
+  const loaded = readEnvironments(path);
+  if (loaded.status === 'broken') {
+    deps.err(`The environments file cannot be used:\n  ${path}\n${loaded.reason}\n`);
+    return 1;
+  }
+  const names = loaded.entries
+    .filter((entry) => 'def' in entry && entry.def.role === 'admin')
+    .map((entry) => entry.name);
+  if (names.length === 0) {
+    deps.err(
+      'No environment on this computer is one you administer, so there is nothing to update.\n'
+    );
+    return 1;
+  }
+  if (!deps.interactive && !flags.switches.has('--yes')) {
+    deps.err('Without a terminal, confirm with --yes.\n');
+    return 1;
+  }
+  deps.out(
+    `Updating ${names.length} environment${names.length === 1 ? '' : 's'}: ${names.join(', ')}\n`
+  );
+
+  // One credential for all of them, unless each keeps its own saved one.
+  let rest = args.filter((arg) => arg !== '--all');
+  let env = deps.env;
+  const given =
+    flags.switches.has('--cloudflare-login') ||
+    flags.switches.has('--cloudflare-onecli') ||
+    flags.switches.has('--cloudflare-token-stdin') ||
+    Boolean(deps.env.CLOUDFLARE_API_TOKEN?.trim());
+  const allSaved = names.every((name) => {
+    const entry = loaded.entries.find((item) => item.name === name);
+    return entry && 'def' in entry && entry.def.cloudflare?.token !== undefined;
+  });
+  if (!given && !allSaved) {
+    const credential = await cloudflareAccess(flags, deps, DEPLOY_NEED);
+    if (typeof credential === 'string') {
+      deps.err(`${credential}\n`);
+      return 1;
+    }
+    if ('login' in credential.access) rest = [...rest, '--cloudflare-login'];
+    else if ('token' in credential.access)
+      env = { ...deps.env, CLOUDFLARE_API_TOKEN: credential.access.token };
+  } else if (flags.switches.has('--cloudflare-token-stdin')) {
+    const token = (await deps.readStdin()).replace(/\r?\n$/, '').trim();
+    rest = rest.filter((arg) => arg !== '--cloudflare-token-stdin');
+    env = { ...deps.env, CLOUDFLARE_API_TOKEN: token };
+  }
+
+  const failed: string[] = [];
+  for (const name of names) {
+    deps.out(`\n=== ${name} ===\n`);
+    const code = await deployCommand([name, ...rest.filter((arg) => arg !== name)], {
+      ...deps,
+      env
+    });
+    if (code !== 0) {
+      failed.push(name);
+      break;
+    }
+  }
+  if (failed.length > 0) {
+    deps.err(
+      `\nStopped at "${failed[0]}". Environments before it were updated; the ones after it were not. Run again for the rest.\n`
+    );
+    return 1;
+  }
+  deps.out(`\nUpdated: ${names.join(', ')}\n`);
+  return 0;
 }
 
 /** The packaged Worker, its Wrangler template, and the migrations must all be there. */
@@ -130,6 +223,7 @@ export async function deployCommand(args: readonly string[], deps: DeployDeps): 
     deps.err(`${flags}\n`);
     return 1;
   }
+  if (flags.switches.has('--all')) return updateAll(args, flags, deps);
   const name = flags.positional[0];
   if (!name || flags.positional.length > 1) {
     deps.err('Give the environment name: vizoalica deploy <name> [--apply]\n');
@@ -215,7 +309,7 @@ async function applyCommand(
   const credential = await cloudflareAccess(
     flags,
     deps,
-    'Deploying needs a Cloudflare API token with Workers Scripts: Edit, D1: Edit,\nWorkers R2 Storage: Edit, and Account Settings: Read.',
+    DEPLOY_NEED,
     update?.def?.cloudflare?.token
   );
   if (typeof credential === 'string') {
@@ -225,12 +319,12 @@ async function applyCommand(
   const { access, onecli } = credential;
   const run = deps.run ?? wranglerFor(access, deps.env);
   trace(
-    `Wrangler: ${deps.run ? '(replaced for a test)' : wranglerCommand(deps.env).join(' ')}${onecli ? ', run under OneCLI' : ''}`
+    `Wrangler: ${deps.run ? '(replaced for a test)' : wranglerCommand(deps.env).join(' ')}${onecli ? ', run under OneCLI' : 'login' in access ? ", with Wrangler's own sign-in" : ''}`
   );
 
   try {
-    deps.out('Checking Cloudflare access…\n');
-    const accounts = await checkAccess(run);
+    deps.out(`Checking Cloudflare access…${firstRunNote(deps.env)}\n`);
+    const accounts = await checkAccessOrSignIn(run, access, (line) => deps.out(`${line}\n`));
     trace(
       `Cloudflare accounts this credential can see: ${accounts.map((a) => `${a.name} (${a.id})`).join(', ')}`
     );
@@ -307,9 +401,11 @@ async function applyCommand(
         url: result.workerUrl,
         role: 'admin',
         secret: adminSecret,
-        ...(flags.switches.has('--save-cloudflare')
-          ? { cloudflare: { token: onecli ? { onecli } : 'token' in access ? access.token : '' } }
-          : {})
+        ...(flags.switches.has('--save-cloudflare') && 'token' in access
+          ? { cloudflare: { token: access.token } }
+          : flags.switches.has('--save-cloudflare') && onecli
+            ? { cloudflare: { token: { onecli } } }
+            : {})
       };
       try {
         addEnvironment(environmentsFile, name, def);
