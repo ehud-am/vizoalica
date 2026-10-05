@@ -107,6 +107,11 @@ export interface AdminRepository {
   listAccessKeys?(): Promise<AccessKeySummary[]>;
   findAccessKeyById?(id: string): Promise<AccessKeyRecord | undefined>;
   revokeAccessKey?(id: string): Promise<boolean>;
+  /** Renames and/or replaces the secret of an active key. Undefined when it is missing or revoked. */
+  updateAccessKey?(
+    id: string,
+    changes: { label?: string; secretHash?: string }
+  ): Promise<AccessKeySummary | undefined>;
   countActiveAccessKeys?(): Promise<number>;
   /** True when the schema has the `access_keys` table (a database updated to at least schema 2). */
   hasAccessKeysTable?(): Promise<boolean>;

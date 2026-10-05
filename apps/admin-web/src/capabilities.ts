@@ -4,7 +4,7 @@
  * ActionButton), and tests verify the placement stays consistent.
  *
  * `view` reads analytics and configuration. `operate` creates and manages projects and websites.
- * `backend` changes who has access to the backend (access keys and shared setup details).
+ * `backend` changes who has access to the backend (access keys).
  */
 export type CapabilityClass = 'view' | 'operate' | 'backend';
 export type Area = 'analytics' | 'manage' | 'shell';
@@ -64,13 +64,7 @@ export const CAPABILITIES = [
     id: 'manage-access-keys',
     class: 'backend',
     area: 'manage',
-    description: 'Issue and revoke access keys'
-  },
-  {
-    id: 'share-website-setup',
-    class: 'backend',
-    area: 'manage',
-    description: 'Share website setup details'
+    description: 'Create, rename, rotate, and delete access keys'
   }
 ] as const satisfies readonly Capability[];
 

@@ -38,7 +38,7 @@ export function EnvironmentMenu({
   // Sharing access is an administrator's tool: absent, not disabled, for anyone else.
   const links: MenuLink[] = isAbsent(state, 'manage-access-keys')
     ? []
-    : [{ id: 'access-keys', label: 'Share access', href: hrefFor('manage/access') }];
+    : [{ id: 'access-keys', label: 'Access keys', href: hrefFor('manage/access') }];
   return (
     <div className="environment-menu">
       <MenuButton

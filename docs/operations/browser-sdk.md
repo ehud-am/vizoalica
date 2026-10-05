@@ -6,13 +6,13 @@ sites that is one script tag.
 ## One script tag (static websites)
 
 Your backend serves the SDK at `/vizoalica.js`. Loaded from there, the SDK sends events back to the
-same backend, so the tag needs only the website's public key:
+same backend, so the tag needs only the website's website key:
 
 ```html
 <script
   defer
   src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
-  data-source="<public key>"
+  data-source="<website key>"
   data-token-url="none"
 ></script>
 ```

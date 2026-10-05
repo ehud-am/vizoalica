@@ -2,13 +2,20 @@ import { feedbackUrl } from '../feedback.js';
 import { FOOTER_LINKS } from '../footer-links.js';
 
 /**
- * One quiet line: the name, the website, the source, and a way to send alpha feedback. Everything
- * else lives on the website.
+ * One quiet line: the name and version, the website, the source, and a way to send alpha feedback.
+ * Everything else lives on the website. The backend's version shows only when it differs from the
+ * console's, which is when someone needs to know (Health says what to do).
  */
 export function AppFooter({
   version,
+  backendVersion,
   page
-}: { version?: string | undefined; page?: string | undefined } = {}) {
+}: {
+  version?: string | undefined;
+  backendVersion?: string | null | undefined;
+  page?: string | undefined;
+} = {}) {
+  const backendDiffers = !!version && !!backendVersion && backendVersion !== version;
   const links = [
     ...FOOTER_LINKS,
     {
@@ -20,7 +27,13 @@ export function AppFooter({
   return (
     <footer className="app-footer">
       <p className="app-footer-line">
-        <span className="app-footer-name">Vizoalica</span>
+        <span className="app-footer-name">Vizoalica{version ? ` v${version}` : ''}</span>
+        {backendDiffers && (
+          <span className="app-footer-item">
+            <span aria-hidden="true">·</span>
+            <span>backend v{backendVersion}</span>
+          </span>
+        )}
         {links.map((link) => (
           <span key={link.label} className="app-footer-item">
             <span aria-hidden="true">·</span>

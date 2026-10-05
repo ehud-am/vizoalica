@@ -4,7 +4,7 @@ const STORAGE_KEY = 'vizoalica_connect_notice';
 
 const MESSAGE: Record<string, string> = {
   administrator_secret_used:
-    'That was an administrator secret, not an access key, so you are connected as admin.',
+    'That was an admin key, not an access key, so you are connected as admin.',
   role_corrected: "You're connected, but with a different role than you chose. Your key decides it."
 };
 

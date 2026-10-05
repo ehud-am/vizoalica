@@ -389,14 +389,12 @@ async function applyCommand(
     if (update)
       return await finishUpdate(name, update.def, result, secretsFile, environmentsFile, deps);
 
-    // Register the environment; the administrator secret goes only to the private file.
+    // Register the environment; the admin key goes only to the private file.
     const adminSecret = result.secrets[SECRETS.admin.name];
     const revealed = { ...result.secrets };
     let registered = false;
     if (adminSecret) {
-      trace(
-        `Adding "${name}" to ${environmentsFile}: admin secret goes to the file, never printed`
-      );
+      trace(`Adding "${name}" to ${environmentsFile}: admin key goes to the file, never printed`);
       const def: EnvironmentDef = {
         url: result.workerUrl,
         role: 'admin',
@@ -471,7 +469,7 @@ async function applyCommand(
 
 /**
  * After --update: checks this computer's environment against the updated Worker, then hands over any secret
- * the Worker was missing and got now (only after an interrupted first deploy). A new administrator secret
+ * the Worker was missing and got now (only after an interrupted first deploy). A new admin key
  * adds the environment when this computer does not have it yet.
  */
 async function finishUpdate(
@@ -497,7 +495,7 @@ async function finishUpdate(
     }
   } else if (adminSecret)
     deps.err(
-      `The Worker had no administrator secret, so a new one was made (below). Save it on this computer with: vizoalica env update ${name} --secret-stdin\n`
+      `The Worker had no admin key, so a new one was made (below). Save it on this computer with: vizoalica env update ${name} --secret-stdin\n`
     );
   deps.out(`\nWorker: ${result.workerUrl} is now ${deps.version}.\n`);
   if (current) {
@@ -523,7 +521,7 @@ async function finishUpdate(
 
 /**
  * The generated secrets the person gets. With --secrets-file, every one not saved elsewhere goes to that
- * file as a backup. Without it, only an administrator secret that could not be saved on this computer is
+ * file as a backup. Without it, only an admin key that could not be saved on this computer is
  * shown: the Worker keeps the token and digest secrets, and `vizoalica rotate` makes a token secret to
  * hand over when a website first needs one.
  */

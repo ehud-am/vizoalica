@@ -11,7 +11,9 @@ test('shows a one-line footer on Overview and Manage', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     const footer = page.getByRole('contentinfo');
     await expect(footer).toBeVisible();
-    await expect(footer).toHaveText('Vizoalica·vizoalica.dev·GitHub·Send feedback');
+    await expect(footer).toHaveText(
+      /^Vizoalica( v\d[\w.-]*)?·vizoalica\.dev·GitHub·Send feedback$/
+    );
     await expect(footer.getByRole('link')).toHaveCount(3);
     await expect(footer.getByRole('navigation')).toHaveCount(0);
     await expect(footer).not.toContainText(/Version|©|Privacy-first/);

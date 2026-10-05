@@ -9,7 +9,7 @@ account with R2 enabled.
 1. `npm install -g vizoalica`
 2. `vizoalica env add prod`: deploys a new backend in the user's Cloudflare account (or connects to one
    that exists). Deploying needs a Cloudflare API token with Workers Scripts: Edit, D1: Edit, Workers R2
-   Storage: Edit, Account Settings: Read. It shows no secret: the administrator secret is saved in
+   Storage: Edit, Account Settings: Read. It shows no secret: the admin key is saved in
    `~/.config/vizoalica/environments.json`. OneCLI is used only with its options.
 3. `vizoalica console`: opens the console at `http://127.0.0.1:4318`.
 4. In the console, **Websites → Add website**, then follow its Install page. By default that is one
@@ -35,7 +35,7 @@ Most users have one backend; call it "your backend". Each backend on a computer 
 - `vizoalica env update <name>` / `vizoalica env remove <name>` (remove forgets it locally; nothing in
   Cloudflare is deleted).
 - A teammate's computer: install, then `vizoalica env add <name>` and choose to connect to the existing
-  backend. Owners and analysts use an access key an admin creates in the console (**Share access**, in
+  backend. Owners and analysts use an access key an admin creates in the console (**Access keys**, in
   the backend menu). See docs/operations/share.md.
 - Advanced: OneCLI can hold secrets instead of a private file (`--onecli`, `--secret-onecli`).
 

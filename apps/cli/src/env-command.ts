@@ -57,9 +57,9 @@ const USAGE = [
   'Options for add and update:',
   '  --deploy                  add: create the backend now (else asked; --url means it exists already)',
   '  --connect                 add: the backend already exists (else asked; needs --url)',
-  '  --url <https-address>     The Worker address: workers.dev or your own domain',
+  '  --url <https-address>     The backend address: workers.dev or your own domain',
   '  --role admin|owner|analyst',
-  '  --secret-stdin            Read the secret (admin secret or access key) from stdin',
+  '  --secret-stdin            Read the secret (admin key or access key) from stdin',
   '  --cloudflare-token-stdin  Admin only: read a Cloudflare API token from stdin',
   '  --cloudflare-login        With --deploy: sign in to Cloudflare in your browser instead of a token',
   '  --no-cloudflare           Remove the Cloudflare API token',
@@ -585,9 +585,9 @@ async function saveCommand(
     urlFlag ??
     current?.url ??
     (await ask.value({
-      label: 'the Worker address',
+      label: 'the backend address',
       about: `The address of the "${name}" backend's Worker: its workers.dev address, or your own domain.\nJust the address, with no path, for example https://analytics.example.com.`,
-      prompt: 'Worker address (https://…): ',
+      prompt: 'backend address (https://…): ',
       option: '--url <https-address>',
       check: urlProblem
     }));
@@ -613,7 +613,7 @@ async function saveCommand(
     )!;
 
   // The secret: stdin, OneCLI (only when an option says so), kept (update), or asked.
-  const secretName = role === 'admin' ? 'administrator secret' : 'access key';
+  const secretName = role === 'admin' ? 'admin key' : 'access key';
   let secret: EnvironmentDef['secret'] | undefined = current?.secret;
   if (has('--secret-stdin')) secret = await fromStdin(secretName);
   else if (has('--secret-onecli') || onecliChosen) secret = { onecli: await onecliRef() };
@@ -622,9 +622,9 @@ async function saveCommand(
       label: `the ${secretName}`,
       about:
         role === 'admin'
-          ? 'The administrator secret of this backend. Whoever deployed it has it in their\n~/.config/vizoalica/environments.json. Nothing is shown as you type or paste.'
+          ? 'The admin key of this backend. Whoever deployed it has it in their\n~/.config/vizoalica/environments.json. Nothing is shown as you type or paste.'
           : `The ${role} access key an administrator made for you. Nothing is shown as you type or paste.`,
-      prompt: role === 'admin' ? 'Administrator secret (hidden): ' : 'Access key (hidden): ',
+      prompt: role === 'admin' ? 'Admin key (hidden): ' : 'Access key (hidden): ',
       option: '--secret-stdin or --secret-onecli',
       secret: true,
       check: (answer) => (answer.length > 512 ? 'That is too long to be the secret.' : undefined)

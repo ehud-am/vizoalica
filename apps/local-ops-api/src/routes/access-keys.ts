@@ -46,43 +46,32 @@ export function revokeAccessKey(client: WorkerClient, id: string) {
   return workerJson(client, `/v1/admin/access-keys/${encodeURIComponent(id)}`, jsonInit('DELETE'));
 }
 
-export type SetupDetails = {
-  workerUrl: string;
-  projectId: string;
-  sourceId: string;
-  publicSourceKey: string;
-  allowedOrigins: string[];
-  readKey: string;
-  guidance: string;
-};
+/** Only the name changes; the role and access of a key are fixed when it is created. */
+export function validateRenameBody(body: unknown): { label: string } {
+  const label =
+    typeof (body as { label?: unknown } | undefined)?.label === 'string'
+      ? (body as { label: string }).label.trim()
+      : '';
+  if (!label || label.length > 64 || /[\u0000-\u001f]/.test(label))
+    throw new Error('invalid_request');
+  return { label };
+}
 
-/** Issues a key limited to one website and packages everything a website owner needs to connect. */
-export async function shareWebsite(
-  client: WorkerClient,
-  workerUrl: string,
-  projectId: string,
-  sourceId: string,
-  role: 'owner' | 'analyst'
-): Promise<SetupDetails> {
-  assertSafeIds(projectId, sourceId);
-  const source = (await workerJson(
+export function renameAccessKey(client: WorkerClient, id: string, body: { label: string }) {
+  assertSafeIds(id);
+  return workerJson(
     client,
-    `/v1/admin/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/snippet`
-  )) as { publicSourceKey: string; allowedOrigins: string[] };
-  const issued = (await issueAccessKey(client, {
-    label: `Website setup: ${sourceId}`,
-    role,
-    projectId,
-    sourceId
-  })) as IssuedAccessKey;
-  return {
-    workerUrl,
-    projectId,
-    sourceId,
-    publicSourceKey: source.publicSourceKey,
-    allowedOrigins: source.allowedOrigins,
-    readKey: issued.key,
-    guidance:
-      'Paste these details into the console when you first connect, or open the console and enter the access key and backend address by hand. Keep this file private.'
-  };
+    `/v1/admin/access-keys/${encodeURIComponent(id)}`,
+    jsonInit('PATCH', body)
+  ) as Promise<AccessKeySummary>;
+}
+
+/** A new secret for the same key: same name, role, and access. The old secret stops at once. */
+export function rotateAccessKey(client: WorkerClient, id: string) {
+  assertSafeIds(id);
+  return workerJson(
+    client,
+    `/v1/admin/access-keys/${encodeURIComponent(id)}/rotate`,
+    jsonInit('POST', {})
+  ) as Promise<IssuedAccessKey>;
 }

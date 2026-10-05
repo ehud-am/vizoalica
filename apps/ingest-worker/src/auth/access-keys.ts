@@ -40,8 +40,8 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 }
 
 /** `vzk_<id>_<secret>`. The id is public (it appears in lists); only the secret's hash is stored. */
-export async function generateAccessKey(): Promise<GeneratedAccessKey> {
-  const id = randomId();
+export async function generateAccessKey(existingId?: string): Promise<GeneratedAccessKey> {
+  const id = existingId ?? randomId();
   const secret = randomSecret();
   return { key: `vzk_${id}_${secret}`, id, secretHash: await hashSecret(secret) };
 }

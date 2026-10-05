@@ -155,9 +155,9 @@ describe('vizoalica env add: every question, or only options', () => {
     expect(t.asked).toEqual([
       'Environment name: ',
       'Deploy a new backend for "prod" now? (Y/n): ',
-      'Worker address (https://…): ',
+      'backend address (https://…): ',
       'Role (1-3, or admin, owner, analyst) [admin]: ',
-      'Administrator secret (hidden): ',
+      'Admin key (hidden): ',
       'Cloudflare API token (hidden, Enter to skip): '
     ]);
     expect(t.read().environments.prod).toEqual({
@@ -402,7 +402,7 @@ describe('vizoalica env --verbose', () => {
     await envCommand(['add'], { ...t.deps, deploy: async () => 0, trace: makeTrace(t.deps.out) });
     const text = t.text();
     expect(text).toContain('Asking: Environment name:');
-    expect(text).toContain('Asking: Administrator secret (hidden): (answer hidden)');
+    expect(text).toContain('Asking: Admin key (hidden): (answer hidden)');
     expect(text).not.toContain('answer-that-is-secret');
   });
 });

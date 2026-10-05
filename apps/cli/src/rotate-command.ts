@@ -307,12 +307,12 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
       } catch (error) {
         // The Worker already has it: hand it over rather than lose it.
         deps.err(
-          `The Worker has the new administrator secret, but "${name}" could not be updated (${(error as Error).message}).\nIt is shown below; save it, then: vizoalica env update ${name} --secret-stdin\n`
+          `The Worker has the new admin key, but "${name}" could not be updated (${(error as Error).message}).\nIt is shown below; save it, then: vizoalica env update ${name} --secret-stdin\n`
         );
       }
     }
     if (saved) {
-      deps.out(`"${name}" on this computer now has the new administrator secret.\n`);
+      deps.out(`"${name}" on this computer now has the new admin key.\n`);
       const check = await verifyEnvironment(
         name,
         { ...def, secret: adminSecret! },

@@ -75,7 +75,7 @@ three ready-made prompts: `weekly_report`, `compare_weeks`, and `page_actions`.
 - `get_website_status` probes the website's own public address (the same requests as the console's
   **Check now**); pass `check_site: false` to skip it.
 - Your AI provider receives the results you ask for, just as if you pasted them into a chat. Use an access
-  key with a narrower scope (Manage, Share access) in an environment meant for AI use if you want to limit that.
+  key with a narrower scope (Manage, Access keys) in an environment meant for AI use if you want to limit that.
 - Commands that create or show secrets (`vizoalica env add`, `deploy`, `rotate`) stay in your own terminal; the
   skill tells the assistant to hand them to you rather than run them.
 

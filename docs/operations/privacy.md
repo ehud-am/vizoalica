@@ -157,6 +157,6 @@ Operational logs and metrics must use safe reason codes and counts. They must no
 
 Owner and analyst access keys are operator credentials, not visitor data, but they govern who can
 reach visitor aggregates. Each key is valid only for the one backend environment it was issued from;
-neither role can ever reveal the administrator secret, the website's signing secret, another key, or
+neither role can ever reveal the admin key, the website's signing secret, another key, or
 a raw credential hash. See the [access keys review](../privacy/access-keys-review.md) for the full
 decision record.

@@ -19,13 +19,17 @@ export type StubOptions = {
 /** Stubs `fetch` as a Worker, so the local service can be exercised end to end without a network. */
 export function stubWorker(options: StubOptions = {}) {
   const role = options.role ?? 'admin';
-  const requests: Array<{ path: string; authorization: string | null }> = [];
+  const requests: Array<{ path: string; authorization: string | null; body?: unknown }> = [];
   const json = (body: unknown, status = 200) => Response.json(body, { status });
   const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
     const url = new URL(String(input));
     const headers = new Headers(init?.headers);
     const authorization = headers.get('authorization');
-    requests.push({ path: url.pathname, authorization });
+    requests.push({
+      path: url.pathname,
+      authorization,
+      ...(typeof init?.body === 'string' ? { body: init.body } : {})
+    });
     if (options.fail === 'network') throw new TypeError('offline');
     if (typeof options.fail === 'number') return json({ error: 'failed' }, options.fail);
     if (options.accept && !options.accept.includes((authorization ?? '').replace('Bearer ', '')))
@@ -63,13 +67,20 @@ export function stubWorker(options: StubOptions = {}) {
         : json({ totals: { pageViews: options.pageViews ?? 0, uniqueUsers: 0 } });
     if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/snippet$/.test(path))
       return json({ publicSourceKey: 'public-key', allowedOrigins: ['https://example.test'] });
-    if (path === '/v1/admin/access-keys' || /^\/v1\/admin\/access-keys\/[^/]+$/.test(path)) {
+    if (
+      path === '/v1/admin/access-keys' ||
+      /^\/v1\/admin\/access-keys\/[^/]+(\/rotate)?$/.test(path)
+    ) {
       if (role !== 'admin') return json({ error: 'forbidden' }, 403);
       const method = init?.method ?? 'GET';
       if (method === 'GET') return json([]);
+      if (method === 'POST' && path.endsWith('/rotate'))
+        return json({ id: 'k1', label: 'x', role: 'analyst', scope: {}, key: 'vzk_rotated' });
       if (method === 'POST')
         return json({ id: 'k1', label: 'x', role: 'analyst', scope: {}, key: 'vzk_test' }, 201);
       if (method === 'DELETE') return json({ status: 'revoked' });
+      if (method === 'PATCH')
+        return json({ id: 'k1', label: 'Renamed', role: 'analyst', scope: {} });
     }
     return json({ error: 'not_found' }, 404);
   });

@@ -30,7 +30,7 @@ bucket, writes the deployment configuration (kept, `0600`, under `~/.config/vizo
 tables from the packaged migrations, deploys the packaged Worker, generates and stores three secrets, checks the
 Worker's `/healthz`, and adds `prod` to `environments.json` as an `admin` environment, verified.
 
-**Secrets.** Nothing is shown and there is nothing to copy. The administrator secret goes straight into
+**Secrets.** Nothing is shown and there is nothing to copy. The admin key goes straight into
 `environments.json` and is never printed. The Worker's other two secrets stay on the Worker:
 `VIZOALICA_ANALYTICS_DIGEST_SECRET` is used only by the Worker, and `VIZOALICA_TOKEN_SECRET` is needed only by
 websites that [require signed tokens](pages.md#signed-tokens-optional). When the first such website needs it, get
@@ -73,7 +73,7 @@ says when a backend needs this: its Health page shows the Worker and schema vers
 It takes the same credential and account options as `--apply` (`--resume` does not apply), and uses the
 Cloudflare token saved with the environment (`--save-cloudflare`) when there is one, and the account the
 backend was deployed in. On this computer the environment must be `admin`; if this computer does not have it
-yet, a new administrator secret (only when the Worker was missing one) adds it.
+yet, a new admin key (only when the Worker was missing one) adds it.
 
 ## Replace a secret: `vizoalica rotate`
 

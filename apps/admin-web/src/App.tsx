@@ -53,7 +53,7 @@ import { SetupProvider, useSetup } from './setup/SetupProvider.js';
 import { useTheme } from './theme.js';
 
 /** Only the admin may use this screen; anyone else is sent home with a notice. */
-function AccessGate() {
+function AccessGate({ websiteId }: { websiteId?: string }) {
   const { state } = useSetup();
   if (state && state.principal?.role !== 'admin') {
     useEffect(() => {
@@ -65,7 +65,7 @@ function AccessGate() {
       </p>
     );
   }
-  return <AccessPage />;
+  return <AccessPage websiteId={websiteId} />;
 }
 
 function AnalyticsRoute({ route }: { route: Route }) {
@@ -103,6 +103,8 @@ function ManageRoute({ route }: { route: Route }) {
     case 'manage/backend':
       // The backend's versions are the first section of Health; the old address still works.
       return <HealthPage />;
+    case 'manage/websites/:id/access':
+      return <AccessGate websiteId={websiteId} />;
     case 'manage/access':
       return <AccessGate />;
     default:
@@ -155,7 +157,11 @@ function Console({ route }: { route: Route }) {
               <ManageRoute route={route} />
             )}
           </main>
-          <AppFooter version={state?.version} page={route.path} />
+          <AppFooter
+            version={state?.version}
+            backendVersion={state?.backend?.workerVersion}
+            page={route.path}
+          />
         </div>
       </div>
     </FlashProvider>

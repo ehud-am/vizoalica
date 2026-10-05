@@ -13,6 +13,18 @@ All notable changes to Vizoalica are documented in this file.
 - **`vizoalica deploy --update --all`** updates every environment you administer on this computer, with the
   Cloudflare credential settled once, and stops at the first failure.
 - A note before the first Cloudflare call that npm is downloading Wrangler.
+- **Access keys page for each website.** A website's page has an **Access keys** card with a **Manage access keys**
+  button, like Install. It opens a full page listing keys by name and role (admin, website owner, analyst), with
+  Create, Rename, Rotate, and Delete. The built-in Admin key is listed and cannot be deleted there. Key values are
+  never shown after creation. Backend: `PATCH /v1/admin/access-keys/:id` (rename) and
+  `POST /v1/admin/access-keys/:id/rotate`; no schema change.
+- **The console footer shows the Vizoalica version** (`Vizoalica v0.9.0`), and the backend version when it differs (#42).
+
+### Changed
+
+- **Share setup is gone** from the website page; the Access keys page replaces it.
+- **One vocabulary** in the console, CLI, README, and docs: project ID, website ID, website key, ingestion
+  endpoint, backend address, token endpoint, admin key, access key.
 
 ### Fixed
 

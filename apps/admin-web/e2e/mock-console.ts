@@ -323,16 +323,27 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       });
     if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'DELETE')
       return route.fulfill({ json: { status: 'revoked' } });
-    if (path.endsWith('/share') && request.method() === 'POST')
+    if (/^\/api\/access-keys\/[^/]+\/rotate$/.test(path) && request.method() === 'POST')
       return route.fulfill({
         json: {
-          workerUrl: 'https://worker.test',
-          projectId: project.id,
-          sourceId: website.id,
-          publicSourceKey: website.publicSourceKey,
-          allowedOrigins: website.allowedOrigins,
-          readKey: 'vzk_test_key',
-          guidance: 'Paste these details into the console.'
+          id: 'k1',
+          label: 'Test key',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null,
+          key: 'vzk_test_key_rotated'
+        }
+      });
+    if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'PATCH')
+      return route.fulfill({
+        json: {
+          id: 'k1',
+          label: 'Renamed',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null
         }
       });
     if (path === '/api/backend' && request.method() === 'GET')

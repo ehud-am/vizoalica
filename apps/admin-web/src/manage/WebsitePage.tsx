@@ -21,7 +21,6 @@ import { FlashMessage, useFlash } from '../shell/FlashProvider.js';
 import { useSetup } from '../setup/SetupProvider.js';
 import { presetToRange } from '../time-range.js';
 import { DangerZone } from './DangerZone.js';
-import { SharePanel } from './SharePanel.js';
 import { nextStep } from './HealthPage.js';
 import { WebsiteGate } from './WebsiteGate.js';
 
@@ -240,7 +239,19 @@ function WebsiteHub({ website }: { website: Website }) {
       </div>
 
       {setup.state?.principal?.role === 'admin' && (
-        <SharePanel projectId={projectId} websiteId={website.id} />
+        <section className="detail-card" aria-labelledby="website-access-heading">
+          <h2 id="website-access-heading">Access keys</h2>
+          <p className="hint">
+            Let a website owner, an analyst, or a pipeline use this website without your admin key.
+            Create, rename, rotate, or delete keys.
+          </p>
+          <a
+            className="secondary button-link"
+            href={hrefFor('manage/websites/:id/access', website.id)}
+          >
+            Manage access keys
+          </a>
+        </section>
       )}
 
       <DangerZone

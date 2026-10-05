@@ -146,6 +146,130 @@ describe('revoking a key', () => {
   });
 });
 
+const asKey = (env: Env, key: string, path: string, init: RequestInit = {}) =>
+  worker.fetch(
+    new Request(`https://worker.test${path}`, {
+      ...init,
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }
+    }),
+    env
+  );
+
+describe('renaming a key', () => {
+  it('changes only the name, and the key keeps working', async () => {
+    const { env } = environment();
+    const created = await call(env, '/v1/admin/access-keys', {
+      method: 'POST',
+      body: { label: 'Jane', role: 'owner', projectId: 'p1' }
+    });
+    const { id, key } = (await created.json()) as { id: string; key: string };
+    const renamed = await call(env, `/v1/admin/access-keys/${id}`, {
+      method: 'PATCH',
+      body: { label: '  Jane, owner  ' }
+    });
+    expect(renamed.status).toBe(200);
+    expect(await renamed.json()).toMatchObject({
+      id,
+      label: 'Jane, owner',
+      role: 'owner',
+      scope: { projectId: 'p1', sourceId: null }
+    });
+    expect((await asKey(env, key, '/v1/admin/projects')).status).toBe(200);
+  });
+
+  it('rejects a bad name, and an unknown or deleted key', async () => {
+    const { env } = environment();
+    const created = await call(env, '/v1/admin/access-keys', {
+      method: 'POST',
+      body: { label: 'x', role: 'analyst' }
+    });
+    const { id } = (await created.json()) as { id: string };
+    for (const label of ['', '   ', 'x'.repeat(65), 'bad\x01char', 5])
+      expect(
+        (await call(env, `/v1/admin/access-keys/${id}`, { method: 'PATCH', body: { label } }))
+          .status
+      ).toBe(400);
+    expect(
+      (await call(env, '/v1/admin/access-keys/nope', { method: 'PATCH', body: { label: 'y' } }))
+        .status
+    ).toBe(404);
+    await call(env, `/v1/admin/access-keys/${id}`, { method: 'DELETE' });
+    expect(
+      (await call(env, `/v1/admin/access-keys/${id}`, { method: 'PATCH', body: { label: 'y' } }))
+        .status
+    ).toBe(404);
+  });
+});
+
+describe('rotating a key', () => {
+  it('replaces the secret at once, keeping the id, name, role, and access', async () => {
+    const { env } = environment();
+    const created = await call(env, '/v1/admin/access-keys', {
+      method: 'POST',
+      body: { label: 'CI', role: 'owner', projectId: 'p1', sourceId: 's1' }
+    });
+    const first = (await created.json()) as { id: string; key: string };
+    const rotated = await call(env, `/v1/admin/access-keys/${first.id}/rotate`, {
+      method: 'POST'
+    });
+    expect(rotated.status).toBe(200);
+    const next = (await rotated.json()) as Record<string, unknown> & { key: string };
+    expect(next).toMatchObject({
+      id: first.id,
+      label: 'CI',
+      role: 'owner',
+      scope: { projectId: 'p1', sourceId: 's1' },
+      revokedAt: null
+    });
+    expect(next.key).toMatch(new RegExp(`^vzk_${first.id}_`));
+    expect(next.key).not.toBe(first.key);
+    expect(JSON.stringify(next)).not.toMatch(/secretHash|secret_hash/);
+    expect((await asKey(env, first.key, '/v1/admin/projects')).status).toBe(401);
+    expect((await asKey(env, next.key, '/v1/admin/projects')).status).toBe(200);
+    const list = (await (await call(env, '/v1/admin/access-keys')).json()) as Array<
+      Record<string, unknown>
+    >;
+    expect(list).toHaveLength(1);
+    expect(list[0]!.key).toBeUndefined();
+  });
+
+  it('answers 404 for an unknown or deleted key', async () => {
+    const { env } = environment();
+    expect((await call(env, '/v1/admin/access-keys/nope/rotate', { method: 'POST' })).status).toBe(
+      404
+    );
+    const created = await call(env, '/v1/admin/access-keys', {
+      method: 'POST',
+      body: { label: 'x', role: 'analyst' }
+    });
+    const { id } = (await created.json()) as { id: string };
+    await call(env, `/v1/admin/access-keys/${id}`, { method: 'DELETE' });
+    expect((await call(env, `/v1/admin/access-keys/${id}/rotate`, { method: 'POST' })).status).toBe(
+      404
+    );
+  });
+
+  it('is for the admin only: a key cannot rotate or rename itself or another', async () => {
+    const { env } = environment();
+    const created = await call(env, '/v1/admin/access-keys', {
+      method: 'POST',
+      body: { label: 'owner', role: 'owner' }
+    });
+    const { id, key } = (await created.json()) as { id: string; key: string };
+    expect(
+      (await asKey(env, key, `/v1/admin/access-keys/${id}/rotate`, { method: 'POST' })).status
+    ).toBe(403);
+    expect(
+      (
+        await asKey(env, key, `/v1/admin/access-keys/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ label: 'mine' })
+        })
+      ).status
+    ).toBe(403);
+  });
+});
+
 describe('deleting a project removes its keys', () => {
   it('purges keys scoped to a deleted project once purge runs', async () => {
     const { env } = environment();
