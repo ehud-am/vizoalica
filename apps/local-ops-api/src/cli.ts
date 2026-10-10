@@ -15,7 +15,9 @@ async function main(): Promise<void> {
     }
   })();
   const { server, settings } = createService({
-    ...(existsSync(join(packaged, 'schema')) ? { schemaDir: join(packaged, 'schema') } : {}),
+    // The checkout's own migrations, never a packaged copy: a leftover package build from an older
+    // release would report an older schema and mark every up-to-date backend as incompatible.
+    schemaDir: fileURLToPath(new URL('../../../deploy/cloudflare/migrations', import.meta.url)),
     // The SDK files the console offers for download.
     ...(existsSync(join(packaged, 'sdk')) ? { sdkDir: join(packaged, 'sdk') } : {}),
     ...(version ? { version } : {})
