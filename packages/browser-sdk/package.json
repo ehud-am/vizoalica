@@ -1,0 +1,20 @@
+{
+  "name": "@vizoalica/browser-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vizoalica/event-contracts": "workspace:*",
+    "@vizoalica/privacy": "workspace:*"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./embed": "./dist/embed.js",
+    "./dynamic-config": "./dist/dynamic-config.js"
+  }
+}

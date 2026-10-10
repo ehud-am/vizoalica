@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vizoalica MCP demo</title>
+    <!--
+      A terminal replay of Claude Code answering analytics questions through the Vizoalica MCP server,
+      drawn from transcript.js (the recorded answers, word for word). It is drawn from a clock, so
+      window.renderAt(seconds) always gives the same frame: render-mcp-demo.ts captures it frame by
+      frame, and opening this file in a browser plays it live. ?still=<n> draws question n finished,
+      for a still image. Everything shown is fictional demo data.
+    -->
+    <style>
+      :root {
+        --bg: #0e1015;
+        --bar: #171a21;
+        --ink: #e7e9ee;
+        --dim: #8b93a3;
+        --faint: #5b6272;
+        --accent: #d97757;
+        --ok: #4fc27f;
+        --code: #7cc4ff;
+        --prompt-bg: #1d212a;
+        --line: #2a2f3a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+      }
+      #stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        color: var(--ink);
+        background: var(--bg);
+        font-family:
+          'DejaVu Sans Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+          monospace;
+        font-size: 17px;
+        line-height: 1.55;
+        display: flex;
+        flex-direction: column;
+      }
+      #bar {
+        flex: none;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 20px;
+        background: var(--bar);
+        border-bottom: 1px solid var(--line);
+        color: var(--dim);
+        font-size: 14px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #3a3f4b;
+      }
+      #title {
+        margin-left: 14px;
+      }
+      #badge {
+        margin-left: auto;
+        padding: 3px 12px;
+        border: 1px solid #b8860b;
+        border-radius: 999px;
+        color: #ffd27a;
+        background: rgb(255 196 0 / 10%);
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      }
+      #screen {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
+      }
+      #log {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        padding: 22px 40px 12px;
+      }
+      #input {
+        flex: none;
+        margin: 0 28px 10px;
+        padding: 10px 14px;
+        border: 1px solid #3a4050;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        min-height: 48px;
+      }
+      #hint {
+        flex: none;
+        margin: 0 32px 14px;
+        color: var(--faint);
+        font-size: 13px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .q {
+        margin: 6px 0 14px;
+        padding: 6px 12px;
+        background: var(--prompt-bg);
+        border-left: 3px solid var(--faint);
+        white-space: pre-wrap;
+      }
+      .gt {
+        color: var(--dim);
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        margin: 2px 0;
+      }
+      .mark {
+        flex: none;
+        width: 14px;
+      }
+      .mark.ok {
+        color: var(--ok);
+      }
+      .mark.wait {
+        color: var(--dim);
+      }
+      .mark.say {
+        color: var(--ink);
+      }
+      .tool b {
+        font-weight: 700;
+      }
+      .args {
+        color: var(--dim);
+      }
+      .gist {
+        color: var(--dim);
+        margin: 0 0 6px 26px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .spin {
+        color: var(--accent);
+        margin: 4px 0;
+      }
+      .answer {
+        margin: 10px 0 18px;
+      }
+      .answer .text {
+        white-space: pre-wrap;
+      }
+      .answer strong {
+        color: #fff;
+      }
+      .answer code {
+        color: var(--code);
+        font-family: inherit;
+      }
+      .caret {
+        display: inline-block;
+        width: 0.55em;
+        height: 1.1em;
+        vertical-align: -0.2em;
+        background: var(--ink);
+      }
+      #outro {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 26px;
+        background: rgb(8 10 14 / 97%);
+        opacity: 0;
+        font-size: 24px;
+        color: var(--dim);
+      }
+      #outro img {
+        width: 440px;
+      }
+      #outro .big {
+        color: var(--ink);
+        font-size: 34px;
+        font-weight: 600;
+      }
+      body.still #stage {
+        width: 1200px;
+        height: auto;
+      }
+      body.still #screen {
+        overflow: visible;
+      }
+      body.still #log {
+        position: static;
+      }
+      body.still #input,
+      body.still #hint,
+      body.still #outro {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span id="title">claude &nbsp;~/paperkite &nbsp;·&nbsp; MCP: vizoalica</span>
+        <span id="badge">Demo data · fictional</span>
+      </div>
+      <div id="screen"><div id="log"></div></div>
+      <div id="input"></div>
+      <div id="hint"><span>? for shortcuts</span><span>vizoalica.dev</span></div>
+      <div id="outro">
+        <img alt="" src="../../../apps/admin-web/public/brand/vizoalica-lockup-dark.svg" />
+        <div class="big">Ask your analytics in plain language.</div>
+        <div>vizoalica mcp &nbsp;·&nbsp; vizoalica.dev</div>
+      </div>
+    </div>
+    <script src="./transcript.js"></script>
+    <script>
+      const TURNS = window.TRANSCRIPT;
+      const TYPE_CPS = 22; // the question, typed by a person
+      const ANSWER_CPS = 120; // the answer, streamed
+      const STEP_SECONDS = 0.6;
+      const PENDING_SECONDS = 0.4;
+      const START = 0.6;
+
+      const $ = (id) => document.getElementById(id);
+      const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
+      const esc = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const SPINNER = ['✻', '✳', '✢', '·', '✢', '✳'];
+
+      // Typing has a slight, repeatable rhythm: some keystrokes take a little longer.
+      function typed(text, elapsed) {
+        let count = 0;
+        let clock = 0;
+        while (count < text.length) {
+          clock += (1 + ((count * 7) % 5) * 0.09) / TYPE_CPS;
+          if (clock > elapsed) break;
+          count += 1;
+        }
+        return count;
+      }
+      const typingTime = (text) => {
+        let clock = 0;
+        for (let i = 0; i < text.length; i += 1) clock += (1 + ((i * 7) % 5) * 0.09) / TYPE_CPS;
+        return clock;
+      };
+
+      /** The answer as styled runs of plain text, so it can be revealed a character at a time. */
+      function runs(markdown) {
+        const out = [];
+        const lines = markdown.split('\n');
+        lines.forEach((line, index) => {
+          let text = line.replace(/^- /, '• ');
+          const pattern = /\*\*(.+?)\*\*|`([^`]+)`/g;
+          let last = 0;
+          let match;
+          while ((match = pattern.exec(text))) {
+            if (match.index > last) out.push({ style: '', text: text.slice(last, match.index) });
+            out.push(
+              match[1] ? { style: 'strong', text: match[1] } : { style: 'code', text: match[2] }
+            );
+            last = match.index + match[0].length;
+          }
+          if (last < text.length) out.push({ style: '', text: text.slice(last) });
+          if (index < lines.length - 1) out.push({ style: '', text: '\n' });
+        });
+        return out;
+      }
+      function reveal(parts, count) {
+        let html = '';
+        for (const part of parts) {
+          if (count <= 0) break;
+          const shown = esc(part.text.slice(0, count));
+          count -= part.text.length;
+          html += part.style ? `<${part.style}>${shown}</${part.style}>` : shown;
+        }
+        return html;
+      }
+
+      // The timeline: when each question is typed and sent, each tool runs, the answer streams.
+      let clock = START;
+      const PLAN = TURNS.map((turn, index) => {
+        const typeAt = clock + 0.3;
+        const sentAt = typeAt + typingTime(turn.question) + 0.45;
+        const stepsAt = sentAt + 0.7;
+        const answerAt = stepsAt + turn.steps.length * STEP_SECONDS + 0.3;
+        const parts = runs(turn.answer.trim());
+        const length = parts.reduce((all, part) => all + part.text.length, 0);
+        const doneAt = answerAt + length / ANSWER_CPS;
+        clock = doneAt + (index === TURNS.length - 1 ? 4.5 : 4);
+        return { turn, typeAt, sentAt, stepsAt, answerAt, doneAt, parts, length };
+      });
+      const OUTRO = clock;
+      window.VIDEO_DURATION = OUTRO + 2.6;
+      window.POSTER_AT = PLAN[PLAN.length - 1].doneAt + 1;
+
+      function turnHtml(plan, t) {
+        if (t < plan.sentAt) return '';
+        let html = `<div class="q"><span class="gt">&gt; </span>${esc(plan.turn.question)}</div>`;
+        plan.turn.steps.forEach((step, index) => {
+          const at = plan.stepsAt + index * STEP_SECONDS;
+          if (t < at) return;
+          const done = t >= at + PENDING_SECONDS;
+          const name =
+            step.tool === 'skill'
+              ? `<b>Skill</b> · ${esc(step.args)}`
+              : `<b>vizoalica · ${esc(step.tool)}</b>`;
+          const args =
+            step.tool === 'skill' || !step.args
+              ? ''
+              : ` <span class="args">(${esc(step.args)})</span>`;
+          const mark = done
+            ? '<span class="mark ok">⏺</span>'
+            : `<span class="mark wait" style="opacity:${Math.floor(t * 6) % 2 ? 0.35 : 1}">⏺</span>`;
+          html += `<div class="row tool">${mark}<span>${name}${args}</span></div>`;
+          if (done && step.gist) html += `<div class="gist">⎿&nbsp; ${esc(step.gist)}</div>`;
+        });
+        if (t < plan.answerAt) {
+          const frame = SPINNER[Math.floor(t * 8) % SPINNER.length];
+          html += `<div class="spin">${frame} Reading your analytics…</div>`;
+          return html;
+        }
+        const count = Math.floor((t - plan.answerAt) * ANSWER_CPS);
+        const streaming = count < plan.length;
+        html += `<div class="row answer"><span class="mark say">⏺</span><span class="text">${reveal(plan.parts, count)}${streaming ? '<span class="caret"></span>' : ''}</span></div>`;
+        return html;
+      }
+
+      window.renderAt = function renderAt(t) {
+        const log = $('log');
+        log.innerHTML = PLAN.map((plan) => turnHtml(plan, t)).join('');
+        // Like a terminal, the newest line stays in view.
+        const room = $('screen').clientHeight;
+        log.style.transform = `translateY(${-Math.max(0, log.offsetHeight - room)}px)`;
+
+        const typing = PLAN.find((plan) => t >= plan.typeAt - 0.3 && t < plan.sentAt);
+        const busy = PLAN.some((plan) => t >= plan.sentAt && t < plan.doneAt);
+        const caret = Math.floor(t * 2.4) % 2 === 0 || typing ? '<span class="caret"></span>' : '';
+        $('input').innerHTML = typing
+          ? `<span class="gt">&gt; </span>${esc(typing.turn.question.slice(0, typed(typing.turn.question, t - typing.typeAt)))}<span class="caret"></span>`
+          : `<span class="gt">&gt; </span>${busy ? '' : caret}`;
+
+        const outro = clamp((t - OUTRO) / 0.6);
+        $('outro').style.opacity = outro;
+      };
+
+      const still = new URLSearchParams(location.search).get('still');
+      if (still !== null) {
+        document.body.classList.add('still');
+        const plan = PLAN[Number(still)];
+        $('log').innerHTML = turnHtml(plan, plan.doneAt + 1);
+      } else {
+        window.renderAt(0);
+        // Opened directly in a browser (not by the renderer), play it live and loop.
+        if (!location.search.includes('render')) {
+          const begin = performance.now();
+          const tick = (now) => {
+            window.renderAt(((now - begin) / 1000) % (window.VIDEO_DURATION + 1));
+            requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }
+      }
+    </script>
+  </body>
+</html>

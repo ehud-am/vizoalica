@@ -1,0 +1,152 @@
+name: Docs site
+
+# Builds and checks the documentation site (docs/) on every change to it, and publishes it to
+# Cloudflare Pages (vizoalica.dev) from the main branch once the one-time setup in
+# docs/operations/docs-site.md has been done. Until then the publish job is skipped, not failed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'llms.txt'
+      - 'apps/admin-web/public/brand/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/docs-site.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'llms.txt'
+      - 'apps/admin-web/public/brand/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/docs-site.yml'
+  workflow_dispatch:
+
+# The build needs to read the repository and nothing else. The publish job adds nothing to this: it
+# authenticates to Cloudflare with its own token, not with the workflow's GitHub token.
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-site-${{ github.ref }}
+  # A newer pull request run replaces an older one, but a publish in progress is never cut short.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and check the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      - name: Install the site's locked dependencies
+        run: pnpm install --frozen-lockfile --filter @vizoalica/docs
+
+      # A placeholder endpoint turns the analytics control and the extra Content-Security-Policy entry
+      # on, so the checks below cover them. Nothing is sent anywhere: this build has no loader, so the
+      # page's request for it fails (the tests that need the loader stub it).
+      - name: Build the site
+        env:
+          VIZOALICA_INGEST_ENDPOINT: https://ingest.example.test/v1/events:batch
+        run: pnpm docs:build
+
+      - name: Install Chromium
+        run: pnpm --filter @vizoalica/docs exec playwright install --with-deps chromium
+
+      - name: Check the built site (accessibility, headers, no third-party requests, search)
+        run: pnpm docs:test
+
+      - name: Say whether publishing is set up
+        if: github.event_name != 'pull_request'
+        env:
+          PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
+        run: |
+          if [ -z "$PAGES_PROJECT" ]; then
+            echo "::notice title=Docs not published::The site built and passed its checks, but publishing is not set up. Follow docs/operations/docs-site.md."
+          fi
+
+  publish:
+    name: Publish to Cloudflare Pages
+    needs: build
+    # Only from the main branch of this repository, never for a pull request (so never for a fork),
+    # and only once the maintainer has named the Pages project.
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      vars.VIZOALICA_DOCS_PAGES_PROJECT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A named environment lets the maintainer require approval or restrict the branch (see the guide).
+    environment: docs-production
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Enable the pinned package manager
+        run: corepack enable
+
+      # The repository's own locked Wrangler is used, so no unpinned tool touches the token.
+      - name: Install the locked dependencies
+        run: pnpm install --frozen-lockfile --filter . --filter @vizoalica/docs
+
+      # Built again here, from this exact commit, rather than passed between jobs. The endpoint is
+      # public; when it is not set the site is built and published without analytics.
+      - name: Build the site
+        env:
+          VIZOALICA_INGEST_ENDPOINT: ${{ secrets.VIZOALICA_INGEST_ENDPOINT }}
+        run: pnpm docs:build
+
+      - name: Build the browser SDK
+        run: pnpm browser-sdk:build
+
+      # Adds the SDK, the loader, the token Functions and the public settings. Only public values. The
+      # SDK path, token path and consent state are defaulted (see docs/scripts/prepare-analytics.mjs).
+      - name: Add Vizoalica analytics
+        env:
+          PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
+          VIZOALICA_INGEST_ENDPOINT: ${{ secrets.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_PROJECT_ID: ${{ secrets.VIZOALICA_PROJECT_ID }}
+          VIZOALICA_SOURCE_ID: ${{ secrets.VIZOALICA_SOURCE_ID }}
+          VIZOALICA_SITE_ORIGINS: ${{ vars.VIZOALICA_SITE_ORIGINS }}
+        run: node docs/scripts/prepare-analytics.mjs
+
+      # The Cloudflare token exists only in this step's environment, and so does the signing secret,
+      # which is set on the Pages project (the same value as the Worker's) and never written to a file.
+      - name: Publish
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_DOCS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          PAGES_PROJECT: ${{ vars.VIZOALICA_DOCS_PAGES_PROJECT }}
+          VIZOALICA_INGEST_ENDPOINT: ${{ secrets.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VIZOALICA_INGEST_ENDPOINT" ]; then
+            if [ "${#VIZOALICA_TOKEN_SECRET}" -lt 32 ]; then
+              echo "::error::VIZOALICA_TOKEN_SECRET must be set, at least 32 characters"
+              exit 1
+            fi
+            printf '%s' "$VIZOALICA_TOKEN_SECRET" | pnpm exec wrangler pages secret put \
+              VIZOALICA_TOKEN_SECRET --project-name "$PAGES_PROJECT" --cwd docs
+          fi
+          pnpm exec wrangler pages deploy .vitepress/dist --cwd docs \
+            --project-name "$PAGES_PROJECT" --branch main \
+            --commit-hash "$GITHUB_SHA" --commit-message "docs: publish $GITHUB_SHA"

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vizoalica/admin-web", "dev"],
+      "port": 5173
+    }
+  ]
+}

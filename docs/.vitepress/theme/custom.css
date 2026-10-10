@@ -1,0 +1,164 @@
+/*
+ * Brand colors for the default theme. Every pair used for text is at least 4.5:1: the light
+ * brand blue on white is 5.7:1, and the dark theme's lighter blue on its surface is well above.
+ */
+:root {
+  --vp-c-brand-1: #0866c1;
+  --vp-c-brand-2: #075cae;
+  --vp-c-brand-3: #0866c1;
+  --vp-c-brand-soft: rgb(8 102 193 / 14%);
+  --vp-button-brand-bg: #0866c1;
+  --vp-button-brand-hover-bg: #075cae;
+  --vp-button-brand-active-bg: #064f96;
+  --vp-button-brand-text: #fff;
+  --vp-home-hero-name-color: #0866c1;
+  /* The default muted grey is 2.9:1 on the soft background; this is 5:1. */
+  --vp-c-text-3: #6a6a70;
+}
+.dark {
+  --vp-c-brand-1: #62b3ff;
+  --vp-c-brand-2: #8bc7ff;
+  --vp-c-brand-3: #319cff;
+  --vp-c-brand-soft: rgb(98 179 255 / 16%);
+  --vp-button-brand-bg: #319cff;
+  --vp-button-brand-hover-bg: #62b3ff;
+  --vp-button-brand-active-bg: #8bc7ff;
+  --vp-button-brand-text: #07101b;
+  --vp-home-hero-name-color: #62b3ff;
+  --vp-c-text-3: rgb(235 235 245 / 62%);
+}
+
+.VPNavBarTitle .logo {
+  height: 30px;
+}
+
+/* The intro video and the tour images sit in the page column, at the reading width. */
+.intro-video {
+  margin: 24px 0 8px;
+}
+.intro-video video {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  background: #0d1118;
+  aspect-ratio: 16 / 9;
+}
+.intro-video figcaption {
+  margin-top: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.intro-video summary {
+  cursor: pointer;
+}
+.vp-doc figure img,
+.vp-doc .tour-shot img {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+}
+.tour-shot {
+  margin: 28px 0 40px;
+}
+.tour-shot figcaption {
+  margin-top: 10px;
+  color: var(--vp-c-text-2);
+  font-size: 15px;
+}
+.promo-note {
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.hero-after {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 24px 16px;
+}
+@media (min-width: 640px) {
+  .hero-after {
+    padding: 0 48px 16px;
+  }
+}
+@media (min-width: 960px) {
+  .hero-after {
+    padding: 0 64px 16px;
+  }
+}
+.hero-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin: 8px 0 32px;
+}
+.hero-shots figure {
+  margin: 0;
+}
+.hero-shots img {
+  width: 100%;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+}
+.hero-shots figcaption {
+  margin-top: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.fit-box {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 20px 0 8px;
+  padding: 18px 20px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.fit-box .fit-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.fit-box li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+.fit-box ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+.promo-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.promo-steps > div {
+  padding: 18px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.promo-steps strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
+/* Inline code inside tip, info, and warning boxes: the default brand-coloured text on the box's tint
+   falls below 4.5:1 (axe color-contrast), so it uses the body text colour, which passes in both themes. */
+.vp-doc .custom-block.info code,
+.vp-doc .custom-block.note code,
+.vp-doc .custom-block.tip code,
+.vp-doc .custom-block.warning code,
+.vp-doc .custom-block.danger code {
+  color: var(--vp-c-text-1);
+}

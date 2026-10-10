@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "provider": "onecli",
+  "environment": "production",
+  "wranglerConfigPath": "deploy/cloudflare/wrangler.production.toml",
+  "cloudflare": { "accountId": "00000000000000000000000000000000" },
+  "onecli": {
+    "project": "your-project",
+    "agentId": "your-agent-id",
+    "agentIdentifier": "your-deployment-agent",
+    "connectionId": "your-cloudflare-connection-id"
+  },
+  "auditRetentionDays": 90
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/v0.1.0/event-data-custom-event.schema.json",
+  "title": "Custom Event Data",
+  "type": "object",
+  "required": ["name", "visitor", "session"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$"
+    },
+    "properties": {
+      "type": "object",
+      "maxProperties": 25,
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean", "null"],
+        "maxLength": 256
+      }
+    },
+    "visitor": {
+      "type": "object",
+      "required": ["anonymous_id"],
+      "properties": {
+        "anonymous_id": { "type": "string", "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

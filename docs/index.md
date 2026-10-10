@@ -1,0 +1,78 @@
+---
+layout: home
+title: 'Vizoalica — web analytics your AI assistant can read'
+titleTemplate: false
+description: 'Ask Claude, Cursor, or Codex how your website is doing, and it answers from your own data. Open-source, cookieless web analytics that runs in your own Cloudflare account, installed with one script tag.'
+hero:
+  name: Vizoalica
+  text: Web analytics your AI assistant can read
+  tagline: Ask Claude, Cursor, or Codex how your site is doing, and it answers from your own data. Open source, cookieless, and running in your own Cloudflare account.
+  image:
+    src: /brand/vizoalica-mark.svg
+    alt: ''
+  actions:
+    - theme: brand
+      text: Get started
+      link: /get-started
+    - theme: alt
+      text: Take the tour
+      link: /tour
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/ehud-am/vizoalica
+features:
+  - title: Ask your AI assistant
+    details: A local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor. One command, <code>vizoalica mcp install</code>, sets it up, and every answer names the environment it came from. <a href="/operations/ai">How it works</a>.
+  - title: Your data, your account
+    details: Vizoalica runs on Cloudflare Workers, D1, and R2 in your own account. There is no hosted service between you and your visitors’ data.
+  - title: One script tag, no cookies
+    details: Add one tag to any site, including GitHub Pages, Netlify, and WordPress. Nothing is stored in visitors’ browsers, and unique visitors are counted with an identifier that changes every day. It never collects form values, page text, or session replay.
+  - title: A few commands to install
+    details: <code>npm install -g vizoalica</code>, then <code>vizoalica env add prod</code> deploys the backend to your Cloudflare account, explaining each question, and <code>vizoalica console</code> opens the console.
+  - title: A console that stays local
+    details: The console runs on demand on your computer. Its browser never holds a remote credential, and there is a clear line between viewing analytics and managing setup.
+  - title: Open standards
+    details: CloudEvents batches, JSON Schema validation, the Model Context Protocol, and optional short-lived signed (JWT/JOSE) ingest tokens, under the MIT license.
+  - title: Made to be read by people and agents
+    details: Plain Markdown guides and an <a href="/llms.txt">llms.txt</a>, so coding agents can help you set it up.
+---
+
+## See it answer
+
+<McpDemoVideo />
+
+## Set it up in three parts
+
+A Vizoalica installation has three parts. Set them up in this order, because each one needs something the previous one produces.
+
+<div class="promo-steps">
+  <div><strong>1. Backend</strong>A Cloudflare Worker, database, and storage in your account that receive, filter, and store events. <a href="/operations/deploy">Create a backend</a></div>
+  <div><strong>2. Console</strong>A local web app on an admin’s computer for projects, websites, and analytics. <a href="/operations/environments">Add it as an environment</a></div>
+  <div><strong>3. Website</strong>Paste one script tag into your pages. Any host works. <a href="/operations/pages">Add a website</a></div>
+</div>
+
+## Try it
+
+You need Node.js 22 or newer and a Cloudflare account. macOS and Linux are supported.
+
+```sh
+npm install -g vizoalica
+vizoalica env add prod    # deploy a new backend for "prod", or connect one you already have
+vizoalica console
+```
+
+`env add` asks one question at a time and explains each. Deploying creates a real backend in your Cloudflare account; you sign in to Cloudflare in your browser, and there is no secret to copy. Then add your website in the console and ask your assistant: `vizoalica mcp install --client claude-code`. Already have a backend, yours or a teammate's? Answer no to deploying and give its address, your role, and your access key. [Read the quick start](/get-started) or [see the console first](/tour).
+
+## Built in the open
+
+Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.9.1).
+
+## Help shape it
+
+Vizoalica gets better when the people who run it say what would make it more useful. You do not need to write code.
+
+<div class="promo-steps">
+  <div><strong>Share an idea</strong>What is missing, or could be simpler? <a href="https://github.com/ehud-am/vizoalica/discussions/categories/ideas">Start a discussion</a></div>
+  <div><strong>Report a problem</strong>Something broke or was confusing. <a href="https://github.com/ehud-am/vizoalica/issues/new/choose">Open an issue</a></div>
+  <div><strong>Build with us</strong>Small tasks, docs fixes, and bigger features. <a href="/community">See how to get involved</a></div>
+</div>

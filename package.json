@@ -1,0 +1,113 @@
+{
+  "name": "vizoalica-workspace",
+  "version": "0.9.1",
+  "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
+  "keywords": [
+    "analytics",
+    "web-analytics",
+    "product-analytics",
+    "privacy",
+    "privacy-first",
+    "self-hosted",
+    "open-source",
+    "cloudflare",
+    "cloudflare-workers",
+    "cloudflare-d1",
+    "cloudflare-r2",
+    "cloudevents"
+  ],
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ehud-am/vizoalica.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "bin": {
+    "vizoalica": "bin/vizoalica.mjs"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && pnpm -r --if-present build",
+    "typecheck": "tsc -b --pretty false && pnpm typecheck:examples",
+    "test": "vitest run",
+    "test:e2e": "pnpm --filter @vizoalica/admin-web test:e2e",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm typecheck && pnpm test",
+    "generate:deploy-workflow": "node scripts/generate-deploy-workflow.mjs",
+    "generate:deploy-workflow:check": "node scripts/generate-deploy-workflow.mjs --check",
+    "deploy:configure": "node --import tsx apps/deploy-cli/src/index.ts configure",
+    "deploy:plan": "node --import tsx apps/deploy-cli/src/index.ts plan",
+    "deploy:check": "scripts/deploy-check.sh",
+    "deploy:fresh-check": "node --import tsx scripts/check-fresh-d1.ts",
+    "deploy:apply": "scripts/deploy-apply.sh",
+    "deploy:verify": "scripts/deploy-verify.sh",
+    "deploy:status": "node --import tsx apps/deploy-cli/src/index.ts status",
+    "worker:dev": "wrangler dev --config deploy/cloudflare/wrangler.toml",
+    "worker:deploy": "pnpm run deploy:apply",
+    "local-ops-api:dev": "pnpm --filter @vizoalica/local-ops-api dev",
+    "local-ops-api:build": "pnpm --filter @vizoalica/local-ops-api build",
+    "admin-web:dev": "pnpm --filter @vizoalica/admin-web dev",
+    "admin-web:build": "pnpm --filter @vizoalica/admin-web build",
+    "coverage": "vitest run --coverage",
+    "browser-sdk:build": "node scripts/build-browser-sdk.mjs",
+    "package:build": "node scripts/build-package.mjs",
+    "package:check": "node scripts/check-package.mjs",
+    "website:verify": "node --import tsx scripts/verify-website.ts",
+    "vizoalica": "node bin/vizoalica.mjs",
+    "typecheck:examples": "tsc --noEmit --ignoreConfig --types node --target ES2022 --module NodeNext --moduleResolution NodeNext --skipLibCheck scripts/check-fresh-d1.ts scripts/purge-deleted.ts scripts/verify-operator-access.ts scripts/verify-website.ts scripts/vizoalica.ts examples/cloudflare-pages/functions/vizoalica/config.json.ts examples/cloudflare-pages/functions/vizoalica/ingest-token.ts",
+    "promo:snapshots": "node --import tsx scripts/promo/capture-snapshots.ts",
+    "promo:video": "node --import tsx scripts/promo/render-video.ts",
+    "promo:mcp-demo:record": "node --import tsx scripts/promo/mcp-demo-record.ts",
+    "promo:mcp-demo": "node --import tsx scripts/promo/render-mcp-demo.ts",
+    "docs:dev": "pnpm --filter @vizoalica/docs site:dev",
+    "docs:build": "pnpm --filter @vizoalica/docs site:build",
+    "docs:preview": "pnpm --filter @vizoalica/docs site:preview",
+    "docs:test": "pnpm --filter @vizoalica/docs site:test"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.20.5",
+    "@types/topojson-client": "^3.1.5",
+    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "@typescript-eslint/parser": "^8.71.1",
+    "@vitest/coverage-v8": "4.1.11",
+    "countries-list": "^3.4.1",
+    "d3-geo": "^3.1.1",
+    "esbuild": "0.28.2",
+    "eslint": "^10.12.0",
+    "i18n-iso-countries": "^7.14.0",
+    "jsdom": "^30.1.2",
+    "prettier": "^3.9.9",
+    "topojson-client": "^3.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11",
+    "world-atlas": "^2.0.2",
+    "wrangler": "^4.148.0"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "sharp@<0.35.4": "0.35.4",
+      "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
+      "fast-uri@<3.1.7": "3.1.7",
+      "source-map-js@<1.2.2": "1.2.2",
+      "vitepress>vite": "^6.4.3"
+    }
+  }
+}

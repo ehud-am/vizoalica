@@ -1,0 +1,36 @@
+name = "vizoalica-ingest"
+main = "../../apps/ingest-worker/src/index.ts"
+compatibility_date = "2026-08-29"
+
+[[d1_databases]]
+binding = "VIZOALICA_DB"
+database_name = "vizoalica-config"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "VIZOALICA_EVENTS"
+bucket_name = "vizoalica-events"
+
+[vars]
+VIZOALICA_DEMO_MODE = "false"
+VIZOALICA_MAX_REQUEST_BYTES = "131072"
+# The release this Worker was deployed from; the console's deploy and update engines fill this in.
+# Left blank for a hand-run `wrangler deploy`, which is fine: an unset version is treated as unknown.
+VIZOALICA_WORKER_VERSION = ""
+
+# Optional edge throttle for POST /v1/events:batch, keyed per client address.
+# Uncomment to enable; without it the Worker relies on per-source quotas only. `period` may
+# be 10 or 60 seconds. `namespace_id` is any positive integer unique within your account.
+# See docs/operations/cloudflare.md, "Ingest rate limiting".
+# [[ratelimits]]
+# name = "VIZOALICA_INGEST_LIMITER"
+# namespace_id = "1001"
+# [ratelimits.simple]
+# limit = 120
+# period = 60
+
+[triggers]
+crons = ["17 3 * * *"]
+# Configure VIZOALICA_TOKEN_SECRET, VIZOALICA_ADMIN_SECRET, and
+# VIZOALICA_ANALYTICS_DIGEST_SECRET with `wrangler secret put`.

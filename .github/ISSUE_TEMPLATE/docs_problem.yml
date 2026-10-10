@@ -1,0 +1,22 @@
+name: Documentation problem
+description: Something in the docs is wrong, missing, or confusing.
+labels: [documentation, needs-triage]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      description: The address (https://vizoalica.dev/…) or the file in the repository.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or unclear?
+      description: What were you trying to do, and where did the page stop helping? Small fixes can go straight to a pull request with the "Edit this page on GitHub" link.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would have helped?

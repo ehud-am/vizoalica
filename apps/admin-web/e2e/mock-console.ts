@@ -1,0 +1,558 @@
+import type { Page } from '@playwright/test';
+
+const project = { id: 'project-1', name: 'Developer Tools', websiteCount: 1 };
+export const secondProject = { id: 'project-2', name: 'Developer Tools', websiteCount: 0 };
+const website = {
+  id: 'site-1',
+  projectId: project.id,
+  name: 'Docs',
+  publicSourceKey: 'public-key',
+  allowedOrigins: ['https://docs.example.com'],
+  status: 'active'
+};
+
+// 25 countries plus Tor and unknown traffic, so the complete list, the map, and the special
+// labels can all be exercised.
+export const COUNTRY_CODES = [
+  'US',
+  'DE',
+  'GB',
+  'FR',
+  'IN',
+  'BR',
+  'CA',
+  'AU',
+  'JP',
+  'NL',
+  'ES',
+  'IT',
+  'SE',
+  'PL',
+  'MX',
+  'KR',
+  'ZA',
+  'NG',
+  'AR',
+  'TR',
+  'ID',
+  'NZ',
+  'NO',
+  'CH',
+  'EG'
+];
+
+const geographyItems = [
+  ...COUNTRY_CODES.map((label, index) => ({ label, count: 1000 - index * 30 })),
+  { label: 'T1', count: 40 },
+  { label: 'Unknown', count: 20 }
+];
+
+function overview(startUtc: string, endUtc: string) {
+  const total = geographyItems.reduce((sum, item) => sum + item.count, 0);
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'project-supplied'
+    },
+    range: { startUtc, endUtc, interval: 'hour', timezone: 'UTC' },
+    totals: { pageViews: total, uniqueUsers: 3941 },
+    trend: [
+      { startUtc: '2026-09-10T00:00:00.000Z', pageViews: 500, uniqueUsers: 210 },
+      { startUtc: '2026-09-10T01:00:00.000Z', pageViews: 740, uniqueUsers: 310 }
+    ],
+    rankings: {
+      pagePaths: {
+        items: [{ label: '/docs/getting-started/a-very-long-route', count: 820 }],
+        otherCount: 20,
+        total: 840
+      },
+      countries: { items: geographyItems, otherCount: 0, total },
+      userAgents: { items: [{ label: 'Chrome 120', count: 500 }], otherCount: 0, total: 500 },
+      referrers: { items: [{ label: 'Direct', count: 700 }], otherCount: 0, total: 700 }
+    },
+    distributions: {
+      operatingSystems: { items: [{ label: 'macOS', count: 500 }], total: 500 },
+      browsers: { items: [{ label: 'Chrome', count: 500 }], total: 500 },
+      devices: { items: [{ label: 'Desktop', count: 500 }], total: 500 },
+      traffic: { items: [{ label: 'Human', count: 500 }], total: 500 }
+    },
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
+const actionRows = [
+  {
+    page: '/#/pricing',
+    action: 'Start free trial',
+    kind: 'link',
+    destination: 'https://app.example.com/signup',
+    count: 120,
+    visitors: 80,
+    pageViews: 400
+  },
+  {
+    page: '/#/orders/:id',
+    action: 'Download invoice',
+    kind: 'button',
+    count: 80,
+    visitors: 30,
+    pageViews: 40
+  },
+  {
+    page: '/#/pricing',
+    action: 'Contact sales',
+    kind: 'button',
+    count: 40,
+    visitors: 39,
+    pageViews: 400
+  },
+  {
+    page: '/#/orders/:id',
+    action: 'Contact sales',
+    kind: 'button',
+    count: 10,
+    visitors: 9,
+    pageViews: 40
+  }
+];
+
+const eventTotals = [
+  { event: 'signup', count: 30, visitors: 22, pages: 2 },
+  { event: 'file_download', count: 12, visitors: 9, pages: 1 }
+];
+
+/** The custom events report, narrowed by the same exact-match filters the Worker applies. */
+function customEventsReport(url: URL) {
+  const event = url.searchParams.get('event') ?? undefined;
+  const events = eventTotals.filter((entry) => !event || entry.event === event);
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { events: events.reduce((sum, entry) => sum + entry.count, 0), uniqueUsers: 28 },
+    events: eventTotals,
+    other: { events: 0, count: 0 },
+    trend: [
+      { startUtc: '2026-09-10T00:00:00.000Z', count: 10 },
+      { startUtc: '2026-09-10T01:00:00.000Z', count: 32 }
+    ],
+    pages: [
+      { page: '/#/pricing', count: 25, visitors: 18 },
+      { page: '/#/docs', count: 5, visitors: 4 }
+    ],
+    withoutPage: 0,
+    properties: event
+      ? [
+          {
+            key: 'plan',
+            values: [
+              { value: 'pro', count: 20 },
+              { value: 'team', count: 10 }
+            ]
+          }
+        ]
+      : [],
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
+/** The actions report, narrowed by the same exact-match filters the Worker applies. */
+function actionsReport(url: URL) {
+  const page = url.searchParams.get('page') ?? undefined;
+  const action = url.searchParams.get('action') ?? undefined;
+  const rows = actionRows.filter(
+    (row) => (!page || row.page === page) && (!action || row.action === action)
+  );
+  const totals = new Map<
+    string,
+    { action: string; kind: string; count: number; visitors: number; pages: number }
+  >();
+  for (const row of actionRows.filter((entry) => !action || entry.action === action)) {
+    const current = totals.get(row.action) ?? {
+      action: row.action,
+      kind: row.kind,
+      count: 0,
+      visitors: 0,
+      pages: 0
+    };
+    current.count += row.count;
+    current.visitors += row.visitors;
+    current.pages += 1;
+    totals.set(row.action, current);
+  }
+  const selectedRows = page ? actionRows.filter((row) => row.page === page) : [];
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { actions: rows.reduce((sum, row) => sum + row.count, 0), uniqueUsers: 120 },
+    rows,
+    other: { rows: 0, count: 0 },
+    actions: [...totals.values()].sort((a, b) => b.count - a.count),
+    ...(page
+      ? {
+          selection: {
+            page: {
+              path: page,
+              views: selectedRows[0]?.pageViews ?? 0,
+              actions: selectedRows.reduce((sum, row) => sum + row.count, 0)
+            }
+          }
+        }
+      : {}),
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
+const staticSnippet =
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key"></script>';
+const customizeSnippet =
+  '<script async src="/vizoalica.js" data-endpoint="https://worker.test/v1/events:batch" data-source="public-key" data-project="project-1" data-token-url="/vizoalica/ingest-token" data-consent="unknown"></script>';
+
+export type MockSetup = Record<string, unknown>;
+
+const stage = (id: string, label: string, status: string, next?: unknown) => ({
+  id,
+  label,
+  status,
+  ...(next ? { next } : {})
+});
+export const STAGE_LABELS = [
+  'Console running',
+  'Backend connected',
+  'Website configured',
+  'Data arriving'
+];
+
+/** The setup state a console would report; every stage is done unless `current` names one that is not. */
+export function setupState(
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  current?: { at: 1 | 2 | 3; next: { id: string; label: string; href?: string }; status?: string },
+  overrides: Record<string, unknown> = {}
+): MockSetup {
+  const ids = ['console', 'backend', 'website', 'data'];
+  return {
+    version: '0.6.3',
+    environment: 'prod',
+    connection: {
+      status: 'connected',
+      workerHost: 'worker.test',
+      workerUrl: 'https://worker.test'
+    },
+    principal: {
+      role,
+      scope: { projectId: null, sourceId: null },
+      keyLabel: role === 'admin' ? null : 'Jane',
+      features: { accessKeys: true, versions: true }
+    },
+    backend: {
+      workerVersion: '0.6.3',
+      schema: { applied: 1, expected: 1 },
+      worker: { status: 'current', message: 'The Worker matches this console.', update: null },
+      schemaStatus: {
+        status: 'current',
+        message: 'The database schema is up to date.',
+        update: null
+      },
+      message: 'The database schema is up to date.'
+    },
+    stages: ids.map((id, index) =>
+      stage(
+        id,
+        STAGE_LABELS[index]!,
+        !current || index < current.at
+          ? 'done'
+          : index === current.at
+            ? (current.status ?? 'current')
+            : 'todo',
+        current && index === current.at ? current.next : undefined
+      )
+    ),
+    ...overrides
+  };
+}
+
+/** One environment of the shape the console lists; usable unless it is given a problem. */
+export const mockEnvironment = (
+  name: string,
+  role: 'admin' | 'owner' | 'analyst' = 'admin',
+  problem?: string
+) => ({
+  name,
+  url: `https://${name}.example.com`,
+  role,
+  secretSource: 'file' as const,
+  cloudflare: 'none' as const,
+  usable: problem === undefined,
+  problems: problem === undefined ? [] : [{ code: 'unauthorized', message: problem }]
+});
+
+export type MockEnvironments = {
+  file: { status: 'ok' | 'broken'; path: string; reason?: string };
+  environments: Array<ReturnType<typeof mockEnvironment>>;
+  selected: string | null;
+};
+
+export interface MockOptions {
+  projects?: unknown[];
+  /** The setup state to report; connected with nothing left to do when omitted. */
+  setup?: MockSetup;
+  /** Records every request that is not a read, so tests can prove a control sent nothing. */
+  writes?: string[];
+  /** The environments the console lists; one usable "prod" environment when omitted. */
+  environments?: MockEnvironments;
+  /** Reports the Worker and schema as one release behind; the backend screen only shows it. */
+  backendBehind?: boolean;
+}
+
+/** Answers every console API call locally; nothing reaches a real backend. */
+export async function mockConsole(page: Page, options: MockOptions = {}) {
+  // Websites created during a test are listed afterwards, so create-then-open flows work.
+  const created: Array<Record<string, unknown>> = [];
+  let setup: MockSetup = options.setup ?? setupState();
+  let environments: MockEnvironments = options.environments ?? {
+    file: { status: 'ok', path: '/home/test/.config/vizoalica/environments.json' },
+    environments: [mockEnvironment('prod')],
+    selected: 'prod'
+  };
+  await page.route(/^http:\/\/127\.0\.0\.1:4173\/api\//, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+    let body: unknown = {};
+    if (request.method() !== 'GET' && path !== '/api/session')
+      options.writes?.push(`${request.method()} ${path}`);
+    if (path === '/api/session') return route.fulfill({ status: 204 });
+    if (path === '/api/setup/state') return route.fulfill({ json: setup });
+    if (path === '/api/environments' && request.method() === 'GET')
+      return route.fulfill({ json: environments });
+    if (path === '/api/environments/recheck' && request.method() === 'POST')
+      return route.fulfill({ json: environments });
+    const select = /^\/api\/environments\/([^/]+)\/select$/.exec(path);
+    if (select && request.method() === 'POST') {
+      environments = { ...environments, selected: decodeURIComponent(select[1]!) };
+      setup = { ...setup, environment: decodeURIComponent(select[1]!) };
+      return route.fulfill({ json: setup });
+    }
+    if (path === '/api/access-keys' && request.method() === 'GET')
+      return route.fulfill({ json: [] });
+    if (path === '/api/access-keys' && request.method() === 'POST')
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: 'k1',
+          // Echo what was asked for, as the real service does.
+          label: (request.postDataJSON() as { label?: string }).label ?? 'x',
+          role: (request.postDataJSON() as { role?: string }).role ?? 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null,
+          key: 'vzk_test_key'
+        }
+      });
+    if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'DELETE')
+      return route.fulfill({ json: { status: 'revoked' } });
+    if (/^\/api\/access-keys\/[^/]+\/rotate$/.test(path) && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'k1',
+          label: 'Test key',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null,
+          key: 'vzk_test_key_rotated'
+        }
+      });
+    if (/^\/api\/access-keys\/[^/]+$/.test(path) && request.method() === 'PATCH')
+      return route.fulfill({
+        json: {
+          id: 'k1',
+          label: 'Renamed',
+          role: 'analyst',
+          scope: { projectId: null, sourceId: null },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          revokedAt: null
+        }
+      });
+    if (path === '/api/backend' && request.method() === 'GET')
+      return route.fulfill({
+        json: options.backendBehind
+          ? {
+              workerVersion: '0.6.2',
+              consoleVersion: '0.7.0',
+              schema: { applied: 1, expected: 2, appliedNames: ['0001_initial.sql'] },
+              worker: {
+                status: 'update-available',
+                message:
+                  'The Worker (0.6.2) is older than this console (0.7.0). Update the backend.',
+                update: 'backend'
+              },
+              schemaStatus: {
+                status: 'update-available',
+                message: 'The database schema (1) is behind what this console expects (2).',
+                update: 'backend'
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
+          : {
+              workerVersion: '0.6.4',
+              consoleVersion: '0.6.4',
+              schema: {
+                applied: 2,
+                expected: 2,
+                appliedNames: ['0001_initial.sql', '0002_access_keys.sql']
+              },
+              worker: {
+                status: 'current',
+                message: 'The Worker matches this console.',
+                update: null
+              },
+              schemaStatus: {
+                status: 'current',
+                message: 'The database schema is up to date.',
+                update: null
+              },
+              health: { database: 'ok', storage: 'ok' },
+              featuresAccessKeys: true
+            }
+      });
+    if (path.endsWith('/websites') && request.method() === 'POST') {
+      const projectId = path.split('/')[3]!;
+      const input = request.postDataJSON() as { name: string; allowedOrigins: string[] };
+      const record = {
+        id: 'site-created',
+        projectId,
+        name: input.name,
+        publicSourceKey: 'created-public-key',
+        allowedOrigins: input.allowedOrigins,
+        status: 'active'
+      };
+      created.push(record);
+      return route.fulfill({ status: 201, json: record });
+    }
+    if (request.method() === 'DELETE')
+      return route.fulfill({ json: { status: 'deleted', audit: 'recorded' } });
+    if (request.method() === 'PATCH') return route.fulfill({ json: website });
+    if (path === '/api/projects') body = options.projects ?? [project, secondProject];
+    else if (path === '/api/preferences/theme') body = { theme: null };
+    else if (path.endsWith('/websites'))
+      body = [website, ...created.filter((item) => item.projectId === path.split('/')[3])];
+    else if (path.endsWith('/snippet'))
+      body = {
+        projectId: project.id,
+        sourceId: website.id,
+        publicSourceKey: 'public-key',
+        allowedOrigins: website.allowedOrigins,
+        tokenIssuer: 'website-owned',
+        html: staticSnippet,
+        modes: [
+          {
+            id: 'static',
+            snippet: staticSnippet,
+            customize: customizeSnippet,
+            defaults: {
+              'data-token-url': '/vizoalica/ingest-token',
+              'data-consent': 'unknown',
+              'data-project': 'taken from the website key'
+            }
+          },
+          {
+            id: 'dynamic',
+            snippet: '<script async src="/vizoalica-loader.js"></script>',
+            configUrl: '/vizoalica/config.json',
+            config: {
+              version: 1,
+              src: '/vizoalica.js',
+              'data-endpoint': 'https://worker.test/v1/events:batch',
+              'data-source': 'public-key',
+              'data-project': project.id,
+              'data-token-url': '/vizoalica/ingest-token',
+              'data-consent': 'unknown'
+            },
+            cloudflare: {
+              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3',
+              repoVariables: {
+                VIZOALICA_SITE: JSON.stringify({
+                  endpoint: 'https://worker.test/v1/events:batch',
+                  sourceKey: 'public-key',
+                  projectId: project.id,
+                  sourceId: website.id,
+                  origins: ['https://docs.example.com']
+                })
+              },
+              expandedRepoVariables: {
+                VIZOALICA_INGEST_ENDPOINT: 'https://worker.test/v1/events:batch',
+                VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key',
+                VIZOALICA_PROJECT_ID: project.id,
+                VIZOALICA_SOURCE_ID: website.id,
+                VIZOALICA_SITE_ORIGINS: 'https://docs.example.com'
+              },
+              defaults: {
+                VIZOALICA_SDK_SRC: '/vizoalica.js',
+                VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+                VIZOALICA_CONSENT: 'unknown'
+              },
+              summary: { publicValues: 3, secrets: 2 },
+              accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
+              accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
+              repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
+              starterWorkflowYaml:
+                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3\n    secrets: inherit',
+              setupCommands: [
+                "gh variable set VIZOALICA_SITE --body '{}'",
+                'gh secret set CF_API_TOKEN'
+              ],
+              warnings: [
+                'The listed repository variables are public browser configuration, not secrets.',
+                'Enable only one installation mode so Vizoalica initializes once.'
+              ]
+            }
+          }
+        ],
+        privateSetup: { tokenIssuer: 'website-owned', tokenSecretRequired: true }
+      };
+    else if (path.endsWith('/status'))
+      body = {
+        collection: 'healthy',
+        aggregation: 'available',
+        configuration: 'healthy',
+        dataAccess: 'available'
+      };
+    else if (path.endsWith('/reachability'))
+      body = {
+        configEndpointReachable: true,
+        configEndpointCheckedAt: '2026-09-10T00:00:00.000Z',
+        configEndpointError: null
+      };
+    else if (path.endsWith('/analytics/actions')) body = actionsReport(url);
+    else if (path.endsWith('/analytics/custom-events')) body = customEventsReport(url);
+    else if (path.endsWith('/analytics'))
+      body = overview(
+        url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+        url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z'
+      );
+    await route.fulfill({ json: body });
+  });
+}

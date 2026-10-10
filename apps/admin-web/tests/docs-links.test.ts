@@ -1,0 +1,95 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const root = process.cwd();
+const read = (path: string) => readFileSync(join(root, path), 'utf8');
+
+describe('audience attributes review', () => {
+  const review = read('docs/privacy/audience-attributes-review.md');
+
+  it('records a decision for every candidate attribute', () => {
+    for (const attribute of [
+      'Country',
+      'Continent',
+      'Tor network',
+      'Browser language',
+      'Region, state, or city',
+      'Age, gender, interests'
+    ])
+      expect(review, attribute).toContain(attribute);
+    for (const decision of ['Approved', 'Deferred', 'Rejected']) expect(review).toContain(decision);
+  });
+
+  it('credits every input of the bundled reference data with its license', () => {
+    for (const input of ['world-atlas', 'countries-list', 'i18n-iso-countries', 'd3-geo'])
+      expect(review, input).toContain(input);
+    expect(review).not.toMatch(/ODbL/);
+  });
+
+  it.each([
+    'README.md',
+    'llms.txt',
+    'docs/operations/operator-local.md',
+    'docs/operations/privacy.md'
+  ])('is linked from %s', (path) => {
+    expect(read(path)).toContain('audience-attributes-review.md');
+  });
+
+  it('is described in the changelog and the operator guide', () => {
+    expect(read('CHANGELOG.md')).toMatch(/## \[0\.5\.3\][\s\S]*Geography/);
+    expect(read('docs/operations/operator-local.md')).toContain('## Using the console');
+  });
+});
+
+describe('install from npm', () => {
+  it.each(['README.md', 'docs/get-started.md', 'docs/index.md', 'llms.txt'])(
+    '%s shows how to install and start the console',
+    (path) => {
+      const text = read(path);
+      expect(text).toContain('npm install -g vizoalica');
+      expect(text).toContain('vizoalica console');
+    }
+  );
+
+  it('no longer says the project is distributed as source only', () => {
+    expect(read('llms.txt')).not.toContain('source only');
+    expect(read('llms.txt')).toContain('`vizoalica` npm package');
+  });
+
+  it('says how to update and remove it, and where settings live', () => {
+    const text = read('README.md');
+    expect(text).toContain('npm update -g vizoalica');
+    expect(text).toContain('npm uninstall -g vizoalica');
+    expect(text).toContain('~/.config/vizoalica/');
+  });
+
+  it('is honest that the console needs no checkout but does not create a backend', () => {
+    expect(read('README.md')).toMatch(/does not deploy or\s+update a backend/);
+    expect(read('README.md')).toContain('vizoalica deploy prod --apply');
+    expect(read('docs/get-started.md')).toMatch(/No source checkout is needed/);
+  });
+
+  it('documents creating a backend with vizoalica deploy', () => {
+    const text = read('docs/operations/deploy.md');
+    for (const phrase of ['--apply', '--resume', '--secrets-file', '--account'])
+      expect(text, phrase).toContain(phrase);
+    expect(text).not.toMatch(/terraform/i);
+    expect(read('README.md')).toContain('docs/operations/deploy.md');
+    expect(read('llms.txt')).toContain('vizoalica deploy');
+  });
+
+  it('documents the environments file and the env command', () => {
+    const text = read('docs/operations/environments.md');
+    expect(text).toContain('~/.config/vizoalica/environments.json');
+    for (const command of ['list', 'add', 'update', 'remove', 'check'])
+      expect(text).toContain(`vizoalica env ${command}`);
+    expect(text).toMatch(/custom domain/i);
+    expect(read('README.md')).toContain('docs/operations/environments.md');
+  });
+
+  it('documents managing multiple environments from the same console', () => {
+    for (const path of ['README.md', 'docs/get-started.md', 'llms.txt'])
+      expect(read(path), path).toMatch(/environment/i);
+  });
+});

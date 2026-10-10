@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/deployment-result.v1.json",
+  "title": "Vizoalica Deployment Command Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "ok", "command", "status", "occurredAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "ok": { "type": "boolean" },
+    "command": { "enum": ["configure", "plan", "check", "apply", "verify", "status"] },
+    "status": {
+      "enum": ["succeeded", "denied", "interrupted", "expired", "failed"]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "provider": { "enum": ["onecli", "cloudflare-native"] },
+    "environment": { "type": "string" },
+    "accountId": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "connectionId": { "type": "string" },
+    "planId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "receiptExpiresAt": { "type": "string", "format": "date-time" },
+    "completedOperations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }
+    },
+    "pendingOperations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$" }
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retrySafe"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "remediation": {
+          "enum": [
+            "connect",
+            "attach",
+            "reauthorize",
+            "correct_account",
+            "narrow_ambiguity",
+            "refresh_plan",
+            "request_approval",
+            "retry",
+            "inspect_status",
+            "review"
+          ]
+        },
+        "retrySafe": { "type": "boolean" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "ok": { "const": false } }, "required": ["ok"] },
+      "then": { "properties": { "error": {} }, "required": ["error"] }
+    }
+  ]
+}

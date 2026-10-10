@@ -1,0 +1,178 @@
+# Advanced: keep secrets in a vault (OneCLI)
+
+> **Most people do not need this page.** `vizoalica env add` keeps your secret in a private file on your
+> computer and asks nothing about OneCLI. Use this guide only if you already use [OneCLI](https://onecli.sh) and
+> want it to hold the secret instead. `vizoalica env add` and `vizoalica deploy` use OneCLI only when you pass
+> their OneCLI options (`--onecli`, `--secret-onecli`, `--cloudflare-onecli`, with `--onecli-workspace`,
+> `--onecli-agent`, and `--onecli-gateway`).
+
+Run this guide **once per operator**. Use [direct setup](local-analytics.md) instead when OneCLI
+will not manage the administrator credential. Do not combine the two methods.
+
+## Returning operator: start here
+
+If this machine is already configured with OneCLI, use the one-terminal commands in
+[Start the console day to day](operator-local.md): run `pnpm vizoalica verify`, then
+`pnpm vizoalica console`. Keep that terminal open and press Ctrl+C once to stop both processes. The
+console is not started under OneCLI: an environment whose secret OneCLI holds is reached through a small
+helper that runs under `onecli run` for that environment alone (see [Environments](environments.md)).
+
+## Prerequisites
+
+- A completed [backend deployment](cloudflare.md) and its verified setup record.
+- Node.js 22 or newer, Corepack, Git, and a current browser.
+- OneCLI 2.11 or newer and authority to manage one dedicated operator agent.
+
+For a self-hosted gateway, use its host-reachable address, normally `127.0.0.1:10255`; a
+Docker-only hostname will not work from the operator machine.
+
+## Inputs
+
+From the backend setup record, obtain the environment, exact release commit, Worker script
+name, complete Worker origin, account label and abbreviated ID, deployment/version ID,
+administrator password-manager record name, and verification timestamp. From OneCLI, obtain the
+project slug, dedicated agent identifier and ID, and gateway address. A project or website ID is
+not required.
+
+## Security boundary
+
+OneCLI injects the real credential only into HTTPS requests to the exact Worker host. Vizoalica
+stores only the literal placeholder `onecli-managed`. The browser talks only to the loopback API.
+Missing OneCLI access must fail closed; never copy the credential into local configuration.
+
+> **In the console:** add the environment with `pnpm vizoalica env add NAME --role admin --secret-onecli
+--onecli-workspace WORKSPACE --onecli-agent AGENT --onecli-gateway 127.0.0.1:10255`. The console sends
+> `onecli-managed` as the placeholder through the helper, OneCLI supplies the real secret, and the console
+> verifies it like any other environment. Nothing needs to be restarted to switch environments.
+
+## 1. Verify the setup record and checkout
+
+Check the supplied origin before changing OneCLI:
+
+```sh
+curl --fail --silent --show-error https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev/healthz
+```
+
+Stop if it does not return JSON containing `"ok":true`. Reconcile the Worker name, complete
+origin, account, deployment/version, and commit with the backend owner; do not guess a replacement
+host.
+
+```sh
+git clone https://github.com/ehud-am/vizoalica.git
+cd vizoalica
+git checkout YOUR_APPROVED_TAG_OR_COMMIT
+git rev-parse HEAD
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
+pnpm install --frozen-lockfile
+pnpm vizoalica show
+```
+
+The printed commit must exactly match the setup record.
+
+## 2. Inspect the OneCLI agent
+
+Use the agent ID from OneCLI; do not infer it from the display name.
+
+```sh
+onecli auth status
+onecli agents grants list --id <agent-id> --project <project-slug>
+onecli agents credentials --id <agent-id> --project <project-slug>
+```
+
+Confirm the intended project and agent. Before adding the administrator card, the agent must have
+no Cloudflare deployment connection and no unrelated secret or grant. Do not run
+`onecli agents list --with-grants`: it may print agent access material. Treat such output as an
+exposure and rotate the affected agent token.
+
+## 3. Create or replace the credential card
+
+In OneCLI, create a **Generic** secret and attach it only to the dedicated operator agent:
+
+| Field  | Value                                                            |
+| ------ | ---------------------------------------------------------------- |
+| Name   | `Vizoalica administrator — <environment> — <Worker script name>` |
+| Host   | Exact Worker hostname, without scheme, path, or wildcard         |
+| Header | `Authorization`                                                  |
+| Format | `Bearer {value}`                                                 |
+| Value  | Raw `VIZOALICA_ADMIN_SECRET`, without `Bearer`                   |
+
+Use the administrator password-manager record named in the same backend setup record. Never retarget
+only the host of an existing card: confirm or replace both its host and value together. Restrict
+the card to Vizoalica administrator and analytics routes where policy allows.
+
+Repeat the two agent inspection commands from step 2. Confirm the agent has exactly this
+environment's administrator card, no Cloudflare deployment connection, and no unrelated secret.
+
+## 4. Configure, check, and verify
+
+```sh
+pnpm vizoalica setup
+pnpm vizoalica doctor
+pnpm vizoalica verify
+pnpm vizoalica status
+```
+
+Setup writes private coordinates and the non-secret placeholder. If the existing client
+configuration points elsewhere, setup refuses to replace it; inspect the target and rerun with
+`--replace` only when intentional.
+Doctor checks public health and local prerequisites—it does **not** authenticate. Verify must report
+HTTP 200, a JSON array, and the selected OneCLI agent without printing a credential.
+
+Then start the local console:
+
+```sh
+pnpm vizoalica console
+```
+
+Open `http://127.0.0.1:5173`, or the URL Vite prints if that port was busy. Do not expose either
+process to the network.
+
+The local console and the trusted loopback service that holds the injected credential run only on
+this computer. The selected analytics backend and stored data can still be remote.
+
+## Verify the operator setup
+
+Complete this positive–negative–positive test with the same `pnpm vizoalica verify` request:
+
+1. With the grant attached, verify succeeds.
+2. Detach the administrator grant from the operator agent.
+3. Verify fails.
+4. Restore the same grant.
+5. Verify succeeds again.
+
+Then open **Projects** followed by **Websites**; the project list must load, and an empty array is success. If a project
+exists, open **Overview** and load `24h`. In browser developer tools, confirm requests go only to
+loopback and no authorization header or credential appears in browser-visible storage.
+
+On failure, check the setup record, card host and value, agent ID and grant, OneCLI project and
+authentication, gateway, and commit. Do not disable certificate validation or add a direct-secret
+fallback.
+
+## Console setup record
+
+Record no secret or agent access material:
+
+```text
+Credential method: OneCLI
+Operator/machine: <redacted label>
+Environment: <label>
+Release commit: <exact commit>
+Worker script/origin: <script name> / https://YOUR_WORKER.YOUR_SUBDOMAIN.workers.dev
+Cloudflare account: <label and safely abbreviated ID>
+Deployment/version ID: <identifier>
+Administrator record: <password-manager record name, not value>
+OneCLI project/agent: <non-secret coordinates>
+Gateway/loopback: <host-reachable address> / http://127.0.0.1:<port>
+Backend verified at: <timestamp>
+Authenticated and fail-closed verification completed at: <timestamp>
+```
+
+You can now [add a website](pages.md).
+
+## Revoke access
+
+Stop `pnpm vizoalica console`, detach or revoke the operator agent, and move only this machine's two
+Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
+evidence. If exposure is possible, rotate the admin key and update every remaining
+operator. Revocation does not affect the backend, analytics data, websites, or other operators.

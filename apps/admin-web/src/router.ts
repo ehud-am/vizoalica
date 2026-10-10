@@ -1,0 +1,304 @@
+import { useEffect, useState } from 'react';
+
+export type ScopeControls = 'none' | 'project' | 'project-website';
+
+interface RouteDef {
+  /** Address after `#/`. `:id` stands for a website id. */
+  path: string;
+  area: 'analytics' | 'manage';
+  label: string;
+  /** Shown as its own item in the primary navigation. */
+  nav: boolean;
+  /** The navigation item that is current while on this page. */
+  parent?: string;
+  /** Which shell scope controls make sense here. */
+  scope: ScopeControls;
+  /** Whether the time range control is shown. */
+  range: boolean;
+}
+
+const define = <const T extends readonly RouteDef[]>(routes: T) => routes;
+
+export const ROUTES = define([
+  {
+    path: 'analytics/overview',
+    area: 'analytics',
+    label: 'Overview',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/pages',
+    area: 'analytics',
+    label: 'Pages',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/actions',
+    area: 'analytics',
+    label: 'Actions',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/events',
+    area: 'analytics',
+    label: 'Events',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/sources',
+    area: 'analytics',
+    label: 'Sources',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/geography',
+    area: 'analytics',
+    label: 'Geography',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/technology',
+    area: 'analytics',
+    label: 'Technology',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'analytics/traffic-quality',
+    area: 'analytics',
+    label: 'Traffic quality',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
+    path: 'manage/projects',
+    area: 'manage',
+    label: 'Projects',
+    // Reached from the project menu, and the one page that runs outside the environment/project pair.
+    nav: false,
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/websites',
+    area: 'manage',
+    label: 'Websites',
+    nav: true,
+    scope: 'project',
+    range: false
+  },
+  {
+    path: 'manage/websites/new',
+    area: 'manage',
+    label: 'Add website',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/websites/:id',
+    area: 'manage',
+    label: 'Website',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/websites/:id/edit',
+    area: 'manage',
+    label: 'Edit website',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/websites/:id/install',
+    area: 'manage',
+    label: 'Install',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/health',
+    area: 'manage',
+    label: 'Health',
+    nav: true,
+    scope: 'project-website',
+    range: false
+  },
+  {
+    path: 'manage/backend',
+    area: 'manage',
+    label: 'Backend',
+    // Its content is the first section of Health; the address stays so old links keep working.
+    nav: false,
+    parent: 'manage/health',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/websites/:id/access',
+    area: 'manage',
+    label: 'Access keys',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
+    path: 'manage/access',
+    area: 'manage',
+    label: 'Access keys',
+    // Reached from a website's Access card and the environment menu, not from the sidebar.
+    nav: false,
+    scope: 'none',
+    range: false
+  }
+]);
+
+export type RoutePath = (typeof ROUTES)[number]['path'];
+export type RouteArea = RouteDef['area'];
+export const DEFAULT_ROUTE: RoutePath = 'analytics/overview';
+
+/** A page plus, for website pages, which website it is about. */
+export interface Route {
+  path: RoutePath;
+  websiteId?: string;
+  /** Selections carried in the address, only on the Actions and Events pages. */
+  params?: RouteParams;
+}
+
+/**
+ * The Actions report can be narrowed to a page or to an action, and the Events report to a page or
+ * to an event; the choice lives in the address.
+ */
+export interface RouteParams {
+  page?: string;
+  action?: string;
+  event?: string;
+}
+// The Worker refuses longer values, so an address carrying one is treated as carrying none.
+const PARAM_LIMITS = { page: 1024, action: 80, event: 64 } as const;
+const PARAM_NAMES: Partial<Record<RoutePath, readonly (keyof RouteParams)[]>> = {
+  'analytics/actions': ['page', 'action'],
+  'analytics/events': ['page', 'event']
+};
+
+/** Routes that appear in the primary navigation, in order. */
+export const NAV_ROUTES = ROUTES.filter((route) => route.nav);
+
+const definition = (path: RoutePath): RouteDef => ROUTES.find((route) => route.path === path)!;
+
+function parseParams(
+  query: string,
+  allowed: readonly (keyof RouteParams)[]
+): RouteParams | undefined {
+  const params: RouteParams = {};
+  for (const pair of query.split('&')) {
+    const at = pair.indexOf('=');
+    const name = at < 0 ? pair : pair.slice(0, at);
+    if (!allowed.includes(name as keyof RouteParams)) continue;
+    try {
+      const value = decodeURIComponent(pair.slice(at + 1));
+      if (value && value.length <= PARAM_LIMITS[name as keyof RouteParams])
+        params[name as keyof RouteParams] = value;
+    } catch {
+      // A malformed encoding means no selection, never a broken page.
+    }
+  }
+  return Object.keys(params).length ? params : undefined;
+}
+
+export function parseRoute(hash: string): Route {
+  const raw = hash.replace(/^#\/?/, '');
+  const queryAt = raw.indexOf('?');
+  const address = queryAt < 0 ? raw : raw.slice(0, queryAt);
+  // Fixed addresses win over ones with an id, so "new" can never be read as a website id.
+  const fixed = ROUTES.find((route) => route.path === address);
+  if (fixed) {
+    const allowed = PARAM_NAMES[fixed.path];
+    const params =
+      allowed && queryAt >= 0 ? parseParams(raw.slice(queryAt + 1), allowed) : undefined;
+    return { path: fixed.path, ...(params ? { params } : {}) };
+  }
+  const parts = address.split('/');
+  for (const route of ROUTES) {
+    const pattern = route.path.split('/');
+    if (!route.path.includes(':id') || pattern.length !== parts.length) continue;
+    if (!pattern.every((segment, index) => segment === ':id' || segment === parts[index])) continue;
+    const raw = parts[pattern.indexOf(':id')]!;
+    let websiteId = '';
+    try {
+      websiteId = decodeURIComponent(raw);
+    } catch {
+      return { path: DEFAULT_ROUTE };
+    }
+    if (websiteId) return { path: route.path, websiteId };
+  }
+  return { path: DEFAULT_ROUTE };
+}
+
+export const routeArea = (path: RoutePath): RouteArea => definition(path).area;
+export const routeLabel = (path: RoutePath): string => definition(path).label;
+/** The navigation item to mark current while on this page. */
+export const navKey = (path: RoutePath): RoutePath =>
+  (definition(path).parent as RoutePath | undefined) ?? path;
+export const scopeControls = (path: RoutePath): ScopeControls => definition(path).scope;
+/** Every page runs inside the environment and project chosen in the header, except Projects. */
+export const showsScopeHeader = (path: RoutePath): boolean => path !== 'manage/projects';
+export const showsRange = (path: RoutePath): boolean => definition(path).range;
+
+export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParams): string {
+  if (path.includes(':id') && !websiteId) throw new Error(`${path} needs a website id`);
+  const base = `#/${websiteId ? path.replace(':id', encodeURIComponent(websiteId)) : path}`;
+  const query = [
+    params?.page ? `page=${encodeURIComponent(params.page)}` : '',
+    params?.action ? `action=${encodeURIComponent(params.action)}` : '',
+    params?.event ? `event=${encodeURIComponent(params.event)}` : ''
+  ].filter(Boolean);
+  return query.length ? `${base}?${query.join('&')}` : base;
+}
+
+export function navigate(path: RoutePath, websiteId?: string, params?: RouteParams): void {
+  window.location.hash = hrefFor(path, websiteId, params);
+}
+
+export function useRoute(): Route {
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  useEffect(() => {
+    const onChange = () => {
+      const next = parseRoute(window.location.hash);
+      setRoute((current) =>
+        current.path === next.path &&
+        current.websiteId === next.websiteId &&
+        current.params?.page === next.params?.page &&
+        current.params?.action === next.params?.action &&
+        current.params?.event === next.params?.event
+          ? current
+          : next
+      );
+    };
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return route;
+}

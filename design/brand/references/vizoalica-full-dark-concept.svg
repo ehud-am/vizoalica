@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 180" role="img" aria-labelledby="vizoalica-dark-concept-title">
+  <title id="vizoalica-dark-concept-title">Vizoalica</title>
+
+  <!-- Geometric V: strong enough to remain recognizable at small sizes. -->
+  <path d="M22 20h42l52 98-20 42z" fill="#f7f8fa"/>
+  <path d="M96 160h40l52-140h-42z" fill="#168bff"/>
+
+  <!-- Rising analytics signal. -->
+  <path
+    d="M67 119 126 78 169 33"
+    fill="none"
+    stroke="#12c5e8"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="67" cy="119" r="13" fill="#12c5e8" stroke="#10141c" stroke-width="5"/>
+  <circle cx="126" cy="78" r="14" fill="#793dff"/>
+  <circle cx="169" cy="33" r="15" fill="#12c5e8"/>
+
+  <!-- High-contrast wordmark for dark navigation and headers. -->
+  <text
+    x="220"
+    y="116"
+    fill="#f7f8fa"
+    font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-size="72"
+    font-weight="760"
+    letter-spacing="-2"
+  >Vizoalica</text>
+</svg>
