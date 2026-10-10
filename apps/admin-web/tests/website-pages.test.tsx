@@ -177,6 +177,17 @@ describe('website page', () => {
     expect(api.getStatus).toHaveBeenCalledWith('p1', 's1');
   });
 
+  it('does not check a configuration endpoint for a website that needs no token', async () => {
+    api.getSetupState.mockResolvedValue(connectedState('admin'));
+    sites.p1 = [site('s1', 'p1', 'Docs', { tokenRequired: false })];
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    expect(await screen.findByText('No action needed.')).toBeTruthy();
+    expect(api.getReachability).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Website reachable|Website unreachable/)).toBeNull();
+  });
+
   it('says so while status is loading and when it cannot be read', async () => {
     api.getStatus.mockRejectedValueOnce(new Error('offline'));
     go('manage/websites/s1');

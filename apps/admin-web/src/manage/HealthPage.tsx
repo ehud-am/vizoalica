@@ -40,7 +40,9 @@ export function HealthPage() {
   const { projectId, project, website, websites } = useScope();
   const sites = website ? [website] : websites;
   const [health, setHealth] = useState<Record<string, Health>>({});
-  const key = sites.map((site) => `${site.id}:${site.status}`).join(',');
+  const key = sites
+    .map((site) => `${site.id}:${site.status}:${String(site.tokenRequired)}`)
+    .join(',');
 
   useEffect(() => {
     setHealth({});
@@ -49,7 +51,10 @@ export function HealthPage() {
     for (const site of sites) {
       Promise.all([
         getStatus(projectId, site.id),
-        getReachability(projectId, site.id).catch(() => undefined)
+        // A website with no token has no configuration endpoint to check.
+        site.tokenRequired === false
+          ? Promise.resolve(undefined)
+          : getReachability(projectId, site.id).catch(() => undefined)
       ])
         .then(([status, reachability]) => {
           if (!cancelled)
