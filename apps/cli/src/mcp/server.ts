@@ -2,13 +2,18 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { AnalyticsRangeError } from '../../../ingest-api/src/analytics/range.js';
-import type { ActionsReport, AnalyticsOverview } from '../../../ingest-api/src/domain/types.js';
+import type {
+  ActionsReport,
+  AnalyticsOverview,
+  CustomEventsReport
+} from '../../../ingest-api/src/domain/types.js';
 import { versionStatus } from '../../../local-ops-api/src/compat.js';
 import { VaultError } from '../../../local-ops-api/src/environments/vault.js';
 import type { EnvironmentState } from '../../../local-ops-api/src/environments/verify.js';
 import { checkInstall, checkReachability } from '../../../local-ops-api/src/routes/reachability.js';
 import {
   analyticsActions,
+  analyticsCustomEvents,
   analyticsOverview
 } from '../../../local-ops-api/src/routes/analytics.js';
 import { workerJson } from '../../../local-ops-api/src/routes/websites.js';
@@ -585,6 +590,58 @@ export function createMcpServer(deps: ServerDeps): McpServer {
           },
           actions: report.actions.slice(0, limit ?? 20),
           ...(report.selection ? { selection: report.selection } : {}),
+          availability: report.availability
+        });
+      })
+  );
+
+  server.registerTool(
+    'get_custom_events',
+    {
+      title: 'Custom events',
+      description:
+        'Events the website sends with vizoalica.track(name, properties): how often each happened, by how many visitors, on which pages, and the trend. Name one event to also get its most common property values. Filter by event name or page (exact page key such as /pricing).',
+      inputSchema: {
+        environment: environmentArg,
+        project: projectArg,
+        website: websiteArg,
+        ...rangeArgs,
+        event: z.string().max(64).optional().describe('Exact event name, for example signup.'),
+        page: z.string().max(1024).optional().describe('Exact page key, for example /pricing.'),
+        limit: limitArg
+      },
+      annotations: READ_ONLY
+    },
+    ({ environment, project, website, preset, start, end, event, page, limit }) =>
+      withTarget(environment, async ({ ref, client }) => {
+        const range = resolveRange({ preset, start, end }, now());
+        const found = await locate(client, project, website);
+        const report: CustomEventsReport = await analyticsCustomEvents(
+          client,
+          found.project.id,
+          found.website?.id,
+          range.startUtc,
+          range.endUtc,
+          { ...(event ? { event } : {}), ...(page ? { page } : {}) }
+        );
+        const events = report.events.slice(0, limit ?? 20);
+        const top = events[0];
+        const summary = `${scopeText(found.project, found.website)}${event ? `, event "${event}"` : ''}${page ? `, page ${page}` : ''}, ${range.startUtc} to ${range.endUtc} (UTC): ${report.totals.events} events by ${report.totals.uniqueUsers} visitors.${top && !event ? ` Most frequent: "${top.event}" (${top.count}).` : ''}${availabilityText(report.availability?.state)}`;
+        return result(ref, envs.names(), summary, {
+          scope: { project: found.project.name, website: found.website?.name ?? null },
+          range,
+          totals: report.totals,
+          events,
+          other: {
+            events: report.other.events + (report.events.length - events.length),
+            count:
+              report.other.count +
+              report.events.slice(events.length).reduce((sum, entry) => sum + entry.count, 0)
+          },
+          trend: report.trend,
+          pages: report.pages.slice(0, limit ?? 20),
+          withoutPage: report.withoutPage,
+          properties: report.properties,
           availability: report.availability
         });
       })

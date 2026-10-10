@@ -4,6 +4,19 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Custom events report** (#60). The console has an **Events** page and the MCP server a `get_custom_events`
+  tool: each event with its count, distinct visitors, and pages, a trend, the top pages of one event, and its
+  most common property values (text and true/false only, redacted, 64 characters). Filter by event or page.
+  New docs page: [Custom events](docs/operations/custom-events.md).
+- **Database migration `0004_custom_event_reports.sql`** (additive: four tables). Only events received after
+  the backend update are counted; the report says so for an earlier range. Update with
+  `vizoalica deploy <name> --update`.
+- **Custom events carry their page.** The SDK adds the page key to `track()` events. An optional `page` field
+  was added to the event schema; a backend older than this release rejects events that carry it, so update the
+  backend before bundling the new `@vizoalica/browser-sdk`.
+
 ### Fixed
 
 - **A website with no token is no longer reported as misconfigured.** The website page, Health and the MCP

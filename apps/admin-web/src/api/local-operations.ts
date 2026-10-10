@@ -163,6 +163,23 @@ export type ActionsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+export type CustomEventsFilters = { event?: string; page?: string };
+export type CustomEventsReport = {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsOverview['range'];
+  totals: { events: number; uniqueUsers: number };
+  events: Array<{ event: string; count: number; visitors: number; pages: number }>;
+  /** What lies beyond `events`; keeps the totals exact. */
+  other: { events: number; count: number };
+  trend: Array<{ startUtc: string; count: number }>;
+  pages: Array<{ page: string; count: number; visitors: number }>;
+  /** Events of the selection sent without a page, such as by an older SDK. */
+  withoutPage: number;
+  /** Only when one event is selected. */
+  properties: Array<{ key: string; values: Array<{ value: string; count: number }> }>;
+  availability: AnalyticsOverview['availability'];
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -276,6 +293,24 @@ export const getAnalyticsActions = (
   if (filters.action) query.set('action', filters.action);
   return request<ActionsReport>(
     `/api/projects/${encodeURIComponent(projectId)}/analytics/actions?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export const getAnalyticsCustomEvents = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  filters: CustomEventsFilters = {},
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  if (filters.event) query.set('event', filters.event);
+  if (filters.page) query.set('page', filters.page);
+  return request<CustomEventsReport>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics/custom-events?${query.toString()}`,
     signal ? { signal } : undefined
   );
 };

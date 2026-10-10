@@ -39,4 +39,9 @@ describe('event builders', () => {
     expect(event.type).toBe('com.vizoalica.custom_event.v1');
     expect(event.data.properties).toEqual({ plan: 'pro' });
   });
+
+  it('adds the page key to custom events', () => {
+    const event = buildCustomEvent(config, context, 'signup');
+    expect(event.data.page).toEqual({ url_path: '/pricing' });
+  });
 });

@@ -148,6 +148,26 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           : {}),
         availability: { state: 'processing', taxonomyVersions: [1] }
       });
+    if (/^\/v1\/admin\/projects\/[^/]+\/analytics\/custom-events$/.test(path))
+      return json({
+        scope: {},
+        range: {},
+        totals: { events: 40, uniqueUsers: 9 },
+        events: Array.from({ length: 25 }, (_, index) => ({
+          event: `event_${index}`,
+          count: 25 - index,
+          visitors: 1,
+          pages: 1
+        })),
+        other: { events: 2, count: 5 },
+        trend: [{ startUtc: '2026-09-20T00:00:00.000Z', count: 40 }],
+        pages: [{ page: '/pricing', count: 30, visitors: 8 }],
+        withoutPage: 10,
+        properties: url.searchParams.get('event')
+          ? [{ key: 'plan', values: [{ value: 'pro', count: 30 }] }]
+          : [],
+        availability: { state: 'processing', taxonomyVersions: [1] }
+      });
     const status = /^\/v1\/admin\/projects\/[^/]+\/sources\/([^/]+)\/status$/.exec(path);
     if (status)
       return json({

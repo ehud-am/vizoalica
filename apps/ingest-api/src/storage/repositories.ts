@@ -12,6 +12,8 @@ import type {
   AccessKeySummary,
   ActionsFilters,
   ActionsReport,
+  CustomEventsFilters,
+  CustomEventsReport,
   AdminAuditEntry,
   AnalyticsOverview,
   AnalyticsSummary,
@@ -94,6 +96,13 @@ export interface AdminRepository {
     endUtc: string,
     filters?: ActionsFilters
   ): Promise<ActionsReport | undefined>;
+  getCustomEventsReport?(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters?: CustomEventsFilters
+  ): Promise<CustomEventsReport | undefined>;
   deleteExpiredDashboardData?(beforeUtc: string): Promise<void>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
   /** Absent on a Worker whose database predates access keys. */

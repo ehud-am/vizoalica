@@ -44,6 +44,7 @@ If these tools are missing, the user can add them with `vizoalica mcp install --
 | `get_traffic_overview`   | Page views, unique visitors, trend, top pages, referrers, countries, browsers, OS, devices, bot vs human.                 |
 | `compare_periods`        | This period vs the previous one (or any two periods): totals and pages that changed most.                                 |
 | `get_actions`            | Clicks on buttons and links: which, on which page, how often, by how many visitors.                                       |
+| `get_custom_events`      | Events the site sends with `track()`: count, visitors, trend, top pages; name one `event` for its property values.        |
 
 Every analytics tool takes `environment` (optional), `project` and `website` (name or id; `project` may be
 omitted when there is only one, `website` omitted for the whole project), and either `preset`
@@ -57,6 +58,8 @@ omitted when there is only one, `website` omitted for the whole project), and ei
 - **"Which pages are popular?"** `get_traffic_overview`; across a project each page row names its website.
 - **"What do people click on /pricing?"** `get_actions` with `page: "/pricing"`. Page keys group ids, so
   `/orders/8841` is `/orders/:id`.
+- **"How many signups, and where?"** `get_custom_events` with `event: "signup"` (names are lowercase with
+  underscores). Without `event` it lists every event. Property values need an `event`; numbers are not grouped.
 - **"Is everything working?"** `list_environments`, then `get_environment_status` for the one in question.
   If a Worker or schema update is needed, give the command from the status message.
 - **"Is my new site sending data?"** `get_website_status`; follow its `nextAction`. Then

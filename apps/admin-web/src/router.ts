@@ -45,6 +45,14 @@ export const ROUTES = define([
     range: true
   },
   {
+    path: 'analytics/events',
+    area: 'analytics',
+    label: 'Events',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
     path: 'analytics/sources',
     area: 'analytics',
     label: 'Sources',
@@ -175,37 +183,49 @@ export const DEFAULT_ROUTE: RoutePath = 'analytics/overview';
 export interface Route {
   path: RoutePath;
   websiteId?: string;
-  /** Selections carried in the address, only on the Actions page. */
+  /** Selections carried in the address, only on the Actions and Events pages. */
   params?: RouteParams;
 }
 
-/** The Actions report can be narrowed to a page or to an action; both live in the address. */
+/**
+ * The Actions report can be narrowed to a page or to an action, and the Events report to a page or
+ * to an event; the choice lives in the address.
+ */
 export interface RouteParams {
   page?: string;
   action?: string;
+  event?: string;
 }
 // The Worker refuses longer values, so an address carrying one is treated as carrying none.
-const PARAM_LIMITS = { page: 1024, action: 80 } as const;
+const PARAM_LIMITS = { page: 1024, action: 80, event: 64 } as const;
+const PARAM_NAMES: Partial<Record<RoutePath, readonly (keyof RouteParams)[]>> = {
+  'analytics/actions': ['page', 'action'],
+  'analytics/events': ['page', 'event']
+};
 
 /** Routes that appear in the primary navigation, in order. */
 export const NAV_ROUTES = ROUTES.filter((route) => route.nav);
 
 const definition = (path: RoutePath): RouteDef => ROUTES.find((route) => route.path === path)!;
 
-function parseParams(query: string): RouteParams | undefined {
+function parseParams(
+  query: string,
+  allowed: readonly (keyof RouteParams)[]
+): RouteParams | undefined {
   const params: RouteParams = {};
   for (const pair of query.split('&')) {
     const at = pair.indexOf('=');
     const name = at < 0 ? pair : pair.slice(0, at);
-    if (name !== 'page' && name !== 'action') continue;
+    if (!allowed.includes(name as keyof RouteParams)) continue;
     try {
       const value = decodeURIComponent(pair.slice(at + 1));
-      if (value && value.length <= PARAM_LIMITS[name]) params[name] = value;
+      if (value && value.length <= PARAM_LIMITS[name as keyof RouteParams])
+        params[name as keyof RouteParams] = value;
     } catch {
       // A malformed encoding means no selection, never a broken page.
     }
   }
-  return params.page || params.action ? params : undefined;
+  return Object.keys(params).length ? params : undefined;
 }
 
 export function parseRoute(hash: string): Route {
@@ -215,10 +235,9 @@ export function parseRoute(hash: string): Route {
   // Fixed addresses win over ones with an id, so "new" can never be read as a website id.
   const fixed = ROUTES.find((route) => route.path === address);
   if (fixed) {
+    const allowed = PARAM_NAMES[fixed.path];
     const params =
-      fixed.path === 'analytics/actions' && queryAt >= 0
-        ? parseParams(raw.slice(queryAt + 1))
-        : undefined;
+      allowed && queryAt >= 0 ? parseParams(raw.slice(queryAt + 1), allowed) : undefined;
     return { path: fixed.path, ...(params ? { params } : {}) };
   }
   const parts = address.split('/');
@@ -253,7 +272,8 @@ export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParam
   const base = `#/${websiteId ? path.replace(':id', encodeURIComponent(websiteId)) : path}`;
   const query = [
     params?.page ? `page=${encodeURIComponent(params.page)}` : '',
-    params?.action ? `action=${encodeURIComponent(params.action)}` : ''
+    params?.action ? `action=${encodeURIComponent(params.action)}` : '',
+    params?.event ? `event=${encodeURIComponent(params.event)}` : ''
   ].filter(Boolean);
   return query.length ? `${base}?${query.join('&')}` : base;
 }
@@ -271,7 +291,8 @@ export function useRoute(): Route {
         current.path === next.path &&
         current.websiteId === next.websiteId &&
         current.params?.page === next.params?.page &&
-        current.params?.action === next.params?.action
+        current.params?.action === next.params?.action &&
+        current.params?.event === next.params?.event
           ? current
           : next
       );

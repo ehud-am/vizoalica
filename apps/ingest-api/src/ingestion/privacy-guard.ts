@@ -71,6 +71,11 @@ function normalizeAction(event: CloudEvent<ActionData>): CloudEvent<ActionData> 
   };
 }
 
+/** A property value as reports store it: redacted like an action name, and cut short. */
+export function reportablePropertyValue(value: string, maxLength: number): string {
+  return redactLabel(value).slice(0, maxLength).trim();
+}
+
 export function validateEventPrivacy(event: CloudEvent): PrivacyGuardResult {
   if (isPageView(event)) {
     const page = event.data.page;
@@ -99,6 +104,8 @@ export function validateEventPrivacy(event: CloudEvent): PrivacyGuardResult {
   }
 
   if (isCustomEvent(event)) {
+    if (event.data.page?.url_path.includes('?'))
+      return { ok: false, reason: 'unredacted_url_query' };
     for (const key of Object.keys(event.data.properties ?? {})) {
       if (isForbiddenPropertyName(key)) return { ok: false, reason: 'sensitive_property_name' };
     }
@@ -117,7 +124,10 @@ export function applyPrivacyGuard(events: CloudEvent[]): PrivacyGuardResult {
         ...event,
         data: {
           ...event.data,
-          properties: sanitizeProperties(event.data.properties)
+          properties: sanitizeProperties(event.data.properties),
+          ...(event.data.page
+            ? { page: { url_path: normalizePagePath(event.data.page.url_path) } }
+            : {})
         }
       });
     } else if (isPageView(event)) {

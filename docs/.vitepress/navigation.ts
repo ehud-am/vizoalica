@@ -25,6 +25,7 @@ export const sidebar: NavGroup[] = [
       { text: 'Create a backend', link: '/operations/deploy' },
       { text: 'Add a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
+      { text: 'Custom events', link: '/operations/custom-events' },
       { text: 'Ask your AI assistant', link: '/operations/ai' },
       { text: 'Start the console day to day', link: '/operations/operator-local' },
       { text: 'Access keys', link: '/operations/share' },

@@ -118,6 +118,55 @@ const actionRows = [
   }
 ];
 
+const eventTotals = [
+  { event: 'signup', count: 30, visitors: 22, pages: 2 },
+  { event: 'file_download', count: 12, visitors: 9, pages: 1 }
+];
+
+/** The custom events report, narrowed by the same exact-match filters the Worker applies. */
+function customEventsReport(url: URL) {
+  const event = url.searchParams.get('event') ?? undefined;
+  const events = eventTotals.filter((entry) => !event || entry.event === event);
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { events: events.reduce((sum, entry) => sum + entry.count, 0), uniqueUsers: 28 },
+    events: eventTotals,
+    other: { events: 0, count: 0 },
+    trend: [
+      { startUtc: '2026-09-10T00:00:00.000Z', count: 10 },
+      { startUtc: '2026-09-10T01:00:00.000Z', count: 32 }
+    ],
+    pages: [
+      { page: '/#/pricing', count: 25, visitors: 18 },
+      { page: '/#/docs', count: 5, visitors: 4 }
+    ],
+    withoutPage: 0,
+    properties: event
+      ? [
+          {
+            key: 'plan',
+            values: [
+              { value: 'pro', count: 20 },
+              { value: 'team', count: 10 }
+            ]
+          }
+        ]
+      : [],
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
 /** The actions report, narrowed by the same exact-match filters the Worker applies. */
 function actionsReport(url: URL) {
   const page = url.searchParams.get('page') ?? undefined;
@@ -498,6 +547,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
         configEndpointError: null
       };
     else if (path.endsWith('/analytics/actions')) body = actionsReport(url);
+    else if (path.endsWith('/analytics/custom-events')) body = customEventsReport(url);
     else if (path.endsWith('/analytics'))
       body = overview(
         url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',

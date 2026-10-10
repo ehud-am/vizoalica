@@ -1,5 +1,6 @@
 import type {
   ActionsReport as WorkerActionsReport,
+  CustomEventsReport as WorkerCustomEventsReport,
   AnalyticsOverview as WorkerAnalyticsOverview
 } from '../../ingest-api/src/domain/types.js';
 
@@ -173,6 +174,7 @@ export function isDynamicConfigV1(value: unknown): value is DynamicConfigV1 {
 
 export type AnalyticsOverview = WorkerAnalyticsOverview;
 export type ActionsReport = WorkerActionsReport;
+export type CustomEventsReport = WorkerCustomEventsReport;
 
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };

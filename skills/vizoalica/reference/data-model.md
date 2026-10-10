@@ -19,7 +19,8 @@
   `other`), and for links the destination's origin and path. Names are cleaned: emails become `[email]`,
   long digit runs `[number]`, tokens `[token]`, at most 80 characters. Controls can be named with
   `data-vizoalica-action` and excluded with `data-vizoalica-ignore`.
-- **Custom events**: sent by the site's code, with filtered properties.
+- **Custom events**: sent by the site's code with `track(name, { properties })`: a lowercase name with
+  underscores, the page key, and filtered properties.
 - **Context per event**: country and continent, browser, operating system, device type (desktop, mobile,
   tablet), bot vs human, referrer (minimised), consent state.
 - **Unique visitors**: counted by the backend from a daily-rotating digest (daily salt, IP address, user agent; the salt is deleted after the day). Nothing is stored in the browser. A person counts once per website per day, so a multi-day range sums daily visitors. There are no visitor identifiers to list.
@@ -40,4 +41,8 @@ session replay, cookies, auth headers, raw URL query values, per-visitor histori
   `unavailable`.
 - Actions report: `rows` (page, action, kind, count, visitors, pageViews of that page), `actions`
   (totals per action across pages), `other` (what is beyond the rows).
+- Custom events report: `events` (count, visitors, pages per event), `trend`, `pages` (top pages of the
+  selection), `withoutPage`, and, only when one event is named, `properties` (the most common text and
+  true/false values, redacted, 64 characters; numbers are not grouped). Only events received after the
+  backend got the custom events update are counted; earlier ranges report `incomplete`.
 - A range is at most 30 days. Data older than the project's retention period is not available.

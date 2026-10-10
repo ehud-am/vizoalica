@@ -16,6 +16,7 @@ import { BrandLogo } from './components/BrandLogo.js';
 import { ConnectionNotice } from './components/ConnectionNotice.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
+import { EventsPage } from './analytics/EventsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
 import { GeographyPage } from './analytics/GeographyPage.js';
 import {
@@ -149,6 +150,8 @@ function Console({ route }: { route: Route }) {
             {route.path === 'analytics/actions' ? (
               // Its own data: it never needs the overview, so it does not fetch it.
               <ActionsPage />
+            ) : route.path === 'analytics/events' ? (
+              <EventsPage />
             ) : area === 'analytics' ? (
               <AnalyticsProvider comparePrevious={route.path === 'analytics/overview'}>
                 <AnalyticsRoute route={route} />

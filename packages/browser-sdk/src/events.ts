@@ -79,6 +79,7 @@ export function buildCustomEvent(
   return baseEvent(config, context, 'com.vizoalica.custom_event.v1', {
     name,
     properties: sanitizeProperties(properties),
+    page: { url_path: currentPage().url_path },
     visitor: { anonymous_id: context.anonymousId },
     session: { id: context.sessionId }
   });

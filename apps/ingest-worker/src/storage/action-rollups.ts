@@ -46,6 +46,30 @@ const keyOf = (item: ActionItem) =>
   ] as const;
 
 /**
+ * The keyed identity page views use, so "visitors" means the same thing in every report. The
+ * digest is undefined when the event carries no identifier at all.
+ */
+export async function visitorIdentity(
+  stored: StoredEvent,
+  digest: DigestFn,
+  visitorId: unknown,
+  context?: RequestAnalyticsContext
+): Promise<{ visitorDigest?: string; identityKind: 'source-local' | 'project-supplied' }> {
+  const identity = context?.projectVisitorId ?? context?.dailyVisitorId ?? visitorId;
+  const identityKind = context?.projectVisitorId ? 'project-supplied' : 'source-local';
+  if (typeof identity !== 'string' || !identity) return { identityKind };
+  const visitorDigest = await digest(
+    ...[
+      identityKind === 'project-supplied' ? 'project-v1' : 'source-v1',
+      stored.projectId,
+      identityKind === 'source-local' ? stored.sourceId : undefined,
+      identity
+    ].filter((part): part is string => part !== undefined)
+  );
+  return { visitorDigest, identityKind };
+}
+
+/**
  * Turns an accepted action event into an aggregate item. Returns undefined for anything that is
  * not a well-formed action (ingestion already validated it, so this is defense in depth).
  */
@@ -75,21 +99,8 @@ export async function expandActionEvent(
       ? `${target.url_origin}${target.url_path}`
       : '';
 
-  // The same keyed identity page views use, so "visitors" means the same thing everywhere.
   const visitorId = data?.visitor?.anonymous_id;
-  const identity = context?.projectVisitorId ?? context?.dailyVisitorId ?? visitorId;
-  const identityKind = context?.projectVisitorId ? 'project-supplied' : 'source-local';
-  const visitorDigest =
-    typeof identity === 'string' && identity
-      ? await digest(
-          ...[
-            identityKind === 'project-supplied' ? 'project-v1' : 'source-v1',
-            stored.projectId,
-            identityKind === 'source-local' ? stored.sourceId : undefined,
-            identity
-          ].filter((part): part is string => part !== undefined)
-        )
-      : undefined;
+  const { visitorDigest, identityKind } = await visitorIdentity(stored, digest, visitorId, context);
 
   return {
     projectId: stored.projectId,

@@ -124,6 +124,14 @@ describe('action event contract', () => {
       }
     };
     expect(validate([pageViewEvent, custom, actionEvent])).toBe(true);
+    // A custom event may carry the page it was sent from, and nothing else about it.
+    const withPage = (page: unknown) => ({ ...custom, data: { ...custom.data, page } });
+    expect(validate([withPage({ url_path: '/pricing' })])).toBe(true);
+    expect(validate([withPage({ url_path: '/pricing', url_origin: 'https://x.test' })])).toBe(
+      false
+    );
+    expect(validate([withPage({ url_path: 'x'.repeat(1025) })])).toBe(false);
+    expect(validate([withPage({})])).toBe(false);
     // An action carrying page-view fields, or a page view carrying an action, matches no branch.
     expect(
       validate([

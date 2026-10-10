@@ -158,4 +158,23 @@ describe('privacy guard action events', () => {
     const result = applyPrivacyGuard([custom]);
     expect(result.ok && result.events[0]!.data).toEqual(custom.data);
   });
+
+  it('groups identifiers in the page of a custom event and refuses one with a query', () => {
+    const custom = {
+      ...pageViewEvent('evt_c2'),
+      type: 'com.vizoalica.custom_event.v1' as const,
+      data: {
+        name: 'signup',
+        page: { url_path: '/orders/8841' },
+        visitor: { anonymous_id: 'a' },
+        session: { id: 's' }
+      }
+    };
+    const result = applyPrivacyGuard([custom]);
+    expect(result.ok && (result.events[0]!.data as { page: unknown }).page).toEqual({
+      url_path: '/orders/:id'
+    });
+    const withQuery = { ...custom, data: { ...custom.data, page: { url_path: '/a?token=x' } } };
+    expect(applyPrivacyGuard([withQuery])).toEqual({ ok: false, reason: 'unredacted_url_query' });
+  });
 });

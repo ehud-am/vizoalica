@@ -135,8 +135,28 @@ describe('applying the real migrations', () => {
     expect(sqlite.prepare('SELECT token_required FROM sources').get()).toEqual({
       token_required: 1
     });
-    expect(tableNames(sqlite)).toEqual(tableNames(freshDatabase()));
+    expect(tableNames(sqlite)).toEqual(tableNames(freshDatabase({ upTo: 3 })));
     expect(() => sqlite.exec('UPDATE sources SET token_required = 2')).toThrow();
+  });
+
+  it('0004 adds the custom event tables and records when reporting began, changing nothing else', () => {
+    const sqlite = freshDatabase({ upTo: 3 });
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0004_custom_event_reports.sql'), 'utf8'));
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_custom_event_availability',
+      'dashboard_minute_custom_event_properties',
+      'dashboard_minute_custom_event_visitors',
+      'dashboard_minute_custom_events'
+    ]);
+    expect(
+      sqlite
+        .prepare('SELECT available_from_utc AS at FROM dashboard_custom_event_availability')
+        .get()
+    ).toEqual({ at: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:00\.000Z$/) });
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_custom_event_availability VALUES (2, 'x')")
+    ).toThrow();
   });
 
   it('0002 refuses to be applied twice by the CREATE TABLE (without IF NOT EXISTS) for access_keys', () => {

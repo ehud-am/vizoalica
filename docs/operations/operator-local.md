@@ -52,7 +52,7 @@ operator credential. It never prints the configuration or a credential.
 
 The console has two areas, shown as two groups in the left navigation.
 
-- **Analytics** is for reading. It contains Overview, Pages, Actions, Sources, Geography,
+- **Analytics** is for reading. It contains Overview, Pages, Actions, Events, Sources, Geography,
   Technology, and Traffic quality, and nothing in it can change or delete anything.
 - **Manage** is for setting up. It contains Projects, Websites, and Health. Deleting or disabling
   something lives in a separate danger zone and asks you to confirm by name.
@@ -83,6 +83,12 @@ Choose a page to see everything visitors did on it, or an action to see every pa
 The selection is kept in the address, so you can bookmark it or send it to another console user.
 Actions appear for websites whose SDK file is version 0.6 or later. Nothing on this page changes a
 setting.
+
+**Events** reports the custom events a website sends with `vizoalica.track()`: each event with its
+count and distinct visitors, a trend, the pages it was sent from, and, once you choose one event, the
+most common values of its properties. Choose an event or a page to narrow it; the selection is kept in
+the address. It needs the current backend (`vizoalica deploy <name> --update`), and only events received
+after the update are counted. See [Custom events](custom-events.md).
 
 The complete country list, and lists of more than ten pages or sources, need the current backend.
 After updating Vizoalica, update the backend (`vizoalica deploy <name> --update`). Until then the console

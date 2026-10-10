@@ -25,6 +25,7 @@ describe('the vizoalica MCP server', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'compare_periods',
       'get_actions',
+      'get_custom_events',
       'get_environment_status',
       'get_traffic_overview',
       'get_website_status',
@@ -373,6 +374,35 @@ describe('the vizoalica MCP server', () => {
     });
     expect(plain.data!.rows).toHaveLength(20);
     expect(plain.data!.selection).toBeUndefined();
+  });
+
+  it('reports custom events with filters, trimmed to the limit', async () => {
+    const h = await start();
+    const result = await h.call('get_custom_events', {
+      environment: 'prod',
+      project: 'Acme',
+      event: 'event_0',
+      page: '/pricing',
+      limit: 5
+    });
+    expect(result.text).toContain(
+      'all websites of project Acme, event "event_0", page /pricing, 2026-09-20T12:00:00.000Z to 2026-09-27T12:00:00.000Z (UTC): 40 events by 9 visitors. Data is processing: recent numbers may still grow.'
+    );
+    expect(result.data!.events).toHaveLength(5);
+    expect(result.data!.other).toEqual({ events: 22, count: 5 + (20 * 21) / 2 });
+    expect(result.data!.properties).toEqual([
+      { key: 'plan', values: [{ value: 'pro', count: 30 }] }
+    ]);
+    expect(h.requests.at(-1)!.query).toContain('event=event_0');
+    expect(h.requests.at(-1)!.query).toContain('page=%2Fpricing');
+    const plain = await h.call('get_custom_events', {
+      environment: 'prod',
+      project: 'Acme',
+      website: 'Shop'
+    });
+    expect(plain.text).toContain('Most frequent: "event_0" (25).');
+    expect(plain.data!.events).toHaveLength(20);
+    expect(plain.data!.properties).toEqual([]);
   });
 
   it("reports a website's status and probes its address unless told not to", async () => {

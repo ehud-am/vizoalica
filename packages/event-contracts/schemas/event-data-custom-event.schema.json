@@ -17,6 +17,14 @@
         "maxLength": 256
       }
     },
+    "page": {
+      "type": "object",
+      "required": ["url_path"],
+      "properties": {
+        "url_path": { "type": "string", "maxLength": 1024 }
+      },
+      "additionalProperties": false
+    },
     "visitor": {
       "type": "object",
       "required": ["anonymous_id"],

@@ -188,6 +188,57 @@ export interface ActionsReport {
   availability: AnalyticsOverview['availability'];
 }
 
+export interface CustomEventsFilters {
+  /** Exact event name. */
+  event?: string;
+  /** Exact page key. */
+  page?: string;
+}
+
+export interface CustomEventTotal {
+  event: string;
+  count: number;
+  visitors: number;
+  /** Distinct pages the event was sent from; events sent without a page are not counted. */
+  pages: number;
+}
+
+export interface CustomEventPage {
+  page: string;
+  count: number;
+  visitors: number;
+}
+
+export interface CustomEventPropertyValue {
+  value: string;
+  count: number;
+}
+
+export interface CustomEventProperty {
+  key: string;
+  /** Most frequent values first, at most 10. */
+  values: CustomEventPropertyValue[];
+}
+
+export interface CustomEventsReport {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  totals: { events: number; uniqueUsers: number };
+  /** Per-event totals, most frequent first, at most 50. */
+  events: CustomEventTotal[];
+  /** What is beyond `events`, so `sum(events.count) + other.count` is exactly `totals.events`. */
+  other: { events: number; count: number };
+  /** Events per interval for the current selection. */
+  trend: Array<{ startUtc: string; count: number }>;
+  /** Pages the selected events came from, at most 20. */
+  pages: CustomEventPage[];
+  /** Events sent without a page, such as from an older SDK. */
+  withoutPage: number;
+  /** Property values, only when one event is selected. At most 10 keys. */
+  properties: CustomEventProperty[];
+  availability: AnalyticsOverview['availability'];
+}
+
 export interface SigningKey {
   id: string;
   projectId: string;

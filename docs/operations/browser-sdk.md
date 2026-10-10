@@ -71,7 +71,7 @@ declines, do not load the script.
 
 The script reads its own `data-*` attributes and initializes itself. By default it sends a page-view event and exposes the client as `window.vizoalica`.
 
-Optional custom event:
+Optional custom event (reported on the console's Events page; see [Custom events](custom-events.md)):
 
 ```html
 <script>

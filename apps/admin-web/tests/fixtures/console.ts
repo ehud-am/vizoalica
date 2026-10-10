@@ -1,5 +1,6 @@
 import type {
   ActionsReport,
+  CustomEventsReport,
   AnalyticsOverview,
   Integration,
   Project,
@@ -182,6 +183,54 @@ export function makeActionsReport(overrides: Partial<ActionsReport> = {}): Actio
       { action: 'Start free trial', kind: 'link', count: 12, visitors: 8, pages: 1 },
       { action: 'Download invoice', kind: 'button', count: 8, visitors: 3, pages: 1 },
       { action: 'Contact sales', kind: 'button', count: 5, visitors: 5, pages: 2 }
+    ],
+    availability: { state: 'complete', taxonomyVersions: [1] },
+    ...overrides
+  };
+}
+
+/** A custom events report: three events from two pages, and properties for the selected one. */
+export function makeCustomEventsReport(
+  overrides: Partial<CustomEventsReport> = {}
+): CustomEventsReport {
+  return {
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-01T03:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { events: 20, uniqueUsers: 9 },
+    events: [
+      { event: 'signup', count: 12, visitors: 7, pages: 2 },
+      { event: 'file_download', count: 6, visitors: 4, pages: 1 },
+      { event: 'newsletter', count: 2, visitors: 2, pages: 0 }
+    ],
+    other: { events: 4, count: 3 },
+    trend: [
+      { startUtc: '2026-01-01T00:00:00.000Z', count: 5 },
+      { startUtc: '2026-01-01T01:00:00.000Z', count: 0 },
+      { startUtc: '2026-01-01T02:00:00.000Z', count: 15 }
+    ],
+    pages: [
+      { page: '/pricing', count: 10, visitors: 6 },
+      { page: '/#/orders/:id', count: 4, visitors: 3 }
+    ],
+    withoutPage: 2,
+    properties: [
+      {
+        key: 'plan',
+        values: [
+          { value: 'pro', count: 9 },
+          { value: 'team', count: 3 }
+        ]
+      }
     ],
     availability: { state: 'complete', taxonomyVersions: [1] },
     ...overrides

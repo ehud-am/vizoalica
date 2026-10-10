@@ -73,6 +73,47 @@ export function actionEvent(id: string, options: ActionOptions = {}): StoredEven
   } as unknown as StoredEvent;
 }
 
+export interface CustomEventOptions {
+  name?: string;
+  page?: string | null;
+  properties?: Record<string, unknown>;
+  visitor?: string;
+  at?: string;
+  project?: string;
+  source?: string;
+}
+
+/** A custom event; `page: null` leaves the page out, as an older SDK does. */
+export function customEvent(id: string, options: CustomEventOptions = {}): StoredEvent {
+  const {
+    name = 'signup',
+    page = '/pricing',
+    properties = {},
+    visitor = 'anon-1',
+    at = AT,
+    project = 'p1',
+    source = 's1'
+  } = options;
+  return {
+    projectId: project,
+    sourceId: source,
+    trustLevel: 'signed-session',
+    consentState: 'analytics-granted',
+    receivedAt: new Date(at),
+    event: {
+      id,
+      type: 'com.vizoalica.custom_event.v1',
+      data: {
+        name,
+        properties,
+        ...(page === null ? {} : { page: { url_path: page } }),
+        visitor: { anonymous_id: visitor },
+        session: { id: 'sess-1' }
+      }
+    }
+  } as unknown as StoredEvent;
+}
+
 export function pageViewEvent(
   id: string,
   options: { page?: string; visitor?: string; at?: string; project?: string; source?: string } = {}

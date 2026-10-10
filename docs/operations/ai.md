@@ -64,6 +64,7 @@ Environment: prod (admin, https://analytics.example.com; default: the one last u
 | `get_traffic_overview`   | Page views, visitors, trend, top pages (with each page's website), referrers, countries, devices |
 | `compare_periods`        | A period against the one before, with the pages that changed most                                |
 | `get_actions`            | Clicks on buttons and links, by page                                                             |
+| `get_custom_events`      | Custom events: count, visitors, trend, pages, and property values                                |
 
 Projects and websites can be named by name or id. Ranges are UTC and at most 30 days per call, the same limit as
 the console. An owner or analyst access key sees exactly what it sees in the console, nothing more. There are also

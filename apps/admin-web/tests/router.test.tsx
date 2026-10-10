@@ -219,3 +219,39 @@ describe('router: the Actions page', () => {
     expect(screen.getByTestId('probe').textContent).toBe('{"page":"/pricing","action":"Go"}');
   });
 });
+
+describe('router: the Events page', () => {
+  it('re-renders when only the selected event changes', async () => {
+    function Probe() {
+      const route = useRoute();
+      return <p data-testid="probe">{JSON.stringify(route.params ?? {})}</p>;
+    }
+    window.location.hash = '#/analytics/events';
+    render(<Probe />);
+    await act(async () => {
+      navigate('analytics/events', undefined, { event: 'signup' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(screen.getByTestId('probe').textContent).toBe('{"event":"signup"}');
+  });
+
+  it('is an Analytics navigation item directly after Actions, with project-and-website scope and a range', () => {
+    const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);
+    expect(analytics.indexOf('analytics/events')).toBe(analytics.indexOf('analytics/actions') + 1);
+    expect(routeLabel('analytics/events')).toBe('Events');
+    expect(scopeControls('analytics/events')).toBe('project-website');
+    expect(showsRange('analytics/events')).toBe(true);
+  });
+
+  it('carries an event and a page in the address, and ignores the Actions-only name', () => {
+    const params = { event: 'signup', page: '/#/orders/:id' };
+    const href = hrefFor('analytics/events', undefined, params);
+    expect(href).toBe('#/analytics/events?page=%2F%23%2Forders%2F%3Aid&event=signup');
+    expect(parseRoute(href)).toEqual({ path: 'analytics/events', params });
+    expect(parseRoute('#/analytics/events?action=Go')).toEqual({ path: 'analytics/events' });
+    expect(parseRoute('#/analytics/actions?event=signup')).toEqual({ path: 'analytics/actions' });
+    expect(parseRoute(`#/analytics/events?event=${'a'.repeat(65)}`)).toEqual({
+      path: 'analytics/events'
+    });
+  });
+});

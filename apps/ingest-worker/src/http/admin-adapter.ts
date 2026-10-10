@@ -3,6 +3,7 @@ import type {
   AccessKeyRole,
   AccessKeyScope,
   ActionsFilters,
+  CustomEventsFilters,
   Principal,
   Project,
   QuotaPolicy,
@@ -62,6 +63,21 @@ function actionsFilters(url: URL): ActionsFilters | undefined {
   for (const [name, limit] of [
     ['page', 1024],
     ['action', 80]
+  ] as const) {
+    const value = url.searchParams.get(name);
+    if (!value) continue;
+    if (value.length > limit || CONTROL_CHARACTERS.test(value)) return undefined;
+    filters[name] = value;
+  }
+  return filters;
+}
+
+/** Exact-match filters of the custom events report. */
+function customEventsFilters(url: URL): CustomEventsFilters | undefined {
+  const filters: CustomEventsFilters = {};
+  for (const [name, limit] of [
+    ['event', 64],
+    ['page', 1024]
   ] as const) {
     const value = url.searchParams.get(name);
     if (!value) continue;
@@ -445,6 +461,47 @@ export async function handleAdminRequest(
         : (url.searchParams.get('source_id') ?? undefined);
     const report = await dependencies.repositories.getActionsReport?.(
       actionsMatch[1]!,
+      sourceId,
+      range.startUtc,
+      range.endUtc,
+      filters
+    );
+    return report
+      ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+      : notFound();
+  }
+  const customEventsMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics\/custom-events$/.exec(
+    url.pathname
+  );
+  if (customEventsMatch && request.method === 'GET') {
+    if (principal.role !== 'admin' && !projectInScope(principal.scope, customEventsMatch[1]!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    const filters = customEventsFilters(url);
+    if (!filters) return invalid();
+    if (
+      principal.role !== 'admin' &&
+      principal.scope.sourceId !== null &&
+      url.searchParams.get('source_id') &&
+      url.searchParams.get('source_id') !== principal.scope.sourceId
+    )
+      return notFound();
+    const sourceId =
+      principal.role !== 'admin' && principal.scope.sourceId !== null
+        ? principal.scope.sourceId
+        : (url.searchParams.get('source_id') ?? undefined);
+    const report = await dependencies.repositories.getCustomEventsReport?.(
+      customEventsMatch[1]!,
       sourceId,
       range.startUtc,
       range.endUtc,

@@ -63,6 +63,8 @@ export interface ActionData {
 export interface CustomEventData {
   name: string;
   properties?: Record<string, string | number | boolean | null>;
+  /** The page key the event was sent from; absent from older SDKs. */
+  page?: { url_path: string };
   visitor: { anonymous_id: string };
   session: { id: string };
 }

@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
 import { CAPABILITIES, capabilityById } from '../src/capabilities.js';
 import { NAV_ROUTES, ROUTES, routeArea, type RoutePath } from '../src/router.js';
-import { makeActionsReport, makeOverview, primaryIntegration } from './fixtures/console.js';
+import {
+  makeActionsReport,
+  makeCustomEventsReport,
+  makeOverview,
+  primaryIntegration
+} from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
@@ -19,7 +24,8 @@ const api = vi.hoisted(() => ({
   getStatus: vi.fn(),
   getReachability: vi.fn(),
   getAnalyticsOverview: vi.fn(),
-  getAnalyticsActions: vi.fn()
+  getAnalyticsActions: vi.fn(),
+  getAnalyticsCustomEvents: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -56,6 +62,7 @@ beforeEach(() => {
     configEndpointError: null
   });
   api.getAnalyticsActions.mockResolvedValue(makeActionsReport());
+  api.getAnalyticsCustomEvents.mockResolvedValue(makeCustomEventsReport());
   api.getAnalyticsOverview.mockResolvedValue(
     makeOverview({
       totals: { pageViews: 10, uniqueUsers: 4 },
@@ -101,7 +108,9 @@ describe('view and manage separation', () => {
       // Each view loads its own data; the Actions page never needs the overview.
       await waitFor(() =>
         expect(
-          api.getAnalyticsOverview.mock.calls.length + api.getAnalyticsActions.mock.calls.length
+          api.getAnalyticsOverview.mock.calls.length +
+            api.getAnalyticsActions.mock.calls.length +
+            api.getAnalyticsCustomEvents.mock.calls.length
         ).toBeGreaterThan(0)
       );
       await waitFor(() =>

@@ -15,7 +15,9 @@ import type {
   RankedResult,
   DistributionResult,
   ActionsFilters,
-  ActionsReport
+  ActionsReport,
+  CustomEventsFilters,
+  CustomEventsReport
 } from '../../../ingest-api/src/domain/types.js';
 import type {
   IngestionDecisionRepository,
@@ -30,6 +32,13 @@ import {
   expandActionEvent,
   type ActionItem
 } from './action-rollups.js';
+import {
+  CUSTOM_EVENT_TYPE,
+  customEventStatements,
+  customEventsReportQueries,
+  expandCustomEvent,
+  type CustomEventItem
+} from './custom-event-rollups.js';
 import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
 import type { QuotaReservation } from '../../../ingest-api/src/storage/repositories.js';
 
@@ -115,6 +124,9 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_visitors',
   'dashboard_minute_actions',
   'dashboard_minute_action_visitors',
+  'dashboard_minute_custom_events',
+  'dashboard_minute_custom_event_visitors',
+  'dashboard_minute_custom_event_properties',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -278,6 +290,7 @@ export class D1Repositories
       identityKind?: 'source-local' | 'project-supplied';
     }> = [];
     const actionItems: ActionItem[] = [];
+    const customItems: CustomEventItem[] = [];
     const digest = (...parts: string[]) => hmacDigest(this.analyticsDigestSecret, ...parts);
     for (const stored of events) {
       const day = stored.receivedAt.toISOString().slice(0, 10);
@@ -299,6 +312,10 @@ export class D1Repositories
         )
         .bind(stored.projectId, stored.sourceId, day, eventType, pagePath)
         .run();
+      if (eventType === CUSTOM_EVENT_TYPE) {
+        const item = await expandCustomEvent(stored, digest, context);
+        if (item) customItems.push(item);
+      }
       if (eventType === 'com.vizoalica.page_view.v1') {
         const hour = stored.receivedAt.toISOString().slice(0, 13) + ':00:00.000Z';
         await this.db
@@ -379,7 +396,7 @@ export class D1Repositories
         }
       }
     }
-    if (!expanded.length && !actionItems.length) return;
+    if (!expanded.length && !actionItems.length && !customItems.length) return;
 
     const nonce = crypto.randomUUID();
     const seen = [
@@ -388,7 +405,8 @@ export class D1Repositories
         eventDigest,
         receivedAt: event.receivedAt
       })),
-      ...actionItems
+      ...actionItems,
+      ...customItems
     ];
     const statements = seen.map(({ projectId, eventDigest, receivedAt }) =>
       this.db
@@ -515,6 +533,7 @@ export class D1Repositories
       );
     }
     statements.push(...actionStatements(this.db, actionItems, nonce));
+    statements.push(...customEventStatements(this.db, customItems, nonce));
     const watermarks = new Map<string, { projectId: string; sourceId: string; minute: string }>();
     for (const item of [
       ...expanded.map((entry) => ({
@@ -522,7 +541,8 @@ export class D1Repositories
         sourceId: entry.event.sourceId,
         minute: entry.minute
       })),
-      ...actionItems
+      ...actionItems,
+      ...customItems
     ]) {
       const key = `${item.projectId}\0${item.sourceId}`;
       const current = watermarks.get(key);
@@ -964,6 +984,33 @@ export class D1Repositories
     return shape(await this.readAll(statements));
   }
 
+  async getCustomEventsReport(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters: CustomEventsFilters = {}
+  ): Promise<CustomEventsReport | undefined> {
+    const project = await this.findProject(projectId);
+    if (!project) return undefined;
+    const source = sourceId ? await this.getSource(projectId, sourceId) : undefined;
+    if (sourceId && (!source || source.status === 'deleted')) return undefined;
+    const { statements, shape } = customEventsReportQueries(this.db, {
+      projectId,
+      sourceId,
+      startUtc,
+      endUtc,
+      filters,
+      scope: {
+        projectId,
+        sourceId: sourceId ?? null,
+        label: source?.name ?? 'All websites',
+        identityMode: 'source-local'
+      }
+    });
+    return shape(await this.readAll(statements));
+  }
+
   /** Today's visitor salt, created on first use; the same value for every caller that day. */
   async dailyVisitorSalt(dayUtc: string): Promise<string | undefined> {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -993,6 +1040,9 @@ export class D1Repositories
       ['dashboard_minute_visitors', 'minute_utc'],
       ['dashboard_minute_actions', 'minute_utc'],
       ['dashboard_minute_action_visitors', 'minute_utc'],
+      ['dashboard_minute_custom_events', 'minute_utc'],
+      ['dashboard_minute_custom_event_visitors', 'minute_utc'],
+      ['dashboard_minute_custom_event_properties', 'minute_utc'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.
       ['ingestion_decisions', 'received_at'],

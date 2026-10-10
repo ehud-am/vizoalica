@@ -18,7 +18,12 @@ import {
   validateRenameBody,
   validateIssueBody
 } from './routes/access-keys.js';
-import { analytics, analyticsActions, analyticsOverview } from './routes/analytics.js';
+import {
+  analytics,
+  analyticsActions,
+  analyticsCustomEvents,
+  analyticsOverview
+} from './routes/analytics.js';
 import { AnalyticsRangeError } from '../../ingest-api/src/analytics/range.js';
 import { validOrigins } from './contracts.js';
 import {
@@ -249,6 +254,26 @@ export function createLocalServer(options: ServerOptions) {
             {
               ...(url.searchParams.get('page') ? { page: url.searchParams.get('page')! } : {}),
               ...(url.searchParams.get('action') ? { action: url.searchParams.get('action')! } : {})
+            }
+          )
+        );
+      }
+      const customEventsMatch = /^\/api\/projects\/([^/]+)\/analytics\/custom-events$/.exec(
+        url.pathname
+      );
+      if (request.method === 'GET' && customEventsMatch) {
+        return send(
+          response,
+          200,
+          await analyticsCustomEvents(
+            client,
+            customEventsMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? '',
+            {
+              ...(url.searchParams.get('event') ? { event: url.searchParams.get('event')! } : {}),
+              ...(url.searchParams.get('page') ? { page: url.searchParams.get('page')! } : {})
             }
           )
         );
