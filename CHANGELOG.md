@@ -4,6 +4,14 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A website with no token is no longer reported as misconfigured.** The website page, Health and the MCP
+  `website_status` tool no longer probe `/vizoalica/config.json` for a website that needs no token; they have no
+  configuration endpoint to check.
+- **The console started from a source checkout accepts backends at the current schema.** A leftover
+  `apps/cli/package/dist` from an older build no longer sets the expected schema.
+
 ## [0.9.1] - 2026-10-10
 
 ### Added

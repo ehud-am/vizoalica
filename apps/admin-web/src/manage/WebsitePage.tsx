@@ -52,7 +52,10 @@ function WebsiteHub({ website }: { website: Website }) {
       .catch(() => undefined);
     Promise.all([
       getStatus(projectId, website.id),
-      getReachability(projectId, website.id).catch(() => undefined)
+      // A website with no token has no configuration endpoint to check; its Install page checks the tag.
+      website.tokenRequired === false
+        ? Promise.resolve(undefined)
+        : getReachability(projectId, website.id).catch(() => undefined)
     ])
       .then(([nextStatus, nextReachability]) => {
         if (cancelled) return;
@@ -66,7 +69,7 @@ function WebsiteHub({ website }: { website: Website }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId, website.id, website.status]);
+  }, [projectId, website.id, website.status, website.tokenRequired]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);

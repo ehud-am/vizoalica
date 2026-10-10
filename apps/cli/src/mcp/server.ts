@@ -409,9 +409,15 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         let live: object | undefined;
         if (check_site !== false && origins.length > 0) {
           const probe = deps.probe ?? { reachability: checkReachability, install: checkInstall };
-          const reach = await probe.reachability(origins[0]!);
-          const install = await probe.install(origins, 'snippet', reach.configEndpointReachable);
-          live = { configEndpointReachable: reach.configEndpointReachable, install };
+          if ((site as { tokenRequired?: boolean }).tokenRequired === false) {
+            // No token means no configuration endpoint: only the script tag on the home page matters.
+            const key = (site as { publicSourceKey?: string }).publicSourceKey ?? '';
+            live = { install: await probe.install(origins, 'script-tag', true, fetch, key) };
+          } else {
+            const reach = await probe.reachability(origins[0]!);
+            const install = await probe.install(origins, 'snippet', reach.configEndpointReachable);
+            live = { configEndpointReachable: reach.configEndpointReachable, install };
+          }
         }
         const install = (live as { install?: { code: string; nextAction: string } } | undefined)
           ?.install;
