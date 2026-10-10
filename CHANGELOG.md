@@ -18,6 +18,7 @@ All notable changes to Vizoalica are documented in this file.
   Create, Rename, Rotate, and Delete. The built-in Admin key is listed and cannot be deleted there. Key values are
   never shown after creation. Backend: `PATCH /v1/admin/access-keys/:id` (rename) and
   `POST /v1/admin/access-keys/:id/rotate`; no schema change.
+- **The website page's Details card shows the ingestion endpoint** (`<backend address>/v1/events:batch`) with a copy button.
 - **The console footer shows the Vizoalica version** (`Vizoalica v0.9.0`), and the backend version when it differs (#42).
 
 ### Changed

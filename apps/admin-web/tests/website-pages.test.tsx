@@ -6,6 +6,7 @@ import { App } from '../src/App.js';
 import { ApiError } from '../src/api/local-operations.js';
 import { acme, applyApiDefaults, beta, blog, docs, shop, site } from './fixtures/api.js';
 import { makeOverview } from './fixtures/console.js';
+import { connectedState } from './fixtures/setup.js';
 
 const api = vi.hoisted(() => ({
   bootstrapSession: vi.fn(),
@@ -17,7 +18,8 @@ const api = vi.hoisted(() => ({
   getSnippet: vi.fn(),
   getStatus: vi.fn(),
   getReachability: vi.fn(),
-  getAnalyticsOverview: vi.fn()
+  getAnalyticsOverview: vi.fn(),
+  getSetupState: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -26,6 +28,7 @@ let sites: Record<string, unknown[]>;
 beforeEach(() => {
   sites = { p1: [docs, blog], p2: [shop] };
   applyApiDefaults(api, sites);
+  api.getSetupState.mockRejectedValue(new Error('offline'));
 });
 afterEach(() => {
   cleanup();
@@ -149,6 +152,7 @@ describe('website page', () => {
   });
 
   it('shows details, identifiers with copy controls, status, and the three actions', async () => {
+    api.getSetupState.mockResolvedValue(connectedState('admin'));
     go('manage/websites/s1');
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: /Docs/ });
@@ -157,6 +161,9 @@ describe('website page', () => {
     expect(screen.getByText('p1')).toBeTruthy();
     expect(screen.getByText('key-s1')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copy website key' })).toBeTruthy();
+    expect(screen.getByText('Ingestion endpoint')).toBeTruthy();
+    expect(screen.getByText('https://w.example.workers.dev/v1/events:batch')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy ingestion endpoint' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '#/manage/websites/s1/edit'
     );

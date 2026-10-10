@@ -172,7 +172,9 @@ function WebsiteHub({ website }: { website: Website }) {
             ))}
           </ul>
           <h3 className="sub-heading">Identifiers</h3>
-          <IdentifierList items={identifiersFor(projectId, website)} />
+          <IdentifierList
+            items={identifiersFor(projectId, website, setup.state?.connection.workerUrl)}
+          />
           <p className="hint">These are public identifiers, not secrets.</p>
         </section>
 
