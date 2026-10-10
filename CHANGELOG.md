@@ -4,6 +4,8 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-10
+
 ### Added
 
 - **Custom events report** (#60). The console has an **Events** page and the MCP server a `get_custom_events`
