@@ -4,6 +4,8 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-10
+
 ### Added
 
 - **Sign in to Cloudflare in your browser.** `vizoalica env add` and `vizoalica deploy` ask whether to
