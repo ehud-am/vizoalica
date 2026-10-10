@@ -2576,6 +2576,39 @@ a.nav-item {
   margin-top: 4px;
 }
 
+.access-key-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.access-key-table th,
+.access-key-table td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--color-border-default);
+  text-align: left;
+  vertical-align: top;
+}
+
+.access-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.access-rename {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.access-admin-rotate summary {
+  cursor: pointer;
+}
+
+.access-deleted {
+  margin-top: 16px;
+}
+
 .key-instructions {
   display: grid;
   gap: 12px;
@@ -2618,4 +2651,8 @@ a.nav-item {
   display: block;
   margin: 12px 0;
   overflow-wrap: anywhere;
+}
+
+.table-scroll {
+  overflow-x: auto;
 }

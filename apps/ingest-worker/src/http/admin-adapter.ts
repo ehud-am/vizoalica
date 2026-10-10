@@ -246,7 +246,36 @@ export async function handleAdminRequest(
       });
       return Response.json({ ...summary, key: generated.key }, { status: 201 });
     }
+    const rotate = /^\/v1\/admin\/access-keys\/([^/]+)\/rotate$/.exec(url.pathname);
+    if (rotate && request.method === 'POST') {
+      const generated = await generateAccessKey(rotate[1]!);
+      const summary = await dependencies.repositories.updateAccessKey?.(rotate[1]!, {
+        secretHash: generated.secretHash
+      });
+      if (!summary) return notFound();
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'rotate_access_key',
+        outcome: 'allowed',
+        reasonCode: 'rotated',
+        actor: summary.id
+      });
+      return Response.json({ ...summary, key: generated.key });
+    }
     const item = /^\/v1\/admin\/access-keys\/([^/]+)$/.exec(url.pathname);
+    if (item && request.method === 'PATCH') {
+      const body = (await request.json().catch(() => undefined)) as { label?: unknown } | undefined;
+      const label = typeof body?.label === 'string' ? body.label.trim() : '';
+      if (!label || label.length > 64 || CONTROL_CHARACTERS.test(label)) return invalid();
+      const summary = await dependencies.repositories.updateAccessKey?.(item[1]!, { label });
+      if (!summary) return notFound();
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'rename_access_key',
+        outcome: 'allowed',
+        reasonCode: 'renamed',
+        actor: summary.id
+      });
+      return Response.json(summary);
+    }
     if (item && request.method === 'DELETE') {
       const revoked = dependencies.repositories.revokeAccessKey
         ? await dependencies.repositories.revokeAccessKey(item[1]!)

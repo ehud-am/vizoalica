@@ -99,34 +99,46 @@ describe('access key routes', () => {
   });
 });
 
-describe('sharing a website', () => {
-  it('issues a scoped key and returns setup details with no administrator secret', async () => {
+describe('renaming and rotating a key', () => {
+  it('renames through the Worker, with a trimmed name', async () => {
     const api = start();
     const cookie = await api.session();
-    const result = await api.call('/api/projects/p1/websites/s1/share', {
-      method: 'POST',
+    const result = await api.call('/api/access-keys/k1', {
+      method: 'PATCH',
       cookie,
-      body: {}
+      body: { label: '  Renamed  ' }
     });
     expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({
-      workerUrl: 'https://worker.example.workers.dev',
-      projectId: 'p1',
-      sourceId: 's1'
-    });
-    expect(result.text).not.toContain('secret');
+    const sent = api.stub.requests.at(-1)!;
+    expect(sent.path).toBe('/v1/admin/access-keys/k1');
+    expect(JSON.parse(String(sent.body))).toEqual({ label: 'Renamed' });
+    for (const label of ['', '   ', 'x'.repeat(65), 'bad\u0001name'])
+      expect(
+        (await api.call('/api/access-keys/k1', { method: 'PATCH', cookie, body: { label } })).status
+      ).toBe(400);
   });
 
-  it('issues an analyst key when asked', async () => {
+  it('rotates through the Worker and returns the new key once', async () => {
     const api = start();
     const cookie = await api.session();
-    await api.call('/api/projects/p1/websites/s1/share', {
-      method: 'POST',
-      cookie,
-      body: { role: 'analyst' }
-    });
-    const issueCall = api.stub.requests.find((request) => request.path === '/v1/admin/access-keys');
-    expect(issueCall).toBeDefined();
+    const result = await api.call('/api/access-keys/k1/rotate', { method: 'POST', cookie });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ key: 'vzk_rotated' });
+    expect(api.stub.requests.at(-1)?.path).toBe('/v1/admin/access-keys/k1/rotate');
+  });
+
+  it('refuses both for anyone who is not the admin', async () => {
+    for (const role of ['analyst', 'owner'] as const) {
+      const api = start(role);
+      const cookie = await api.session();
+      expect(
+        (await api.call('/api/access-keys/k1', { method: 'PATCH', cookie, body: { label: 'x' } }))
+          .status
+      ).toBeGreaterThanOrEqual(400);
+      expect(
+        (await api.call('/api/access-keys/k1/rotate', { method: 'POST', cookie })).status
+      ).toBeGreaterThanOrEqual(400);
+    }
   });
 });
 

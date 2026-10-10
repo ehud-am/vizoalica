@@ -1,5 +1,5 @@
 // Assembles the publishable npm package in apps/cli/package/: the bundled command, the built console,
-// the browser SDK files, the database changes, and the metadata. Nothing from the checkout beyond that.
+// the browser SDK files, the Worker and its database changes, and the metadata. Nothing from the checkout beyond that.
 import { build } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import {
@@ -8,12 +8,12 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync
 } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildWorkerAssets } from './lib/worker-assets.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const at = (...parts) => join(root, ...parts);
@@ -67,36 +67,8 @@ await build({
 });
 chmodSync(join(dist, 'cli.mjs'), 0o755);
 
-// 1b. The Worker, prebundled with no_bundle so `vizoalica deploy` can deploy it without a checkout.
-await build({
-  absWorkingDir: root,
-  entryPoints: ['apps/ingest-worker/src/index.ts'],
-  outfile: join(dist, 'worker', 'index.mjs'),
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  target: 'es2022',
-  // Workspace packages are bundled from their sources, so the package builds on a clean checkout
-  // with no `pnpm build` first (as the publish workflow does).
-  alias: {
-    '@vizoalica/event-contracts': './packages/event-contracts/src/index.ts',
-    '@vizoalica/ops-core': './packages/ops-core/src/index.ts',
-    '@vizoalica/privacy': './packages/privacy/src/index.ts'
-  },
-  legalComments: 'none',
-  logLevel: 'warning'
-});
-{
-  const example = readFileSync(at('deploy', 'cloudflare', 'wrangler.example.toml'), 'utf8');
-  const template = example
-    .replace(/^main\s*=.*$/m, 'main = "index.mjs"\nno_bundle = true')
-    .replace(/^migrations_dir\s*=.*$/m, 'migrations_dir = "__SCHEMA_DIR__"')
-    .replace(/^name\s*=.*$/m, 'name = "__WORKER_NAME__"')
-    .replace(/^database_name\s*=.*$/m, 'database_name = "__DATABASE_NAME__"')
-    .replace(/^database_id\s*=.*$/m, 'database_id = "__DATABASE_ID__"')
-    .replace(/^bucket_name\s*=.*$/m, 'bucket_name = "__BUCKET_NAME__"');
-  writeFileSync(join(dist, 'worker', 'wrangler.template.toml'), template);
-}
+// 1b. The Worker and its database changes, so `vizoalica deploy` can deploy it without a checkout.
+await buildWorkerAssets(root, dist);
 
 // 2. The console. Built straight into the package so the checkout's own build output is left alone.
 run('pnpm', [
@@ -115,13 +87,6 @@ run('node', [at('scripts', 'build-browser-sdk.mjs')]);
 mkdirSync(join(dist, 'sdk'), { recursive: true });
 for (const name of ['vizoalica.js', 'vizoalica-loader.js'])
   cpSync(at('packages', 'browser-sdk', 'dist', name), join(dist, 'sdk', name));
-
-// 4. Every numbered database change, in order.
-mkdirSync(join(dist, 'schema'), { recursive: true });
-for (const name of readdirSync(at('deploy', 'cloudflare', 'migrations'))
-  .filter((file) => /^\d{4}_.+\.sql$/.test(file))
-  .sort())
-  cpSync(at('deploy', 'cloudflare', 'migrations', name), join(dist, 'schema', name));
 
 // 5. The AI assistant skill, which `vizoalica skill` installs.
 cpSync(at('skills', 'vizoalica'), join(dist, 'skill', 'vizoalica'), { recursive: true });

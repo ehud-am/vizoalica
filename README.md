@@ -88,7 +88,7 @@ one question at a time and explains each. Say **yes** to deploying. It creates a
 a Worker named `prod-vizoalica-…`, then checks that they work. It never changes or deletes anything that already
 exists, and Ctrl-C stops without changing anything. Add `--verbose` to see each step.
 
-**There is no secret to copy.** The administrator secret is saved in `~/.config/vizoalica/environments.json`,
+**There is no secret to copy.** The admin key is saved in `~/.config/vizoalica/environments.json`,
 readable only by you, and never printed. The token secret is needed only by websites that require signed
 tokens; get it when you first need it with `vizoalica rotate prod token`. Setting this up with an AI coding
 agent? Run this step yourself, so your Cloudflare API token does not pass through an agent conversation.
@@ -116,7 +116,7 @@ update a backend; update one with `vizoalica deploy <name> --update`.
 **More than one backend, or someone else's.** Say **no** to deploying to connect to a backend that already
 exists, with the access key you were given. Run `vizoalica env add` once per name to keep `dev` and `prod` side
 by side; a picker in the console switches between them. See
-[Run more than one backend](docs/operations/environments.md) and [Share with someone](docs/operations/share.md).
+[Run more than one backend](docs/operations/environments.md) and [Access keys](docs/operations/share.md).
 To keep secrets in a vault instead of a file, see [OneCLI](docs/operations/onecli.md).
 
 Returning operators: [Start the console day to day](docs/operations/operator-local.md).

@@ -19,12 +19,23 @@ describe('AppFooter', () => {
     ).toEqual(['vizoalica.dev', 'GitHub', 'Send feedback']);
   });
 
-  it('carries no tagline, link groups, legal line or version', () => {
+  it('carries no tagline, link groups or legal line', () => {
     render(<AppFooter />);
     const footer = screen.getByRole('contentinfo');
     expect(within(footer).queryByRole('navigation')).toBeNull();
     expect(within(footer).queryByRole('heading')).toBeNull();
     expect(footer.textContent).not.toMatch(/©|Version|Privacy-first/);
+    expect(footer.textContent).not.toMatch(/\bv\d/);
+  });
+
+  it('shows the console version, and the backend version only when it differs', () => {
+    const { rerender } = render(<AppFooter version="0.9.0" backendVersion="0.9.0" />);
+    expect(screen.getByRole('contentinfo').textContent).toContain('Vizoalica v0.9.0·vizoalica.dev');
+    expect(screen.getByRole('contentinfo').textContent).not.toContain('backend');
+    rerender(<AppFooter version="0.9.0" backendVersion="0.8.0" />);
+    expect(screen.getByRole('contentinfo').textContent).toContain('backend v0.8.0');
+    rerender(<AppFooter version="0.9.0" backendVersion={null} />);
+    expect(screen.getByRole('contentinfo').textContent).not.toContain('backend');
   });
 
   it('points at the website and the repository', () => {
@@ -64,5 +75,10 @@ describe('AppFooter', () => {
     render(<AppFooter />);
     const separators = screen.getByRole('contentinfo').querySelectorAll('[aria-hidden="true"]');
     expect(separators).toHaveLength(3);
+    cleanup();
+    render(<AppFooter version="1.0.0" backendVersion="0.9.0" />);
+    expect(screen.getByRole('contentinfo').querySelectorAll('[aria-hidden="true"]')).toHaveLength(
+      4
+    );
   });
 });

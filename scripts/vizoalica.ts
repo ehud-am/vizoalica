@@ -4,12 +4,14 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync
 } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { formatReport, purgeDeleted } from './purge-deleted.js';
@@ -673,7 +675,8 @@ const dependencies: Dependencies = {
 
 /**
  * `env` and `deploy` take their own words and options, so they get the raw arguments; they are the packaged
- * command's code, run from the checkout (`deploy` needs `pnpm package:build` first, for the Worker files).
+ * command's code, run from the checkout. Their Worker files and database changes are built from the checkout
+ * each run, so a deploy never ships an older build than the code you have.
  */
 const PACKAGED = new Set(['env', 'deploy', 'mcp', 'skill']);
 
@@ -698,10 +701,14 @@ async function packagedCommand(
   const trace = args.length < argv.length ? makeTrace(command === 'mcp' ? err : out) : undefined;
   trace?.(`vizoalica ${version} (checkout), Node.js ${process.versions.node}, ${process.platform}`);
   trace?.(`Command: ${command} ${args.join(' ')}`);
+  const assetDir = mkdtempSync(join(tmpdir(), 'vizoalica-checkout-'));
+  const { buildWorkerAssets } = await import('./lib/worker-assets.mjs');
+  await buildWorkerAssets(process.cwd(), assetDir);
+  trace?.(`Worker files built from this checkout into ${assetDir}`);
   const deps = {
     home: homedir(),
     version,
-    assetDir: resolve('apps', 'cli', 'package', 'dist'),
+    assetDir,
     env: process.env,
     out,
     err,
@@ -733,6 +740,7 @@ async function packagedCommand(
     process.exitCode = 130;
   } finally {
     vault.close();
+    rmSync(assetDir, { recursive: true, force: true });
   }
 }
 

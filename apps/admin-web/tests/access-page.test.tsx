@@ -15,11 +15,14 @@ const api = vi.hoisted(() => ({
   getAnalyticsOverview: vi.fn(),
   listAccessKeys: vi.fn(),
   issueAccessKey: vi.fn(),
-  revokeAccessKey: vi.fn()
+  revokeAccessKey: vi.fn(),
+  renameAccessKey: vi.fn(),
+  rotateAccessKey: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
 const KEY = 'vzk_secret_value_1234567890';
+const ROTATED = 'vzk_rotated_value_0987654321';
 const summary = (over: Record<string, unknown> = {}) => ({
   id: 'k1',
   label: 'Jane, analyst',
@@ -39,6 +42,13 @@ beforeEach(() => {
     key: KEY
   }));
   api.revokeAccessKey.mockResolvedValue({ status: 'revoked' });
+  api.renameAccessKey.mockImplementation(async (id: string, label: string) =>
+    summary({ id, label })
+  );
+  api.rotateAccessKey.mockImplementation(async (id: string) => ({
+    ...summary({ id }),
+    key: ROTATED
+  }));
 });
 afterEach(() => {
   cleanup();
@@ -48,9 +58,16 @@ afterEach(() => {
 async function open() {
   window.location.hash = '#/manage/access';
   render(<App />);
-  await screen.findByRole('heading', { level: 1, name: 'Share access' });
+  await screen.findByRole('heading', { level: 1, name: 'Access keys' });
   await waitFor(() => expect(screen.queryByText('Loading…')).toBeNull());
 }
+/** The form is closed until asked for, so a page about keys starts with the keys. */
+async function openForm(user: ReturnType<typeof userEvent.setup> = userEvent.setup()) {
+  await open();
+  await user.click(screen.getByRole('button', { name: 'Create access key' }));
+  await screen.findByLabelText('Name');
+}
+const submit = () => within(form()).getByRole('button', { name: 'Create access key' });
 /** A dropdown of the issue form (the header has its own Project menu, so search only the form). */
 const form = () => document.querySelector('.access-form') as HTMLElement;
 const field = (name: string) =>
@@ -62,10 +79,10 @@ async function choose(user: ReturnType<typeof userEvent.setup>, name: string, op
   await user.click(screen.getByRole('menuitemradio', { name: option }));
 }
 
-describe('Issue a key', () => {
+describe('Create an access key', () => {
   it('asks role and access with dropdowns, not radio buttons, each explaining its choice', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     const form = document.querySelector('.access-form')!;
     expect(form.querySelectorAll('input[type="radio"]')).toHaveLength(0);
     // The chosen role and what it means are visible without opening the list.
@@ -85,7 +102,7 @@ describe('Issue a key', () => {
   });
 
   it('starts with the least access: one project, the one chosen at the top', async () => {
-    await open();
+    await openForm();
     expect(field('Access').textContent).toContain('One project');
     expect(field('Project').textContent).toContain('Acme');
     expect(within(form()).queryByRole('button', { name: /^Website/ })).toBeNull();
@@ -94,7 +111,7 @@ describe('Issue a key', () => {
 
   it('follows the project chosen at the top, and drops a website chosen under the old one', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     await choose(user, 'Access', /One website/);
     await waitFor(() => expect((field('Website') as HTMLButtonElement).disabled).toBe(false));
     await choose(user, 'Website', /Docs/);
@@ -109,7 +126,7 @@ describe('Issue a key', () => {
 
   it('shows the websites of the chosen project, and drops a website when the project changes', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     await choose(user, 'Access', /One website/);
     await waitFor(() => expect((field('Website') as HTMLButtonElement).disabled).toBe(false));
     await user.click(field('Website'));
@@ -135,7 +152,7 @@ describe('Issue a key', () => {
     api.listWebsites.mockImplementation(async (project: string) =>
       project === 'p1' ? [] : [shop]
     );
-    await open();
+    await openForm(user);
     await choose(user, 'Access', /One website/);
     expect(await screen.findByText(/This project has no websites yet/)).toBeTruthy();
     expect((field('Website') as HTMLButtonElement).disabled).toBe(true);
@@ -144,20 +161,20 @@ describe('Issue a key', () => {
   it('says so when websites cannot be loaded', async () => {
     const user = userEvent.setup();
     api.listWebsites.mockRejectedValue(new Error('offline'));
-    await open();
+    await openForm(user);
     await choose(user, 'Access', /One website/);
     expect((await screen.findAllByText(/Websites could not be loaded/)).length).toBeGreaterThan(0);
   });
 
   it('names each problem next to its field, and sends nothing', async () => {
     const user = userEvent.setup();
-    await open();
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
-    expect(await screen.findByText(/Say who or what this key is for/)).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByLabelText('Who is it for?'));
-    await user.type(screen.getByLabelText('Who is it for?'), 'Jane');
+    await openForm(user);
+    await user.click(submit());
+    expect(await screen.findByText(/Give the key a name/)).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'Jane');
     await choose(user, 'Access', /One website/);
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
+    await user.click(submit());
     expect(await screen.findByText('Choose a website.')).toBeTruthy();
     expect(field('Website').getAttribute('aria-invalid')).toBe('true');
     expect(api.issueAccessKey).not.toHaveBeenCalled();
@@ -165,22 +182,23 @@ describe('Issue a key', () => {
 
   it('issues for everything, one project, or one website with exactly that scope', async () => {
     const user = userEvent.setup();
-    await open();
-    await user.type(screen.getByLabelText('Who is it for?'), 'Jane');
+    await openForm(user);
+    await user.type(screen.getByLabelText('Name'), 'Jane');
     await choose(user, 'Access', /Everything/);
     expect(within(form()).queryByRole('button', { name: /^Project/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
+    await user.click(submit());
     await waitFor(() =>
       expect(api.issueAccessKey).toHaveBeenLastCalledWith({ label: 'Jane', role: 'analyst' })
     );
     await user.click(await screen.findByRole('button', { name: 'I have saved it' }));
+    await user.click(screen.getAllByRole('button', { name: 'Create access key' })[0]!);
 
-    await user.type(screen.getByLabelText('Who is it for?'), 'Owner of blog');
+    await user.type(screen.getByLabelText('Name'), 'Owner of blog');
     await choose(user, 'Role', /Website owner/);
     await choose(user, 'Access', /One website/);
     await waitFor(() => expect((field('Website') as HTMLButtonElement).disabled).toBe(false));
     await choose(user, 'Website', /Blog/);
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
+    await user.click(submit());
     await waitFor(() =>
       expect(api.issueAccessKey).toHaveBeenLastCalledWith({
         label: 'Owner of blog',
@@ -194,25 +212,25 @@ describe('Issue a key', () => {
   it('explains a failed issue without losing what was typed', async () => {
     const user = userEvent.setup();
     api.issueAccessKey.mockRejectedValueOnce(new Error('offline'));
-    await open();
-    await user.type(screen.getByLabelText('Who is it for?'), 'Jane');
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
-    expect(await screen.findByText(/The key could not be issued/)).toBeTruthy();
-    expect((screen.getByLabelText('Who is it for?') as HTMLInputElement).value).toBe('Jane');
+    await openForm(user);
+    await user.type(screen.getByLabelText('Name'), 'Jane');
+    await user.click(submit());
+    expect(await screen.findByText(/The access key could not be created/)).toBeTruthy();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Jane');
   });
 });
 
-describe('After the key is issued', () => {
+describe('After the access key is created', () => {
   async function issueOne(user: ReturnType<typeof userEvent.setup>, role: RegExp = /Analyst/) {
-    await user.type(screen.getByLabelText('Who is it for?'), 'Jane');
+    await user.type(screen.getByLabelText('Name'), 'Jane');
     await choose(user, 'Role', role);
-    await user.click(screen.getByRole('button', { name: 'Issue key' }));
-    return screen.findByRole('heading', { name: 'Save this key now' });
+    await user.click(submit());
+    return screen.findByRole('heading', { name: 'Save this access key now' });
   }
 
   it('shows the key once, focuses it, and offers to copy it', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     const heading = await issueOne(user);
     expect(document.activeElement).toBe(heading);
     expect(screen.getByText(KEY)).toBeTruthy();
@@ -220,12 +238,11 @@ describe('After the key is issued', () => {
     expect(screen.getByText(/only time/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'I have saved it' }));
     expect(screen.queryByText(KEY)).toBeNull();
-    expect(document.activeElement).toBe(screen.getByLabelText('Who is it for?'));
   });
 
   it('says what to do with it: nothing to deploy, and how to add the backend to a console', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     await issueOne(user);
     const panel = document.querySelector('.key-instructions')!;
     expect(panel.textContent).toContain('Nothing to deploy');
@@ -245,7 +262,7 @@ describe('After the key is issued', () => {
 
   it('gives OneCLI steps: the secret to store, then the backend entry that points at it', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     await issueOne(user, /Website owner/);
     // OneCLI is the advanced way, after the plain steps.
     expect(reveal().queryByRole('tab', { name: 'In OneCLI' })).toBeNull();
@@ -267,7 +284,7 @@ describe('After the key is issued', () => {
 
   it('gives a script version that reads the key from standard input, not the command line', async () => {
     const user = userEvent.setup();
-    await open();
+    await openForm(user);
     await issueOne(user);
     await user.click(reveal().getByRole('tab', { name: 'From a script' }));
     const add = reveal().getByRole('region', { name: 'Add the backend' }).textContent!;
@@ -279,13 +296,19 @@ describe('After the key is issued', () => {
   it('keeps the same instructions available on the page, without a key, after it is gone', async () => {
     const user = userEvent.setup();
     await open();
-    const more = screen.getByText('How is a key used?').closest('details')!;
+    const more = screen.getByText('How is an access key used?').closest('details')!;
     expect(more.hasAttribute('open')).toBe(false);
-    await user.click(screen.getByText('How is a key used?'));
+    await user.click(screen.getByText('How is an access key used?'));
     expect(within(more).getByText(/Nothing to deploy/)).toBeTruthy();
   });
+});
 
-  it('shows the new key in the list with its scope and role, newest active first, revoked last', async () => {
+const table = () => screen.findByRole('table', { name: 'Access keys' });
+const rowOf = (name: string) =>
+  screen.getByText(name, { selector: 'strong' }).closest('tr') as HTMLElement;
+
+describe('The list of access keys', () => {
+  it('starts with the admin key, then the keys newest first, each with a name, role and access', async () => {
     api.listAccessKeys.mockResolvedValue([
       summary({ id: 'old', label: 'Old key', revokedAt: '2026-09-21T10:00:00.000Z' }),
       summary({
@@ -298,63 +321,195 @@ describe('After the key is issued', () => {
       summary({ id: 'b', label: 'Whole project', scope: { projectId: 'p2', sourceId: null } })
     ]);
     await open();
-    const list = await screen.findByRole('list', { name: 'Access keys' });
-    const rows = within(list).getAllByRole('listitem');
+    const rows = within(await table())
+      .getAllByRole('row')
+      .slice(1);
     expect(rows.map((row) => row.querySelector('strong')!.textContent)).toEqual([
+      'Admin key',
       'Docs owner',
-      'Whole project',
-      'Old key'
+      'Whole project'
     ]);
-    await waitFor(() => expect(rows[0]!.textContent).toContain('Docs (Acme)'));
-    expect(rows[0]!.textContent).toContain('Website owner');
-    expect(rows[1]!.textContent).toContain('Project Beta');
-    expect(rows[2]!.textContent).toContain('Revoked');
-    expect(within(rows[2]!).queryByRole('button')).toBeNull();
+    await waitFor(() => expect(rows[1]!.textContent).toContain('Docs (Acme)'));
+    expect(rows[1]!.textContent).toContain('Website owner');
+    expect(rows[2]!.textContent).toContain('Project Beta');
+    // Deleted keys are kept out of the way, under a disclosure, without actions.
+    const deleted = screen.getByText('1 deleted key').closest('details')!;
+    expect(within(deleted).getByText('Old key')).toBeTruthy();
+    expect(within(deleted).queryByRole('button')).toBeNull();
+    // A key's value is never in the list.
+    expect(document.body.textContent).not.toMatch(/vzk_/);
+  });
+
+  it('shows the admin key as built in: always there, not deletable, rotated with the CLI', async () => {
+    const user = userEvent.setup();
+    await open();
+    const admin = within(await table()).getAllByRole('row')[1]!;
+    expect(admin.textContent).toContain('Admin key');
+    expect(admin.textContent).toContain('Admin');
+    expect(admin.textContent).toContain('Everything');
+    expect(admin.textContent).toContain('there is always an admin key');
+    expect(within(admin).queryByRole('button', { name: /Delete|Rename/ })).toBeNull();
+    await user.click(within(admin).getByText('Rotate'));
+    expect(within(admin).getByRole('region', { name: 'Rotate the admin key' }).textContent).toBe(
+      'vizoalica rotate dev admin'
+    );
+    // With no other key, the page says what a key is for.
+    expect(screen.getByText(/No other access keys yet/)).toBeTruthy();
+  });
+
+  it('says so when keys cannot be loaded', async () => {
+    api.listAccessKeys.mockRejectedValue(new Error('offline'));
+    window.location.hash = '#/manage/access';
+    render(<App />);
+    expect(
+      (await screen.findAllByText('Access keys could not be loaded. Try again.')).length
+    ).toBeGreaterThan(0);
   });
 });
 
-describe('Revoking', () => {
+describe('Deleting', () => {
   it('asks first, says what it means, then confirms and refreshes', async () => {
     const user = userEvent.setup();
     api.listAccessKeys
       .mockResolvedValueOnce([summary()])
       .mockResolvedValue([summary({ revokedAt: '2026-09-25T10:00:00.000Z' })]);
     await open();
-    await user.click(await screen.findByRole('button', { name: 'Revoke Jane, analyst' }));
-    const dialog = screen.getByRole('alertdialog', { name: 'Revoke Jane, analyst?' });
+    await user.click(await screen.findByRole('button', { name: 'Delete Jane, analyst' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete Jane, analyst?' });
     expect(dialog.textContent).toMatch(/stops working immediately/);
-    expect(dialog.textContent).toMatch(/any computer/);
-    await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
+    expect(dialog.textContent).toMatch(/any computer or pipeline/);
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(api.revokeAccessKey).toHaveBeenCalledWith('k1'));
     expect(
-      await screen.findByText(/Key Jane, analyst revoked\. It stopped working immediately\./)
+      await screen.findByText(/Access key Jane, analyst deleted\. It stopped working immediately\./)
     ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Revoke Jane, analyst' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete Jane, analyst' })).toBeNull();
   });
 
-  it('does not revoke when cancelled, and reports a failure', async () => {
+  it('does not delete when cancelled, and reports a failure', async () => {
     const user = userEvent.setup();
     api.listAccessKeys.mockResolvedValue([summary()]);
     await open();
-    await user.click(await screen.findByRole('button', { name: 'Revoke Jane, analyst' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Jane, analyst' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(api.revokeAccessKey).not.toHaveBeenCalled();
     api.revokeAccessKey.mockRejectedValueOnce(new Error('offline'));
-    await user.click(screen.getByRole('button', { name: 'Revoke Jane, analyst' }));
-    await user.click(screen.getByRole('button', { name: 'Revoke' }));
-    expect(await screen.findByText('The key could not be revoked. Try again.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Delete Jane, analyst' }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText('The access key could not be deleted. Try again.')).toBeTruthy();
+  });
+});
+
+describe('Rotating', () => {
+  it('asks first, then shows the new key once, saying the old one stopped', async () => {
+    const user = userEvent.setup();
+    api.listAccessKeys.mockResolvedValue([summary()]);
+    await open();
+    await user.click(await screen.findByRole('button', { name: 'Rotate Jane, analyst' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Rotate Jane, analyst?' });
+    expect(dialog.textContent).toMatch(/old key stops working immediately/);
+    expect(dialog.textContent).toMatch(/name, role, and access stay the same/);
+    await user.click(within(dialog).getByRole('button', { name: 'Rotate' }));
+    await waitFor(() => expect(api.rotateAccessKey).toHaveBeenCalledWith('k1'));
+    const heading = await screen.findByRole('heading', { name: 'Save this access key now' });
+    expect(document.activeElement).toBe(heading);
+    expect(screen.getByText(ROTATED)).toBeTruthy();
+    expect(screen.getByText(/previous key stopped working/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'I have saved it' }));
+    expect(screen.queryByText(ROTATED)).toBeNull();
   });
 
-  it('says how it works when there are no keys, and when keys cannot be loaded', async () => {
+  it('changes nothing when cancelled, and says so when it fails', async () => {
+    const user = userEvent.setup();
+    api.listAccessKeys.mockResolvedValue([summary()]);
     await open();
-    expect(await screen.findByText(/No keys yet\. Issue one above/)).toBeTruthy();
-    cleanup();
-    api.listAccessKeys.mockRejectedValue(new Error('offline'));
-    window.location.hash = '#/manage/access';
+    await user.click(await screen.findByRole('button', { name: 'Rotate Jane, analyst' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(api.rotateAccessKey).not.toHaveBeenCalled();
+    api.rotateAccessKey.mockRejectedValueOnce(new Error('offline'));
+    await user.click(screen.getByRole('button', { name: 'Rotate Jane, analyst' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate' })
+    );
+    expect(await screen.findByText(/could not be rotated\. Nothing changed/)).toBeTruthy();
+    expect(screen.queryByText(ROTATED)).toBeNull();
+  });
+});
+
+describe('Renaming', () => {
+  it('renames in place and refreshes the list', async () => {
+    const user = userEvent.setup();
+    api.listAccessKeys.mockResolvedValue([summary()]);
+    await open();
+    await user.click(await screen.findByRole('button', { name: 'Rename Jane, analyst' }));
+    const input = screen.getByLabelText('New name for Jane, analyst');
+    await user.clear(input);
+    await user.type(input, '  Jane, owner ');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.renameAccessKey).toHaveBeenCalledWith('k1', 'Jane, owner'));
+    expect(await screen.findByText('Renamed to Jane, owner.')).toBeTruthy();
+    expect(screen.queryByLabelText(/New name for/)).toBeNull();
+  });
+
+  it('keeps the old name when cancelled, refuses an empty one, and reports a failure', async () => {
+    const user = userEvent.setup();
+    api.listAccessKeys.mockResolvedValue([summary()]);
+    await open();
+    await user.click(await screen.findByRole('button', { name: 'Rename Jane, analyst' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText('Jane, analyst', { selector: 'strong' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Rename Jane, analyst' }));
+    await user.clear(screen.getByLabelText('New name for Jane, analyst'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('A name cannot be empty.')).toBeTruthy();
+    expect(api.renameAccessKey).not.toHaveBeenCalled();
+    api.renameAccessKey.mockRejectedValueOnce(new Error('offline'));
+    await user.type(screen.getByLabelText('New name for Jane, analyst'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('The access key could not be renamed. Try again.')).toBeTruthy();
+  });
+});
+
+describe('Access keys for one website', () => {
+  const open = async () => {
+    window.location.hash = '#/manage/websites/s1/access';
     render(<App />);
-    expect(
-      (await screen.findAllByText('Keys could not be loaded. Try again.')).length
-    ).toBeGreaterThan(0);
+    await screen.findByRole('heading', { level: 1, name: 'Access keys for Docs' });
+  };
+
+  it('lists only the keys that reach the website, with no admin row, and creates for it', async () => {
+    const user = userEvent.setup();
+    api.listAccessKeys.mockResolvedValue([
+      summary({ id: 'all', label: 'Everything key' }),
+      summary({ id: 'mine', label: 'Docs key', scope: { projectId: 'p1', sourceId: 's1' } }),
+      summary({ id: 'proj', label: 'Acme key', scope: { projectId: 'p1', sourceId: null } }),
+      summary({ id: 'other', label: 'Blog key', scope: { projectId: 'p1', sourceId: 's2' } }),
+      summary({ id: 'beta', label: 'Beta key', scope: { projectId: 'p2', sourceId: null } })
+    ]);
+    await open();
+    const rows = within(await table())
+      .getAllByRole('row')
+      .slice(1);
+    expect(rows.map((row) => row.querySelector('strong')!.textContent).sort()).toEqual([
+      'Acme key',
+      'Docs key',
+      'Everything key'
+    ]);
+    expect(screen.queryByText('Admin key')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Create access key' }));
+    await user.type(await screen.findByLabelText('Name'), 'Docs CI');
+    // The website is fixed: no access or website choice.
+    expect(within(form()).queryByRole('button', { name: /^Access/ })).toBeNull();
+    expect(within(form()).queryByRole('button', { name: /^Website/ })).toBeNull();
+    await user.click(submit());
+    await waitFor(() =>
+      expect(api.issueAccessKey).toHaveBeenLastCalledWith({
+        label: 'Docs CI',
+        role: 'analyst',
+        projectId: 'p1',
+        sourceId: 's1'
+      })
+    );
   });
 });
 
@@ -380,7 +535,7 @@ describe('KeyInstructions', () => {
   it('still gives usable commands when the backend address is not known', () => {
     render(<KeyInstructions workerUrl="" environment="" role="analyst" />);
     expect(screen.getByRole('region', { name: 'Add the backend' }).textContent).toContain(
-      '--url https://YOUR_WORKER_ADDRESS'
+      '--url https://YOUR_BACKEND_ADDRESS'
     );
     expect(document.body.textContent).toContain('see analytics and settings but change nothing');
   });

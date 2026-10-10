@@ -4,6 +4,36 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Sign in to Cloudflare in your browser.** `vizoalica env add` and `vizoalica deploy` ask whether to
+  sign in with the browser (Wrangler's own sign-in, the default) or paste an API token; there is no token to
+  create for the first. `--cloudflare-login` chooses it without the question. For a token, the prompt links to
+  Cloudflare's token form with the four permissions already filled in.
+- **`vizoalica deploy --update --all`** updates every environment you administer on this computer, with the
+  Cloudflare credential settled once, and stops at the first failure.
+- A note before the first Cloudflare call that npm is downloading Wrangler.
+- **Access keys page for each website.** A website's page has an **Access keys** card with a **Manage access keys**
+  button, like Install. It opens a full page listing keys by name and role (admin, website owner, analyst), with
+  Create, Rename, Rotate, and Delete. The built-in Admin key is listed and cannot be deleted there. Key values are
+  never shown after creation. Backend: `PATCH /v1/admin/access-keys/:id` (rename) and
+  `POST /v1/admin/access-keys/:id/rotate`; no schema change.
+- **The website page's Details card shows the ingestion endpoint** (`<backend address>/v1/events:batch`) with a copy button.
+- **The console footer shows the Vizoalica version** (`Vizoalica v0.9.0`), and the backend version when it differs (#42).
+
+### Changed
+
+- **Share setup is gone** from the website page; the Access keys page replaces it.
+- **One vocabulary** in the console, CLI, README, and docs: project ID, website ID, website key, ingestion
+  endpoint, backend address, token endpoint, admin key, access key.
+
+### Fixed
+
+- From a source checkout, `vizoalica deploy` and `env add` built nothing: they deployed whatever
+  `pnpm package:build` last wrote, so `--update` after a `git pull` shipped the old Worker under the new
+  version. They now build the Worker files and database changes from the checkout on every run.
+- The npm README, npm description, and homepage no longer describe the removed "save two secrets" step.
+
 ## [0.9.0] - 2026-09-29
 
 ### Added

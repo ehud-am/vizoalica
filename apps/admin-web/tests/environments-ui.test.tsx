@@ -160,7 +160,7 @@ describe('EnvironmentMenu', () => {
     expect(screen.getByText('dev')).toBeTruthy();
     // Admin is the default, your own backend, so it gets no badge.
     expect(screen.queryByText('admin')).toBeNull();
-    // With no setup state the administrator's "Share access" entry is there, so it can open.
+    // With no setup state the administrator's "Access keys" entry is there, so it can open.
     expect(screen.getByRole('button', { name: /Backend/ })).toBeTruthy();
   });
 
@@ -216,10 +216,10 @@ describe('EnvironmentMenu', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('could not be selected');
   });
 
-  it('offers Share access to an administrator, at the foot of the menu', async () => {
+  it('offers Access keys to an administrator, at the foot of the menu', async () => {
     renderMenu(list({ environments: [environment('dev'), environment('prod')], selected: 'dev' }));
     await userEvent.click(screen.getByRole('button', { name: /Backend/ }));
-    expect(screen.getByRole('menuitem', { name: 'Share access' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('menuitem', { name: 'Access keys' }).getAttribute('href')).toBe(
       '#/manage/access'
     );
   });

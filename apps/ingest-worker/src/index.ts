@@ -46,6 +46,7 @@ export default {
       listAccessKeys: configuration.listAccessKeys.bind(configuration),
       findAccessKeyById: configuration.findAccessKeyById.bind(configuration),
       revokeAccessKey: configuration.revokeAccessKey.bind(configuration),
+      updateAccessKey: configuration.updateAccessKey.bind(configuration),
       countActiveAccessKeys: configuration.countActiveAccessKeys.bind(configuration),
       hasAccessKeysTable: configuration.hasAccessKeysTable.bind(configuration)
     };

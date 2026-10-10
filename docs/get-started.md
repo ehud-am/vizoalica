@@ -26,7 +26,7 @@ vizoalica console         # opens the console at http://127.0.0.1:4318
 
 - Node.js 22 or newer, on macOS or Linux (on Windows, use WSL).
 - A Cloudflare account with R2 enabled.
-- A Cloudflare API token with **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read**. Create it under My Profile → API Tokens → Create Token → Custom token.
+- A way to let Vizoalica use your Cloudflare account: either sign in in your browser (the default, nothing to create), or an API token with **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read**. The prompt links to Cloudflare's token form with those permissions filled in.
 
 ## 1. Install
 
@@ -40,9 +40,9 @@ npm install -g vizoalica
 vizoalica env add prod
 ```
 
-It asks one question at a time and explains each. Say **yes** to deploying. It creates a Worker, a D1 database, and an R2 bucket named `prod-vizoalica-…`, then checks that they work. Ctrl-C stops without changing anything.
+It asks one question at a time and explains each. Say **yes** to deploying, then choose how to reach Cloudflare: **1** opens your browser to sign in, **2** takes a pasted token. The first run downloads Wrangler, which takes a minute. It creates a Worker, a D1 database, and an R2 bucket named `prod-vizoalica-…`, then checks that they work. Ctrl-C stops without changing anything.
 
-There is no secret to copy. The administrator secret is saved for you in `~/.config/vizoalica/environments.json`, readable only by you. A website with one script tag needs nothing else.
+There is no secret to copy. The admin key is saved for you in `~/.config/vizoalica/environments.json`, readable only by you. A website with one script tag needs nothing else.
 
 ::: warning Run this step yourself
 If you use an AI coding agent, run `vizoalica env add` in your own terminal, so your Cloudflare API token does not pass through an agent conversation.
@@ -71,7 +71,7 @@ Then ask, for example, “How did my websites do last week?”. The assistant re
 ## More options
 
 ::: details Connect to a backend that already exists
-Say **no** to deploying in `vizoalica env add`, then give its Worker address and the access key you were given. See [Share with someone](/operations/share).
+Say **no** to deploying in `vizoalica env add`, then give its backend address and the access key you were given. See [Access keys](/operations/share).
 :::
 
 ::: details Run more than one backend
@@ -111,5 +111,5 @@ Add `--verbose` to any command. It prints each step with timings and never a sec
 - [Add a website](/operations/pages) in detail, including signed tokens
 - [Create a backend](/operations/deploy), or the [full backend guide](/operations/cloudflare) from a source checkout
 - [Start the console day to day](/operations/operator-local)
-- [Share with someone](/operations/share): give a teammate read-only or manage access
-- Update with `npm update -g vizoalica`; remove with `npm uninstall -g vizoalica`. Run `vizoalica help` for every command.
+- [Access keys](/operations/share): give a teammate read-only or manage access
+- Update with `npm update -g vizoalica`, then `vizoalica deploy --update --all` to bring every backend you administer to the same version; remove with `npm uninstall -g vizoalica`. Run `vizoalica help` for every command.

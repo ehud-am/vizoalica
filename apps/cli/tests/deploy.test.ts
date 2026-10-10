@@ -16,7 +16,8 @@ import { deployCommand, type DeployDeps } from '../src/deploy-command.js';
 import { applyDeploy, checkAccess, DeployError } from '../src/deploy/apply.js';
 import { explain } from '../src/deploy/explain.js';
 import { buildPlan } from '../src/deploy/plan.js';
-import { wranglerFor } from '../src/deploy/wrangler.js';
+import { firstRunNote, wranglerFor } from '../src/deploy/wrangler.js';
+import { cloudflareTokenUrl, DEPLOY_NEED } from '../src/cloudflare-access.js';
 import { makeTrace } from '../../local-ops-api/src/trace.js';
 import { tempHome, writePrivate } from './support.js';
 
@@ -379,9 +380,10 @@ describe('vizoalica deploy --apply', () => {
         fromEnv.deps
       )
     ).toBe(0);
-    const prompted = setup({ interactive: true, answers: ['typed-token', 'yes'] });
+    const prompted = setup({ interactive: true, answers: ['2', 'typed-token', 'yes'] });
     expect(await deployCommand(['prod', '--apply'], prompted.deps)).toBe(0);
-    expect(prompted.asked[0]).toContain('token');
+    expect(prompted.asked[0]).toContain('Sign in to Cloudflare in your browser');
+    expect(prompted.asked[1]).toContain('permissionGroupKeys');
   });
 
   it('uses OneCLI when asked, and needs all three options', async () => {
@@ -1021,5 +1023,111 @@ describe('vizoalica deploy --verbose', () => {
     expect(text).toMatch(/exit 0 after \d+ms/);
     expect(text).toContain('Health check 1 of 2: healthy');
     expect(text).not.toContain('cf-token-value');
+  });
+});
+
+describe('vizoalica deploy: Cloudflare sign-in', () => {
+  it('signs in with the browser when asked, only if Wrangler is not signed in already', async () => {
+    const t = setup({ interactive: true, answers: ['', 'yes'] });
+    const inner = t.deps.run!;
+    let signedIn = false;
+    t.deps.run = async (args, options) => {
+      if (args[0] === 'login') {
+        signedIn = true;
+        expect(options?.interactive).toBe(true);
+        return { code: 0, stdout: '', stderr: '' };
+      }
+      if (args[0] === 'whoami' && !signedIn)
+        return { code: 1, stdout: '', stderr: 'not logged in' };
+      return inner(args, options);
+    };
+    expect(await deployCommand(['prod', '--apply'], t.deps)).toBe(0);
+    expect(t.text()).toContain('Opening Cloudflare in your browser');
+    expect(signedIn).toBe(true);
+
+    const already = setup({ answers: ['yes'] });
+    const calls: string[] = [];
+    const wrapped = already.deps.run!;
+    already.deps.run = async (args, options) => (calls.push(args[0]!), wrapped(args, options));
+    expect(await deployCommand(['prod', '--apply', '--cloudflare-login'], already.deps)).toBe(0);
+    expect(calls).not.toContain('login');
+  });
+
+  it('stops with a message when the browser sign-in does not finish', async () => {
+    const t = setup({ answers: [] });
+    t.deps.run = async (args) =>
+      args[0] === 'login'
+        ? { code: 1, stdout: '', stderr: '' }
+        : { code: 1, stdout: '', stderr: 'not logged in' };
+    expect(await deployCommand(['prod', '--apply', '--cloudflare-login', '--yes'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('Signing in to Cloudflare did not finish');
+  });
+
+  it('links to a token form with the permissions already filled in', () => {
+    const url = new URL(cloudflareTokenUrl(DEPLOY_NEED));
+    expect(url.origin + url.pathname).toBe('https://dash.cloudflare.com/profile/api-tokens');
+    expect(JSON.parse(url.searchParams.get('permissionGroupKeys')!)).toEqual([
+      { key: 'workers_scripts', type: 'edit' },
+      { key: 'd1', type: 'edit' },
+      { key: 'workers_r2', type: 'edit' },
+      { key: 'account_settings', type: 'read' }
+    ]);
+  });
+
+  it('says Wrangler is downloaded the first time, unless a Wrangler is given', () => {
+    expect(firstRunNote({})).toContain('downloads Wrangler');
+    expect(firstRunNote({ VIZOALICA_WRANGLER: 'wrangler' })).toBe('');
+  });
+});
+
+describe('vizoalica deploy --update --all', () => {
+  const both: Behavior = {
+    databases: ['prod-vizoalica-db', 'dev-vizoalica-db'],
+    buckets: ['prod-vizoalica-bucket', 'dev-vizoalica-bucket'],
+    secrets: EXISTING.secrets!
+  };
+  const register = (t: ReturnType<typeof setup>, dev: Record<string, unknown> = DEV) =>
+    writePrivate(t.home, 'environments.json', {
+      version: 1,
+      environments: { prod: PROD, dev, viewer: { ...PROD, role: 'analyst' } }
+    });
+  const DEV = { url: 'https://dev-vizoalica-worker.acme.workers.dev', role: 'admin', secret: 'd' };
+
+  it('updates every administered environment and reads the token from stdin once', async () => {
+    const t = setup({ stdin: 'cf-token\n', behavior: both });
+    register(t);
+    const stdin = vi.spyOn(t.deps, 'readStdin');
+    expect(
+      await deployCommand(['--update', '--all', '--cloudflare-token-stdin', '--yes'], t.deps)
+    ).toBe(0);
+    expect(stdin).toHaveBeenCalledTimes(1);
+    expect(t.wrangler.calls.filter((call) => call.args[0] === 'deploy')).toHaveLength(2);
+    expect(t.text()).toContain('=== prod ===');
+    expect(t.text()).toContain('=== dev ===');
+    expect(t.text()).not.toContain('viewer');
+    expect(t.text() + t.errors()).not.toContain('cf-token');
+  });
+
+  it('stops at the first failure and says which environments were left', async () => {
+    const t = setup({ stdin: 't\n', behavior: { ...both, failStep: 'deploy' } });
+    register(t);
+    expect(
+      await deployCommand(['--update', '--all', '--cloudflare-token-stdin', '--yes'], t.deps)
+    ).toBe(1);
+    expect(t.wrangler.calls.filter((call) => call.args[0] === 'deploy')).toHaveLength(1);
+    expect(t.errors()).toMatch(/Stopped at "(dev|prod)"\. Environments before it/);
+  });
+
+  it('needs --update, no name, and a terminal or --yes', async () => {
+    const t = setup({ interactive: false });
+    register(t);
+    expect(await deployCommand(['--all'], t.deps)).toBe(1);
+    expect(await deployCommand(['prod', '--update', '--all'], t.deps)).toBe(1);
+    expect(await deployCommand(['--update', '--all'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('confirm with --yes');
+    const empty = setup();
+    expect(await deployCommand(['--update', '--all'], empty.deps)).toBe(1);
+    expect(empty.errors()).toContain('nothing to update');
+    expect(t.wrangler.calls).toEqual([]);
   });
 });

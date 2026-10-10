@@ -21,7 +21,7 @@ There are two ways to install:
    <script
      defer
      src="https://prod-vizoalica.<you>.workers.dev/vizoalica.js"
-     data-source="<public key>"
+     data-source="<website key>"
      data-token-url="none"
    ></script>
    ```
@@ -77,7 +77,7 @@ events.
 
 Open the console, select **Websites**, then **Add website**. Enter the address with `https://`
 and no trailing slash, turn on **Require a signed token**, and save. The Install page opens. The
-website's own page lists its project ID, website ID, and public key, each with a copy button; all
+website's own page lists its project ID, website ID, and website key, each with a copy button; all
 three are public values, and they are different from each other.
 
 ### 2. Choose a deployment path
@@ -255,7 +255,7 @@ pnpm exec wrangler pages secret list --project-name "$VIZOALICA_PAGES_PROJECT" -
 
 **Check:** the name exists on both the Worker and Pages project. Secret listing cannot prove their
 values match; the browser's accepted event in Verify website activation does. Do not create a second signing value
-for Pages. The administrator secret and Cloudflare deployment token never go on this website.
+for Pages. The admin key and Cloudflare deployment token never go on this website.
 For an existing project with separate preview/production settings, confirm the secret and variables
 in the **Production** environment in the dashboard, then redeploy for changes to take effect.
 

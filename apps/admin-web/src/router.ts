@@ -148,10 +148,19 @@ export const ROUTES = define([
     range: false
   },
   {
+    path: 'manage/websites/:id/access',
+    area: 'manage',
+    label: 'Access keys',
+    nav: false,
+    parent: 'manage/websites',
+    scope: 'none',
+    range: false
+  },
+  {
     path: 'manage/access',
     area: 'manage',
-    label: 'Share access',
-    // Reached from a website's Share section and the environment menu, not from the sidebar.
+    label: 'Access keys',
+    // Reached from a website's Access card and the environment menu, not from the sidebar.
     nav: false,
     scope: 'none',
     range: false

@@ -22,6 +22,7 @@ import {
   askAccountId,
   chooseAccount,
   cloudflareAccess,
+  ROTATE_NEED,
   rememberAccount,
   rememberedAccount,
   revealSecrets,
@@ -53,6 +54,7 @@ const USAGE = [
   '                              environment, else $CLOUDFLARE_API_TOKEN, else asked)',
   '',
   'Advanced: keep the Cloudflare API token in a vault (OneCLI):',
+  '  --cloudflare-login          Sign in to Cloudflare in your browser',
   '  --cloudflare-onecli         OneCLI holds the Cloudflare API token; needs the --onecli-* options',
   '  --onecli-workspace <w> --onecli-agent <a> --onecli-gateway <host:port>',
   '',
@@ -67,7 +69,12 @@ const VALUE_FLAGS = new Set([
   '--onecli-agent',
   '--onecli-gateway'
 ]);
-const SWITCHES = new Set(['--yes', '--cloudflare-token-stdin', '--cloudflare-onecli']);
+const SWITCHES = new Set([
+  '--yes',
+  '--cloudflare-token-stdin',
+  '--cloudflare-login',
+  '--cloudflare-onecli'
+]);
 
 /** What changes for whom when each secret is replaced. */
 function impact(kind: SecretKind, environment: string, inOnecli: boolean): string[] {
@@ -203,12 +210,7 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
     return 1;
   }
 
-  const credential = await cloudflareAccess(
-    flags,
-    deps,
-    'Rotating needs a Cloudflare API token with Workers Scripts: Edit.',
-    def.cloudflare?.token
-  );
+  const credential = await cloudflareAccess(flags, deps, ROTATE_NEED, def.cloudflare?.token);
   if (typeof credential === 'string') {
     deps.err(`${credential}\n`);
     return 1;
@@ -305,12 +307,12 @@ export async function rotateCommand(args: readonly string[], deps: DeployDeps): 
       } catch (error) {
         // The Worker already has it: hand it over rather than lose it.
         deps.err(
-          `The Worker has the new administrator secret, but "${name}" could not be updated (${(error as Error).message}).\nIt is shown below; save it, then: vizoalica env update ${name} --secret-stdin\n`
+          `The Worker has the new admin key, but "${name}" could not be updated (${(error as Error).message}).\nIt is shown below; save it, then: vizoalica env update ${name} --secret-stdin\n`
         );
       }
     }
     if (saved) {
-      deps.out(`"${name}" on this computer now has the new administrator secret.\n`);
+      deps.out(`"${name}" on this computer now has the new admin key.\n`);
       const check = await verifyEnvironment(
         name,
         { ...def, secret: adminSecret! },

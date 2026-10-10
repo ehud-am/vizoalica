@@ -1194,6 +1194,31 @@ export class D1Repositories
     return true;
   }
 
+  /** Only an active key changes; a revoked or unknown one returns undefined and nothing is written. */
+  async updateAccessKey(
+    id: string,
+    changes: { label?: string; secretHash?: string }
+  ): Promise<AccessKeySummary | undefined> {
+    const existing = await this.findAccessKeyById(id);
+    if (!existing || existing.revokedAt !== null) return undefined;
+    const label = changes.label ?? existing.label;
+    const secretHash = changes.secretHash ?? existing.secretHash;
+    await this.db
+      .prepare(
+        'UPDATE access_keys SET label = ?, secret_hash = ? WHERE id = ? AND revoked_at IS NULL'
+      )
+      .bind(label, secretHash, id)
+      .run();
+    return {
+      id,
+      label,
+      role: existing.role,
+      scope: existing.scope,
+      createdAt: existing.createdAt,
+      revokedAt: null
+    };
+  }
+
   async countActiveAccessKeys(): Promise<number> {
     const row = await this.db
       .prepare('SELECT COUNT(*) AS n FROM access_keys WHERE revoked_at IS NULL')

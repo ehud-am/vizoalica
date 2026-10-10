@@ -17,7 +17,7 @@ create, change, deploy, rotate, or delete anything yourself.
 1. **Say which environment.** A computer can hold several environments (`dev`, `stage`, `prod`), each a
    separate backend with separate data. Every MCP result starts with an `Environment:` line. Name the
    environment in every answer, and say so explicitly when you switch.
-2. **Never handle secrets.** Never ask for, accept, print, or store an administrator secret, access key,
+2. **Never handle secrets.** Never ask for, accept, print, or store an admin key, access key,
    `VIZOALICA_TOKEN_SECRET`, or Cloudflare token. If the user pastes one, tell them to rotate it
    (`vizoalica rotate <env> <admin|token|digest>`). Commands that create or show secrets
    (`vizoalica env add`, `vizoalica deploy`, `vizoalica rotate`) are for the user to run in their own

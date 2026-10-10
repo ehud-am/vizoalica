@@ -5,7 +5,7 @@ credential in a private local file. Use [the OneCLI setup](onecli.md) instead wh
 the credential. Do not complete both paths on the same machine.
 
 > **Most people do not need this page.** Without a checkout (recommended): `npm install -g vizoalica`, then `vizoalica env add NAME` replaces
-> steps 1 to 3 below: it asks for the Worker address, who you are on it, and the secret (hidden), checks them against
+> steps 1 to 3 below: it asks for the backend address, who you are on it, and the secret (hidden), checks them against
 > the Worker, and saves them privately (`0600`). Then run `vizoalica console`. See
 > [Environments](environments.md). This page is for running the console from a reviewed source checkout.
 
@@ -55,10 +55,10 @@ Confirm that `git rev-parse HEAD` matches the backend setup record.
 ## 2. Create the private configuration
 
 **Fast path:** `pnpm vizoalica connect` does this step and verifies the secret before saving it. It asks
-for the Worker address and the administrator secret (hidden), checks them against your Worker,
+for the backend address and the admin key (hidden), checks them against your Worker,
 and writes the file with the right permissions. The commands below are the manual equivalent.
 
-Run the configuration command in an interactive terminal. It reads the administrator secret from
+Run the configuration command in an interactive terminal. It reads the admin key from
 a hidden prompt; the secret is never a command argument:
 
 ```sh

@@ -369,21 +369,11 @@ export const issueAccessKey = (input: {
 }) => request<IssuedAccessKey>('/api/access-keys', json('POST', input));
 export const revokeAccessKey = (id: string) =>
   request<{ status: 'revoked' }>(`/api/access-keys/${encodeURIComponent(id)}`, json('DELETE'));
-
-export type SetupDetails = {
-  workerUrl: string;
-  projectId: string;
-  sourceId: string;
-  publicSourceKey: string;
-  allowedOrigins: string[];
-  readKey: string;
-  guidance: string;
-};
-export const shareWebsite = (projectId: string, websiteId: string, role: AccessKeyRole = 'owner') =>
-  request<SetupDetails>(
-    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/share`,
-    json('POST', { role })
-  );
+export const renameAccessKey = (id: string, label: string) =>
+  request<AccessKeySummary>(`/api/access-keys/${encodeURIComponent(id)}`, json('PATCH', { label }));
+/** A new secret for the same key; the old one stops working at once. The new one is shown once. */
+export const rotateAccessKey = (id: string) =>
+  request<IssuedAccessKey>(`/api/access-keys/${encodeURIComponent(id)}/rotate`, json('POST'));
 
 export type BackendState = {
   workerVersion: string | null;

@@ -27,7 +27,7 @@ export const sidebar: NavGroup[] = [
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
       { text: 'Ask your AI assistant', link: '/operations/ai' },
       { text: 'Start the console day to day', link: '/operations/operator-local' },
-      { text: 'Share with someone', link: '/operations/share' },
+      { text: 'Access keys', link: '/operations/share' },
       { text: 'Troubleshooting', link: '/operations/troubleshooting' }
     ]
   },

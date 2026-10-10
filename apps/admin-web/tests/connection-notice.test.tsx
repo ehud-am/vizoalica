@@ -17,7 +17,7 @@ describe('ConnectionNotice', () => {
   it('shows and then clears an administrator_secret_used notice', () => {
     rememberConnectNotice('administrator_secret_used');
     render(<ConnectionNotice />);
-    expect(screen.getByText(/administrator secret, not an access key/)).toBeTruthy();
+    expect(screen.getByText(/admin key, not an access key/)).toBeTruthy();
     expect(sessionStorage.getItem('vizoalica_connect_notice')).toBeNull();
   });
 

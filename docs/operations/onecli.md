@@ -174,5 +174,5 @@ You can now [add a website](pages.md).
 
 Stop `pnpm vizoalica console`, detach or revoke the operator agent, and move only this machine's two
 Vizoalica configuration files to the operating system's trash. Review OneCLI and Worker audit
-evidence. If exposure is possible, rotate the administrator secret and update every remaining
+evidence. If exposure is possible, rotate the admin key and update every remaining
 operator. Revocation does not affect the backend, analytics data, websites, or other operators.

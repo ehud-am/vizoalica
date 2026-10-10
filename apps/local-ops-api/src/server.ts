@@ -12,8 +12,10 @@ import { backendState, expectedSchemaFrom } from './setup/state.js';
 import {
   issueAccessKey,
   listAccessKeys,
+  renameAccessKey,
   revokeAccessKey,
-  shareWebsite,
+  rotateAccessKey,
+  validateRenameBody,
   validateIssueBody
 } from './routes/access-keys.js';
 import { analytics, analyticsActions, analyticsOverview } from './routes/analytics.js';
@@ -311,18 +313,6 @@ export function createLocalServer(options: ServerOptions) {
               : undefined;
           return send(response, 200, install ? { ...reach, install } : reach);
         }
-        if (request.method === 'POST' && item[3] === 'share') {
-          const body = (await requestJson(request)) as { role?: unknown } | undefined;
-          const role = body?.role === 'analyst' ? 'analyst' : 'owner';
-          const details = await shareWebsite(
-            client,
-            registry.current()!.remoteUrl,
-            item[1]!,
-            item[2]!,
-            role
-          );
-          return send(response, 200, details);
-        }
         if (request.method === 'GET' && item[3]) {
           const metadata = await workerJson(client, remotePath);
           return send(
@@ -352,6 +342,14 @@ export function createLocalServer(options: ServerOptions) {
       const keyItem = /^\/api\/access-keys\/([^/]+)$/.exec(url.pathname);
       if (keyItem && request.method === 'DELETE') {
         return send(response, 200, await revokeAccessKey(client, keyItem[1]!));
+      }
+      if (keyItem && request.method === 'PATCH') {
+        const body = validateRenameBody(await requestJson(request));
+        return send(response, 200, await renameAccessKey(client, keyItem[1]!, body));
+      }
+      const keyRotate = /^\/api\/access-keys\/([^/]+)\/rotate$/.exec(url.pathname);
+      if (keyRotate && request.method === 'POST') {
+        return send(response, 200, await rotateAccessKey(client, keyRotate[1]!));
       }
       if (request.method === 'GET' && url.pathname === '/api/backend') {
         return send(response, 200, await backendState({ registry, version, expectedSchema }));

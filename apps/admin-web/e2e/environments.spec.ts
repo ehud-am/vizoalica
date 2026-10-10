@@ -21,10 +21,10 @@ test('a single environment shows its name, and only an administrator gets a menu
   await expect(environmentButton(page)).toContainText('prod');
   // Admin is the default, your own backend, so it carries no role badge.
   await expect(environmentButton(page).locator('.menu-badge')).toHaveCount(0);
-  // The only thing in its menu is the administrator's Share access entry.
+  // The only thing in its menu is the administrator's Access keys entry.
   await environmentButton(page).click();
   await expect(page.getByRole('menuitemradio')).toHaveCount(1);
-  await expect(page.getByRole('menuitem', { name: 'Share access' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Access keys' })).toBeVisible();
 });
 
 test('a single environment is plain text for someone who cannot manage keys', async ({ page }) => {

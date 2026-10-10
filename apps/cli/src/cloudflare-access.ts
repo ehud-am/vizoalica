@@ -27,17 +27,66 @@ type Io = {
 
 type AccessFlags = { values: Map<string, string>; switches: Set<string> };
 
+/** What a command needs from Cloudflare, in words, and as the permission keys of a token template. */
+export type CloudflareNeed = {
+  /** For example "Deploying". */
+  action: string;
+  /** For example "Workers Scripts: Edit, D1: Edit". */
+  permissions: string;
+  keys: ReadonlyArray<{ key: string; type: 'read' | 'edit' }>;
+};
+
+export const DEPLOY_NEED: CloudflareNeed = {
+  action: 'Deploying',
+  permissions:
+    'Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, and Account Settings: Read',
+  keys: [
+    { key: 'workers_scripts', type: 'edit' },
+    { key: 'd1', type: 'edit' },
+    { key: 'workers_r2', type: 'edit' },
+    { key: 'account_settings', type: 'read' }
+  ]
+};
+
+export const ROTATE_NEED: CloudflareNeed = {
+  action: 'Rotating',
+  permissions: 'Workers Scripts: Edit (and Account Settings: Read to list your accounts)',
+  keys: [
+    { key: 'workers_scripts', type: 'edit' },
+    { key: 'account_settings', type: 'read' }
+  ]
+};
+
 /**
- * The Cloudflare credential, first found: --cloudflare-onecli, --cloudflare-token-stdin, the one saved
- * with the environment, $CLOUDFLARE_API_TOKEN, or a hidden prompt. A string is what is wrong.
+ * Cloudflare's "create token" form with the permissions already filled in, for every account and no zone
+ * resources (see developers.cloudflare.com/fundamentals/api/how-to/account-owned-token-template/).
+ */
+export function cloudflareTokenUrl(need: CloudflareNeed): string {
+  const query = new URLSearchParams({
+    permissionGroupKeys: JSON.stringify(need.keys),
+    accountId: '*',
+    zoneId: 'all',
+    name: 'Vizoalica'
+  });
+  return `https://dash.cloudflare.com/profile/api-tokens?${query.toString()}`;
+}
+
+/**
+ * The Cloudflare credential, first found: --cloudflare-onecli, --cloudflare-login, --cloudflare-token-stdin,
+ * the one saved with the environment, $CLOUDFLARE_API_TOKEN, or asked: sign in with the browser, or paste a
+ * token. A string is what is wrong.
  */
 export async function cloudflareAccess(
   flags: AccessFlags,
   io: Io,
-  why: string,
+  need: CloudflareNeed,
   saved?: Secret
 ): Promise<{ access: CloudflareAccess; onecli?: OnecliRef } | string> {
   const trace = io.trace ?? noTrace;
+  if (flags.switches.has('--cloudflare-login')) {
+    trace("Cloudflare credential: Wrangler's own sign-in (--cloudflare-login)");
+    return { access: { login: true } };
+  }
   if (flags.switches.has('--cloudflare-onecli')) {
     const workspace = flags.values.get('--onecli-workspace');
     const agent = flags.values.get('--onecli-agent');
@@ -64,15 +113,38 @@ export async function cloudflareAccess(
   } else if (io.env.CLOUDFLARE_API_TOKEN?.trim()) {
     trace('Cloudflare credential: the CLOUDFLARE_API_TOKEN environment variable');
     token = io.env.CLOUDFLARE_API_TOKEN.trim();
-  } else if (io.interactive)
+  } else if (io.interactive) {
+    if (await choosesBrowserSignIn(io, need)) {
+      trace("Cloudflare credential: Wrangler's own sign-in, chosen at the prompt");
+      return { access: { login: true } };
+    }
     token = (
-      await io.ask(`\n${why}\nPaste it here; it is not shown.\nCloudflare API token: `, {
-        secret: true
-      })
+      await io.ask(
+        `\nThe token needs ${need.permissions}.\nThis link opens Cloudflare's token form with those already filled in:\n  ${cloudflareTokenUrl(need)}\nPaste the token here; it is not shown.\nCloudflare API token: `,
+        { secret: true }
+      )
     ).trim();
+  }
   if (!token)
-    return 'A Cloudflare API token is needed: pipe it with --cloudflare-token-stdin, set CLOUDFLARE_API_TOKEN, or use --cloudflare-onecli.';
+    return `A Cloudflare API token is needed: pipe it with --cloudflare-token-stdin, set CLOUDFLARE_API_TOKEN, or sign in in a terminal with --cloudflare-login.\nIt needs ${need.permissions}. Create one here:\n  ${cloudflareTokenUrl(need)}`;
   return { access: { token } };
+}
+
+/** Browser sign-in (the default) or a pasted token. */
+async function choosesBrowserSignIn(io: Io, need: CloudflareNeed): Promise<boolean> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const answer = (
+      await io.ask(
+        attempt === 0
+          ? `\n${need.action} needs access to your Cloudflare account. How do you want to give it?\n  1) Sign in to Cloudflare in your browser (default)\n  2) Paste an API token\nChoose 1 or 2 [1]: `
+          : 'Choose 1 or 2 [1]: '
+      )
+    ).trim();
+    if (answer === '' || answer === '1') return true;
+    if (answer === '2') return false;
+    io.err('  Type 1 or 2.\n');
+  }
+  return true;
 }
 
 /** The account to work in: --account, the only one, or asked. A string is what is wrong. */

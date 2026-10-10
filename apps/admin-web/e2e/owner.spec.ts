@@ -18,7 +18,7 @@ test('a website owner sees analytics and manages projects and websites, never th
   await expect(page.getByRole('link', { name: /access/i })).toHaveCount(0);
   // With one environment and nothing to manage there is no menu to open at all.
   await expect(page.getByRole('button', { name: /^Backend/ })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: 'Share access' })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Access keys' })).toHaveCount(0);
 });
 
 for (const scheme of ['light', 'dark'] as const) {

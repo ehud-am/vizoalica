@@ -4,7 +4,7 @@ Most people have one backend, created by `vizoalica env add` in the [quick start
 need this page. Read on to run several side by side (for example `dev` and `prod`), or to connect to a backend
 someone else runs.
 
-Each backend this computer knows is an **environment**: its Worker address, who you are on it (the role), and
+Each backend this computer knows is an **environment**: its backend address, who you are on it (the role), and
 the secret for that role. They are set up **before** the console starts, with `vizoalica env`, and the console
 lets you pick between the ones that work.
 
@@ -20,7 +20,7 @@ Environments live in one file you can read and edit, in the spirit of Claude's o
     "prod": {
       "url": "https://analytics.example.com",
       "role": "admin",
-      "secret": "the administrator secret",
+      "secret": "the admin key",
       "cloudflare": { "token": "an optional Cloudflare API token" }
     },
     "stage": {
@@ -34,9 +34,9 @@ Environments live in one file you can read and edit, in the spirit of Claude's o
 }
 ```
 
-- **`url`**: the Worker's address. A `workers.dev` address or a **custom domain** both work. Give just the
+- **`url`**: the backend address. A `workers.dev` address or a **custom domain** both work. Give just the
   origin (`https://analytics.example.com`), with no path.
-- **`role`**: `admin`, `owner` (a website owner), or `analyst`. `secret` is the administrator secret for
+- **`role`**: `admin`, `owner` (a website owner), or `analyst`. `secret` is the admin key for
   `admin`, and an access key for the other two.
 - **`secret`** and **`cloudflare.token`**: the value itself, or `{ "onecli": { workspace, agent, gateway } }`
   when [OneCLI](onecli.md) holds it as a local vault. (OneCLI's own command still names the workspace flag
@@ -97,4 +97,4 @@ choose **Check again**.
 The console does not deploy or update a backend. To create one, run `vizoalica deploy <name>` ([guide](deploy.md)),
 which creates it and adds the environment for you.
 
-To give someone else access to a backend, see [Share with someone](share.md).
+To give someone else access to a backend, see [Access keys](share.md).

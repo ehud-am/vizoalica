@@ -33,7 +33,7 @@ export function KeyInstructions({
 }) {
   const [how, setHow] = useState<How>('file');
   const name = suggestedEnvironmentName(environment, role);
-  const url = workerUrl || 'https://YOUR_WORKER_ADDRESS';
+  const url = workerUrl || 'https://YOUR_BACKEND_ADDRESS';
   const host = url.replace(/^https?:\/\//, '');
   const add = `vizoalica env add ${name} --connect --url ${url} --role ${role}`;
   const check = `vizoalica env check ${name}`;

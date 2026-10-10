@@ -26,9 +26,19 @@ export function IdentifierList({ items }: { items: IdentifierItem[] }) {
 
 export const identifiersFor = (
   projectId: string,
-  website: { id: string; publicSourceKey: string }
+  website: { id: string; publicSourceKey: string },
+  backendAddress?: string
 ): IdentifierItem[] => [
   { label: 'Project ID', value: projectId, what: 'project ID' },
   { label: 'Website ID', value: website.id, what: 'website ID' },
-  { label: 'Website key', value: website.publicSourceKey, what: 'website key' }
+  { label: 'Website key', value: website.publicSourceKey, what: 'website key' },
+  ...(backendAddress
+    ? [
+        {
+          label: 'Ingestion endpoint',
+          value: new URL('/v1/events:batch', backendAddress).href,
+          what: 'ingestion endpoint'
+        }
+      ]
+    : [])
 ];

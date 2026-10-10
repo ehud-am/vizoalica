@@ -66,11 +66,8 @@ export function availability(
   if (capability === 'add-website' && context.hasProject === false)
     return no('Create a project first.', { label: 'Create a project', href: '#/manage/projects' });
 
-  if (
-    (capability === 'manage-access-keys' || capability === 'share-website-setup') &&
-    state.principal?.features.accessKeys === false
-  )
-    return no('This backend needs an update before it can issue keys.');
+  if (capability === 'manage-access-keys' && state.principal?.features.accessKeys === false)
+    return no('This backend needs an update before it can manage keys.');
   if (state.backend?.worker.status === 'console-older' && definition.class === 'backend')
     return no(
       'This backend is newer than this console. Update the console (npm update -g vizoalica).'

@@ -30,7 +30,7 @@ vizoalica deploy prod --apply
 
 It checks your Cloudflare access, creates the D1 database, the R2 bucket, and the Worker (all named
 `prod-vizoalica-…`), creates the tables, generates the three secrets, checks the Worker's `/healthz`, and adds
-`prod` to your environments. The administrator secret goes straight into the environment file; the other two
+`prod` to your environments. The admin key goes straight into the environment file; the other two
 are shown once. [Create a backend](deploy.md) covers the options, the token it needs, and what to do when a
 step fails.
 
@@ -118,7 +118,7 @@ Step 1 creates the three secret values. They do not come from Cloudflare or this
 ## Security boundary
 
 The Cloudflare login or API token is for backend deployment only. It is not the Worker
-administrator secret and never belongs in an operator console or website. Worker secrets never
+admin key and never belongs in an operator console or website. Worker secrets never
 belong in Git, HTML, browser JavaScript, URLs, command arguments, plans, receipts, logs, support
 messages, or AI conversations.
 

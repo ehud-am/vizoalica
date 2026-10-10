@@ -112,8 +112,9 @@ describe('availability', () => {
   it('holds back key management on a backend that predates keys', () => {
     const old = state();
     old.principal!.features = { accessKeys: false, versions: false };
-    for (const id of ['manage-access-keys', 'share-website-setup'] as const)
-      expect(of(id, old).reason).toBe('This backend needs an update before it can issue keys.');
+    expect(of('manage-access-keys', old).reason).toBe(
+      'This backend needs an update before it can manage keys.'
+    );
     expect(of('rotate-secret', old).available).toBe(true);
   });
 
@@ -142,7 +143,6 @@ describe('isAbsent', () => {
     expect(isAbsent(state({}, 'analyst'), 'manage-access-keys')).toBe(true);
     expect(isAbsent(state({}, 'owner'), 'manage-access-keys')).toBe(true);
     expect(isAbsent(state({}, 'admin'), 'manage-access-keys')).toBe(false);
-    expect(isAbsent(state({}, 'analyst'), 'share-website-setup')).toBe(false);
     expect(isAbsent(undefined, 'manage-access-keys')).toBe(false);
     expect(isAbsent(state({ principal: undefined }), 'manage-access-keys')).toBe(false);
   });
