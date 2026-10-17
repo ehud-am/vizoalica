@@ -31,6 +31,7 @@ import {
   assertSafeIds,
   jsonInit,
   validateProjectBody,
+  InvalidExcludedAddresses,
   validateWebsiteBody,
   workerJson
 } from './routes/websites.js';
@@ -334,7 +335,7 @@ export function createLocalServer(options: ServerOptions) {
         );
       }
       const item =
-        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability|share))?$/.exec(
+        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability|share|excluded-hits))?$/.exec(
           url.pathname
         );
       if (item) {
@@ -412,6 +413,15 @@ export function createLocalServer(options: ServerOptions) {
           error: error.code,
           field: error.field,
           message: error.message,
+          recovery: recoveryFor(400)
+        });
+      }
+      if (error instanceof InvalidExcludedAddresses) {
+        return send(response, 400, {
+          error: 'invalid_request',
+          field: 'excludedAddresses',
+          reason: error.reason,
+          ...(error.index !== undefined ? { index: error.index } : {}),
           recovery: recoveryFor(400)
         });
       }

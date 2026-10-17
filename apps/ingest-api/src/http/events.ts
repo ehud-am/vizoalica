@@ -6,7 +6,8 @@ export async function eventsBatchResponseForBody(
   request: Request,
   body: string,
   dependencies: PipelineDependencies,
-  analyticsContext?: RequestAnalyticsContext
+  analyticsContext?: RequestAnalyticsContext,
+  clientAddress?: string | null
 ): Promise<Response> {
   const publicSourceKey = request.headers.get('x-vizoalica-source');
   if (!publicSourceKey) return Response.json({ error: 'missing_source' }, { status: 400 });
@@ -16,7 +17,8 @@ export async function eventsBatchResponseForBody(
       publicSourceKey,
       origin: request.headers.get('origin'),
       authorization: request.headers.get('authorization'),
-      ...(analyticsContext ? { analyticsContext } : {})
+      ...(analyticsContext ? { analyticsContext } : {}),
+      ...(clientAddress ? { clientAddress } : {})
     },
     dependencies
   );

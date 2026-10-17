@@ -131,3 +131,21 @@ test('the new pages fit at phone width and 200% zoom, and pass axe in both theme
     ).toEqual([]);
   }
 });
+
+test('the website page counts dropped visits and the edit page takes the list by keyboard', async ({
+  page
+}) => {
+  await page.goto('/#/manage/websites/site-1');
+  const card = page.getByRole('region', { name: 'Your own visits' });
+  await expect(card).toContainText('2 addresses or ranges excluded');
+  await expect(card).toContainText('12 events dropped in the last 30 days');
+  // The addresses themselves are only on the edit page.
+  await expect(card).not.toContainText('203.0.113.7');
+  await card.getByRole('link', { name: 'Change excluded addresses' }).click();
+  const list = page.getByRole('textbox', { name: /Exclude your own visits/ });
+  await expect(list).toHaveValue('203.0.113.7\n198.51.100.0/24');
+  await list.focus();
+  await page.keyboard.press('End');
+  await page.keyboard.type('\n10.0.0.0/8');
+  await expect(page.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+});

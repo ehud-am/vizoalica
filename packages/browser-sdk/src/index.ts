@@ -6,6 +6,7 @@ import {
   resolveAnonymousId,
   resolveSessionId
 } from './events.js';
+import { resolveIgnore } from './ignore.js';
 import { watchNavigation } from './navigation.js';
 import { currentPageKey, landingCampaign } from './privacy.js';
 import { BoundedQueue } from './queue.js';
@@ -28,7 +29,19 @@ const ACTION_EVENT = 'com.vizoalica.action.v1';
 // it again can never succeed, and keeping it would block every event queued behind it.
 const permanentRejection = (status: number | undefined) => status === 400 || status === 413;
 
+/** What `init` returns in a browser that opted out: it answers every call and does nothing. */
+const SILENT_CLIENT: VizoalicaClient = {
+  track() {},
+  page() {},
+  flush: async () => {},
+  stop() {},
+  queuedEvents: 0
+};
+
 export function init(config: VizoalicaConfig): VizoalicaClient {
+  // Checked first, so an opted-out browser sends nothing, not even the landing page view, and
+  // installs no observers.
+  if (resolveIgnore()) return SILENT_CLIENT;
   const queue = new BoundedQueue<VizoalicaEvent>(config.maxQueueSize ?? 100);
   const context = {
     anonymousId: resolveAnonymousId(config),

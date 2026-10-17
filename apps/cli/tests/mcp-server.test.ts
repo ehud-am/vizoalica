@@ -406,6 +406,44 @@ describe('the vizoalica MCP server', () => {
     expect(plain.data!.properties).toEqual([]);
   });
 
+  it('says how many addresses a website excludes and how many events that dropped, never the addresses', async () => {
+    const run = async (excluded?: { count: number; hits30d?: number }) => {
+      const h = await start({
+        environments: {
+          prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+        },
+        backends: { prod: { ...defaultBackends().prod, ...(excluded ? { excluded } : {}) } }
+      });
+      return h.call('get_website_status', {
+        environment: 'prod',
+        project: 'Acme',
+        website: 'Shop',
+        check_site: false
+      });
+    };
+    const both = await run({ count: 2, hits30d: 12 });
+    expect(both.text).toContain(
+      'Shop: collection healthy, configuration healthy. Excludes 2 addresses or ranges; 12 events dropped in the last 30 days (browser opt-outs are not counted).'
+    );
+    await open!.client.close();
+    open = undefined;
+    const one = await run({ count: 1, hits30d: 1 });
+    expect(one.text).toContain('Excludes 1 address or range; 1 event dropped');
+    await open!.client.close();
+    open = undefined;
+    const noCounter = await run({ count: 3 });
+    expect(noCounter.text).toContain('Excludes 3 addresses or ranges.');
+    expect(noCounter.text).not.toContain('dropped');
+    await open!.client.close();
+    open = undefined;
+    const none = await run({ count: 0 });
+    expect(none.text).not.toContain('Excludes');
+    await open!.client.close();
+    open = undefined;
+    const old = await run();
+    expect(old.text).not.toContain('Excludes');
+  });
+
   it('reports campaigns with filters, trimmed to the limit, and writes an unset label plainly', async () => {
     const h = await start();
     const result = await h.call('get_campaigns', {

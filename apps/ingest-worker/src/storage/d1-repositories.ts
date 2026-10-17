@@ -18,6 +18,7 @@ import type {
   ActionsReport,
   CampaignsFilters,
   CampaignsReport,
+  ExcludedHitsReport,
   CustomEventsFilters,
   CustomEventsReport
 } from '../../../ingest-api/src/domain/types.js';
@@ -68,9 +69,21 @@ type SourceRow = {
   quota_policy_id?: string | null;
   /** Absent on a database older than schema 3, where every website needs a token. */
   token_required?: number | null;
+  /** Absent on a database older than schema 6, where nothing is excluded. */
+  excluded_addresses_json?: string | null;
   created_at?: string;
   updated_at?: string;
 };
+
+/** A stored list that is not a list of strings (a hand-edited database) excludes nothing. */
+function excludedAddressesFrom(json: string | null | undefined): string[] {
+  try {
+    const value: unknown = JSON.parse(json || '[]');
+    return Array.isArray(value) ? value.filter((entry) => typeof entry === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 function sourceFromRow(row: SourceRow): Source {
   return {
@@ -82,6 +95,7 @@ function sourceFromRow(row: SourceRow): Source {
     status: row.status,
     ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
     tokenRequired: row.token_required !== 0,
+    excludedAddresses: excludedAddressesFrom(row.excluded_addresses_json),
     ...(row.created_at ? { createdAt: row.created_at } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {})
   };
@@ -137,6 +151,7 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_custom_event_properties',
   'dashboard_minute_campaigns',
   'dashboard_minute_campaign_visitors',
+  'dashboard_excluded_hits',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -668,9 +683,11 @@ export class D1Repositories
     // token_required is only written when it differs from the column default, so a website that
     // needs tokens can still be created on a database older than schema 3.
     const staticSite = source.tokenRequired === false;
+    // Likewise the exclusion list: written only when there is one.
+    const excluded = source.excludedAddresses?.length ? source.excludedAddresses : undefined;
     await this.db
       .prepare(
-        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''})`
+        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}${excluded ? ', excluded_addresses_json' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''}${excluded ? ', ?' : ''})`
       )
       .bind(
         source.id,
@@ -681,7 +698,8 @@ export class D1Repositories
         source.status,
         source.quotaPolicyId ?? null,
         createdAt,
-        source.updatedAt ?? new Date().toISOString()
+        source.updatedAt ?? new Date().toISOString(),
+        ...(excluded ? [JSON.stringify(excluded)] : [])
       )
       .run();
     const expandedFrom = new Date(createdAt);
@@ -728,14 +746,16 @@ export class D1Repositories
       allowedOrigins?: string[];
       status?: 'active' | 'disabled';
       tokenRequired?: boolean;
+      excludedAddresses?: string[];
     }
   ): Promise<Source | undefined> {
     const existing = await this.getSource(projectId, sourceId);
     if (!existing || existing.status === 'deleted') return undefined;
     const withToken = changes.tokenRequired !== undefined;
+    const withExcluded = changes.excludedAddresses !== undefined;
     const result = await this.db
       .prepare(
-        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
+        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''}${withExcluded ? ', excluded_addresses_json = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
       )
       .bind(
         changes.name ?? existing.name,
@@ -743,6 +763,7 @@ export class D1Repositories
         changes.status ?? existing.status,
         new Date().toISOString(),
         ...(withToken ? [changes.tokenRequired ? 1 : 0] : []),
+        ...(withExcluded ? [JSON.stringify(changes.excludedAddresses)] : []),
         sourceId,
         projectId
       )
@@ -1036,6 +1057,46 @@ export class D1Repositories
     return shape(await this.readAll(statements));
   }
 
+  /** One upsert per dropped batch: a count per website and UTC day, never the address. */
+  async recordExcludedHits(input: {
+    projectId: string;
+    sourceId: string;
+    eventCount: number;
+    now: Date;
+  }): Promise<void> {
+    await this.db
+      .prepare(
+        `INSERT INTO dashboard_excluded_hits (project_id, source_id, day_utc, hit_count) VALUES (?, ?, ?, ?)
+         ON CONFLICT(project_id, source_id, day_utc) DO UPDATE SET hit_count = hit_count + excluded.hit_count`
+      )
+      .bind(input.projectId, input.sourceId, input.now.toISOString().slice(0, 10), input.eventCount)
+      .run();
+  }
+
+  async getExcludedHits(
+    projectId: string,
+    sourceId: string,
+    windowDays: number,
+    now = new Date()
+  ): Promise<ExcludedHitsReport | undefined> {
+    const source = await this.getSource(projectId, sourceId);
+    if (!source || source.status === 'deleted') return undefined;
+    // Today counts as the last day of the window.
+    const since = new Date(now.getTime() - (windowDays - 1) * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const { results } = await this.db
+      .prepare(
+        `SELECT day_utc AS day, hit_count AS count FROM dashboard_excluded_hits
+         WHERE project_id = ? AND source_id = ? AND day_utc >= ? AND hit_count > 0
+         ORDER BY day_utc DESC`
+      )
+      .bind(projectId, sourceId, since)
+      .all<{ day: string; count: number }>();
+    const days = results.map((row) => ({ day: row.day, count: Number(row.count) }));
+    return { total: days.reduce((sum, row) => sum + row.count, 0), days, windowDays };
+  }
+
   async getCampaignsReport(
     projectId: string,
     sourceId: string | undefined,
@@ -1097,6 +1158,7 @@ export class D1Repositories
       ['dashboard_minute_custom_event_properties', 'minute_utc'],
       ['dashboard_minute_campaigns', 'minute_utc'],
       ['dashboard_minute_campaign_visitors', 'minute_utc'],
+      ['dashboard_excluded_hits', 'day_utc'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.
       ['ingestion_decisions', 'received_at'],

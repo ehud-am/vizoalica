@@ -22,7 +22,8 @@ function EditForm({ website }: { website: Website }) {
     await updateWebsite(scope.projectId, website.id, {
       name: input.name,
       allowedOrigins: input.allowedOrigins,
-      tokenRequired: input.tokenRequired
+      tokenRequired: input.tokenRequired,
+      ...(input.excludedAddresses ? { excludedAddresses: input.excludedAddresses } : {})
     });
     await scope.refreshWebsites();
     const originsChanged =
@@ -48,7 +49,7 @@ function EditForm({ website }: { website: Website }) {
         ]}
         back={{ label: `Back to ${website.name}`, href: hub, onClick: guard(hub) }}
         title={`Edit ${website.name}`}
-        description="Change the name, where this website may send analytics from, or whether it needs a signed token."
+        description="Change the name, where this website may send analytics from, whether it needs a signed token, or which visits to leave out."
       />
       <section className="panel form-panel" aria-label="Edit website details">
         <WebsiteForm
@@ -57,6 +58,7 @@ function EditForm({ website }: { website: Website }) {
           initialName={website.name}
           initialOrigins={website.allowedOrigins}
           initialTokenRequired={website.tokenRequired !== false}
+          {...(website.excludedAddresses ? { initialExcluded: website.excludedAddresses } : {})}
           submitLabel="Save changes"
           onSubmit={save}
           onDirtyChange={setDirty}

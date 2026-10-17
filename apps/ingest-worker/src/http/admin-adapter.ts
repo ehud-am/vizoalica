@@ -10,6 +10,7 @@ import type {
   QuotaPolicy,
   Source
 } from '../../../ingest-api/src/domain/types.js';
+import { parseAddressList } from '../../../ingest-api/src/ingestion/address-match.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { resolvePrincipal } from '../auth/principal.js';
 import { generateAccessKey } from '../auth/access-keys.js';
@@ -55,6 +56,45 @@ const forbidden = () => Response.json({ error: 'forbidden' }, { status: 403 });
 const notFound = () => Response.json({ error: 'not_found' }, { status: 404 });
 const invalid = (field?: string) =>
   Response.json({ error: 'invalid_request', ...(field ? { field } : {}) }, { status: 400 });
+
+/**
+ * A website as the caller may see it. The excluded addresses are operator configuration: only the
+ * admin and website owners get them; an analyst gets how many there are.
+ */
+function presentSource(source: Source, principal: Principal) {
+  const { excludedAddresses = [], ...rest } = source;
+  return {
+    ...rest,
+    excludedAddressCount: excludedAddresses.length,
+    ...(principal.role === 'analyst' ? {} : { excludedAddresses })
+  };
+}
+
+/**
+ * Validates the `excludedAddresses` field of a request body. The refusal names the entry's position
+ * and the reason, never its text, so addresses do not travel back in error messages.
+ */
+function excludedAddressesFrom(
+  value: unknown
+): { ok: true; entries: string[] } | { ok: false; response: Response } {
+  const parsed = parseAddressList(value);
+  if (parsed.ok) return { ok: true, entries: parsed.entries };
+  return {
+    ok: false,
+    response: Response.json(
+      {
+        error: 'invalid_request',
+        field: 'excludedAddresses',
+        reason: parsed.reason,
+        ...(parsed.index !== undefined ? { index: parsed.index } : {})
+      },
+      { status: 400 }
+    )
+  };
+}
+
+/** How far back the excluded-hits figures reach. */
+const EXCLUDED_HITS_WINDOW_DAYS = 30;
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
@@ -574,7 +614,7 @@ export async function handleAdminRequest(
       principal.role === 'admin' || principal.scope.sourceId === null
         ? sources
         : sources.filter((source) => source.id === principal.scope.sourceId);
-    return Response.json(visible);
+    return Response.json(visible.map((source) => presentSource(source, principal)));
   }
   if (sourceMatch && request.method === 'POST') {
     const projectId = sourceMatch[1]!;
@@ -590,8 +630,19 @@ export async function handleAdminRequest(
       return forbidden();
     }
     const body = (await request.json().catch(() => undefined)) as
-      | { name?: unknown; allowedOrigins?: unknown; origins?: unknown; tokenRequired?: unknown }
+      | {
+          name?: unknown;
+          allowedOrigins?: unknown;
+          origins?: unknown;
+          tokenRequired?: unknown;
+          excludedAddresses?: unknown;
+        }
       | undefined;
+    const excluded =
+      body?.excludedAddresses === undefined
+        ? undefined
+        : excludedAddressesFrom(body.excludedAddresses);
+    if (excluded && !excluded.ok) return excluded.response;
     const allowedOrigins = body && origins(body.allowedOrigins ?? body.origins);
     if (
       !allowedOrigins ||
@@ -612,7 +663,8 @@ export async function handleAdminRequest(
       status: 'active',
       quotaPolicyId: policy.id,
       // A client that does not say keeps the earlier behaviour: tokens required.
-      tokenRequired: body.tokenRequired !== false
+      tokenRequired: body.tokenRequired !== false,
+      ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {})
     };
     await dependencies.repositories.createQuotaPolicy(policy);
     await dependencies.repositories.createSource(source);
@@ -624,7 +676,7 @@ export async function handleAdminRequest(
       sourceId: source.id,
       ...(actor ? { actor } : {})
     });
-    return Response.json(source, { status: 201 });
+    return Response.json(presentSource(source, principal), { status: 201 });
   }
   const disableMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+):disable$/.exec(
     url.pathname
@@ -672,8 +724,14 @@ export async function handleAdminRequest(
           origins?: unknown;
           status?: unknown;
           tokenRequired?: unknown;
+          excludedAddresses?: unknown;
         }
       | undefined;
+    const excluded =
+      body?.excludedAddresses === undefined
+        ? undefined
+        : excludedAddressesFrom(body.excludedAddresses);
+    if (excluded && !excluded.ok) return excluded.response;
     const allowedOrigins =
       body && body.allowedOrigins !== undefined
         ? origins(body.allowedOrigins)
@@ -689,7 +747,8 @@ export async function handleAdminRequest(
       (name !== undefined ||
         allowedOrigins !== undefined ||
         status !== undefined ||
-        tokenRequired !== undefined) &&
+        tokenRequired !== undefined ||
+        excluded !== undefined) &&
       (body.tokenRequired === undefined || tokenRequired !== undefined) &&
       (body.name === undefined || (name !== undefined && name.length > 0 && name.length <= 120)) &&
       ((body.allowedOrigins === undefined && body.origins === undefined) ||
@@ -700,7 +759,8 @@ export async function handleAdminRequest(
           ...(name !== undefined ? { name } : {}),
           ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
           ...(status !== undefined ? { status } : {}),
-          ...(tokenRequired !== undefined ? { tokenRequired } : {})
+          ...(tokenRequired !== undefined ? { tokenRequired } : {}),
+          ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
         })
       : undefined;
     if (!source) return invalid();
@@ -712,7 +772,7 @@ export async function handleAdminRequest(
       sourceId: item[2]!,
       ...(actor ? { actor } : {})
     });
-    return Response.json(source);
+    return Response.json(presentSource(source, principal));
   }
   if (item && request.method === 'DELETE') {
     const guarded = guardSourceWrite(principal, item[1]!, item[2]!);
@@ -754,15 +814,36 @@ export async function handleAdminRequest(
     if (principal.role !== 'admin' && !sourceInScope(principal.scope, status[1]!, status[2]!))
       return notFound();
     const source = await dependencies.repositories.getSource(status[1]!, status[2]!);
-    return source
-      ? Response.json({
-          sourceId: source.id,
-          collection: source.status === 'active' ? 'healthy' : 'disabled',
-          aggregation: 'available',
-          configuration: source.allowedOrigins.length ? 'healthy' : 'attention',
-          dataAccess: 'available'
-        })
-      : notFound();
+    if (!source) return notFound();
+    // A database that predates the counter (or one that is briefly unavailable) leaves the figure
+    // out rather than failing the whole status.
+    const excludedHits = await dependencies.repositories
+      .getExcludedHits?.(status[1]!, status[2]!, EXCLUDED_HITS_WINDOW_DAYS)
+      .catch(() => undefined);
+    return Response.json({
+      sourceId: source.id,
+      collection: source.status === 'active' ? 'healthy' : 'disabled',
+      aggregation: 'available',
+      configuration: source.allowedOrigins.length ? 'healthy' : 'attention',
+      dataAccess: 'available',
+      excludedAddressCount: source.excludedAddresses?.length ?? 0,
+      ...(excludedHits ? { excludedHits30d: excludedHits.total } : {})
+    });
+  }
+  const excludedHitsMatch =
+    /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/excluded-hits$/.exec(url.pathname);
+  if (excludedHitsMatch && request.method === 'GET') {
+    if (
+      principal.role !== 'admin' &&
+      !sourceInScope(principal.scope, excludedHitsMatch[1]!, excludedHitsMatch[2]!)
+    )
+      return notFound();
+    const hits = await dependencies.repositories.getExcludedHits?.(
+      excludedHitsMatch[1]!,
+      excludedHitsMatch[2]!,
+      EXCLUDED_HITS_WINDOW_DAYS
+    );
+    return hits ? Response.json(hits, { headers: { 'cache-control': 'no-store' } }) : notFound();
   }
   const analyticsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/analytics$/.exec(
     url.pathname

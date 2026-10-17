@@ -34,6 +34,8 @@ export type FakeBackend = {
   availability?: string;
   /** Answer the campaigns report as a Worker that predates it does. */
   noCampaigns?: boolean;
+  /** What the website status says about excluded addresses; absent from an older backend. */
+  excluded?: { count: number; hits30d?: number };
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -205,7 +207,15 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         collection: 'healthy',
         aggregation: 'available',
         configuration: 'healthy',
-        dataAccess: 'available'
+        dataAccess: 'available',
+        ...(backend.excluded
+          ? {
+              excludedAddressCount: backend.excluded.count,
+              ...(backend.excluded.hits30d === undefined
+                ? {}
+                : { excludedHits30d: backend.excluded.hits30d })
+            }
+          : {})
       });
     return json({ error: 'not_found' }, 404);
   });

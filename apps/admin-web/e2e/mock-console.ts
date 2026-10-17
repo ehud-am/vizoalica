@@ -8,7 +8,9 @@ const website = {
   name: 'Docs',
   publicSourceKey: 'public-key',
   allowedOrigins: ['https://docs.example.com'],
-  status: 'active'
+  status: 'active',
+  excludedAddresses: ['203.0.113.7', '198.51.100.0/24'],
+  excludedAddressCount: 2
 };
 
 // 25 countries plus Tor and unknown traffic, so the complete list, the map, and the special
@@ -501,6 +503,15 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
     else if (path === '/api/preferences/theme') body = { theme: null };
     else if (path.endsWith('/websites'))
       body = [website, ...created.filter((item) => item.projectId === path.split('/')[3])];
+    else if (path.endsWith('/excluded-hits'))
+      body = {
+        total: 12,
+        days: [
+          { day: '2026-09-10', count: 7 },
+          { day: '2026-09-09', count: 5 }
+        ],
+        windowDays: 30
+      };
     else if (path.endsWith('/snippet'))
       body = {
         projectId: project.id,

@@ -14,6 +14,7 @@ import type {
   ActionsReport,
   CampaignsFilters,
   CampaignsReport,
+  ExcludedHitsReport,
   CustomEventsFilters,
   CustomEventsReport,
   AdminAuditEntry,
@@ -41,6 +42,13 @@ export type QuotaReservation = {
 export interface EventRepository {
   saveAcceptedEvents(events: StoredEvent[]): Promise<void>;
   listAcceptedEvents(projectId?: string): Promise<StoredEvent[]>;
+  /** Counts events dropped because their address is excluded: a count per website and day, no address. */
+  recordExcludedHits?(input: {
+    projectId: string;
+    sourceId: string;
+    eventCount: number;
+    now: Date;
+  }): Promise<void>;
   /** Updates bounded dashboard aggregates; raw events always remain in R2. */
   recordDashboardRollups?(events: StoredEvent[], context?: RequestAnalyticsContext): Promise<void>;
 }
@@ -76,6 +84,7 @@ export interface AdminRepository {
       allowedOrigins?: string[];
       status?: 'active' | 'disabled';
       tokenRequired?: boolean;
+      excludedAddresses?: string[];
     }
   ): Promise<Source | undefined>;
   getSource(projectId: string, sourceId: string): Promise<Source | undefined>;
@@ -112,6 +121,13 @@ export interface AdminRepository {
     endUtc: string,
     filters?: CampaignsFilters
   ): Promise<CampaignsReport | undefined>;
+  /** Events dropped for excluded addresses over the last `windowDays` UTC days, today included. */
+  getExcludedHits?(
+    projectId: string,
+    sourceId: string,
+    windowDays: number,
+    now?: Date
+  ): Promise<ExcludedHitsReport | undefined>;
   deleteExpiredDashboardData?(beforeUtc: string): Promise<void>;
   saveAdminAudit(entry: AdminAuditEntry): Promise<void>;
   /** Absent on a Worker whose database predates access keys. */

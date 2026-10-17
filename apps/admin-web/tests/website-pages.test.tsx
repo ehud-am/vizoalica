@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   getStatus: vi.fn(),
   getReachability: vi.fn(),
   getAnalyticsOverview: vi.fn(),
+  getExcludedHits: vi.fn(),
   getSetupState: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
@@ -29,6 +30,7 @@ beforeEach(() => {
   sites = { p1: [docs, blog], p2: [shop] };
   applyApiDefaults(api, sites);
   api.getSetupState.mockRejectedValue(new Error('offline'));
+  api.getExcludedHits.mockResolvedValue({ total: 0, days: [], windowDays: 30 });
 });
 afterEach(() => {
   cleanup();
@@ -634,5 +636,159 @@ describe('add page', () => {
   it('never leaves a stale overview around: the analytics call for the new scope is separate', () => {
     expect(makeOverview().totals.pageViews).toBe(0);
     expect([acme.id, beta.id]).toEqual(['p1', 'p2']);
+  });
+});
+
+describe('excluding your own visits', () => {
+  const excludedSite = (extra: Record<string, unknown> = {}) =>
+    site('s1', 'p1', 'Docs', {
+      excludedAddresses: ['203.0.113.7', '198.51.100.0/24'],
+      excludedAddressCount: 2,
+      ...extra
+    });
+  const card = () => screen.getByRole('heading', { name: 'Your own visits' }).closest('section')!;
+
+  it('explains how to start when nothing is excluded, and links to the edit page', async () => {
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    const section = await waitFor(card);
+    expect(within(section).getByText(/No addresses are excluded/)).toBeTruthy();
+    expect(within(section).getByText('?vizoalica_ignore=1')).toBeTruthy();
+    expect(
+      within(section).getByRole('link', { name: 'Exclude addresses' }).getAttribute('href')
+    ).toBe('#/manage/websites/s1/edit');
+  });
+
+  it('shows how many entries there are and how many events were dropped, never the addresses', async () => {
+    sites.p1 = [excludedSite(), blog];
+    api.getExcludedHits.mockResolvedValue({
+      total: 12,
+      days: [
+        { day: '2026-01-02', count: 7 },
+        { day: '2026-01-01', count: 5 }
+      ],
+      windowDays: 30
+    });
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    const section = await waitFor(card);
+    expect(await within(section).findByText(/events/)).toBeTruthy();
+    expect(section.textContent).toContain('2 addresses or ranges excluded');
+    expect(section.textContent).toContain('12 events dropped in the last 30 days');
+    expect(
+      within(section).getByRole('list', { name: 'Events dropped per day' }).textContent
+    ).toContain('2026-01-02: 7');
+    expect(section.textContent).toContain('cannot be counted');
+    expect(section.textContent).not.toContain('203.0.113');
+    expect(within(section).getByRole('link', { name: 'Change excluded addresses' })).toBeTruthy();
+    expect(api.getExcludedHits).toHaveBeenCalledWith('p1', 's1');
+  });
+
+  it('says dropped events cannot be counted on a backend that does not report them', async () => {
+    sites.p1 = [excludedSite({ excludedAddressCount: 1 }), blog];
+    api.getExcludedHits.mockRejectedValue(new ApiError('not_found', 404));
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    expect(await screen.findByText(/Update the backend to see them/)).toBeTruthy();
+    expect(card().textContent).toContain('1 address or range excluded');
+  });
+
+  it('shows the field on the edit page with the current list, and saves a change', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    const field = (await screen.findByRole('textbox', {
+      name: /Exclude your own visits/
+    })) as HTMLTextAreaElement;
+    expect(field.value).toBe('203.0.113.7\n198.51.100.0/24');
+    await user.clear(field);
+    await user.type(field, '10.0.0.0/8, 2001:db8::1');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(api.updateWebsite).toHaveBeenCalledWith('p1', 's1', {
+        name: 'Docs',
+        allowedOrigins: ['https://s1.test'],
+        tokenRequired: true,
+        excludedAddresses: ['10.0.0.0/8', '2001:db8::1']
+      })
+    );
+  });
+
+  it('can clear the list', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    await user.clear(await screen.findByRole('textbox', { name: /Exclude your own visits/ }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(api.updateWebsite).toHaveBeenCalledWith(
+        'p1',
+        's1',
+        expect.objectContaining({ excludedAddresses: [] })
+      )
+    );
+  });
+
+  it('does not send the list when it was not changed', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    const name = await screen.findByRole('textbox', { name: 'Website name' });
+    await user.type(name, ' v2');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.updateWebsite).toHaveBeenCalled());
+    expect(api.updateWebsite.mock.calls[0]![2]).not.toHaveProperty('excludedAddresses');
+  });
+
+  it('names the entry the service refused, using the person’s own text, and keeps their entries', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    api.updateWebsite.mockRejectedValueOnce(
+      new ApiError('invalid_request', 400, undefined, {
+        field: 'excludedAddresses',
+        reason: 'invalid_entry',
+        index: 1
+      })
+    );
+    render(<App />);
+    const field = await screen.findByRole('textbox', { name: /Exclude your own visits/ });
+    await user.clear(field);
+    await user.type(field, '203.0.113.7{Enter}office.example.com');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const message = await screen.findByText(/“office.example.com” is not an IP address or range/);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(field.getAttribute('aria-describedby')).toContain(message.id);
+    expect(document.activeElement).toBe(field);
+    expect((field as HTMLTextAreaElement).value).toContain('office.example.com');
+    expect(screen.queryByText(/Website could not be saved/)).toBeNull();
+  });
+
+  it('refuses more than 25 entries before asking the service', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    const field = await screen.findByRole('textbox', { name: /Exclude your own visits/ });
+    await user.clear(field);
+    await user.click(field);
+    await user.paste(Array.from({ length: 26 }, (_, index) => `10.0.0.${index}`).join('\n'));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('Use 25 entries or fewer.')).toBeTruthy();
+    expect(api.updateWebsite).not.toHaveBeenCalled();
+  });
+
+  it('leaves the field out when the backend sent no list (an analyst gets only a count)', async () => {
+    sites.p1 = [site('s1', 'p1', 'Docs', { excludedAddressCount: 2 }), blog];
+    go('manage/websites/s1/edit');
+    render(<App />);
+    await screen.findByRole('textbox', { name: 'Website name' });
+    expect(screen.queryByRole('textbox', { name: /Exclude your own visits/ })).toBeNull();
   });
 });

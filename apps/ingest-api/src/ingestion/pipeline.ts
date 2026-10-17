@@ -15,6 +15,7 @@ import { recordIngestionDecision } from '../observability/metrics.js';
 import { evaluateQuota } from '../quotas/quota-policy.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
+import { isExcluded } from './address-match.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
 
 export interface PipelineRequest {
@@ -24,6 +25,11 @@ export interface PipelineRequest {
   authorization?: string | null;
   now?: Date;
   analyticsContext?: RequestAnalyticsContext;
+  /**
+   * The sender's address, used only to match the website's excluded addresses. It is never stored,
+   * logged or returned.
+   */
+  clientAddress?: string | null;
 }
 
 export interface PipelineDependencies {
@@ -104,6 +110,35 @@ export async function ingestBatch(
     if (request.origin !== undefined) constraintInput.origin = request.origin;
     const constraints = validateTokenConstraints(constraintInput);
     if (!constraints.ok) return reject(401, constraints.reason, project, source);
+  }
+
+  // Internal traffic is dropped only after the sender proved it may write to this website, so a
+  // forged request learns nothing and cannot touch the counter. It costs no quota and stores nothing.
+  if (
+    source.excludedAddresses?.length &&
+    isExcluded(request.clientAddress, source.excludedAddresses)
+  ) {
+    const now = request.now ?? new Date();
+    await dependencies.repositories
+      .recordExcludedHits?.({
+        projectId: project.id,
+        sourceId: source.id,
+        eventCount: validation.events.length,
+        now
+      })
+      // The count is for transparency; failing to record it must not turn a dropped batch into an error.
+      .catch(() => logger.warn('excluded hits could not be counted', { source_id: source.id }));
+    const decision: IngestionDecision = {
+      decision: 'excluded',
+      reasonCodes: ['excluded_address'],
+      acceptedCount: 0,
+      rejectedCount: 0,
+      projectId: project.id,
+      sourceId: source.id,
+      receivedAt: now
+    };
+    recordIngestionDecision(metrics, decision);
+    return { status: 202, decision };
   }
 
   const privacy = applyPrivacyGuard(validation.events);

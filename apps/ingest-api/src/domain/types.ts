@@ -22,6 +22,11 @@ export interface Source {
    * static website send unsigned batches from its allowed origins. Absent means true.
    */
   tokenRequired?: boolean;
+  /**
+   * IP addresses and ranges (canonical spelling, at most 25) whose events this website drops
+   * instead of counting. Operator configuration: never logged, audited or returned to analysts.
+   */
+  excludedAddresses?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -286,6 +291,14 @@ export interface CampaignsReport {
   availability: AnalyticsOverview['availability'];
 }
 
+export interface ExcludedHitsReport {
+  /** Events dropped in the window. */
+  total: number;
+  /** Only days with hits, newest first. */
+  days: Array<{ day: string; count: number }>;
+  windowDays: number;
+}
+
 export interface SigningKey {
   id: string;
   projectId: string;
@@ -327,7 +340,8 @@ export interface StoredEvent {
 }
 
 export interface IngestionDecision {
-  decision: 'accepted' | 'partial' | 'rejected' | 'throttled';
+  /** `excluded`: an authorized batch from an address the website excludes; nothing was stored. */
+  decision: 'accepted' | 'partial' | 'rejected' | 'throttled' | 'excluded';
   reasonCodes: string[];
   acceptedCount: number;
   rejectedCount: number;

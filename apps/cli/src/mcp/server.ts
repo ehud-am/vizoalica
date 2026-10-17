@@ -428,7 +428,17 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         }
         const install = (live as { install?: { code: string; nextAction: string } } | undefined)
           ?.install;
-        const summary = `${site.name}: collection ${String(status.collection)}, configuration ${String(status.configuration ?? 'unknown')}.${install ? ` Site check: ${install.code}. ${install.nextAction}` : ''}`;
+        // How many addresses the website excludes and how many events that dropped, never the
+        // addresses. Absent from a backend that predates the setting.
+        const excludedCount =
+          typeof status.excludedAddressCount === 'number' ? status.excludedAddressCount : 0;
+        const excludedHits =
+          typeof status.excludedHits30d === 'number' ? status.excludedHits30d : undefined;
+        const excludedText =
+          excludedCount > 0
+            ? ` Excludes ${excludedCount} ${excludedCount === 1 ? 'address or range' : 'addresses or ranges'}${excludedHits === undefined ? '' : `; ${excludedHits} ${excludedHits === 1 ? 'event' : 'events'} dropped in the last 30 days (browser opt-outs are not counted)`}.`
+            : '';
+        const summary = `${site.name}: collection ${String(status.collection)}, configuration ${String(status.configuration ?? 'unknown')}.${excludedText}${install ? ` Site check: ${install.code}. ${install.nextAction}` : ''}`;
         return result(ref, envs.names(), summary, {
           project: { id: found.project.id, name: found.project.name },
           website: site,
