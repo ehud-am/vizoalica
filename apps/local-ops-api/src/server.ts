@@ -21,6 +21,7 @@ import {
 import {
   analytics,
   analyticsActions,
+  analyticsCampaigns,
   analyticsCustomEvents,
   analyticsOverview
 } from './routes/analytics.js';
@@ -274,6 +275,31 @@ export function createLocalServer(options: ServerOptions) {
             {
               ...(url.searchParams.get('event') ? { event: url.searchParams.get('event')! } : {}),
               ...(url.searchParams.get('page') ? { page: url.searchParams.get('page')! } : {})
+            }
+          )
+        );
+      }
+      const campaignsMatch = /^\/api\/projects\/([^/]+)\/analytics\/campaigns$/.exec(url.pathname);
+      if (request.method === 'GET' && campaignsMatch) {
+        return send(
+          response,
+          200,
+          await analyticsCampaigns(
+            client,
+            campaignsMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? '',
+            {
+              ...(url.searchParams.get('source')
+                ? { source: url.searchParams.get('source')! }
+                : {}),
+              ...(url.searchParams.get('medium')
+                ? { medium: url.searchParams.get('medium')! }
+                : {}),
+              ...(url.searchParams.get('campaign')
+                ? { campaign: url.searchParams.get('campaign')! }
+                : {})
             }
           )
         );

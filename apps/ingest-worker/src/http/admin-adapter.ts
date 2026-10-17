@@ -3,6 +3,7 @@ import type {
   AccessKeyRole,
   AccessKeyScope,
   ActionsFilters,
+  CampaignsFilters,
   CustomEventsFilters,
   Principal,
   Project,
@@ -82,6 +83,18 @@ function customEventsFilters(url: URL): CustomEventsFilters | undefined {
     const value = url.searchParams.get(name);
     if (!value) continue;
     if (value.length > limit || CONTROL_CHARACTERS.test(value)) return undefined;
+    filters[name] = value;
+  }
+  return filters;
+}
+
+/** Exact-match filters of the campaigns report: the cleaned labels are at most 64 characters. */
+function campaignsFilters(url: URL): CampaignsFilters | undefined {
+  const filters: CampaignsFilters = {};
+  for (const name of ['source', 'medium', 'campaign'] as const) {
+    const value = url.searchParams.get(name);
+    if (!value) continue;
+    if (value.length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
     filters[name] = value;
   }
   return filters;
@@ -502,6 +515,47 @@ export async function handleAdminRequest(
         : (url.searchParams.get('source_id') ?? undefined);
     const report = await dependencies.repositories.getCustomEventsReport?.(
       customEventsMatch[1]!,
+      sourceId,
+      range.startUtc,
+      range.endUtc,
+      filters
+    );
+    return report
+      ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+      : notFound();
+  }
+  const campaignsMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics\/campaigns$/.exec(
+    url.pathname
+  );
+  if (campaignsMatch && request.method === 'GET') {
+    if (principal.role !== 'admin' && !projectInScope(principal.scope, campaignsMatch[1]!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    const filters = campaignsFilters(url);
+    if (!filters) return invalid();
+    if (
+      principal.role !== 'admin' &&
+      principal.scope.sourceId !== null &&
+      url.searchParams.get('source_id') &&
+      url.searchParams.get('source_id') !== principal.scope.sourceId
+    )
+      return notFound();
+    const sourceId =
+      principal.role !== 'admin' && principal.scope.sourceId !== null
+        ? principal.scope.sourceId
+        : (url.searchParams.get('source_id') ?? undefined);
+    const report = await dependencies.repositories.getCampaignsReport?.(
+      campaignsMatch[1]!,
       sourceId,
       range.startUtc,
       range.endUtc,

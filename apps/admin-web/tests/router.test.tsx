@@ -255,3 +255,52 @@ describe('router: the Events page', () => {
     });
   });
 });
+
+describe('router: the Campaigns page', () => {
+  it('is an Analytics navigation item directly after Sources, with project-and-website scope and a range', () => {
+    const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);
+    expect(analytics.indexOf('analytics/campaigns')).toBe(
+      analytics.indexOf('analytics/sources') + 1
+    );
+    expect(routeLabel('analytics/campaigns')).toBe('Campaigns');
+    expect(scopeControls('analytics/campaigns')).toBe('project-website');
+    expect(showsRange('analytics/campaigns')).toBe(true);
+  });
+
+  it('carries a source, medium and campaign in the address, and ignores other names', () => {
+    const params = { source: 'newsletter', medium: 'email', campaign: 'spring sale' };
+    const href = hrefFor('analytics/campaigns', undefined, params);
+    expect(href).toBe(
+      '#/analytics/campaigns?source=newsletter&medium=email&campaign=spring%20sale'
+    );
+    expect(parseRoute(href)).toEqual({ path: 'analytics/campaigns', params });
+    expect(parseRoute('#/analytics/campaigns?page=%2F&event=x')).toEqual({
+      path: 'analytics/campaigns'
+    });
+    expect(parseRoute('#/analytics/events?source=newsletter')).toEqual({
+      path: 'analytics/events'
+    });
+    expect(parseRoute(`#/analytics/campaigns?source=${'a'.repeat(65)}`)).toEqual({
+      path: 'analytics/campaigns'
+    });
+  });
+
+  it('re-renders when only one selected label changes', async () => {
+    function Probe() {
+      const route = useRoute();
+      return <p data-testid="probe">{JSON.stringify(route.params ?? {})}</p>;
+    }
+    window.location.hash = '#/analytics/campaigns?source=a';
+    render(<Probe />);
+    for (const params of [
+      { source: 'a', medium: 'm' },
+      { source: 'a', campaign: 'c' }
+    ]) {
+      await act(async () => {
+        navigate('analytics/campaigns', undefined, params);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(screen.getByTestId('probe').textContent).toBe(JSON.stringify(params));
+    }
+  });
+});

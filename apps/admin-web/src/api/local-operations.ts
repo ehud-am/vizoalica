@@ -180,6 +180,32 @@ export type CustomEventsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+export type CampaignsFilters = { source?: string; medium?: string; campaign?: string };
+export type CampaignRanking = {
+  /** An empty label means the link did not set it. */
+  items: Array<{ label: string; count: number; visitors: number }>;
+  /** Page views beyond `items`; keeps the totals exact. */
+  otherCount: number;
+};
+export type CampaignsReport = {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsOverview['range'];
+  totals: { pageViews: number; uniqueUsers: number; allPageViews: number };
+  trend: Array<{ startUtc: string; pageViews: number }>;
+  sources: CampaignRanking;
+  mediums: CampaignRanking;
+  campaigns: CampaignRanking;
+  rows: Array<{
+    source: string;
+    medium: string;
+    campaign: string;
+    count: number;
+    visitors: number;
+  }>;
+  other: { rows: number; count: number };
+  availability: AnalyticsOverview['availability'];
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
@@ -311,6 +337,25 @@ export const getAnalyticsCustomEvents = (
   if (filters.page) query.set('page', filters.page);
   return request<CustomEventsReport>(
     `/api/projects/${encodeURIComponent(projectId)}/analytics/custom-events?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export const getAnalyticsCampaigns = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  filters: CampaignsFilters = {},
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  if (filters.source) query.set('source', filters.source);
+  if (filters.medium) query.set('medium', filters.medium);
+  if (filters.campaign) query.set('campaign', filters.campaign);
+  return request<CampaignsReport>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics/campaigns?${query.toString()}`,
     signal ? { signal } : undefined
   );
 };

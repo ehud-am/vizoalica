@@ -159,6 +159,44 @@ describe('applying the real migrations', () => {
     ).toThrow();
   });
 
+  it('0005 adds the campaign tables and records when reporting began, changing nothing else', () => {
+    const sqlite = freshDatabase({ upTo: 4 });
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0005_campaign_reports.sql'), 'utf8'));
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_campaign_availability',
+      'dashboard_minute_campaign_visitors',
+      'dashboard_minute_campaigns'
+    ]);
+    expect(
+      sqlite.prepare('SELECT available_from_utc AS at FROM dashboard_campaign_availability').get()
+    ).toEqual({ at: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:00\.000Z$/) });
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_campaign_availability VALUES (2, 'x')")
+    ).toThrow();
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_minute_campaigns VALUES ('p','s','m','a','b','c',-1)")
+    ).toThrow();
+  });
+
+  it('0006 adds the exclusion list with an empty default, keeping every website counting everything', () => {
+    const sqlite = freshDatabase({ upTo: 5 });
+    sqlite.exec(
+      "INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Site','k1','[]','active',NULL,'t','t')"
+    );
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0006_internal_traffic_exclusion.sql'), 'utf8'));
+    expect(sqlite.prepare('SELECT excluded_addresses_json AS list FROM sources').get()).toEqual({
+      list: '[]'
+    });
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_excluded_hits'
+    ]);
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_excluded_hits VALUES ('p','s','2026-01-01',-1)")
+    ).toThrow();
+  });
+
   it('0002 refuses to be applied twice by the CREATE TABLE (without IF NOT EXISTS) for access_keys', () => {
     const sqlite = new DatabaseSync(':memory:');
     sqlite.exec(readFileSync(join(migrationsDir, '0001_initial.sql'), 'utf8'));

@@ -6,6 +6,7 @@ import { CAPABILITIES, capabilityById } from '../src/capabilities.js';
 import { NAV_ROUTES, ROUTES, routeArea, type RoutePath } from '../src/router.js';
 import {
   makeActionsReport,
+  makeCampaignsReport,
   makeCustomEventsReport,
   makeOverview,
   primaryIntegration
@@ -25,7 +26,8 @@ const api = vi.hoisted(() => ({
   getReachability: vi.fn(),
   getAnalyticsOverview: vi.fn(),
   getAnalyticsActions: vi.fn(),
-  getAnalyticsCustomEvents: vi.fn()
+  getAnalyticsCustomEvents: vi.fn(),
+  getAnalyticsCampaigns: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -63,6 +65,7 @@ beforeEach(() => {
   });
   api.getAnalyticsActions.mockResolvedValue(makeActionsReport());
   api.getAnalyticsCustomEvents.mockResolvedValue(makeCustomEventsReport());
+  api.getAnalyticsCampaigns.mockResolvedValue(makeCampaignsReport());
   api.getAnalyticsOverview.mockResolvedValue(
     makeOverview({
       totals: { pageViews: 10, uniqueUsers: 4 },
@@ -110,7 +113,8 @@ describe('view and manage separation', () => {
         expect(
           api.getAnalyticsOverview.mock.calls.length +
             api.getAnalyticsActions.mock.calls.length +
-            api.getAnalyticsCustomEvents.mock.calls.length
+            api.getAnalyticsCustomEvents.mock.calls.length +
+            api.getAnalyticsCampaigns.mock.calls.length
         ).toBeGreaterThan(0)
       );
       await waitFor(() =>

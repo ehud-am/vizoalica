@@ -31,6 +31,11 @@ const TABLES = [
   'dashboard_minute_visitors',
   'dashboard_minute_actions',
   'dashboard_minute_action_visitors',
+  'dashboard_minute_custom_events',
+  'dashboard_minute_custom_event_visitors',
+  'dashboard_minute_custom_event_properties',
+  'dashboard_minute_campaigns',
+  'dashboard_minute_campaign_visitors',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -66,6 +71,11 @@ function seed() {
       INSERT INTO dashboard_minute_visitors VALUES ('${project}','${source}','m','v',1,'source-local');
       INSERT INTO dashboard_minute_actions VALUES ('${project}','${source}','m','/','Go','button','',1);
       INSERT INTO dashboard_minute_action_visitors VALUES ('${project}','${source}','m','/','Go','button','','v','source-local');
+      INSERT INTO dashboard_minute_custom_events VALUES ('${project}','${source}','m','/','signup',1);
+      INSERT INTO dashboard_minute_custom_event_visitors VALUES ('${project}','${source}','m','/','signup','v','source-local');
+      INSERT INTO dashboard_minute_custom_event_properties VALUES ('${project}','${source}','m','signup','plan','pro',1);
+      INSERT INTO dashboard_minute_campaigns VALUES ('${project}','${source}','m','news','email','',1);
+      INSERT INTO dashboard_minute_campaign_visitors VALUES ('${project}','${source}','m','news','email','','v','source-local');
       INSERT INTO dashboard_aggregate_watermarks VALUES ('${project}','${source}','t','t',1);
       INSERT INTO quota_windows VALUES ('${project}','${source}','day','d',1,1);
       INSERT INTO ingestion_decisions (project_id, source_id, decision, accepted_count, rejected_count, reason_codes_json, received_at) VALUES ('${project}','${source}','accepted',1,0,'[]','t');

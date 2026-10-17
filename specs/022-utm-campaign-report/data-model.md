@@ -21,10 +21,11 @@ Absent means "no campaign". The field is sent only on the first page view of a p
 
 ## Cleaning rules (`cleanCampaignValue`)
 
-Input any string. Steps, in order: take at most the first 400 characters; trim and collapse whitespace; lowercase;
-`redactLabel` (email -> `[email]`, six or more digits -> `[number]`, token-shaped word -> `[token]`); keep only
-`\p{L}`, `\p{N}`, space, `_ - . + : / [ ]` (the brackets only so the placeholders survive); cut to 64; trim.
-Empty result means absent. Idempotent.
+Input any string. Steps, in order: `redactLabel` (takes at most the first 400 characters, collapses whitespace,
+email -> `[email]`, six or more digits -> `[number]`, token-shaped word -> `[token]`; it runs before lowercasing
+because the token rule looks at letter case); lowercase; keep only `\p{L}`, `\p{N}`, space, `_ - . + : / [ ]`
+(the brackets only so the placeholders survive); collapse spaces; cut to 64; trim. Empty result means absent.
+Idempotent.
 
 ## Tables (migration `0005_campaign_reports.sql`, additive)
 

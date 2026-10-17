@@ -16,6 +16,7 @@ import { BrandLogo } from './components/BrandLogo.js';
 import { ConnectionNotice } from './components/ConnectionNotice.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
+import { CampaignsPage } from './analytics/CampaignsPage.js';
 import { EventsPage } from './analytics/EventsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
 import { GeographyPage } from './analytics/GeographyPage.js';
@@ -152,6 +153,8 @@ function Console({ route }: { route: Route }) {
               <ActionsPage />
             ) : route.path === 'analytics/events' ? (
               <EventsPage />
+            ) : route.path === 'analytics/campaigns' ? (
+              <CampaignsPage />
             ) : area === 'analytics' ? (
               <AnalyticsProvider comparePrevious={route.path === 'analytics/overview'}>
                 <AnalyticsRoute route={route} />

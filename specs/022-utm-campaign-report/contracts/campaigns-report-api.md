@@ -34,7 +34,7 @@ Authorization, range (`start`, `end`, 30-day cap, UTC), `source_id` and role/sco
 
 ## Console proxy
 
-`GET /api/environments/:env/projects/:projectId/campaigns?start&end&source_id&source&medium&campaign` returns the
+`GET /api/projects/:projectId/analytics/campaigns?start&end&source_id&source&medium&campaign` returns the
 same body.
 
 ## MCP tool

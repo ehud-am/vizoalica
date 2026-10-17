@@ -1,5 +1,6 @@
 import type {
   ActionsReport,
+  CampaignsReport,
   CustomEventsReport,
   AnalyticsOverview,
   Integration,
@@ -232,6 +233,58 @@ export function makeCustomEventsReport(
         ]
       }
     ],
+    availability: { state: 'complete', taxonomyVersions: [1] },
+    ...overrides
+  };
+}
+
+/** A campaigns report: two sources, one with a combination that sets no campaign. */
+export function makeCampaignsReport(overrides: Partial<CampaignsReport> = {}): CampaignsReport {
+  return {
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-01T03:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { pageViews: 30, uniqueUsers: 18, allPageViews: 120 },
+    trend: [
+      { startUtc: '2026-01-01T00:00:00.000Z', pageViews: 5 },
+      { startUtc: '2026-01-01T01:00:00.000Z', pageViews: 0 },
+      { startUtc: '2026-01-01T02:00:00.000Z', pageViews: 25 }
+    ],
+    sources: {
+      items: [
+        { label: 'newsletter', count: 22, visitors: 12 },
+        { label: 'twitter', count: 8, visitors: 6 }
+      ],
+      otherCount: 0
+    },
+    mediums: {
+      items: [
+        { label: 'email', count: 22, visitors: 12 },
+        { label: 'social', count: 8, visitors: 6 }
+      ],
+      otherCount: 0
+    },
+    campaigns: {
+      items: [
+        { label: 'spring-sale', count: 22, visitors: 12 },
+        { label: '', count: 8, visitors: 6 }
+      ],
+      otherCount: 3
+    },
+    rows: [
+      { source: 'newsletter', medium: 'email', campaign: 'spring-sale', count: 22, visitors: 12 },
+      { source: 'twitter', medium: 'social', campaign: '', count: 8, visitors: 6 }
+    ],
+    other: { rows: 4, count: 3 },
     availability: { state: 'complete', taxonomyVersions: [1] },
     ...overrides
   };

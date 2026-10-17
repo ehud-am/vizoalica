@@ -118,6 +118,48 @@ const actionRows = [
   }
 ];
 
+/** The campaigns report, narrowed by the same exact-match filters the Worker applies. */
+function campaignsReport(url: URL) {
+  const source = url.searchParams.get('source') ?? undefined;
+  const rows = [
+    { source: 'newsletter', medium: 'email', campaign: 'spring-sale', count: 22, visitors: 12 },
+    { source: 'twitter', medium: 'social', campaign: '', count: 8, visitors: 6 }
+  ].filter((row) => !source || row.source === source);
+  const ranking = (key: 'source' | 'medium' | 'campaign') => ({
+    items: rows.map((row) => ({ label: row[key], count: row.count, visitors: row.visitors })),
+    otherCount: 0
+  });
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: {
+      pageViews: rows.reduce((sum, row) => sum + row.count, 0),
+      uniqueUsers: 18,
+      allPageViews: 120
+    },
+    trend: [
+      { startUtc: '2026-09-10T00:00:00.000Z', pageViews: 10 },
+      { startUtc: '2026-09-10T01:00:00.000Z', pageViews: 20 }
+    ],
+    sources: ranking('source'),
+    mediums: ranking('medium'),
+    campaigns: ranking('campaign'),
+    rows,
+    other: { rows: 0, count: 0 },
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
 const eventTotals = [
   { event: 'signup', count: 30, visitors: 22, pages: 2 },
   { event: 'file_download', count: 12, visitors: 9, pages: 1 }
@@ -548,6 +590,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
       };
     else if (path.endsWith('/analytics/actions')) body = actionsReport(url);
     else if (path.endsWith('/analytics/custom-events')) body = customEventsReport(url);
+    else if (path.endsWith('/analytics/campaigns')) body = campaignsReport(url);
     else if (path.endsWith('/analytics'))
       body = overview(
         url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',

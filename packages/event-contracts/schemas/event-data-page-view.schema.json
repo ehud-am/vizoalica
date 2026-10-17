@@ -38,6 +38,16 @@
         "origin": { "type": "string", "format": "uri", "maxLength": 512 }
       },
       "additionalProperties": false
+    },
+    "campaign": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "source": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "medium": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "campaign": { "type": "string", "minLength": 1, "maxLength": 64 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

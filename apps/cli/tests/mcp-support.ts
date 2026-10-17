@@ -32,6 +32,8 @@ export type FakeBackend = {
   schemaApplied?: number | null;
   health?: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' } | null;
   availability?: string;
+  /** Answer the campaigns report as a Worker that predates it does. */
+  noCampaigns?: boolean;
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -168,6 +170,34 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           : [],
         availability: { state: 'processing', taxonomyVersions: [1] }
       });
+    if (/^\/v1\/admin\/projects\/[^/]+\/analytics\/campaigns$/.test(path)) {
+      if (backend.noCampaigns) return json({ error: 'not_found' }, 404);
+      return json({
+        scope: {},
+        range: {},
+        totals: { pageViews: 30, uniqueUsers: 9, allPageViews: 120 },
+        trend: [{ startUtc: '2026-09-20T00:00:00.000Z', pageViews: 30 }],
+        sources: {
+          items: Array.from({ length: 12 }, (_, index) => ({
+            label: `source_${index}`,
+            count: 12 - index,
+            visitors: 1
+          })),
+          otherCount: 2
+        },
+        mediums: { items: [{ label: 'email', count: 30, visitors: 9 }], otherCount: 0 },
+        campaigns: { items: [{ label: '', count: 30, visitors: 9 }], otherCount: 0 },
+        rows: Array.from({ length: 12 }, (_, index) => ({
+          source: `source_${index}`,
+          medium: 'email',
+          campaign: index === 0 ? 'spring-sale' : '',
+          count: 12 - index,
+          visitors: 1
+        })),
+        other: { rows: 3, count: 4 },
+        availability: { state: 'processing', taxonomyVersions: [1] }
+      });
+    }
     const status = /^\/v1\/admin\/projects\/[^/]+\/sources\/([^/]+)\/status$/.exec(path);
     if (status)
       return json({

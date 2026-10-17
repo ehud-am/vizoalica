@@ -147,6 +147,46 @@ describe('reads: every role within its scope, refused outside it', () => {
   });
 });
 
+describe('campaigns report follows the same scope rules', () => {
+  const range = 'start=2026-01-01T00:00:00.000Z&end=2026-01-02T00:00:00.000Z';
+
+  it('answers every role inside its scope and refuses outside it', async () => {
+    const { env } = environment();
+    for (const token of [ADMIN, await issueKey(env, 'analyst'), await issueKey(env, 'owner')]) {
+      const response = await call(env, `/v1/admin/projects/p1/analytics/campaigns?${range}`, {
+        token
+      });
+      expect(response.status).toBe(200);
+    }
+    const projectKey = await issueKey(env, 'analyst', { projectId: 'p1' });
+    expect(
+      (await call(env, `/v1/admin/projects/p2/analytics/campaigns?${range}`, { token: projectKey }))
+        .status
+    ).toBe(404);
+
+    const websiteKey = await issueKey(env, 'analyst', { projectId: 'p1', sourceId: 's1' });
+    expect(
+      (
+        await call(env, `/v1/admin/projects/p1/analytics/campaigns?${range}&source_id=s2`, {
+          token: websiteKey
+        })
+      ).status
+    ).toBe(404);
+    const own = await call(env, `/v1/admin/projects/p1/analytics/campaigns?${range}`, {
+      token: websiteKey
+    });
+    expect(((await own.json()) as { scope: { sourceId: string } }).scope.sourceId).toBe('s1');
+  });
+
+  it('is refused without a credential', async () => {
+    const { env } = environment();
+    const response = await call(env, `/v1/admin/projects/p1/analytics/campaigns?${range}`, {
+      token: 'wrong'
+    });
+    expect(response.status).toBe(401);
+  });
+});
+
 describe('writes: analysts never, owners only in scope', () => {
   it('refuses every write from an analyst key with 403', async () => {
     const { env } = environment();

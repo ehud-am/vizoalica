@@ -16,6 +16,8 @@ import type {
   DistributionResult,
   ActionsFilters,
   ActionsReport,
+  CampaignsFilters,
+  CampaignsReport,
   CustomEventsFilters,
   CustomEventsReport
 } from '../../../ingest-api/src/domain/types.js';
@@ -32,6 +34,12 @@ import {
   expandActionEvent,
   type ActionItem
 } from './action-rollups.js';
+import {
+  campaignOf,
+  campaignStatements,
+  campaignsReportQueries,
+  type CampaignItem
+} from './campaign-rollups.js';
 import {
   CUSTOM_EVENT_TYPE,
   customEventStatements,
@@ -127,6 +135,8 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_custom_events',
   'dashboard_minute_custom_event_visitors',
   'dashboard_minute_custom_event_properties',
+  'dashboard_minute_campaigns',
+  'dashboard_minute_campaign_visitors',
   'dashboard_aggregate_watermarks',
   'quota_windows',
   'ingestion_decisions',
@@ -291,6 +301,7 @@ export class D1Repositories
     }> = [];
     const actionItems: ActionItem[] = [];
     const customItems: CustomEventItem[] = [];
+    const campaignItems: CampaignItem[] = [];
     const digest = (...parts: string[]) => hmacDigest(this.analyticsDigestSecret, ...parts);
     for (const stored of events) {
       const day = stored.receivedAt.toISOString().slice(0, 10);
@@ -372,14 +383,27 @@ export class D1Repositories
                 ].filter((part): part is string => part !== undefined)
               )
             : undefined;
+          const eventDigest = await hmacDigest(
+            this.analyticsDigestSecret,
+            'event-v1',
+            stored.projectId,
+            stored.event.id
+          );
+          const campaign = campaignOf(stored);
+          if (campaign)
+            campaignItems.push({
+              projectId: stored.projectId,
+              sourceId: stored.sourceId,
+              minute,
+              source: campaign.source ?? '',
+              medium: campaign.medium ?? '',
+              campaign: campaign.campaign ?? '',
+              eventDigest,
+              ...(visitorDigest ? { visitorDigest, identityKind } : {})
+            });
           expanded.push({
             event: stored,
-            eventDigest: await hmacDigest(
-              this.analyticsDigestSecret,
-              'event-v1',
-              stored.projectId,
-              stored.event.id
-            ),
+            eventDigest,
             minute,
             dimensions: [
               ['page_path', pagePath || 'Unknown'],
@@ -534,6 +558,7 @@ export class D1Repositories
     }
     statements.push(...actionStatements(this.db, actionItems, nonce));
     statements.push(...customEventStatements(this.db, customItems, nonce));
+    statements.push(...campaignStatements(this.db, campaignItems, nonce));
     const watermarks = new Map<string, { projectId: string; sourceId: string; minute: string }>();
     for (const item of [
       ...expanded.map((entry) => ({
@@ -1011,6 +1036,33 @@ export class D1Repositories
     return shape(await this.readAll(statements));
   }
 
+  async getCampaignsReport(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters: CampaignsFilters = {}
+  ): Promise<CampaignsReport | undefined> {
+    const project = await this.findProject(projectId);
+    if (!project) return undefined;
+    const source = sourceId ? await this.getSource(projectId, sourceId) : undefined;
+    if (sourceId && (!source || source.status === 'deleted')) return undefined;
+    const { statements, shape } = campaignsReportQueries(this.db, {
+      projectId,
+      sourceId,
+      startUtc,
+      endUtc,
+      filters,
+      scope: {
+        projectId,
+        sourceId: sourceId ?? null,
+        label: source?.name ?? 'All websites',
+        identityMode: 'source-local'
+      }
+    });
+    return shape(await this.readAll(statements));
+  }
+
   /** Today's visitor salt, created on first use; the same value for every caller that day. */
   async dailyVisitorSalt(dayUtc: string): Promise<string | undefined> {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -1043,6 +1095,8 @@ export class D1Repositories
       ['dashboard_minute_custom_events', 'minute_utc'],
       ['dashboard_minute_custom_event_visitors', 'minute_utc'],
       ['dashboard_minute_custom_event_properties', 'minute_utc'],
+      ['dashboard_minute_campaigns', 'minute_utc'],
+      ['dashboard_minute_campaign_visitors', 'minute_utc'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.
       ['ingestion_decisions', 'received_at'],

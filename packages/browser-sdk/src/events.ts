@@ -4,7 +4,7 @@ import type {
   CustomEventData,
   PageViewData
 } from '@vizoalica/event-contracts';
-import { sanitizeProperties } from '@vizoalica/privacy';
+import { sanitizeProperties, type CampaignLabels } from '@vizoalica/privacy';
 import type { VizoalicaConfig } from './types.js';
 import type { ActionObservation } from './actions.js';
 import { currentPage, currentReferrer } from './privacy.js';
@@ -58,7 +58,8 @@ function baseEvent<T>(
 
 export function buildPageViewEvent(
   config: VizoalicaConfig,
-  context: EventContext
+  context: EventContext,
+  campaign?: CampaignLabels
 ): CloudEvent<PageViewData> {
   const page = currentPage();
   const referrer = currentReferrer();
@@ -66,7 +67,8 @@ export function buildPageViewEvent(
     page: { ...page, title: globalThis.document?.title?.slice(0, 256) ?? null },
     visitor: { anonymous_id: context.anonymousId },
     session: { id: context.sessionId },
-    ...(referrer ? { referrer } : {})
+    ...(referrer ? { referrer } : {}),
+    ...(campaign ? { campaign } : {})
   });
 }
 

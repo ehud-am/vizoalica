@@ -7,7 +7,7 @@ import {
   resolveSessionId
 } from './events.js';
 import { watchNavigation } from './navigation.js';
-import { currentPageKey } from './privacy.js';
+import { currentPageKey, landingCampaign } from './privacy.js';
 import { BoundedQueue } from './queue.js';
 import { sendBatch } from './transport.js';
 import type { TrackOptions, VizoalicaConfig, VizoalicaEvent } from './types.js';
@@ -35,6 +35,10 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
     sessionId: resolveSessionId(config)
   };
 
+  // The campaign belongs to the landing view only, so a visit is not counted again at every route
+  // change. It is read now, while the URL is still the landing one.
+  let pendingCampaign = landingCampaign();
+
   async function send(events: VizoalicaEvent[]): Promise<void> {
     if (events.length === 0) return;
     const result = await sendBatch(config, events);
@@ -56,7 +60,8 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
       void flush();
     },
     page() {
-      queue.enqueue(buildPageViewEvent(config, context));
+      queue.enqueue(buildPageViewEvent(config, context, pendingCampaign));
+      pendingCampaign = undefined;
       void flush();
     },
     flush,

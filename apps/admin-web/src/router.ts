@@ -61,6 +61,14 @@ export const ROUTES = define([
     range: true
   },
   {
+    path: 'analytics/campaigns',
+    area: 'analytics',
+    label: 'Campaigns',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
     path: 'analytics/geography',
     area: 'analytics',
     label: 'Geography',
@@ -183,24 +191,36 @@ export const DEFAULT_ROUTE: RoutePath = 'analytics/overview';
 export interface Route {
   path: RoutePath;
   websiteId?: string;
-  /** Selections carried in the address, only on the Actions and Events pages. */
+  /** Selections carried in the address, only on the Actions, Events and Campaigns pages. */
   params?: RouteParams;
 }
 
 /**
- * The Actions report can be narrowed to a page or to an action, and the Events report to a page or
- * to an event; the choice lives in the address.
+ * The Actions report can be narrowed to a page or to an action, the Events report to a page or to
+ * an event, and the Campaigns report to a source, medium or campaign; the choice lives in the
+ * address.
  */
 export interface RouteParams {
   page?: string;
   action?: string;
   event?: string;
+  source?: string;
+  medium?: string;
+  campaign?: string;
 }
 // The Worker refuses longer values, so an address carrying one is treated as carrying none.
-const PARAM_LIMITS = { page: 1024, action: 80, event: 64 } as const;
+const PARAM_LIMITS = {
+  page: 1024,
+  action: 80,
+  event: 64,
+  source: 64,
+  medium: 64,
+  campaign: 64
+} as const;
 const PARAM_NAMES: Partial<Record<RoutePath, readonly (keyof RouteParams)[]>> = {
   'analytics/actions': ['page', 'action'],
-  'analytics/events': ['page', 'event']
+  'analytics/events': ['page', 'event'],
+  'analytics/campaigns': ['source', 'medium', 'campaign']
 };
 
 /** Routes that appear in the primary navigation, in order. */
@@ -273,7 +293,10 @@ export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParam
   const query = [
     params?.page ? `page=${encodeURIComponent(params.page)}` : '',
     params?.action ? `action=${encodeURIComponent(params.action)}` : '',
-    params?.event ? `event=${encodeURIComponent(params.event)}` : ''
+    params?.event ? `event=${encodeURIComponent(params.event)}` : '',
+    params?.source ? `source=${encodeURIComponent(params.source)}` : '',
+    params?.medium ? `medium=${encodeURIComponent(params.medium)}` : '',
+    params?.campaign ? `campaign=${encodeURIComponent(params.campaign)}` : ''
   ].filter(Boolean);
   return query.length ? `${base}?${query.join('&')}` : base;
 }
@@ -292,7 +315,10 @@ export function useRoute(): Route {
         current.websiteId === next.websiteId &&
         current.params?.page === next.params?.page &&
         current.params?.action === next.params?.action &&
-        current.params?.event === next.params?.event
+        current.params?.event === next.params?.event &&
+        current.params?.source === next.params?.source &&
+        current.params?.medium === next.params?.medium &&
+        current.params?.campaign === next.params?.campaign
           ? current
           : next
       );

@@ -6,6 +6,8 @@ import type {
   PageViewData
 } from '@vizoalica/event-contracts';
 import {
+  cleanCampaign,
+  type CampaignLabels,
   isForbiddenPropertyName,
   normalizePagePath,
   redactLabel,
@@ -43,11 +45,16 @@ const FALLBACK_NAME: Record<ActionKind, string> = {
  * idempotent, so an updated SDK's output passes through unchanged.
  */
 function normalizePageView(event: CloudEvent<PageViewData>): CloudEvent<PageViewData> {
+  // Campaign labels are cleaned again here, and dropped when nothing is left, so a hostile client
+  // cannot store anything the browser's own cleaner would have removed.
+  const { campaign: sent, ...data } = event.data;
+  const campaign = cleanCampaign(sent);
   return {
     ...event,
     data: {
-      ...event.data,
-      page: { ...event.data.page, url_path: normalizePagePath(event.data.page.url_path) }
+      ...data,
+      page: { ...data.page, url_path: normalizePagePath(data.page.url_path) },
+      ...(campaign ? { campaign } : {})
     }
   };
 }
@@ -74,6 +81,11 @@ function normalizeAction(event: CloudEvent<ActionData>): CloudEvent<ActionData> 
 /** A property value as reports store it: redacted like an action name, and cut short. */
 export function reportablePropertyValue(value: string, maxLength: number): string {
   return redactLabel(value).slice(0, maxLength).trim();
+}
+
+/** Campaign labels as reports store them: cleaned, and undefined when nothing is left. */
+export function reportableCampaign(value: unknown): CampaignLabels | undefined {
+  return cleanCampaign(value);
 }
 
 export function validateEventPrivacy(event: CloudEvent): PrivacyGuardResult {
