@@ -114,6 +114,23 @@ describe('campaigns report admin contract', () => {
     expect(repositories.getCampaignsReport).not.toHaveBeenCalled();
   });
 
+  it('counts filter length in characters, so a label of 40 astral letters can be chosen', async () => {
+    const repositories = repository();
+    const label = '𠀀'.repeat(40);
+    const response = await call(
+      repositories,
+      `/v1/admin/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent(label)}`,
+      auth
+    );
+    expect(response?.status).toBe(200);
+    const tooLong = await call(
+      repositories,
+      `/v1/admin/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent('𠀀'.repeat(65))}`,
+      auth
+    );
+    expect(tooLong?.status).toBe(400);
+  });
+
   it('rejects a missing, malformed, or unaligned range with 400 and the offending field', async () => {
     const repositories = repository();
     for (const query of [

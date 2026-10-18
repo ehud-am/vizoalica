@@ -7,6 +7,7 @@ import type {
 } from '../contracts.js';
 import { isAnalyticsWindow, isSafeId } from '../contracts.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
+import { databaseUpdateNeeded } from './websites.js';
 import {
   AnalyticsRangeError,
   parseAnalyticsRange
@@ -195,7 +196,8 @@ export async function analyticsCampaigns(
     const value = filters[name];
     if (value === undefined) continue;
     // An empty filter is a mistake, not "no filter".
-    if (!value || value.length > limit || CONTROL_CHARACTERS.test(value))
+    // Limits count characters, as the Worker does, so a label with astral letters can be filtered.
+    if (!value || [...value].length > limit || CONTROL_CHARACTERS.test(value))
       throw new Error('invalid_request');
     query.set(name, value);
   }
@@ -214,6 +216,8 @@ export async function analyticsCampaigns(
       );
     throw new Error('invalid_request');
   }
+  if (response.status === 503 && (await databaseUpdateNeeded(response)))
+    throw new Error('database_update_needed');
   if (!response.ok) throw new Error('unavailable');
   return (await response.json()) as CampaignsReport;
 }

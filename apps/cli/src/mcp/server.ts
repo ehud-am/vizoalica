@@ -139,6 +139,8 @@ function explain(error: unknown, ref: EnvironmentRef | undefined): string {
     return `The Worker for "${name}" rejected its credential (it may have been rotated or revoked). The user can check it with: vizoalica env check ${name}`;
   if (code === 'not_found')
     return `Not found in "${name}", or not visible to the ${ref?.role ?? ''} role there. Call list_websites to see what this environment holds.`;
+  if (code === 'database_update_needed')
+    return `The database for "${name}" needs its latest update. The user can update it with: vizoalica deploy ${name} --update`;
   if (code === 'invalid_request')
     return 'The request was not valid; check the names, ids and filters.';
   return `The Worker for "${name}" did not answer (${ref?.url ?? ''}). The user can check it with: vizoalica env check ${name}`;
@@ -670,10 +672,21 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         project: projectArg,
         website: websiteArg,
         ...rangeArgs,
-        source: z.string().max(64).optional().describe('Exact UTM source, for example newsletter.'),
-        medium: z.string().max(64).optional().describe('Exact UTM medium, for example email.'),
+        source: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe('Exact UTM source, for example newsletter.'),
+        medium: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe('Exact UTM medium, for example email.'),
         campaign: z
           .string()
+          .min(1)
           .max(64)
           .optional()
           .describe('Exact UTM campaign, for example spring-sale.'),

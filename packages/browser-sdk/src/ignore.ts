@@ -2,7 +2,7 @@
  * The browser opt-out for a website's own team. Visiting any page of the website with
  * `?vizoalica_ignore=1` turns Vizoalica off in that browser; `?vizoalica_ignore=0` turns it back
  * on. The only thing stored is the constant `"1"` under one key, on the owner's own device and
- * only because the owner asked; visitors never get it. Nothing is sent while it is set, so these
+ * only because a link with the switch was opened in that browser (the owner's own, normally). Nothing is sent while it is set, so these
  * visits cannot be counted (unlike address exclusions). See
  * specs/023-exclude-internal-traffic/contracts/exclusion-api.md.
  */

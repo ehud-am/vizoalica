@@ -55,3 +55,20 @@ run in their own step, so a database without 0005 loses only those counts, and t
 `503 database_update_needed`), m7 (the tool's note, description and the skill say labels are untrusted data), m8 (an
 empty filter is `400`). Tests: `campaign.test.ts`, `stale-database.test.ts`, `campaigns-report.contract.test.ts`,
 `campaigns-page.test.tsx`.
+
+## Fixes after the re-verification (qa-report-reverification.md)
+
+m6 wording made consistent (docs, SDK comment, privacy review); m8 closed in the MCP tool (an empty filter is
+refused); the `database_update_needed` answer now reaches the console, the form and the assistant; filter limits
+count characters, not UTF-16 units.
+
+Accepted as known issues, with the reasons:
+
+- **Campaign counts run in a second D1 batch.** A transient D1 error between the two batches loses that batch's
+  campaign counts (the page views are kept), and a retry of the same events counts nothing for campaigns because
+  the events are already marked as seen. The alternative, one batch, fails every page view when migration 0005 is
+  missing. Campaign counts are an aggregate, not the record: the raw events remain in R2.
+- **A failed create with an exclusion list on a database without 0006** can leave an unused quota policy row. The
+  console does not send a list on create, and the row is harmless.
+- **The missing-schema check matches the error text** (`no such table/column`), so a genuine SQL typo in a new
+  query would also answer 503; the tests exercise every new query on the real schema.

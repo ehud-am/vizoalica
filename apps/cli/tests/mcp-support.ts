@@ -34,6 +34,8 @@ export type FakeBackend = {
   availability?: string;
   /** Answer the campaigns report as a Worker that predates it does. */
   noCampaigns?: boolean;
+  /** Answer the campaigns report as a Worker newer than its database does. */
+  staleDatabase?: boolean;
   /** What the website status says about excluded addresses; absent from an older backend. */
   excluded?: { count: number; hits30d?: number };
 };
@@ -174,6 +176,7 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
       });
     if (/^\/v1\/admin\/projects\/[^/]+\/analytics\/campaigns$/.test(path)) {
       if (backend.noCampaigns) return json({ error: 'not_found' }, 404);
+      if (backend.staleDatabase) return json({ error: 'database_update_needed' }, 503);
       return json({
         scope: {},
         range: {},

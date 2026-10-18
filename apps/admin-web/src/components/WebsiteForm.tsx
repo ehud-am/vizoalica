@@ -180,7 +180,11 @@ export function WebsiteForm({
                 : 'Use IP addresses or ranges, one per line.'
         });
         excludedRef.current?.focus();
-      } else
+      } else if (caught instanceof ApiError && caught.code === 'database_update_needed')
+        setError(
+          'The backend database needs its latest update before it can save this. Run vizoalica deploy <name> --update, then save again.'
+        );
+      else
         setError('Website could not be saved. Your entries are unchanged; review and try again.');
     } finally {
       setBusy(false);

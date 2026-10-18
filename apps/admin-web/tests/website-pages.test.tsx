@@ -807,6 +807,18 @@ describe('excluding your own visits', () => {
     expect(screen.queryByText(/Website could not be saved/)).toBeNull();
   });
 
+  it('tells the owner to update the database when the backend cannot save the list yet', async () => {
+    sites.p1 = [excludedSite(), blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    api.updateWebsite.mockRejectedValueOnce(new ApiError('database_update_needed', 503));
+    render(<App />);
+    const field = await screen.findByRole('textbox', { name: /Exclude your own visits/ });
+    await user.type(field, '{Enter}10.0.0.1');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText(/needs its latest update before it can save this/)).toBeTruthy();
+  });
+
   it('refuses more than 25 entries before asking the service', async () => {
     sites.p1 = [excludedSite(), blog];
     go('manage/websites/s1/edit');

@@ -6,11 +6,22 @@ export async function workerJson(client: WorkerClient, path: string, init?: Requ
   const response = await client.request(path, init);
   if (response.status === 401 || response.status === 403) throw new Error('access_revoked');
   if (!response.ok) {
+    if (response.status === 503 && (await databaseUpdateNeeded(response)))
+      throw new Error('database_update_needed');
     if (response.status === 400) throw new Error('invalid_request');
     if (response.status === 404) throw new Error('not_found');
     throw new Error('remote_unavailable');
   }
   return response.status === 204 ? undefined : response.json();
+}
+
+/** A Worker newer than its database answers 503 with this error; the person needs the next step. */
+export async function databaseUpdateNeeded(response: Response): Promise<boolean> {
+  const body = (await response
+    .clone()
+    .json()
+    .catch(() => undefined)) as { error?: unknown } | undefined;
+  return body?.error === 'database_update_needed';
 }
 
 export function jsonInit(method: 'POST' | 'PATCH' | 'DELETE', body?: unknown): RequestInit {

@@ -117,3 +117,35 @@ describe('campaigns report local API contract', () => {
     expect(seen.some((url) => url.pathname.endsWith('/analytics/campaigns'))).toBe(false);
   });
 });
+
+describe('a Worker whose database needs its update', () => {
+  const stale = () => Response.json({ error: 'database_update_needed' }, { status: 503 });
+
+  it('reaches the console as database_update_needed, for the report and for a website edit', async () => {
+    const { api, cookie } = await start(stale);
+    const report = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, { cookie });
+    expect(report).toMatchObject({ status: 503, body: { error: 'database_update_needed' } });
+    const edit = await api.call('/api/projects/p1/websites/s1', {
+      method: 'PATCH',
+      cookie,
+      body: { excludedAddresses: ['203.0.113.7'] }
+    });
+    expect(edit).toMatchObject({ status: 503, body: { error: 'database_update_needed' } });
+  });
+
+  it('keeps a plain 503 as remote_unavailable', async () => {
+    const { api, cookie } = await start(() => Response.json({ error: 'boom' }, { status: 503 }));
+    const report = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, { cookie });
+    expect(report.body).toMatchObject({ error: 'remote_unavailable' });
+  });
+
+  it('accepts a label of astral characters as a filter', async () => {
+    const { api, cookie } = await start(() => Response.json(report));
+    const label = '𠀀'.repeat(40);
+    const result = await api.call(
+      `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent(label)}`,
+      { cookie }
+    );
+    expect(result.status).toBe(200);
+  });
+});

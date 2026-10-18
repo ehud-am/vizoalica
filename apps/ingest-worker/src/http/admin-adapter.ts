@@ -159,7 +159,7 @@ function campaignsFilters(url: URL): CampaignsFilters | undefined {
     const value = url.searchParams.get(name);
     if (value === null) continue;
     // An empty filter is a mistake, not "no filter"; a label that was not set cannot be selected.
-    if (!value || value.length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
+    if (!value || [...value].length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
     filters[name] = value;
   }
   return filters;

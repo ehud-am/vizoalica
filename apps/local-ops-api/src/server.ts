@@ -446,7 +446,14 @@ export function createLocalServer(options: ServerOptions) {
         );
       }
       return send(response, code, {
-        error: code === 503 ? 'remote_unavailable' : code === 401 ? 'access_revoked' : message,
+        error:
+          message === 'database_update_needed'
+            ? message
+            : code === 503
+              ? 'remote_unavailable'
+              : code === 401
+                ? 'access_revoked'
+                : message,
         recovery: message === 'backend_not_connected' ? 'connect_backend' : recoveryFor(code)
       });
     }

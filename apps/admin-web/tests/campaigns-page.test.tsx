@@ -182,4 +182,10 @@ describe('Campaigns page', () => {
     const table = await screen.findByRole('region', { name: 'Sources table' });
     expect(within(table).getAllByRole('row')).toHaveLength(2);
   });
+
+  it('says the database needs its update when the backend answers so', async () => {
+    api.getAnalyticsCampaigns.mockRejectedValueOnce(new ApiError('database_update_needed', 503));
+    await openPage();
+    expect((await screen.findByRole('alert')).textContent).toContain('needs its latest update');
+  });
 });

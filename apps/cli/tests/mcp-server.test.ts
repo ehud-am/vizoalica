@@ -485,6 +485,29 @@ describe('the vizoalica MCP server', () => {
     expect(result.text).toContain('vizoalica deploy prod --update');
   });
 
+  it('rejects an empty filter instead of treating it as no filter', async () => {
+    const h = await start();
+    for (const filter of ['source', 'medium', 'campaign']) {
+      const result = await h.call('get_campaigns', {
+        environment: 'prod',
+        project: 'Acme',
+        [filter]: ''
+      });
+      expect(result.isError, filter).toBe(true);
+    }
+    expect(h.requests.filter((request) => request.query.includes('campaigns'))).toEqual([]);
+  });
+
+  it('says what to do when the database behind the Worker needs its update', async () => {
+    const h = await start({
+      backends: { prod: { ...defaultBackends().prod, staleDatabase: true } }
+    });
+    const result = await h.call('get_campaigns', { environment: 'prod', project: 'Acme' });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('needs its latest update');
+    expect(result.text).toContain('vizoalica deploy prod --update');
+  });
+
   it('rejects a source filter that is too long before asking the Worker', async () => {
     const h = await start();
     const result = await h.call('get_campaigns', {
