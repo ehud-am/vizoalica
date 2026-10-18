@@ -649,6 +649,7 @@ describe('excluding your own visits', () => {
   const card = () => screen.getByRole('heading', { name: 'Your own visits' }).closest('section')!;
 
   it('explains how to start when nothing is excluded, and links to the edit page', async () => {
+    sites.p1 = [site('s1', 'p1', 'Docs', { excludedAddresses: [], excludedAddressCount: 0 }), blog];
     go('manage/websites/s1');
     render(<App />);
     await screen.findByRole('heading', { level: 1, name: /Docs/ });
@@ -684,6 +685,20 @@ describe('excluding your own visits', () => {
     expect(section.textContent).not.toContain('203.0.113');
     expect(within(section).getByRole('link', { name: 'Change excluded addresses' })).toBeTruthy();
     expect(api.getExcludedHits).toHaveBeenCalledWith('p1', 's1');
+  });
+
+  it('tells the owner to update a backend older than 0.11 instead of inviting an edit that cannot work', async () => {
+    // An older backend sends neither the list nor its count.
+    go('manage/websites/s1');
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /Docs/ });
+    const section = await waitFor(card);
+    expect(section.textContent).toContain('This backend is older than 0.11');
+    expect(section.textContent).toContain('vizoalica deploy <name> --update');
+    expect(
+      within(section).queryByRole('link', { name: /xclude addresses|Change excluded/ })
+    ).toBeNull();
+    expect(within(section).queryByText(/No addresses are excluded/)).toBeNull();
   });
 
   it('says dropped events cannot be counted on a backend that does not report them', async () => {

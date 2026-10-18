@@ -70,6 +70,8 @@ See the [campaign labels privacy review](../privacy/campaign-labels-review.md).
   Vizoalica keeps no visitor identifiers.
 - The page shows the 20 largest entries of each list and the 50 largest combinations; the rest is summed as
   "Other", so the totals stay exact.
+- A link that did not set a label is listed as "(not set)", which cannot be chosen as a filter; an empty filter is
+  refused.
 - `utm_term` and `utm_content` are not collected.
 
 ## Update the backend

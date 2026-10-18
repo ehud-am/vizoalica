@@ -129,7 +129,9 @@ As an owner, I want to see that exclusion works and is not hiding real visitors.
 - **FR-008**: The console MUST let admin and owner roles edit the list on the website's Edit page (not on the Add
   page: a new website starts counting everything, and the list is a setting to add once there is traffic to
   compare) and show the excluded-hits card on the website page, accessible and keyboard-operable. When the
-  backend is older than 0.11 and does not apply the list, the console MUST say so after saving.
+  backend is older than 0.11 it sends neither the list nor its count; the website page's card then tells the owner to
+  update the backend (and offers no edit link), and a save that carries a list still says if the backend did not
+  apply it.
 - **FR-009**: The install check sends no events (it probes the token endpoint and configuration), so it is
   unaffected; the website page's excluded-hits card is how an owner sees that their own visits are being
   dropped.

@@ -25,7 +25,10 @@ a per-website list of excluded addresses, a count of dropped events, and a brows
 3. The list is not retroactive: events already stored stay stored.
 4. The SDK switch writes only the constant `1`, only when the URL asks for it, and the SDK stays silent while it
    is set. It reads no other part of the address.
-5. Addresses shared by many people exclude all of them. The documentation says so and the dropped count is
+5. The switch can be set by anyone who gets a person to open a link on the site. It then only stops that browser
+   from being counted; it exposes nothing and `?vizoalica_ignore=0` reverses it. This is inherent in a switch
+   that needs no list, and the documentation says so.
+6. Addresses shared by many people exclude all of them. The documentation says so and the dropped count is
    visible.
 
 Anything added later needs its own entry here first.

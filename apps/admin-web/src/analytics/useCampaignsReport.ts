@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getAnalyticsCampaigns, type CampaignsReport } from '../api/local-operations.js';
+import { ApiError, getAnalyticsCampaigns, type CampaignsReport } from '../api/local-operations.js';
 import type { RouteParams } from '../router.js';
 import { useScope } from '../scope/ScopeProvider.js';
 import { analyticsErrorMessage } from './AnalyticsProvider.js';
@@ -50,7 +50,15 @@ export function useCampaignsReport(params: RouteParams | undefined): CampaignsRe
       })
       .catch((reason) => {
         if (!controller.signal.aborted)
-          setState({ status: 'error', report: undefined, error: analyticsErrorMessage(reason) });
+          setState({
+            status: 'error',
+            report: undefined,
+            // The project was just listed, so a 404 here is a backend that predates the report.
+            error:
+              reason instanceof ApiError && reason.status === 404
+                ? 'This backend does not report campaigns yet. Update it with vizoalica deploy <name> --update.'
+                : analyticsErrorMessage(reason)
+          });
       });
     return () => controller.abort();
   }, [projectId, websiteId, range, source, medium, campaign, attempt]);

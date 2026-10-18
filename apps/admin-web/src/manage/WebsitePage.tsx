@@ -38,6 +38,16 @@ function ExcludedVisits({
 }) {
   const count = website.excludedAddressCount ?? website.excludedAddresses?.length ?? 0;
   const docs = 'https://vizoalica.dev/operations/internal-traffic';
+  // A backend older than 0.11 sends neither the list nor its count, and cannot apply a list.
+  if (website.excludedAddressCount === undefined && website.excludedAddresses === undefined)
+    return (
+      <p className="hint">
+        This backend is older than 0.11, so it cannot leave addresses out yet. Update it with{' '}
+        <code>vizoalica deploy &lt;name&gt; --update</code>. A browser can already opt out by
+        opening your site once with <code>?vizoalica_ignore=1</code> (the site must run SDK 0.11 or
+        later). <a href={docs}>How it works</a>
+      </p>
+    );
   return (
     <>
       {count === 0 ? (

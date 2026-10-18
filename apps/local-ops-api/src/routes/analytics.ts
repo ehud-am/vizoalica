@@ -193,8 +193,10 @@ export async function analyticsCampaigns(
     ['campaign', 64]
   ] as const) {
     const value = filters[name];
-    if (!value) continue;
-    if (value.length > limit || CONTROL_CHARACTERS.test(value)) throw new Error('invalid_request');
+    if (value === undefined) continue;
+    // An empty filter is a mistake, not "no filter".
+    if (!value || value.length > limit || CONTROL_CHARACTERS.test(value))
+      throw new Error('invalid_request');
     query.set(name, value);
   }
   const response = await client.request(

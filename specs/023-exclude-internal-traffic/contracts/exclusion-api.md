@@ -19,7 +19,8 @@ Website objects (list, get, create, update) include `excludedAddressCount` for e
 ```
 
 `days` lists only days with hits, newest first, at most 30. A Worker older than 0.11.0 answers 404.
-`GET .../status` additionally returns `excludedAddressCount` and `excludedHits30d`.
+A database without migration 0006 answers a request that carries a list, and the excluded-hits report, with
+`503 database_update_needed`. `GET .../status` additionally returns `excludedAddressCount` and `excludedHits30d`.
 
 ## Ingestion
 

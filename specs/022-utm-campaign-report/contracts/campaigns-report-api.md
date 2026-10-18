@@ -4,7 +4,7 @@
 
 Authorization, range (`start`, `end`, 30-day cap, UTC), `source_id` and role/scope handling are identical to
 `/analytics/actions` and `/analytics/custom-events`. Optional exact filters: `source`, `medium`, `campaign`
-(each 1 to 64 characters; anything else is `400 invalid`). Response is `no-store`.
+(each 1 to 64 characters; anything else, including an empty value, is `400 invalid_request`). Response is `no-store`.
 
 ```json
 {
@@ -29,6 +29,7 @@ Authorization, range (`start`, `end`, 30-day cap, UTC), `source_id` and role/sco
   ranking; `sum(rows.count) + other.count` equals `totals.pageViews`.
 - `availability.state` is `incomplete` with `availableFromUtc` when the range starts before campaign reporting
   began.
+- `503 database_update_needed` from a Worker whose database has not had migration 0005 yet.
 - 404 for a project or website outside the caller's scope; 404 from a Worker that predates the feature (the
   console and MCP translate that into "update the backend").
 

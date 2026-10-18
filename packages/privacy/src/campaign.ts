@@ -14,6 +14,20 @@ export interface CampaignLabels {
 
 export const MAX_CAMPAIGN_VALUE_LENGTH = 64;
 
+/**
+ * Digits of any script as ASCII digits, so a number written with fullwidth or Arabic-Indic digits
+ * is still caught by the digit-run redaction. Decimal digits come in runs of ten starting at zero.
+ */
+function asciiDigits(text: string): string {
+  const isDigit = (codePoint: number) => /^\p{Nd}$/u.test(String.fromCodePoint(codePoint));
+  return text.replace(/\p{Nd}/gu, (digit) => {
+    const codePoint = digit.codePointAt(0)!;
+    let first = codePoint;
+    while (isDigit(first - 1)) first -= 1;
+    return String((codePoint - first) % 10);
+  });
+}
+
 const QUERY_NAMES = {
   utm_source: 'source',
   utm_medium: 'medium',
@@ -33,11 +47,14 @@ const DISALLOWED = /[^\p{L}\p{M}\p{N} _.+:/[\]-]/gu;
 export function cleanCampaignValue(input: unknown): string {
   try {
     if (typeof input !== 'string') return '';
-    return redactLabel(input)
-      .toLowerCase()
-      .replace(DISALLOWED, '')
-      .replace(/ {2,}/g, ' ')
+    // NFKC folds fullwidth and superscript forms; the digit mapping covers the other scripts.
+    const folded = asciiDigits(input.normalize('NFKC'));
+    // Cut by code points, never inside a surrogate pair, so the result is stable when cleaned again.
+    return Array.from(
+      redactLabel(folded).toLowerCase().replace(DISALLOWED, '').replace(/ {2,}/g, ' ')
+    )
       .slice(0, MAX_CAMPAIGN_VALUE_LENGTH)
+      .join('')
       .trim();
   } catch {
     return '';

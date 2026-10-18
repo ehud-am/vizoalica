@@ -70,6 +70,11 @@ describe('campaigns report local API contract', () => {
       `/api/projects/p1/analytics/campaigns?${RANGE}&medium=${'a'.repeat(65)}`,
       `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent('a\nb')}`
     ];
+    bad.push(
+      `/api/projects/p1/analytics/campaigns?${RANGE}&source=`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&medium=`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=`
+    );
     for (const path of bad) expect((await api.call(path, { cookie })).status, path).toBe(400);
     const range = await api.call('/api/projects/p1/analytics/campaigns?start=nope&end=nope', {
       cookie

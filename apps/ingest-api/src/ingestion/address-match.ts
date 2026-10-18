@@ -35,13 +35,14 @@ function parseIpv6(text: string): bigint | undefined {
   if (!text.includes(':') || text.includes('%')) return undefined;
   const halves = text.split('::');
   if (halves.length > 2) return undefined;
-  const groupsOf = (part: string): number[] | undefined => {
+  // A dotted IPv4 tail stands for the last two groups, so it may only end the whole address.
+  const groupsOf = (part: string, endsAddress: boolean): number[] | undefined => {
     if (part === '') return [];
     const groups: number[] = [];
     const pieces = part.split(':');
     for (const [index, piece] of pieces.entries()) {
       // An IPv4 tail takes the place of the last two groups.
-      if (piece.includes('.') && index === pieces.length - 1) {
+      if (piece.includes('.') && endsAddress && index === pieces.length - 1) {
         const v4 = parseIpv4(piece);
         if (v4 === undefined) return undefined;
         groups.push(Number(v4 >> 16n), Number(v4 & 0xffffn));
@@ -50,8 +51,8 @@ function parseIpv6(text: string): bigint | undefined {
     }
     return groups;
   };
-  const head = groupsOf(halves[0]!);
-  const tail = halves.length === 2 ? groupsOf(halves[1]!) : [];
+  const head = groupsOf(halves[0]!, halves.length === 1);
+  const tail = halves.length === 2 ? groupsOf(halves[1]!, true) : [];
   if (!head || !tail) return undefined;
   let groups: number[];
   if (halves.length === 2) {

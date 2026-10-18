@@ -46,3 +46,12 @@
 - `utm_*` cleaning keeps combining marks (`\p{M}`) so non-Latin scripts survive; found by the QA review (qa-report
   finding 4).
 - T016 (QA report) is delivered as `qa-report.md` in this folder, which covers both 0.11.0 features.
+
+## Fixes after the independent QA (qa-report-independent.md)
+
+m2 (digits of any script are mapped to ASCII before redaction), m3 (the cut is by code points; the address builder
+survives a label it cannot encode), m4 (the console says to update a backend without the report), m5 (campaign counts
+run in their own step, so a database without 0005 loses only those counts, and the report answers
+`503 database_update_needed`), m7 (the tool's note, description and the skill say labels are untrusted data), m8 (an
+empty filter is `400`). Tests: `campaign.test.ts`, `stale-database.test.ts`, `campaigns-report.contract.test.ts`,
+`campaigns-page.test.tsx`.

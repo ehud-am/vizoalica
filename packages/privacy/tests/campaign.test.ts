@@ -105,3 +105,32 @@ describe('extractCampaign', () => {
     });
   });
 });
+
+describe('cleanCampaignValue with other scripts and long text', () => {
+  it.each([
+    ['４１１１１１１１１１１１１１１１', '[number]'],
+    ['١٢٣٤٥٦٧٨٩٠١٢', '[number]'],
+    ['१२३४५६७८९०', '[number]'],
+    ['𝟒𝟏𝟏𝟏𝟏𝟏𝟏𝟏', '[number]'],
+    ['¹²³⁴⁵⁶⁷', '[number]'],
+    ['ｊａｎｅ＠ｅｘａｍｐｌｅ．ｃｏｍ', '[email]'],
+    ['sale ２０２６', 'sale 2026']
+  ])('treats %j like its ASCII form: %j', (input, expected) => {
+    expect(cleanCampaignValue(input)).toBe(expected);
+  });
+
+  it('never cuts inside a surrogate pair, so cleaning again changes nothing', () => {
+    for (const input of [`${'a'.repeat(63)}𠀀`, `${'a'.repeat(62)}𠀀𠀀`, '𠀀'.repeat(100)]) {
+      const once = cleanCampaignValue(input);
+      expect(once.isWellFormed()).toBe(true);
+      expect(Array.from(once).length).toBeLessThanOrEqual(MAX_CAMPAIGN_VALUE_LENGTH);
+      expect(cleanCampaignValue(once)).toBe(once);
+    }
+    // The label redaction cuts at 80 UTF-16 units first, so astral text ends up shorter still.
+    expect(Array.from(cleanCampaignValue('𠀀'.repeat(100)))).toHaveLength(40);
+  });
+
+  it('drops lone surrogates', () => {
+    expect(cleanCampaignValue('a\ud800b')).toBe('ab');
+  });
+});

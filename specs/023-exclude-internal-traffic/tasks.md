@@ -52,3 +52,10 @@
 - A backend older than 0.11 ignores `excludedAddresses` on update. The console detects the missing list in the
   reply and tells the person to update the backend (QA report finding 6).
 - Release tasks T015 to T017 apply to both features; the evidence is in `specs/022-utm-campaign-report/qa-report.md`.
+
+## Fixes after the independent QA (qa-report-independent.md)
+
+M1 (the card now says to update an older backend, and offers no edit link), m1 (a dotted IPv4 tail may only end an
+IPv6 address), m5 (a database without 0006 answers `503 database_update_needed` to a list and to the excluded-hits
+report), m6 (documented in the operations page and the privacy review). Tests: `address-match.test.ts`,
+`stale-database.test.ts`, `website-pages.test.tsx`.

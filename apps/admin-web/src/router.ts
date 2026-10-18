@@ -287,16 +287,25 @@ export const scopeControls = (path: RoutePath): ScopeControls => definition(path
 export const showsScopeHeader = (path: RoutePath): boolean => path !== 'manage/projects';
 export const showsRange = (path: RoutePath): boolean => definition(path).range;
 
+/** A value the address cannot carry (a lone surrogate) is left out rather than breaking the page. */
+function encode(value: string): string {
+  try {
+    return encodeURIComponent(value);
+  } catch {
+    return '';
+  }
+}
+
 export function hrefFor(path: RoutePath, websiteId?: string, params?: RouteParams): string {
   if (path.includes(':id') && !websiteId) throw new Error(`${path} needs a website id`);
   const base = `#/${websiteId ? path.replace(':id', encodeURIComponent(websiteId)) : path}`;
   const query = [
-    params?.page ? `page=${encodeURIComponent(params.page)}` : '',
-    params?.action ? `action=${encodeURIComponent(params.action)}` : '',
-    params?.event ? `event=${encodeURIComponent(params.event)}` : '',
-    params?.source ? `source=${encodeURIComponent(params.source)}` : '',
-    params?.medium ? `medium=${encodeURIComponent(params.medium)}` : '',
-    params?.campaign ? `campaign=${encodeURIComponent(params.campaign)}` : ''
+    params?.page ? `page=${encode(params.page)}` : '',
+    params?.action ? `action=${encode(params.action)}` : '',
+    params?.event ? `event=${encode(params.event)}` : '',
+    params?.source ? `source=${encode(params.source)}` : '',
+    params?.medium ? `medium=${encode(params.medium)}` : '',
+    params?.campaign ? `campaign=${encode(params.campaign)}` : ''
   ].filter(Boolean);
   return query.length ? `${base}?${query.join('&')}` : base;
 }

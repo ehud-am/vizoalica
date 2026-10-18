@@ -28,6 +28,7 @@ import type {
   ProjectRepository
 } from '../../../ingest-api/src/storage/repositories.js';
 import type { D1Database } from '../env.js';
+import { isMissingSchema } from './missing-schema.js';
 import {
   ACTION_EVENT_TYPE,
   actionStatements,
@@ -573,7 +574,6 @@ export class D1Repositories
     }
     statements.push(...actionStatements(this.db, actionItems, nonce));
     statements.push(...customEventStatements(this.db, customItems, nonce));
-    statements.push(...campaignStatements(this.db, campaignItems, nonce));
     const watermarks = new Map<string, { projectId: string; sourceId: string; minute: string }>();
     for (const item of [
       ...expanded.map((entry) => ({
@@ -603,12 +603,25 @@ export class D1Repositories
           )
           .bind(watermark.projectId, watermark.sourceId, watermark.minute, new Date().toISOString())
       );
-    statements.push(
-      this.db
-        .prepare('UPDATE dashboard_seen_events SET request_nonce = NULL WHERE request_nonce = ?')
-        .bind(nonce)
-    );
+    const releaseNonce = this.db
+      .prepare('UPDATE dashboard_seen_events SET request_nonce = NULL WHERE request_nonce = ?')
+      .bind(nonce);
+    if (campaignItems.length === 0) {
+      statements.push(releaseNonce);
+      await this.runBatch(statements);
+      return;
+    }
+    // Campaign counts run on their own, after the rest and before the nonce is released, so a
+    // database that has not had migration 0005 yet loses only the campaign counts of this batch,
+    // not the page views, dimensions and visitors recorded alongside them.
     await this.runBatch(statements);
+    try {
+      await this.runBatch(campaignStatements(this.db, campaignItems, nonce));
+    } catch (error) {
+      if (!isMissingSchema(error)) throw error;
+    } finally {
+      await this.runBatch([releaseNonce]);
+    }
   }
   async listDecisions(): Promise<IngestionDecision[]> {
     return [];

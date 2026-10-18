@@ -88,13 +88,9 @@ describe('campaigns report admin contract', () => {
     );
   });
 
-  it('passes no filters and no website when none are given, treating empty filters as absent', async () => {
+  it('passes no filters and no website when none are given', async () => {
     const repositories = repository();
-    await call(
-      repositories,
-      `/v1/admin/projects/p1/analytics/campaigns?${RANGE}&source=&medium=&campaign=`,
-      auth
-    );
+    await call(repositories, `/v1/admin/projects/p1/analytics/campaigns?${RANGE}`, auth);
     expect(repositories.getCampaignsReport).toHaveBeenCalledWith(
       'p1',
       undefined,
@@ -102,6 +98,20 @@ describe('campaigns report admin contract', () => {
       '2026-01-02T00:00:00.000Z',
       {}
     );
+  });
+
+  it('refuses an empty filter instead of treating it as no filter', async () => {
+    const repositories = repository();
+    for (const name of ['source', 'medium', 'campaign']) {
+      const response = await call(
+        repositories,
+        `/v1/admin/projects/p1/analytics/campaigns?${RANGE}&${name}=`,
+        auth
+      );
+      expect(response?.status, name).toBe(400);
+      expect(await response?.json()).toEqual({ error: 'invalid_request' });
+    }
+    expect(repositories.getCampaignsReport).not.toHaveBeenCalled();
   });
 
   it('rejects a missing, malformed, or unaligned range with 400 and the offending field', async () => {
@@ -174,6 +184,30 @@ describe('campaigns report admin contract', () => {
     await call(repositories, `/v1/admin/projects/p1/analytics?${RANGE}`, auth);
     expect(repositories.getAnalyticsOverview).toHaveBeenCalled();
     expect(repositories.getCampaignsReport).not.toHaveBeenCalled();
+  });
+
+  it('answers a database that misses the newer tables with a clean 503, not an unhandled error', async () => {
+    const repositories = repository(
+      vi.fn(async () => {
+        throw new Error('D1_ERROR: no such table: dashboard_minute_campaigns');
+      })
+    );
+    const response = await call(
+      repositories,
+      `/v1/admin/projects/p1/analytics/campaigns?${RANGE}`,
+      auth
+    );
+    expect(response?.status).toBe(503);
+    expect(await response?.json()).toMatchObject({ error: 'database_update_needed' });
+    // Anything else still fails loudly.
+    const broken = repository(
+      vi.fn(async () => {
+        throw new Error('something else');
+      })
+    );
+    await expect(
+      call(broken, `/v1/admin/projects/p1/analytics/campaigns?${RANGE}`, auth)
+    ).rejects.toThrow('something else');
   });
 
   it('treats a repository without campaign support as not found', async () => {

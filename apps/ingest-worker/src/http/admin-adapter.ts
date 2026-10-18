@@ -11,6 +11,7 @@ import type {
   Source
 } from '../../../ingest-api/src/domain/types.js';
 import { parseAddressList } from '../../../ingest-api/src/ingestion/address-match.js';
+import { isMissingSchema } from '../storage/missing-schema.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { resolvePrincipal } from '../auth/principal.js';
 import { generateAccessKey } from '../auth/access-keys.js';
@@ -96,6 +97,29 @@ function excludedAddressesFrom(
 /** How far back the excluded-hits figures reach. */
 const EXCLUDED_HITS_WINDOW_DAYS = 30;
 
+/**
+ * A Worker newer than its database (an update that stopped between the migration and the deploy):
+ * say what to do, instead of an unhandled error.
+ */
+const databaseUpdateNeeded = () =>
+  Response.json(
+    {
+      error: 'database_update_needed',
+      message: 'The database needs its latest update. Run vizoalica deploy <name> --update.'
+    },
+    { status: 503 }
+  );
+
+/** Runs a read or write that needs a newer schema; a missing table or column becomes a clean 503. */
+async function needingSchema(run: () => Promise<Response>): Promise<Response> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isMissingSchema(error)) return databaseUpdateNeeded();
+    throw error;
+  }
+}
+
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 /** Exact-match filters of the actions report. Anything over the stored limits cannot match. */
@@ -133,8 +157,9 @@ function campaignsFilters(url: URL): CampaignsFilters | undefined {
   const filters: CampaignsFilters = {};
   for (const name of ['source', 'medium', 'campaign'] as const) {
     const value = url.searchParams.get(name);
-    if (!value) continue;
-    if (value.length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
+    if (value === null) continue;
+    // An empty filter is a mistake, not "no filter"; a label that was not set cannot be selected.
+    if (!value || value.length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
     filters[name] = value;
   }
   return filters;
@@ -594,16 +619,18 @@ export async function handleAdminRequest(
       principal.role !== 'admin' && principal.scope.sourceId !== null
         ? principal.scope.sourceId
         : (url.searchParams.get('source_id') ?? undefined);
-    const report = await dependencies.repositories.getCampaignsReport?.(
-      campaignsMatch[1]!,
-      sourceId,
-      range.startUtc,
-      range.endUtc,
-      filters
-    );
-    return report
-      ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
-      : notFound();
+    return needingSchema(async () => {
+      const report = await dependencies.repositories.getCampaignsReport?.(
+        campaignsMatch[1]!,
+        sourceId,
+        range.startUtc,
+        range.endUtc,
+        filters
+      );
+      return report
+        ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
   }
   const sourceMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(url.pathname);
   if (sourceMatch && request.method === 'GET') {
@@ -667,7 +694,12 @@ export async function handleAdminRequest(
       ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {})
     };
     await dependencies.repositories.createQuotaPolicy(policy);
-    await dependencies.repositories.createSource(source);
+    try {
+      await dependencies.repositories.createSource(source);
+    } catch (error) {
+      if (source.excludedAddresses?.length && isMissingSchema(error)) return databaseUpdateNeeded();
+      throw error;
+    }
     await dependencies.repositories.saveAdminAudit({
       operation: 'create_source',
       outcome: 'allowed',
@@ -754,15 +786,22 @@ export async function handleAdminRequest(
       ((body.allowedOrigins === undefined && body.origins === undefined) ||
         allowedOrigins !== undefined) &&
       (body.status === undefined || status !== undefined);
-    const source = valid
-      ? await dependencies.repositories.updateSource(item[1]!, item[2]!, {
-          ...(name !== undefined ? { name } : {}),
-          ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
-          ...(status !== undefined ? { status } : {}),
-          ...(tokenRequired !== undefined ? { tokenRequired } : {}),
-          ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
-        })
-      : undefined;
+    let source;
+    try {
+      source = valid
+        ? await dependencies.repositories.updateSource(item[1]!, item[2]!, {
+            ...(name !== undefined ? { name } : {}),
+            ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
+            ...(status !== undefined ? { status } : {}),
+            ...(tokenRequired !== undefined ? { tokenRequired } : {}),
+            ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
+          })
+        : undefined;
+    } catch (error) {
+      // Only a list can need the newer column, so only a request that carries one is told so.
+      if (excluded?.ok && isMissingSchema(error)) return databaseUpdateNeeded();
+      throw error;
+    }
     if (!source) return invalid();
     await dependencies.repositories.saveAdminAudit({
       operation: 'update_source',
@@ -838,12 +877,14 @@ export async function handleAdminRequest(
       !sourceInScope(principal.scope, excludedHitsMatch[1]!, excludedHitsMatch[2]!)
     )
       return notFound();
-    const hits = await dependencies.repositories.getExcludedHits?.(
-      excludedHitsMatch[1]!,
-      excludedHitsMatch[2]!,
-      EXCLUDED_HITS_WINDOW_DAYS
-    );
-    return hits ? Response.json(hits, { headers: { 'cache-control': 'no-store' } }) : notFound();
+    return needingSchema(async () => {
+      const hits = await dependencies.repositories.getExcludedHits?.(
+        excludedHitsMatch[1]!,
+        excludedHitsMatch[2]!,
+        EXCLUDED_HITS_WINDOW_DAYS
+      );
+      return hits ? Response.json(hits, { headers: { 'cache-control': 'no-store' } }) : notFound();
+    });
   }
   const analyticsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/analytics$/.exec(
     url.pathname

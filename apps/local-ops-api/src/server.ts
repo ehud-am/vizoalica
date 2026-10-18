@@ -292,13 +292,13 @@ export function createLocalServer(options: ServerOptions) {
             url.searchParams.get('start') ?? '',
             url.searchParams.get('end') ?? '',
             {
-              ...(url.searchParams.get('source')
+              ...(url.searchParams.get('source') !== null
                 ? { source: url.searchParams.get('source')! }
                 : {}),
-              ...(url.searchParams.get('medium')
+              ...(url.searchParams.get('medium') !== null
                 ? { medium: url.searchParams.get('medium')! }
                 : {}),
-              ...(url.searchParams.get('campaign')
+              ...(url.searchParams.get('campaign') !== null
                 ? { campaign: url.searchParams.get('campaign')! }
                 : {})
             }

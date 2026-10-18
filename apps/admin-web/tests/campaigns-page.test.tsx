@@ -2,6 +2,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.js';
+import { ApiError } from '../src/api/local-operations.js';
 import { makeCampaignsReport, makeOverview } from './fixtures/console.js';
 
 const api = vi.hoisted(() => ({
@@ -161,5 +162,24 @@ describe('Campaigns page', () => {
     await openPage();
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Try again');
+  });
+
+  it('tells the owner to update a backend that predates the report', async () => {
+    api.getAnalyticsCampaigns.mockRejectedValueOnce(new ApiError('not_found', 404));
+    await openPage();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('does not report campaigns yet');
+    expect(alert.textContent).toContain('vizoalica deploy <name> --update');
+  });
+
+  it('does not break on a label the address cannot carry', async () => {
+    api.getAnalyticsCampaigns.mockResolvedValue(
+      makeCampaignsReport({
+        sources: { items: [{ label: 'bad\ud840', count: 3, visitors: 1 }], otherCount: 0 }
+      })
+    );
+    await openPage();
+    const table = await screen.findByRole('region', { name: 'Sources table' });
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
   });
 });

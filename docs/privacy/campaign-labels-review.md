@@ -28,6 +28,12 @@ views: three campaign labels read from the landing address.
 
 ## Known limits
 
+- With consent denied, the SDK still sends the landing page view, so its campaign labels travel with it, as every
+  other field of that page view does.
+- A label is read by AI assistants as data. The `get_campaigns` tool and the skill say to treat labels as
+  untrusted text, because anyone can craft a link.
+- Digits of any script are mapped to ASCII before redaction, and text is cut by characters, not bytes.
+
 - A label is text from a link anyone can craft. Cleaning removes the common personal forms but cannot know that
   a plain word is a person's name. Site owners should not put personal data in links.
 - A small campaign with few visitors can be specific to a person only if the owner tagged a link for that person.

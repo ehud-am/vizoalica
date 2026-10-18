@@ -68,6 +68,9 @@ https://example.com/?vizoalica_ignore=1
 From then on, that browser sends nothing for that website, not even the page that carried the switch. To turn it
 back on, open `https://example.com/?vizoalica_ignore=0`.
 
+- Anyone can open a link with `?vizoalica_ignore=1` on your site, so someone could switch counting off in a
+  visitor's browser by sending them such a link. The effect is small (that browser is not counted), exposes no data,
+  and the visitor can reverse it with `?vizoalica_ignore=0`; but do not rely on the switch to be set only by you.
 - The switch stores one value (`1`) in that browser's local storage, on your own device, because you asked for
   it. Visitors never get it. This is the only thing the SDK ever writes to a browser, and only here.
 - It applies to one browser and one website address. Do it once in each browser you use, and for each of the
