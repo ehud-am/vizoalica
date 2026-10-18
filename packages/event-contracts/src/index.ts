@@ -43,6 +43,11 @@ export interface PageViewData {
   visitor: { anonymous_id: string };
   session: { id: string };
   referrer?: { origin?: string };
+  /**
+   * The cleaned UTM labels of the landing URL, sent on the first page view of a page load only.
+   * Each value is 1 to 64 characters.
+   */
+  campaign?: { source?: string; medium?: string; campaign?: string };
 }
 
 export type ActionKind = 'button' | 'link' | 'other';

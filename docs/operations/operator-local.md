@@ -90,6 +90,15 @@ most common values of its properties. Choose an event or a page to narrow it; th
 the address. It needs the current backend (`vizoalica deploy <name> --update`), and only events received
 after the update are counted. See [Custom events](custom-events.md).
 
+**Campaigns** reports which tagged links brought visitors: page views and visitors by `utm_source`, `utm_medium`
+and `utm_campaign`, the share of all page views that came from a tagged link, a trend, and the top combinations.
+Choose a source, medium or campaign to narrow it; the selection is kept in the address. It needs the current
+backend, and only page views received after the update are counted. See [Campaigns](campaigns.md).
+
+A website's page has a **Your own visits** card: how many addresses it excludes, how many events that dropped in
+the last 30 days, and a link to change the list on the Edit page. See
+[Exclude your own visits](internal-traffic.md).
+
 The complete country list, and lists of more than ten pages or sources, need the current backend.
 After updating Vizoalica, update the backend (`vizoalica deploy <name> --update`). Until then the console
 still works and shows the top ten with the rest grouped as "Other".

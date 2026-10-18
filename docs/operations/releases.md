@@ -26,6 +26,10 @@ Before a private repository becomes public, work through the
 publishable tree, ignored operator files, and the owner-controlled GitHub settings that remain
 outside the source release.
 
+The contrarian QA review and this test cycle are run by a separate AI agent started with clean context (the
+constitution's release gate): it gets the repository, the specifications and the release scope, not the
+implementing agent's conversation or self-review, and it re-runs the checks itself. Its written report says so.
+
 Document the release version, commit SHA, compatibility changes, and whether the release changes the
 D1 schema. A self-hosting operator decides whether and when to use the release.
 

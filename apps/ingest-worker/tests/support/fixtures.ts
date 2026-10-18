@@ -116,9 +116,23 @@ export function customEvent(id: string, options: CustomEventOptions = {}): Store
 
 export function pageViewEvent(
   id: string,
-  options: { page?: string; visitor?: string; at?: string; project?: string; source?: string } = {}
+  options: {
+    page?: string;
+    visitor?: string;
+    at?: string;
+    project?: string;
+    source?: string;
+    campaign?: unknown;
+  } = {}
 ): StoredEvent {
-  const { page = '/pricing', visitor = 'anon-1', at = AT, project = 'p1', source = 's1' } = options;
+  const {
+    page = '/pricing',
+    visitor = 'anon-1',
+    at = AT,
+    project = 'p1',
+    source = 's1',
+    campaign
+  } = options;
   return {
     projectId: project,
     sourceId: source,
@@ -128,7 +142,11 @@ export function pageViewEvent(
     event: {
       id,
       type: 'com.vizoalica.page_view.v1',
-      data: { page: { url_path: page }, visitor: { anonymous_id: visitor } }
+      data: {
+        page: { url_path: page },
+        visitor: { anonymous_id: visitor },
+        ...(campaign === undefined ? {} : { campaign })
+      }
     }
   } as unknown as StoredEvent;
 }

@@ -22,6 +22,11 @@ export interface Source {
    * static website send unsigned batches from its allowed origins. Absent means true.
    */
   tokenRequired?: boolean;
+  /**
+   * IP addresses and ranges (canonical spelling, at most 25) whose events this website drops
+   * instead of counting. Operator configuration: never logged, audited or returned to analysts.
+   */
+  excludedAddresses?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -239,6 +244,61 @@ export interface CustomEventsReport {
   availability: AnalyticsOverview['availability'];
 }
 
+export interface CampaignsFilters {
+  /** Exact label; each filter is optional. */
+  source?: string;
+  medium?: string;
+  campaign?: string;
+}
+
+export interface CampaignRankingItem {
+  /** '' means the link did not set this label. */
+  label: string;
+  /** Page views that carried a campaign. */
+  count: number;
+  visitors: number;
+}
+
+export interface CampaignRanking {
+  /** At most 20, most page views first. */
+  items: CampaignRankingItem[];
+  /** What is beyond `items`, so `sum(items.count) + otherCount` covers the ranking's selection. */
+  otherCount: number;
+}
+
+export interface CampaignRow {
+  source: string;
+  medium: string;
+  campaign: string;
+  count: number;
+  visitors: number;
+}
+
+export interface CampaignsReport {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  /** `allPageViews` is every page view in the range and scope, so a share can be shown. */
+  totals: { pageViews: number; uniqueUsers: number; allPageViews: number };
+  trend: Array<{ startUtc: string; pageViews: number }>;
+  /** Each ranking is narrowed by the other two filters, so choosing a source still lists all sources. */
+  sources: CampaignRanking;
+  mediums: CampaignRanking;
+  campaigns: CampaignRanking;
+  /** Source, medium and campaign combinations, at most 50, most page views first. */
+  rows: CampaignRow[];
+  /** What is beyond `rows`, so `sum(rows.count) + other.count` is exactly `totals.pageViews`. */
+  other: { rows: number; count: number };
+  availability: AnalyticsOverview['availability'];
+}
+
+export interface ExcludedHitsReport {
+  /** Events dropped in the window. */
+  total: number;
+  /** Only days with hits, newest first. */
+  days: Array<{ day: string; count: number }>;
+  windowDays: number;
+}
+
 export interface SigningKey {
   id: string;
   projectId: string;
@@ -280,7 +340,8 @@ export interface StoredEvent {
 }
 
 export interface IngestionDecision {
-  decision: 'accepted' | 'partial' | 'rejected' | 'throttled';
+  /** `excluded`: an authorized batch from an address the website excludes; nothing was stored. */
+  decision: 'accepted' | 'partial' | 'rejected' | 'throttled' | 'excluded';
   reasonCodes: string[];
   acceptedCount: number;
   rejectedCount: number;

@@ -1,6 +1,8 @@
 import type {
   ActionsReport as WorkerActionsReport,
+  CampaignsReport as WorkerCampaignsReport,
   CustomEventsReport as WorkerCustomEventsReport,
+  ExcludedHitsReport as WorkerExcludedHitsReport,
   AnalyticsOverview as WorkerAnalyticsOverview
 } from '../../ingest-api/src/domain/types.js';
 
@@ -17,6 +19,10 @@ export type Website = {
   status: WebsiteStatus;
   /** False for a static website that sends unsigned events from its allowed origins. */
   tokenRequired?: boolean;
+  /** Addresses and ranges this website drops; sent by the backend to the admin and owners only. */
+  excludedAddresses?: string[];
+  /** How many there are; sent to every role. */
+  excludedAddressCount?: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -175,6 +181,8 @@ export function isDynamicConfigV1(value: unknown): value is DynamicConfigV1 {
 export type AnalyticsOverview = WorkerAnalyticsOverview;
 export type ActionsReport = WorkerActionsReport;
 export type CustomEventsReport = WorkerCustomEventsReport;
+export type CampaignsReport = WorkerCampaignsReport;
+export type ExcludedHitsReport = WorkerExcludedHitsReport;
 
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };

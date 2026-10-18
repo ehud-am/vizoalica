@@ -21,6 +21,9 @@
   `data-vizoalica-action` and excluded with `data-vizoalica-ignore`.
 - **Custom events**: sent by the site's code with `track(name, { properties })`: a lowercase name with
   underscores, the page key, and filtered properties.
+- **Campaign labels**: the `utm_source`, `utm_medium` and `utm_campaign` of the landing address, on the first
+  page view of a page load only: lowercased, emails/long digit runs/tokens replaced, letters, digits, space and
+  `_ - . + : /` only, 64 characters. `utm_term`, `utm_content` and click ids are never stored.
 - **Context per event**: country and continent, browser, operating system, device type (desktop, mobile,
   tablet), bot vs human, referrer (minimised), consent state.
 - **Unique visitors**: counted by the backend from a daily-rotating digest (daily salt, IP address, user agent; the salt is deleted after the day). Nothing is stored in the browser. A person counts once per website per day, so a multi-day range sums daily visitors. There are no visitor identifiers to list.
@@ -45,4 +48,10 @@ session replay, cookies, auth headers, raw URL query values, per-visitor histori
   selection), `withoutPage`, and, only when one event is named, `properties` (the most common text and
   true/false values, redacted, 64 characters; numbers are not grouped). Only events received after the
   backend got the custom events update are counted; earlier ranges report `incomplete`.
+- Campaigns report: `totals` (campaign `pageViews`, `uniqueUsers`, and `allPageViews` of the range, so a share can
+  be shown), `trend`, three rankings (`sources`, `mediums`, `campaigns`: label, count, visitors; an empty label
+  means not set), `rows` (source/medium/campaign combinations), `other`. Only page views received after the
+  backend got the campaigns update are counted; earlier ranges report `incomplete`.
+- Website status also reports `excludedAddressCount` and `excludedHits30d`: events dropped for addresses the
+  website excludes (never the addresses); browser opt-outs send nothing and are not counted.
 - A range is at most 30 days. Data older than the project's retention period is not available.

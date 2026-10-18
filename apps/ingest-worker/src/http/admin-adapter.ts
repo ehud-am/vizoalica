@@ -3,12 +3,15 @@ import type {
   AccessKeyRole,
   AccessKeyScope,
   ActionsFilters,
+  CampaignsFilters,
   CustomEventsFilters,
   Principal,
   Project,
   QuotaPolicy,
   Source
 } from '../../../ingest-api/src/domain/types.js';
+import { parseAddressList } from '../../../ingest-api/src/ingestion/address-match.js';
+import { isMissingSchema } from '../storage/missing-schema.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { resolvePrincipal } from '../auth/principal.js';
 import { generateAccessKey } from '../auth/access-keys.js';
@@ -55,6 +58,68 @@ const notFound = () => Response.json({ error: 'not_found' }, { status: 404 });
 const invalid = (field?: string) =>
   Response.json({ error: 'invalid_request', ...(field ? { field } : {}) }, { status: 400 });
 
+/**
+ * A website as the caller may see it. The excluded addresses are operator configuration: only the
+ * admin and website owners get them; an analyst gets how many there are.
+ */
+function presentSource(source: Source, principal: Principal) {
+  const { excludedAddresses = [], ...rest } = source;
+  return {
+    ...rest,
+    excludedAddressCount: excludedAddresses.length,
+    ...(principal.role === 'analyst' ? {} : { excludedAddresses })
+  };
+}
+
+/**
+ * Validates the `excludedAddresses` field of a request body. The refusal names the entry's position
+ * and the reason, never its text, so addresses do not travel back in error messages.
+ */
+function excludedAddressesFrom(
+  value: unknown
+): { ok: true; entries: string[] } | { ok: false; response: Response } {
+  const parsed = parseAddressList(value);
+  if (parsed.ok) return { ok: true, entries: parsed.entries };
+  return {
+    ok: false,
+    response: Response.json(
+      {
+        error: 'invalid_request',
+        field: 'excludedAddresses',
+        reason: parsed.reason,
+        ...(parsed.index !== undefined ? { index: parsed.index } : {})
+      },
+      { status: 400 }
+    )
+  };
+}
+
+/** How far back the excluded-hits figures reach. */
+const EXCLUDED_HITS_WINDOW_DAYS = 30;
+
+/**
+ * A Worker newer than its database (an update that stopped between the migration and the deploy):
+ * say what to do, instead of an unhandled error.
+ */
+const databaseUpdateNeeded = () =>
+  Response.json(
+    {
+      error: 'database_update_needed',
+      message: 'The database needs its latest update. Run vizoalica deploy <name> --update.'
+    },
+    { status: 503 }
+  );
+
+/** Runs a read or write that needs a newer schema; a missing table or column becomes a clean 503. */
+async function needingSchema(run: () => Promise<Response>): Promise<Response> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isMissingSchema(error)) return databaseUpdateNeeded();
+    throw error;
+  }
+}
+
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 /** Exact-match filters of the actions report. Anything over the stored limits cannot match. */
@@ -82,6 +147,19 @@ function customEventsFilters(url: URL): CustomEventsFilters | undefined {
     const value = url.searchParams.get(name);
     if (!value) continue;
     if (value.length > limit || CONTROL_CHARACTERS.test(value)) return undefined;
+    filters[name] = value;
+  }
+  return filters;
+}
+
+/** Exact-match filters of the campaigns report: the cleaned labels are at most 64 characters. */
+function campaignsFilters(url: URL): CampaignsFilters | undefined {
+  const filters: CampaignsFilters = {};
+  for (const name of ['source', 'medium', 'campaign'] as const) {
+    const value = url.searchParams.get(name);
+    if (value === null) continue;
+    // An empty filter is a mistake, not "no filter"; a label that was not set cannot be selected.
+    if (!value || [...value].length > 64 || CONTROL_CHARACTERS.test(value)) return undefined;
     filters[name] = value;
   }
   return filters;
@@ -511,6 +589,49 @@ export async function handleAdminRequest(
       ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
       : notFound();
   }
+  const campaignsMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics\/campaigns$/.exec(
+    url.pathname
+  );
+  if (campaignsMatch && request.method === 'GET') {
+    if (principal.role !== 'admin' && !projectInScope(principal.scope, campaignsMatch[1]!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    const filters = campaignsFilters(url);
+    if (!filters) return invalid();
+    if (
+      principal.role !== 'admin' &&
+      principal.scope.sourceId !== null &&
+      url.searchParams.get('source_id') &&
+      url.searchParams.get('source_id') !== principal.scope.sourceId
+    )
+      return notFound();
+    const sourceId =
+      principal.role !== 'admin' && principal.scope.sourceId !== null
+        ? principal.scope.sourceId
+        : (url.searchParams.get('source_id') ?? undefined);
+    return needingSchema(async () => {
+      const report = await dependencies.repositories.getCampaignsReport?.(
+        campaignsMatch[1]!,
+        sourceId,
+        range.startUtc,
+        range.endUtc,
+        filters
+      );
+      return report
+        ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
+  }
   const sourceMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(url.pathname);
   if (sourceMatch && request.method === 'GET') {
     if (principal.role !== 'admin' && !projectInScope(principal.scope, sourceMatch[1]!))
@@ -520,7 +641,7 @@ export async function handleAdminRequest(
       principal.role === 'admin' || principal.scope.sourceId === null
         ? sources
         : sources.filter((source) => source.id === principal.scope.sourceId);
-    return Response.json(visible);
+    return Response.json(visible.map((source) => presentSource(source, principal)));
   }
   if (sourceMatch && request.method === 'POST') {
     const projectId = sourceMatch[1]!;
@@ -536,8 +657,19 @@ export async function handleAdminRequest(
       return forbidden();
     }
     const body = (await request.json().catch(() => undefined)) as
-      | { name?: unknown; allowedOrigins?: unknown; origins?: unknown; tokenRequired?: unknown }
+      | {
+          name?: unknown;
+          allowedOrigins?: unknown;
+          origins?: unknown;
+          tokenRequired?: unknown;
+          excludedAddresses?: unknown;
+        }
       | undefined;
+    const excluded =
+      body?.excludedAddresses === undefined
+        ? undefined
+        : excludedAddressesFrom(body.excludedAddresses);
+    if (excluded && !excluded.ok) return excluded.response;
     const allowedOrigins = body && origins(body.allowedOrigins ?? body.origins);
     if (
       !allowedOrigins ||
@@ -558,10 +690,16 @@ export async function handleAdminRequest(
       status: 'active',
       quotaPolicyId: policy.id,
       // A client that does not say keeps the earlier behaviour: tokens required.
-      tokenRequired: body.tokenRequired !== false
+      tokenRequired: body.tokenRequired !== false,
+      ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {})
     };
     await dependencies.repositories.createQuotaPolicy(policy);
-    await dependencies.repositories.createSource(source);
+    try {
+      await dependencies.repositories.createSource(source);
+    } catch (error) {
+      if (source.excludedAddresses?.length && isMissingSchema(error)) return databaseUpdateNeeded();
+      throw error;
+    }
     await dependencies.repositories.saveAdminAudit({
       operation: 'create_source',
       outcome: 'allowed',
@@ -570,7 +708,7 @@ export async function handleAdminRequest(
       sourceId: source.id,
       ...(actor ? { actor } : {})
     });
-    return Response.json(source, { status: 201 });
+    return Response.json(presentSource(source, principal), { status: 201 });
   }
   const disableMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+):disable$/.exec(
     url.pathname
@@ -618,8 +756,14 @@ export async function handleAdminRequest(
           origins?: unknown;
           status?: unknown;
           tokenRequired?: unknown;
+          excludedAddresses?: unknown;
         }
       | undefined;
+    const excluded =
+      body?.excludedAddresses === undefined
+        ? undefined
+        : excludedAddressesFrom(body.excludedAddresses);
+    if (excluded && !excluded.ok) return excluded.response;
     const allowedOrigins =
       body && body.allowedOrigins !== undefined
         ? origins(body.allowedOrigins)
@@ -635,20 +779,29 @@ export async function handleAdminRequest(
       (name !== undefined ||
         allowedOrigins !== undefined ||
         status !== undefined ||
-        tokenRequired !== undefined) &&
+        tokenRequired !== undefined ||
+        excluded !== undefined) &&
       (body.tokenRequired === undefined || tokenRequired !== undefined) &&
       (body.name === undefined || (name !== undefined && name.length > 0 && name.length <= 120)) &&
       ((body.allowedOrigins === undefined && body.origins === undefined) ||
         allowedOrigins !== undefined) &&
       (body.status === undefined || status !== undefined);
-    const source = valid
-      ? await dependencies.repositories.updateSource(item[1]!, item[2]!, {
-          ...(name !== undefined ? { name } : {}),
-          ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
-          ...(status !== undefined ? { status } : {}),
-          ...(tokenRequired !== undefined ? { tokenRequired } : {})
-        })
-      : undefined;
+    let source;
+    try {
+      source = valid
+        ? await dependencies.repositories.updateSource(item[1]!, item[2]!, {
+            ...(name !== undefined ? { name } : {}),
+            ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
+            ...(status !== undefined ? { status } : {}),
+            ...(tokenRequired !== undefined ? { tokenRequired } : {}),
+            ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
+          })
+        : undefined;
+    } catch (error) {
+      // Only a list can need the newer column, so only a request that carries one is told so.
+      if (excluded?.ok && isMissingSchema(error)) return databaseUpdateNeeded();
+      throw error;
+    }
     if (!source) return invalid();
     await dependencies.repositories.saveAdminAudit({
       operation: 'update_source',
@@ -658,7 +811,7 @@ export async function handleAdminRequest(
       sourceId: item[2]!,
       ...(actor ? { actor } : {})
     });
-    return Response.json(source);
+    return Response.json(presentSource(source, principal));
   }
   if (item && request.method === 'DELETE') {
     const guarded = guardSourceWrite(principal, item[1]!, item[2]!);
@@ -700,15 +853,38 @@ export async function handleAdminRequest(
     if (principal.role !== 'admin' && !sourceInScope(principal.scope, status[1]!, status[2]!))
       return notFound();
     const source = await dependencies.repositories.getSource(status[1]!, status[2]!);
-    return source
-      ? Response.json({
-          sourceId: source.id,
-          collection: source.status === 'active' ? 'healthy' : 'disabled',
-          aggregation: 'available',
-          configuration: source.allowedOrigins.length ? 'healthy' : 'attention',
-          dataAccess: 'available'
-        })
-      : notFound();
+    if (!source) return notFound();
+    // A database that predates the counter (or one that is briefly unavailable) leaves the figure
+    // out rather than failing the whole status.
+    const excludedHits = await dependencies.repositories
+      .getExcludedHits?.(status[1]!, status[2]!, EXCLUDED_HITS_WINDOW_DAYS)
+      .catch(() => undefined);
+    return Response.json({
+      sourceId: source.id,
+      collection: source.status === 'active' ? 'healthy' : 'disabled',
+      aggregation: 'available',
+      configuration: source.allowedOrigins.length ? 'healthy' : 'attention',
+      dataAccess: 'available',
+      excludedAddressCount: source.excludedAddresses?.length ?? 0,
+      ...(excludedHits ? { excludedHits30d: excludedHits.total } : {})
+    });
+  }
+  const excludedHitsMatch =
+    /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/excluded-hits$/.exec(url.pathname);
+  if (excludedHitsMatch && request.method === 'GET') {
+    if (
+      principal.role !== 'admin' &&
+      !sourceInScope(principal.scope, excludedHitsMatch[1]!, excludedHitsMatch[2]!)
+    )
+      return notFound();
+    return needingSchema(async () => {
+      const hits = await dependencies.repositories.getExcludedHits?.(
+        excludedHitsMatch[1]!,
+        excludedHitsMatch[2]!,
+        EXCLUDED_HITS_WINDOW_DAYS
+      );
+      return hits ? Response.json(hits, { headers: { 'cache-control': 'no-store' } }) : notFound();
+    });
   }
   const analyticsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/analytics$/.exec(
     url.pathname

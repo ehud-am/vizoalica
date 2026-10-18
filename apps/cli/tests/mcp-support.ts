@@ -32,6 +32,12 @@ export type FakeBackend = {
   schemaApplied?: number | null;
   health?: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' } | null;
   availability?: string;
+  /** Answer the campaigns report as a Worker that predates it does. */
+  noCampaigns?: boolean;
+  /** Answer the campaigns report as a Worker newer than its database does. */
+  staleDatabase?: boolean;
+  /** What the website status says about excluded addresses; absent from an older backend. */
+  excluded?: { count: number; hits30d?: number };
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -168,6 +174,35 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           : [],
         availability: { state: 'processing', taxonomyVersions: [1] }
       });
+    if (/^\/v1\/admin\/projects\/[^/]+\/analytics\/campaigns$/.test(path)) {
+      if (backend.noCampaigns) return json({ error: 'not_found' }, 404);
+      if (backend.staleDatabase) return json({ error: 'database_update_needed' }, 503);
+      return json({
+        scope: {},
+        range: {},
+        totals: { pageViews: 30, uniqueUsers: 9, allPageViews: 120 },
+        trend: [{ startUtc: '2026-09-20T00:00:00.000Z', pageViews: 30 }],
+        sources: {
+          items: Array.from({ length: 12 }, (_, index) => ({
+            label: `source_${index}`,
+            count: 12 - index,
+            visitors: 1
+          })),
+          otherCount: 2
+        },
+        mediums: { items: [{ label: 'email', count: 30, visitors: 9 }], otherCount: 0 },
+        campaigns: { items: [{ label: '', count: 30, visitors: 9 }], otherCount: 0 },
+        rows: Array.from({ length: 12 }, (_, index) => ({
+          source: `source_${index}`,
+          medium: 'email',
+          campaign: index === 0 ? 'spring-sale' : '',
+          count: 12 - index,
+          visitors: 1
+        })),
+        other: { rows: 3, count: 4 },
+        availability: { state: 'processing', taxonomyVersions: [1] }
+      });
+    }
     const status = /^\/v1\/admin\/projects\/[^/]+\/sources\/([^/]+)\/status$/.exec(path);
     if (status)
       return json({
@@ -175,7 +210,15 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         collection: 'healthy',
         aggregation: 'available',
         configuration: 'healthy',
-        dataAccess: 'available'
+        dataAccess: 'available',
+        ...(backend.excluded
+          ? {
+              excludedAddressCount: backend.excluded.count,
+              ...(backend.excluded.hits30d === undefined
+                ? {}
+                : { excludedHits30d: backend.excluded.hits30d })
+            }
+          : {})
       });
     return json({ error: 'not_found' }, 404);
   });

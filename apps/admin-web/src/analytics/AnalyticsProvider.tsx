@@ -40,6 +40,8 @@ export function analyticsErrorMessage(reason: unknown): string {
     return reason.code === 'session_expired'
       ? 'Your browser session expired. Reconnect to the local workspace.'
       : 'The Worker rejected the configured credential. Run vizoalica status.';
+  if (reason instanceof ApiError && reason.code === 'database_update_needed')
+    return 'The backend database needs its latest update. Run vizoalica deploy <name> --update.';
   return 'Analytics are unavailable. No stale results are shown.';
 }
 

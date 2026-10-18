@@ -1,0 +1,151 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { startApi } from './support.js';
+
+const closers: Array<() => Promise<void>> = [];
+afterEach(async () => {
+  while (closers.length) await closers.pop()!();
+});
+
+const RANGE = 'start=2026-01-01T00:00:00.000Z&end=2026-01-02T00:00:00.000Z';
+const report = {
+  scope: { projectId: 'p1', sourceId: null, label: 'All websites', identityMode: 'source-local' },
+  range: {
+    startUtc: '2026-01-01T00:00:00.000Z',
+    endUtc: '2026-01-02T00:00:00.000Z',
+    interval: 'hour',
+    timezone: 'UTC'
+  },
+  totals: { pageViews: 2, uniqueUsers: 1, allPageViews: 5 },
+  trend: [],
+  sources: { items: [], otherCount: 0 },
+  mediums: { items: [], otherCount: 0 },
+  campaigns: { items: [], otherCount: 0 },
+  rows: [],
+  other: { rows: 0, count: 0 },
+  availability: { state: 'complete', taxonomyVersions: [1] }
+};
+
+async function start(remote: (url: URL) => Response | Promise<Response>) {
+  const seen: URL[] = [];
+  const api = await startApi((url) => {
+    seen.push(url);
+    return remote(url);
+  });
+  closers.push(api.close);
+  return { api, seen, cookie: await api.session() };
+}
+
+describe('campaigns report local API contract', () => {
+  it('proxies to the Worker and returns the body unchanged', async () => {
+    const { api, seen, cookie } = await start(() => Response.json(report));
+    const result = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, { cookie });
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual(report);
+    const remote = seen.find((url) => url.pathname.endsWith('/analytics/campaigns'))!;
+    expect(remote.pathname).toBe('/v1/admin/projects/p1/analytics/campaigns');
+    expect(remote.searchParams.get('start')).toBe('2026-01-01T00:00:00.000Z');
+    expect(remote.searchParams.has('source_id')).toBe(false);
+    expect(remote.searchParams.has('source')).toBe(false);
+  });
+
+  it('passes the website and filters, encoded, to the Worker', async () => {
+    const { api, seen, cookie } = await start(() => Response.json(report));
+    await api.call(
+      `/api/projects/p1/analytics/campaigns?${RANGE}&source_id=s1&source=news&medium=email&campaign=${encodeURIComponent('spring sale')}`,
+      { cookie }
+    );
+    const remote = seen.find((url) => url.pathname.endsWith('/analytics/campaigns'))!;
+    expect(remote.searchParams.get('source_id')).toBe('s1');
+    expect(remote.searchParams.get('source')).toBe('news');
+    expect(remote.searchParams.get('medium')).toBe('email');
+    expect(remote.searchParams.get('campaign')).toBe('spring sale');
+  });
+
+  it('refuses unsafe identifiers, oversized or control-character filters, and bad ranges before proxying', async () => {
+    const { api, seen, cookie } = await start(() => Response.json(report));
+    const bad = [
+      `/api/projects/p%201/analytics/campaigns?${RANGE}`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&source_id=${encodeURIComponent('s 1')}`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&source=${'a'.repeat(65)}`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&medium=${'a'.repeat(65)}`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent('a\nb')}`
+    ];
+    bad.push(
+      `/api/projects/p1/analytics/campaigns?${RANGE}&source=`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&medium=`,
+      `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=`
+    );
+    for (const path of bad) expect((await api.call(path, { cookie })).status, path).toBe(400);
+    const range = await api.call('/api/projects/p1/analytics/campaigns?start=nope&end=nope', {
+      cookie
+    });
+    expect(range.status).toBe(400);
+    expect(range.body).toMatchObject({ error: 'invalid_range' });
+    expect(seen.some((url) => url.pathname.endsWith('/analytics/campaigns'))).toBe(false);
+  });
+
+  it('maps Worker failures the way the overview does', async () => {
+    const cases: Array<[Response, number, string]> = [
+      [Response.json({ error: 'unauthorized' }, { status: 401 }), 401, 'access_revoked'],
+      [Response.json({ error: 'forbidden' }, { status: 403 }), 401, 'access_revoked'],
+      [Response.json({ error: 'not_found' }, { status: 404 }), 404, 'not_found'],
+      [Response.json({ error: 'invalid_request' }, { status: 400 }), 400, 'invalid_request'],
+      [
+        Response.json(
+          { error: 'invalid_range', field: 'start', message: 'Bad start.' },
+          { status: 400 }
+        ),
+        400,
+        'invalid_range'
+      ],
+      [Response.json({ error: 'boom' }, { status: 500 }), 503, 'remote_unavailable']
+    ];
+    for (const [remoteResponse, status, error] of cases) {
+      const { api, cookie } = await start(() => remoteResponse.clone());
+      const result = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, {
+        cookie
+      });
+      expect(result.status).toBe(status);
+      expect(result.body).toMatchObject({ error });
+    }
+  });
+
+  it('requires the browser session like every other API route', async () => {
+    const { api, seen } = await start(() => Response.json(report));
+    const result = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`);
+    expect(result.status).toBe(401);
+    expect(seen.some((url) => url.pathname.endsWith('/analytics/campaigns'))).toBe(false);
+  });
+});
+
+describe('a Worker whose database needs its update', () => {
+  const stale = () => Response.json({ error: 'database_update_needed' }, { status: 503 });
+
+  it('reaches the console as database_update_needed, for the report and for a website edit', async () => {
+    const { api, cookie } = await start(stale);
+    const report = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, { cookie });
+    expect(report).toMatchObject({ status: 503, body: { error: 'database_update_needed' } });
+    const edit = await api.call('/api/projects/p1/websites/s1', {
+      method: 'PATCH',
+      cookie,
+      body: { excludedAddresses: ['203.0.113.7'] }
+    });
+    expect(edit).toMatchObject({ status: 503, body: { error: 'database_update_needed' } });
+  });
+
+  it('keeps a plain 503 as remote_unavailable', async () => {
+    const { api, cookie } = await start(() => Response.json({ error: 'boom' }, { status: 503 }));
+    const report = await api.call(`/api/projects/p1/analytics/campaigns?${RANGE}`, { cookie });
+    expect(report.body).toMatchObject({ error: 'remote_unavailable' });
+  });
+
+  it('accepts a label of astral characters as a filter', async () => {
+    const { api, cookie } = await start(() => Response.json(report));
+    const label = '𠀀'.repeat(40);
+    const result = await api.call(
+      `/api/projects/p1/analytics/campaigns?${RANGE}&campaign=${encodeURIComponent(label)}`,
+      { cookie }
+    );
+    expect(result.status).toBe(200);
+  });
+});

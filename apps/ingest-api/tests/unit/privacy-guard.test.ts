@@ -178,3 +178,52 @@ describe('privacy guard action events', () => {
     expect(applyPrivacyGuard([withQuery])).toEqual({ ok: false, reason: 'unredacted_url_query' });
   });
 });
+
+describe('privacy guard campaign labels', () => {
+  function withCampaign(campaign: unknown) {
+    const event = pageViewEvent('evt_campaign_1');
+    (event.data as Record<string, unknown>).campaign = campaign;
+    return event as unknown as GuardedAction;
+  }
+
+  it('keeps clean labels unchanged (idempotent with the browser)', () => {
+    const campaign = { source: 'newsletter', medium: 'email', campaign: 'spring-sale' };
+    expect(guarded(withCampaign(campaign)).campaign).toEqual(campaign);
+  });
+
+  it.each([
+    [{ source: 'Jane@Example.com' }, { source: '[email]' }],
+    [{ medium: '4111111111111111' }, { medium: '[number]' }],
+    [{ campaign: '<script>alert(1)</script>' }, { campaign: 'scriptalert1/script' }],
+    [
+      { source: 'Twitter ', medium: ' SOCIAL' },
+      { source: 'twitter', medium: 'social' }
+    ]
+  ])('cleans %j again at ingestion', (sent, stored) => {
+    expect(guarded(withCampaign(sent)).campaign).toEqual(stored);
+  });
+
+  it('cuts oversized values and drops labels that are empty after cleaning', () => {
+    expect(guarded(withCampaign({ source: 'x'.repeat(500) })).campaign.source).toHaveLength(64);
+    expect(guarded(withCampaign({ source: '<>"', medium: 'email' })).campaign).toEqual({
+      medium: 'email'
+    });
+  });
+
+  it('removes the campaign entirely when nothing is left, or when it is not an object', () => {
+    expect(guarded(withCampaign({ source: '<>' }))).not.toHaveProperty('campaign');
+    expect(guarded(withCampaign('utm_source=x'))).not.toHaveProperty('campaign');
+  });
+
+  it('ignores any other key a client adds', () => {
+    expect(guarded(withCampaign({ source: 'a', term: 'secret' })).campaign).toEqual({
+      source: 'a'
+    });
+  });
+
+  it('leaves page views without a campaign unchanged', () => {
+    expect(
+      guarded(pageViewEvent('evt_campaign_none') as unknown as GuardedAction)
+    ).not.toHaveProperty('campaign');
+  });
+});

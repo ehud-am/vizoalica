@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ApiError } from '../api/local-operations.js';
 import { ActionButton } from './ActionButton.js';
 import { PlusIcon } from './Icons.js';
 import { isInsecureRemote, nameFromOrigin, normalizeOrigin, wwwCounterpart } from './origins.js';
@@ -8,6 +9,8 @@ export interface WebsiteInput {
   allowedOrigins: string[];
   /** False for a static website: one script tag, events accepted only from its addresses. */
   tokenRequired: boolean;
+  /** Only when the form shows the field and the list changed. */
+  excludedAddresses?: string[];
 }
 
 const MAX_NAME = 120;
@@ -16,10 +19,13 @@ const MAX_ORIGINS = 10;
 
 /** Addresses are separated by whitespace or commas, so a pasted list works as it is. */
 const splitAddresses = (text: string) => text.split(/[\s,]+/).filter(Boolean);
+/** The service accepts at most this many excluded addresses or ranges for one website. */
+const MAX_EXCLUDED = 25;
 
 interface Errors {
   name?: string;
   origins?: string;
+  excluded?: string;
 }
 
 interface Resolved {
@@ -64,6 +70,7 @@ export function WebsiteForm({
   initialName = '',
   initialOrigins = [''],
   initialTokenRequired = false,
+  initialExcluded,
   submitLabel = 'Add website',
   onDirtyChange,
   cancel,
@@ -76,6 +83,11 @@ export function WebsiteForm({
   initialOrigins?: string[];
   /** A new website starts without; an existing one shows its current setting. */
   initialTokenRequired?: boolean;
+  /**
+   * The website's excluded addresses and ranges. When given, the form shows the field for them;
+   * it is left out for a viewer who may not see them (an analyst gets only a count).
+   */
+  initialExcluded?: string[];
   submitLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
   /** A leave control (for example Cancel) shown next to the submit button. */
@@ -87,6 +99,7 @@ export function WebsiteForm({
   const [origins, setOrigins] = useState(initialOrigins.join('\n'));
   const [includeWww, setIncludeWww] = useState(true);
   const [tokenRequired, setTokenRequired] = useState(initialTokenRequired);
+  const [excluded, setExcluded] = useState((initialExcluded ?? []).join('\n'));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -94,6 +107,10 @@ export function WebsiteForm({
   const nameRef = useRef<HTMLInputElement>(null);
   const originsRef = useRef<HTMLTextAreaElement>(null);
   const originsHelpId = `${id}-origins-help`;
+  const excludedRef = useRef<HTMLTextAreaElement>(null);
+  const excludedEntries = splitAddresses(excluded);
+  const excludedChanged =
+    initialExcluded !== undefined && excludedEntries.join('\n') !== initialExcluded.join('\n');
   const previewId = `${id}-preview`;
   const errorId = `${id}-error`;
 
@@ -114,6 +131,7 @@ export function WebsiteForm({
     ? name !== '' || origins.trim() !== ''
     : name !== initialName ||
       tokenRequired !== initialTokenRequired ||
+      excludedChanged ||
       resolved.origins.join('\n') !==
         resolveOrigins(initialOrigins.join('\n'), undefined).origins.join('\n');
 
@@ -131,20 +149,43 @@ export function WebsiteForm({
     setError('');
     if (found.name) return nameRef.current?.focus();
     if (found.origins) return originsRef.current?.focus();
+    if (excludedEntries.length > MAX_EXCLUDED) {
+      setErrors({ excluded: `Use ${MAX_EXCLUDED} entries or fewer.` });
+      return excludedRef.current?.focus();
+    }
     setBusy(true);
     try {
       await onSubmit({
         // An empty name is the domain, so nobody has to invent one to get started.
         name: name.trim() || defaultName,
         allowedOrigins: resolved.origins,
-        tokenRequired
+        tokenRequired,
+        ...(excludedChanged ? { excludedAddresses: excludedEntries } : {})
       });
       if (creating) {
         setName('');
         setOrigins('');
       }
-    } catch {
-      setError('Website could not be saved. Your entries are unchanged; review and try again.');
+    } catch (caught) {
+      const detail = caught instanceof ApiError ? caught.detail : undefined;
+      if (detail?.field === 'excludedAddresses') {
+        // The service names the entry by position; the text shown is the person's own.
+        const entry = detail.index === undefined ? undefined : excludedEntries[detail.index];
+        setErrors({
+          excluded:
+            detail.reason === 'too_many'
+              ? `Use ${MAX_EXCLUDED} entries or fewer.`
+              : entry
+                ? `“${entry}” is not an IP address or range. Use an address such as 203.0.113.7 or a range such as 203.0.113.0/24.`
+                : 'Use IP addresses or ranges, one per line.'
+        });
+        excludedRef.current?.focus();
+      } else if (caught instanceof ApiError && caught.code === 'database_update_needed')
+        setError(
+          'The backend database needs its latest update before it can save this. Run vizoalica deploy <name> --update, then save again.'
+        );
+      else
+        setError('Website could not be saved. Your entries are unchanged; review and try again.');
     } finally {
       setBusy(false);
     }
@@ -274,6 +315,36 @@ export function WebsiteForm({
           a small server function, such as on Cloudflare Pages, to make fake events harder to send.
         </small>
       </div>
+      {initialExcluded !== undefined && (
+        <div className="field">
+          <label htmlFor={`${id}-excluded`}>
+            Exclude your own visits <span className="optional">(optional)</span>
+          </label>
+          <textarea
+            id={`${id}-excluded`}
+            ref={excludedRef}
+            rows={3}
+            value={excluded}
+            onChange={(event) => setExcluded(event.target.value)}
+            placeholder="203.0.113.7"
+            spellCheck={false}
+            autoComplete="off"
+            aria-invalid={!!errors.excluded}
+            aria-describedby={`${errors.excluded ? `${id}-excluded-error ` : ''}${id}-excluded-help`}
+          />
+          {errors.excluded && (
+            <span id={`${id}-excluded-error`} className="field-error">
+              {errors.excluded}
+            </span>
+          )}
+          <small id={`${id}-excluded-help`}>
+            IP addresses or ranges whose visits are dropped and never stored, one per line, up to{' '}
+            {MAX_EXCLUDED}. Everyone behind a shared address is excluded too. It applies to new
+            visits only.{' '}
+            <a href="https://vizoalica.dev/operations/internal-traffic">Exclude your own visits</a>
+          </small>
+        </div>
+      )}
       {error && (
         <p id={errorId} className="notice error" role="alert">
           {error}

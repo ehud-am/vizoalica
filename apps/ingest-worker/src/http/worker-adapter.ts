@@ -120,5 +120,14 @@ export async function handleWorkerRequest(
     ? await dailyVisitorId(request, dependencies.visitorSalts)
     : undefined;
   if (daily) context.dailyVisitorId = daily;
-  return withCors(request, await eventsBatchResponseForBody(request, body, dependencies, context));
+  return withCors(
+    request,
+    await eventsBatchResponseForBody(
+      request,
+      body,
+      dependencies,
+      context,
+      request.headers.get('cf-connecting-ip')
+    )
+  );
 }

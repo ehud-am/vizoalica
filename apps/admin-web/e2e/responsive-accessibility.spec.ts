@@ -184,6 +184,7 @@ test('has no serious axe findings on any screen, in light and dark', async ({ pa
     ['analytics/overview', 'Overview'],
     ['analytics/pages', 'Pages'],
     ['analytics/sources', 'Sources'],
+    ['analytics/campaigns', 'Campaigns'],
     ['analytics/geography', 'Geography'],
     ['analytics/technology', 'Technology'],
     ['analytics/traffic-quality', 'Traffic quality'],

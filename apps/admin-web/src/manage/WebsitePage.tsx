@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import {
   deleteWebsite,
   getAnalyticsOverview,
+  getExcludedHits,
   getReachability,
   getStatus,
   updateWebsite,
+  type ExcludedHits,
   type Reachability,
   type Status,
   type Website
@@ -26,6 +28,85 @@ import { WebsiteGate } from './WebsiteGate.js';
 
 type Pending = 'disable' | 'delete';
 
+/** How many addresses are excluded and how many events that dropped, with the way to change it. */
+function ExcludedVisits({
+  website,
+  hits
+}: {
+  website: Website;
+  hits: ExcludedHits | 'unavailable' | undefined;
+}) {
+  const count = website.excludedAddressCount ?? website.excludedAddresses?.length ?? 0;
+  const docs = 'https://vizoalica.dev/operations/internal-traffic';
+  // A backend older than 0.11 sends neither the list nor its count, and cannot apply a list.
+  if (website.excludedAddressCount === undefined && website.excludedAddresses === undefined)
+    return (
+      <p className="hint">
+        This backend is older than 0.11, so it cannot leave addresses out yet. Update it with{' '}
+        <code>vizoalica deploy &lt;name&gt; --update</code>. A browser can already opt out by
+        opening your site once with <code>?vizoalica_ignore=1</code> (the site must run SDK 0.11 or
+        later). <a href={docs}>How it works</a>
+      </p>
+    );
+  return (
+    <>
+      {count === 0 ? (
+        <p className="hint">
+          No addresses are excluded, so visits from you and your team are counted. Add the addresses
+          you visit from, or open your site once with <code>?vizoalica_ignore=1</code> in each
+          browser to leave that browser out. <a href={docs}>How it works</a>
+        </p>
+      ) : (
+        <>
+          <p>
+            <strong>{count.toLocaleString()}</strong>{' '}
+            {count === 1 ? 'address or range' : 'addresses or ranges'} excluded.
+          </p>
+          {hits === undefined && (
+            <p className="metric-empty" aria-busy="true">
+              Checking…
+            </p>
+          )}
+          {hits === 'unavailable' && (
+            <p className="hint">
+              Dropped events cannot be counted yet. Update the backend to see them.
+            </p>
+          )}
+          {hits && hits !== 'unavailable' && (
+            <>
+              <p role="status">
+                <strong>{hits.total.toLocaleString()}</strong>{' '}
+                {hits.total === 1 ? 'event' : 'events'} dropped in the last {hits.windowDays} days.
+              </p>
+              {hits.days.length > 0 && (
+                <ul className="origin-list" aria-label="Events dropped per day">
+                  {hits.days.slice(0, 7).map((entry) => (
+                    <li key={entry.day}>
+                      <code>{entry.day}</code>: {entry.count.toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          <p className="hint">
+            Only excluded addresses are counted. Browsers that opted out with{' '}
+            <code>?vizoalica_ignore=1</code> send nothing, so they cannot be counted.{' '}
+            <a href={docs}>How it works</a>
+          </p>
+        </>
+      )}
+      <ActionLink
+        capability="edit-website"
+        className="secondary button-link"
+        href={hrefFor('manage/websites/:id/edit', website.id)}
+      >
+        {count === 0 ? 'Exclude addresses' : 'Change excluded addresses'}
+      </ActionLink>
+    </>
+  );
+}
+
 function WebsiteHub({ website }: { website: Website }) {
   const scope = useScope();
   const setup = useSetup();
@@ -35,6 +116,8 @@ function WebsiteHub({ website }: { website: Website }) {
   const [checked, setChecked] = useState<'loading' | 'done' | 'failed'>('loading');
   // Page views in the last day, for "is it installed?". Undefined until known, or if it cannot be.
   const [recent, setRecent] = useState<number>();
+  // Events dropped for excluded addresses; 'unavailable' for a backend that does not count them.
+  const [excludedHits, setExcludedHits] = useState<ExcludedHits | 'unavailable'>();
   const [pending, setPending] = useState<Pending>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +128,11 @@ function WebsiteHub({ website }: { website: Website }) {
     setReachability(undefined);
     setChecked('loading');
     setRecent(undefined);
+    setExcludedHits(undefined);
     let cancelled = false;
+    getExcludedHits(projectId, website.id)
+      .then((hits) => !cancelled && setExcludedHits(hits))
+      .catch(() => !cancelled && setExcludedHits('unavailable'));
     const range = presetToRange('24h');
     getAnalyticsOverview(projectId, website.id, range.startUtc, range.endUtc)
       .then((overview) => !cancelled && setRecent(overview.totals.pageViews))
@@ -217,6 +304,11 @@ function WebsiteHub({ website }: { website: Website }) {
               Disable website…
             </ActionButton>
           )}
+        </section>
+
+        <section className="detail-card" aria-labelledby="website-excluded-heading">
+          <h2 id="website-excluded-heading">Your own visits</h2>
+          <ExcludedVisits website={website} hits={excludedHits} />
         </section>
 
         <section className="detail-card" aria-labelledby="website-install-heading">

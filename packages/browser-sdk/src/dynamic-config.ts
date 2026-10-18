@@ -1,5 +1,6 @@
 import type { ConsentState } from '@vizoalica/event-contracts';
 import { DEFAULT_TOKEN_URL } from './defaults.js';
+import { resolveIgnore } from './ignore.js';
 
 export interface DynamicConfigV1 {
   version: 1;
@@ -79,6 +80,14 @@ export function validateDynamicConfig(
   };
 }
 
+function safeStorage(pageWindow: Window): Storage | null {
+  try {
+    return pageWindow.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export async function initializeDynamicLoader(
   pageWindow: Window & typeof globalThis = window,
   pageDocument: Document = document,
@@ -97,6 +106,8 @@ export async function initializeDynamicLoader(
   )
     return false;
   state.started = true;
+  // An opted-out browser does not even fetch the site's configuration.
+  if (resolveIgnore(pageWindow.location, safeStorage(pageWindow))) return false;
   try {
     const response = await fetcher(DYNAMIC_CONFIG_URL, {
       cache: 'no-store',

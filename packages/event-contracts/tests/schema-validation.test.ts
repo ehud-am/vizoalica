@@ -147,3 +147,39 @@ describe('action event contract', () => {
     ).toBe(false);
   });
 });
+
+describe('page-view campaign labels', () => {
+  const validate = compileBatchValidator();
+  const withCampaign = (campaign: unknown) => ({
+    ...pageViewEvent,
+    data: { ...pageViewEvent.data, campaign }
+  });
+
+  it('accepts one to three labels', () => {
+    expect(validate([withCampaign({ source: 'newsletter' })])).toBe(true);
+    expect(validate([withCampaign({ source: 'a', medium: 'b', campaign: 'c' })])).toBe(true);
+  });
+
+  it('rejects an empty object, empty or long values, wrong types, and other keys', () => {
+    expect(validate([withCampaign({})])).toBe(false);
+    expect(validate([withCampaign({ source: '' })])).toBe(false);
+    expect(validate([withCampaign({ source: 'x'.repeat(65) })])).toBe(false);
+    expect(validate([withCampaign({ source: 5 })])).toBe(false);
+    expect(validate([withCampaign({ term: 'shoes' })])).toBe(false);
+    expect(validate([withCampaign('utm_source=x')])).toBe(false);
+  });
+
+  it('is not accepted on other event types', () => {
+    const custom = {
+      ...pageViewEvent,
+      type: 'com.vizoalica.custom_event.v1',
+      data: {
+        name: 'x',
+        campaign: { source: 'a' },
+        visitor: { anonymous_id: 'a' },
+        session: { id: 's' }
+      }
+    };
+    expect(validate([custom])).toBe(false);
+  });
+});

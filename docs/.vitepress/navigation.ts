@@ -26,6 +26,8 @@ export const sidebar: NavGroup[] = [
       { text: 'Add a website', link: '/operations/pages' },
       { text: 'Browser SDK', link: '/operations/browser-sdk' },
       { text: 'Custom events', link: '/operations/custom-events' },
+      { text: 'Campaigns', link: '/operations/campaigns' },
+      { text: 'Exclude your own visits', link: '/operations/internal-traffic' },
       { text: 'Ask your AI assistant', link: '/operations/ai' },
       { text: 'Start the console day to day', link: '/operations/operator-local' },
       { text: 'Access keys', link: '/operations/share' },
@@ -49,6 +51,8 @@ export const sidebar: NavGroup[] = [
       { text: 'Audience attributes review', link: '/privacy/audience-attributes-review' },
       { text: 'Action collection review', link: '/privacy/action-collection-review' },
       { text: 'Access keys review', link: '/privacy/access-keys-review' },
+      { text: 'Campaign labels review', link: '/privacy/campaign-labels-review' },
+      { text: 'Internal traffic review', link: '/privacy/internal-traffic-review' },
       { text: 'Cost model', link: '/operations/cost-model' }
     ]
   },
@@ -68,6 +72,7 @@ export const sidebar: NavGroup[] = [
     // the accessibility check.
     text: 'Release notes',
     items: [
+      { text: 'v0.11.0', link: '/releases/v0.11.0' },
       { text: 'v0.10.0', link: '/releases/v0.10.0' },
       { text: 'v0.9.1', link: '/releases/v0.9.1' },
       { text: 'v0.9.0', link: '/releases/v0.9.0' },
@@ -95,7 +100,7 @@ export const nav = [
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
-  { text: 'Releases', link: '/releases/v0.10.0' }
+  { text: 'Releases', link: '/releases/v0.11.0' }
 ];
 
 /** Every page address the navigation reaches, without the leading slash. */

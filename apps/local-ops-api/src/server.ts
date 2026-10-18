@@ -21,6 +21,7 @@ import {
 import {
   analytics,
   analyticsActions,
+  analyticsCampaigns,
   analyticsCustomEvents,
   analyticsOverview
 } from './routes/analytics.js';
@@ -30,6 +31,7 @@ import {
   assertSafeIds,
   jsonInit,
   validateProjectBody,
+  InvalidExcludedAddresses,
   validateWebsiteBody,
   workerJson
 } from './routes/websites.js';
@@ -278,6 +280,31 @@ export function createLocalServer(options: ServerOptions) {
           )
         );
       }
+      const campaignsMatch = /^\/api\/projects\/([^/]+)\/analytics\/campaigns$/.exec(url.pathname);
+      if (request.method === 'GET' && campaignsMatch) {
+        return send(
+          response,
+          200,
+          await analyticsCampaigns(
+            client,
+            campaignsMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? '',
+            {
+              ...(url.searchParams.get('source') !== null
+                ? { source: url.searchParams.get('source')! }
+                : {}),
+              ...(url.searchParams.get('medium') !== null
+                ? { medium: url.searchParams.get('medium')! }
+                : {}),
+              ...(url.searchParams.get('campaign') !== null
+                ? { campaign: url.searchParams.get('campaign')! }
+                : {})
+            }
+          )
+        );
+      }
       const overviewMatch = /^\/api\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
       if (request.method === 'GET' && overviewMatch) {
         return send(
@@ -308,7 +335,7 @@ export function createLocalServer(options: ServerOptions) {
         );
       }
       const item =
-        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability|share))?$/.exec(
+        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)(?:\/(snippet|status|reachability|share|excluded-hits))?$/.exec(
           url.pathname
         );
       if (item) {
@@ -389,6 +416,15 @@ export function createLocalServer(options: ServerOptions) {
           recovery: recoveryFor(400)
         });
       }
+      if (error instanceof InvalidExcludedAddresses) {
+        return send(response, 400, {
+          error: 'invalid_request',
+          field: 'excludedAddresses',
+          reason: error.reason,
+          ...(error.index !== undefined ? { index: error.index } : {}),
+          recovery: recoveryFor(400)
+        });
+      }
       const message = error instanceof Error ? error.message : 'remote_unavailable';
       const code =
         message === 'access_revoked' || message === 'unauthorized'
@@ -410,7 +446,14 @@ export function createLocalServer(options: ServerOptions) {
         );
       }
       return send(response, code, {
-        error: code === 503 ? 'remote_unavailable' : code === 401 ? 'access_revoked' : message,
+        error:
+          message === 'database_update_needed'
+            ? message
+            : code === 503
+              ? 'remote_unavailable'
+              : code === 401
+                ? 'access_revoked'
+                : message,
         recovery: message === 'backend_not_connected' ? 'connect_backend' : recoveryFor(code)
       });
     }

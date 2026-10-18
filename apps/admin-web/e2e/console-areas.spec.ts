@@ -19,6 +19,7 @@ test('groups navigation into Analytics and Manage', async ({ page }) => {
     'Actions',
     'Events',
     'Sources',
+    'Campaigns',
     'Geography',
     'Technology',
     'Traffic quality'
@@ -33,6 +34,7 @@ test('Analytics screens contain no state-changing controls', async ({ page }) =>
     'Actions',
     'Events',
     'Sources',
+    'Campaigns',
     'Geography',
     'Technology',
     'Traffic quality'

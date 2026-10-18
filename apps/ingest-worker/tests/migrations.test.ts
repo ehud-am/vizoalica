@@ -159,6 +159,86 @@ describe('applying the real migrations', () => {
     ).toThrow();
   });
 
+  it('0005 adds the campaign tables and records when reporting began, changing nothing else', () => {
+    const sqlite = freshDatabase({ upTo: 4 });
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0005_campaign_reports.sql'), 'utf8'));
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_campaign_availability',
+      'dashboard_minute_campaign_visitors',
+      'dashboard_minute_campaigns'
+    ]);
+    expect(
+      sqlite.prepare('SELECT available_from_utc AS at FROM dashboard_campaign_availability').get()
+    ).toEqual({ at: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:00\.000Z$/) });
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_campaign_availability VALUES (2, 'x')")
+    ).toThrow();
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_minute_campaigns VALUES ('p','s','m','a','b','c',-1)")
+    ).toThrow();
+  });
+
+  it('0006 adds the exclusion list with an empty default, keeping every website counting everything', () => {
+    const sqlite = freshDatabase({ upTo: 5 });
+    sqlite.exec(
+      "INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Site','k1','[]','active',NULL,'t','t')"
+    );
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0006_internal_traffic_exclusion.sql'), 'utf8'));
+    expect(sqlite.prepare('SELECT excluded_addresses_json AS list FROM sources').get()).toEqual({
+      list: '[]'
+    });
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_excluded_hits'
+    ]);
+    expect(() =>
+      sqlite.exec("INSERT INTO dashboard_excluded_hits VALUES ('p','s','2026-01-01',-1)")
+    ).toThrow();
+  });
+
+  it('upgrades a real 0.5.2 database through every later migration to the same schema as a new install', () => {
+    const upgraded = new DatabaseSync(':memory:');
+    upgraded.exec(
+      readFileSync(
+        join(process.cwd(), 'apps/ingest-worker/tests/fixtures/schema-0.5.2.sql'),
+        'utf8'
+      )
+    );
+    for (const { number, sql } of contents) if (number >= 2) upgraded.exec(sql);
+    const fresh = freshDatabase();
+    expect(tableNames(upgraded)).toEqual(tableNames(fresh));
+    for (const table of tableNames(fresh).filter((name) => !name.includes('_idx')))
+      expect(columnList(upgraded, table), table).toEqual(columnList(fresh, table));
+  });
+
+  it('upgrades a populated 0.10.0 database with 0005 and 0006, keeping every row and setting safe defaults', () => {
+    const sqlite = freshDatabase({ upTo: 4 });
+    sqlite.exec(`
+      INSERT INTO quota_policies VALUES ('q1',1,1,1,1,1,1,1,7);
+      INSERT INTO projects VALUES ('p1','One','production',7,'q1','active');
+      INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at) VALUES ('s1','p1','Shop','k1','["https://shop.test"]','active','q1','t','t');
+      INSERT INTO dashboard_minute_custom_events VALUES ('p1','s1','2026-01-01T00:00:00.000Z','/','signup',3);
+      INSERT INTO dashboard_minute_totals VALUES ('p1','s1','2026-01-01T00:00:00.000Z',9);
+    `);
+    for (const { number, sql } of contents) if (number >= 5) sqlite.exec(sql);
+    expect(
+      sqlite
+        .prepare('SELECT excluded_addresses_json AS list, token_required AS t FROM sources')
+        .get()
+    ).toEqual({
+      list: '[]',
+      t: 1
+    });
+    expect(
+      sqlite.prepare('SELECT event_count AS n FROM dashboard_minute_custom_events').get()
+    ).toEqual({ n: 3 });
+    expect(
+      sqlite.prepare('SELECT page_view_count AS n FROM dashboard_minute_totals').get()
+    ).toEqual({ n: 9 });
+    expect(tableNames(sqlite)).toEqual(tableNames(freshDatabase()));
+  });
+
   it('0002 refuses to be applied twice by the CREATE TABLE (without IF NOT EXISTS) for access_keys', () => {
     const sqlite = new DatabaseSync(':memory:');
     sqlite.exec(readFileSync(join(migrationsDir, '0001_initial.sql'), 'utf8'));

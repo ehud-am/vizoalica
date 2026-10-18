@@ -13,6 +13,17 @@ export type Website = {
   status: 'active' | 'disabled' | 'deleted';
   /** False for a static website (one script tag); absent from an older backend, meaning true. */
   tokenRequired?: boolean;
+  /** Addresses and ranges this website drops. Only the admin and owners receive them. */
+  excludedAddresses?: string[];
+  /** How many there are; absent from an older backend. */
+  excludedAddressCount?: number;
+};
+export type ExcludedHits = {
+  /** Events dropped in the window. */
+  total: number;
+  /** Only days with hits, newest first. */
+  days: Array<{ day: string; count: number }>;
+  windowDays: number;
 };
 export type DynamicConfigV1 = {
   version: 1;
@@ -180,11 +191,41 @@ export type CustomEventsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+export type CampaignsFilters = { source?: string; medium?: string; campaign?: string };
+export type CampaignRanking = {
+  /** An empty label means the link did not set it. */
+  items: Array<{ label: string; count: number; visitors: number }>;
+  /** Page views beyond `items`; keeps the totals exact. */
+  otherCount: number;
+};
+export type CampaignsReport = {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsOverview['range'];
+  totals: { pageViews: number; uniqueUsers: number; allPageViews: number };
+  trend: Array<{ startUtc: string; pageViews: number }>;
+  sources: CampaignRanking;
+  mediums: CampaignRanking;
+  campaigns: CampaignRanking;
+  rows: Array<{
+    source: string;
+    medium: string;
+    campaign: string;
+    count: number;
+    visitors: number;
+  }>;
+  other: { rows: number; count: number };
+  availability: AnalyticsOverview['availability'];
+};
+
+/** What the service said was wrong with one field: its position in a list and why, never its text. */
+export type ApiErrorDetail = { field?: string; reason?: string; index?: number };
+
 export class ApiError extends Error {
   constructor(
     public readonly code: string,
     public readonly status: number,
-    public readonly recovery?: string
+    public readonly recovery?: string,
+    public readonly detail?: ApiErrorDetail
   ) {
     super(
       code === 'access_revoked' || code === 'session_expired'
@@ -205,8 +246,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const details = (await response.json().catch(() => ({}))) as {
       error?: string;
       recovery?: string;
-    };
-    throw new ApiError(details.error ?? 'request_failed', response.status, details.recovery);
+    } & ApiErrorDetail;
+    throw new ApiError(
+      details.error ?? 'request_failed',
+      response.status,
+      details.recovery,
+      details.field === undefined
+        ? undefined
+        : {
+            field: details.field,
+            ...(details.reason !== undefined ? { reason: details.reason } : {}),
+            ...(details.index !== undefined ? { index: details.index } : {})
+          }
+    );
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
@@ -229,13 +281,20 @@ export const listWebsites = (projectId: string) =>
   request<Website[]>(`/api/projects/${encodeURIComponent(projectId)}/websites`);
 export const createWebsite = (
   projectId: string,
-  input: { name: string; allowedOrigins: string[]; tokenRequired?: boolean }
+  input: {
+    name: string;
+    allowedOrigins: string[];
+    tokenRequired?: boolean;
+    excludedAddresses?: string[];
+  }
 ) =>
   request<Website>(`/api/projects/${encodeURIComponent(projectId)}/websites`, json('POST', input));
 export const updateWebsite = (
   projectId: string,
   websiteId: string,
-  input: Partial<Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired'>>
+  input: Partial<Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired'>> & {
+    excludedAddresses?: string[];
+  }
 ) =>
   request<Website>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}`,
@@ -253,6 +312,10 @@ export const getSnippet = (projectId: string, websiteId: string) =>
 export const getStatus = (projectId: string, websiteId: string) =>
   request<Status>(
     `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/status`
+  );
+export const getExcludedHits = (projectId: string, websiteId: string) =>
+  request<ExcludedHits>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/excluded-hits`
   );
 export const getReachability = (
   projectId: string,
@@ -311,6 +374,25 @@ export const getAnalyticsCustomEvents = (
   if (filters.page) query.set('page', filters.page);
   return request<CustomEventsReport>(
     `/api/projects/${encodeURIComponent(projectId)}/analytics/custom-events?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export const getAnalyticsCampaigns = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  filters: CampaignsFilters = {},
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  if (filters.source) query.set('source', filters.source);
+  if (filters.medium) query.set('medium', filters.medium);
+  if (filters.campaign) query.set('campaign', filters.campaign);
+  return request<CampaignsReport>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics/campaigns?${query.toString()}`,
     signal ? { signal } : undefined
   );
 };

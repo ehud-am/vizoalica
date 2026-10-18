@@ -25,6 +25,7 @@ describe('the vizoalica MCP server', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'compare_periods',
       'get_actions',
+      'get_campaigns',
       'get_custom_events',
       'get_environment_status',
       'get_traffic_overview',
@@ -403,6 +404,118 @@ describe('the vizoalica MCP server', () => {
     expect(plain.text).toContain('Most frequent: "event_0" (25).');
     expect(plain.data!.events).toHaveLength(20);
     expect(plain.data!.properties).toEqual([]);
+  });
+
+  it('says how many addresses a website excludes and how many events that dropped, never the addresses', async () => {
+    const run = async (excluded?: { count: number; hits30d?: number }) => {
+      const h = await start({
+        environments: {
+          prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+        },
+        backends: { prod: { ...defaultBackends().prod, ...(excluded ? { excluded } : {}) } }
+      });
+      return h.call('get_website_status', {
+        environment: 'prod',
+        project: 'Acme',
+        website: 'Shop',
+        check_site: false
+      });
+    };
+    const both = await run({ count: 2, hits30d: 12 });
+    expect(both.text).toContain(
+      'Shop: collection healthy, configuration healthy. Excludes 2 addresses or ranges; 12 events dropped in the last 30 days (browser opt-outs are not counted).'
+    );
+    await open!.client.close();
+    open = undefined;
+    const one = await run({ count: 1, hits30d: 1 });
+    expect(one.text).toContain('Excludes 1 address or range; 1 event dropped');
+    await open!.client.close();
+    open = undefined;
+    const noCounter = await run({ count: 3 });
+    expect(noCounter.text).toContain('Excludes 3 addresses or ranges.');
+    expect(noCounter.text).not.toContain('dropped');
+    await open!.client.close();
+    open = undefined;
+    const none = await run({ count: 0 });
+    expect(none.text).not.toContain('Excludes');
+    await open!.client.close();
+    open = undefined;
+    const old = await run();
+    expect(old.text).not.toContain('Excludes');
+  });
+
+  it('reports campaigns with filters, trimmed to the limit, and writes an unset label plainly', async () => {
+    const h = await start();
+    const result = await h.call('get_campaigns', {
+      environment: 'prod',
+      project: 'Acme',
+      source: 'source_0',
+      medium: 'email',
+      limit: 5
+    });
+    expect(result.text).toContain(
+      'all websites of project Acme, source "source_0", medium "email", 2026-09-20T12:00:00.000Z to 2026-09-27T12:00:00.000Z (UTC): 30 page views from tagged links (25% of 120 page views) by 9 visitors. Top: source_0 / email / spring-sale (12). Data is processing: recent numbers may still grow.'
+    );
+    expect(result.data!.rows).toHaveLength(5);
+    expect(result.data!.other).toEqual({ rows: 3 + 7, count: 4 + (7 * 8) / 2 + 0 });
+    expect((result.data!.sources as { items: unknown[] }).items).toHaveLength(5);
+    expect(result.data!.note).toMatch(/empty label/);
+    const query = h.requests.at(-1)!.query;
+    expect(query).toContain('source=source_0');
+    expect(query).toContain('medium=email');
+    const plain = await h.call('get_campaigns', {
+      environment: 'prod',
+      project: 'Acme',
+      website: 'Shop'
+    });
+    expect(plain.data!.rows).toHaveLength(10);
+    expect(plain.text).toContain('Top: source_0');
+  });
+
+  it('says a backend without the campaigns report needs an update', async () => {
+    const h = await start({
+      environments: {
+        prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+      },
+      backends: { prod: { ...defaultBackends().prod, noCampaigns: true } }
+    });
+    const result = await h.call('get_campaigns', { environment: 'prod', project: 'Acme' });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('does not report campaigns yet');
+    expect(result.text).toContain('vizoalica deploy prod --update');
+  });
+
+  it('rejects an empty filter instead of treating it as no filter', async () => {
+    const h = await start();
+    for (const filter of ['source', 'medium', 'campaign']) {
+      const result = await h.call('get_campaigns', {
+        environment: 'prod',
+        project: 'Acme',
+        [filter]: ''
+      });
+      expect(result.isError, filter).toBe(true);
+    }
+    expect(h.requests.filter((request) => request.query.includes('campaigns'))).toEqual([]);
+  });
+
+  it('says what to do when the database behind the Worker needs its update', async () => {
+    const h = await start({
+      backends: { prod: { ...defaultBackends().prod, staleDatabase: true } }
+    });
+    const result = await h.call('get_campaigns', { environment: 'prod', project: 'Acme' });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('needs its latest update');
+    expect(result.text).toContain('vizoalica deploy prod --update');
+  });
+
+  it('rejects a source filter that is too long before asking the Worker', async () => {
+    const h = await start();
+    const result = await h.call('get_campaigns', {
+      environment: 'prod',
+      project: 'Acme',
+      source: 'x'.repeat(65)
+    });
+    expect(result.isError).toBe(true);
   });
 
   it("reports a website's status and probes its address unless told not to", async () => {

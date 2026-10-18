@@ -12,12 +12,20 @@ Vizoalica is designed to collect minimal product analytics data by default.
 - A boolean indicating whether a query string was present and redacted.
 - Optional page title, capped in length.
 - A random identifier for each page load (not stored in the browser, so it cannot link visits).
+- Nothing else is written to the browser, with one exception you ask for: the optional
+  [`?vizoalica_ignore=1` switch](internal-traffic.md#browser-switch) stores the value `1` in your own browser so
+  your own visits are left out.
 - Explicit custom events created by the site owner.
+- Campaign labels: the `utm_source`, `utm_medium` and `utm_campaign` of the landing address, cleaned and cut to
+  64 characters (see [Campaigns](campaigns.md) and the
+  [campaign labels review](../privacy/campaign-labels-review.md)). No other query value is read.
 - Safe scalar custom properties after filtering.
 
 ## How unique visitors are counted
 
-The SDK stores nothing in the browser: no cookies, no local storage, no session storage. The
+The SDK stores nothing in visitors' browsers: no cookies, no local storage, no session storage. (The only
+exception is a switch you turn on yourself, in your own browser; see
+[Exclude your own visits](internal-traffic.md#browser-switch).) The
 backend counts unique visitors itself. For each event it computes a keyed hash of a random value
 for the current UTC day, the website, the visitor's IP address, and their user agent, and stores
 only that hash. The IP address and user agent are never stored.
