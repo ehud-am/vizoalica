@@ -19,21 +19,27 @@ function EditForm({ website }: { website: Website }) {
   const hub = hrefFor('manage/websites/:id', website.id);
 
   async function save(input: WebsiteInput) {
-    await updateWebsite(scope.projectId, website.id, {
+    const saved = await updateWebsite(scope.projectId, website.id, {
       name: input.name,
       allowedOrigins: input.allowedOrigins,
       tokenRequired: input.tokenRequired,
       ...(input.excludedAddresses ? { excludedAddresses: input.excludedAddresses } : {})
     });
     await scope.refreshWebsites();
-    const originsChanged =
-      input.tokenRequired && !sameOrigins(website.allowedOrigins, input.allowedOrigins);
     // The embed itself does not depend on the origins, but the site's own token endpoint keeps a
     // list of them, so a changed list is the one edit that can need a matching change on the site.
+    const originsChanged =
+      input.tokenRequired && !sameOrigins(website.allowedOrigins, input.allowedOrigins);
+    // A backend older than 0.11 saves the rest of the edit but knows nothing of the list, and does
+    // not send one back. Say so rather than let the person believe their visits are excluded.
+    const listIgnored =
+      input.excludedAddresses !== undefined && !Array.isArray(saved?.excludedAddresses);
     flash.carry(
-      originsChanged
-        ? 'Website saved. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
-        : 'Website saved. Nothing needs to change on your installed site.'
+      listIgnored
+        ? 'Website saved, but its backend is older than 0.11 and did not apply the excluded addresses. Update it with vizoalica deploy <name> --update, then save them again.'
+        : originsChanged
+          ? 'Website saved. Your site’s token endpoint keeps its own list of origins: update it to match (the VIZOALICA_SITE variable, or VIZOALICA_SITE_ORIGINS), then deploy. The Install page shows the current value.'
+          : 'Website saved. Nothing needs to change on your installed site.'
     );
     navigate('manage/websites/:id', website.id);
   }

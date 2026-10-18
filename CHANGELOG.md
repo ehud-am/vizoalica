@@ -4,6 +4,36 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-17
+
+### Added
+
+- **Campaigns report** (#59). The console has a **Campaigns** page and the MCP server a `get_campaigns` tool: page
+  views and visitors by `utm_source`, `utm_medium` and `utm_campaign`, the share of all page views that came from a
+  tagged link, a trend, and the top combinations. Filter by source, medium or campaign. The SDK reads only these
+  three parameters from the landing address, on the first page view of a page load, cleans them (lowercase, emails,
+  long digit runs and tokens replaced, 64 characters) and the backend cleans them again; every other query value is
+  still dropped. New docs page: [Campaigns](docs/operations/campaigns.md).
+- **Exclude internal traffic** (#61). A website can list IP addresses and ranges (IPv4 and IPv6, up to 25) whose
+  visits are dropped on arrival and never stored, set on the website's Edit page. The website page shows how many
+  events were dropped in the last 30 days (a count per day, no address); `get_website_status` reports the same.
+  Separately, opening a site with `?vizoalica_ignore=1` turns Vizoalica off in that browser (`=0` turns it back
+  on). New docs page: [Exclude your own visits](docs/operations/internal-traffic.md).
+- **Two database migrations** (additive): `0005_campaign_reports.sql` (three tables) and
+  `0006_internal_traffic_exclusion.sql` (one column on `sources` and one table). Only page views received after the
+  update are counted in the Campaigns report; the report says so for an earlier range. Update with
+  `vizoalica deploy <name> --update`.
+- **Privacy reviews** for both: [campaign labels](docs/privacy/campaign-labels-review.md) and
+  [internal traffic](docs/privacy/internal-traffic-review.md).
+
+### Changed
+
+- **Update the backend before bundling the new `@vizoalica/browser-sdk`.** The page-view event gained an optional
+  `campaign` field; a backend older than this release rejects page views that carry it. Websites that load the SDK
+  from their own backend are unaffected.
+- The one thing the SDK can write to a browser is the `?vizoalica_ignore=1` switch, on your own device and only
+  when you open a link asking for it. Visitors' browsers still get nothing.
+
 ## [0.10.0] - 2026-10-10
 
 ### Added

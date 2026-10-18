@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-17
 
-**Status**: Draft for implementation in v0.11.0 (GitHub issue #59)
+**Status**: Implemented for v0.11.0 (GitHub issue #59); awaiting the release owner's go/no-go. QA report: [qa-report.md](qa-report.md)
 
 **Input**: "See which campaigns bring visitors, without adding cookies or visitor IDs. Read `utm_source`,
 `utm_medium`, `utm_campaign` on page load, keep only those values, and drop every other query parameter as
@@ -26,6 +26,7 @@ overturn any of them before release.
 | Q6  | Retention                                  | Like every other aggregate: minute rows older than 32 days are deleted by the scheduled job.                                                                  |
 | Q7  | Visitors                                   | Counted with the existing keyed digest (daily-rotating visitor id), never stored raw. Same rule as the Pages and Events reports.                              |
 | Q8  | Relation to the referrer                   | Independent. A visit can have a campaign, a referrer, both, or neither. The report does not merge them.                                                       |
+| Q10 | Letters of other scripts                   | Kept, with their combining marks (`\p{L}`, `\p{M}`), so `नमस्ते` or `campaña` survive; invisible formatting characters, emoji and markup are removed. |
 | Q9  | Older SDK / older backend                  | A backend older than 0.11.0 rejects page views that carry `campaign`. Update the backend before bundling the new SDK (same rule as 0.10.0's `page` field).    |
 
 ## User Scenarios & Testing _(mandatory)_

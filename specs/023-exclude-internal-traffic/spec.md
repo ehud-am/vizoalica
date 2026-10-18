@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-17
 
-**Status**: Draft for implementation in v0.11.0 (GitHub issue #61)
+**Status**: Implemented for v0.11.0 (GitHub issue #61); awaiting the release owner's go/no-go. QA report: [qa-report.md](qa-report.md)
 
 **Input**: "Keep the site owner's and team's own visits out of the numbers. Per-website exclusion by IP address or
 range, set in the console and CLI. Alternative: a browser opt-out switch (`localStorage` flag set by visiting a
@@ -126,8 +126,10 @@ As an owner, I want to see that exclusion works and is not hiding real visitors.
   website status MUST include the 30-day total.
 - **FR-007**: The SDK MUST implement the opt-out in Q7, without throwing, without reading anything else from the
   URL, and with the flag value fixed to `1`.
-- **FR-008**: The console MUST let admin and owner roles edit the list on the add/edit website pages and show the
-  excluded-hits card on the website page, accessible and keyboard-operable.
+- **FR-008**: The console MUST let admin and owner roles edit the list on the website's Edit page (not on the Add
+  page: a new website starts counting everything, and the list is a setting to add once there is traffic to
+  compare) and show the excluded-hits card on the website page, accessible and keyboard-operable. When the
+  backend is older than 0.11 and does not apply the list, the console MUST say so after saving.
 - **FR-009**: The install check sends no events (it probes the token endpoint and configuration), so it is
   unaffected; the website page's excluded-hits card is how an owner sees that their own visits are being
   dropped.

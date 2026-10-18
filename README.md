@@ -25,9 +25,9 @@ answer questions from the same data. Visitor data stays in your own Cloudflare a
 </p>
 
 - **Ask your AI assistant:** a local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor ("How did my websites do last week?"). See [Use Vizoalica with AI](docs/operations/ai.md).
-- **Install on a website:** one script tag, on any host. Nothing is stored in the browser: no cookies, no local storage.
+- **Install on a website:** one script tag, on any host. Nothing is stored in visitors' browsers: no cookies, no local storage. (Only if you opt your own browser out of being counted, with `?vizoalica_ignore=1`, does it store one value on your own device.)
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
-- **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, and custom events, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
+- **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions**, custom events, and the UTM source, medium and campaign of the landing address, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
 - **Standards:** CloudEvents batches, JSON Schema validation, and optional short-lived signed (JWT/JOSE) ingest tokens.
 - **Setup:** `npm install -g vizoalica`, `vizoalica env add prod` (deploys the backend to your Cloudflare account, explaining each question), then `vizoalica console`. You need Node.js 22 or newer and a Cloudflare account. macOS and Linux are supported; Windows is not yet.
 - **License:** MIT.
@@ -219,7 +219,7 @@ its own push; the [website guide](docs/operations/pages.md) explains the differe
 
 Vizoalica avoids collecting sensitive information by default:
 
-- nothing stored in the visitor's browser: no cookies or local storage. Unique visitors are counted
+- nothing stored in the visitor's browser: no cookies or local storage (the optional `?vizoalica_ignore=1` switch writes one value to your own browser, only when you open a link asking for it). Unique visitors are counted
   by the backend with a daily-rotating identifier whose daily salt is deleted after the day ends;
 - no raw form values;
 - no passwords, payment data, API keys, cookies, or auth headers;
@@ -241,7 +241,7 @@ alerts; included usage is not a guaranteed spending cap. See the
 Website
   └─ One script tag: the browser SDK, served by your Worker
       ├─ builds CloudEvents JSON events
-      ├─ redacts URL, query, and referrer data; stores nothing in the browser
+      ├─ redacts URL, query, and referrer data; stores nothing in visitors' browsers
       ├─ queues events in memory with bounded size
       ├─ optionally obtains a short-lived ingest token from the website's own server
       └─ sends non-blocking event batches

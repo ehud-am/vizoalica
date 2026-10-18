@@ -54,17 +54,18 @@ Environment: prod (admin, https://analytics.example.com; default: the one last u
 
 ## What the assistant can read
 
-| Tool                     | What it answers                                                                                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `list_environments`      | Every environment, whether it works, which one this conversation uses                            |
-| `use_environment`        | Switch this conversation's environment                                                           |
-| `get_environment_status` | Role and scope, Worker and database versions against this package, database and storage health   |
-| `list_websites`          | Projects and websites                                                                            |
-| `get_website_status`     | Collection and configuration status, plus the console's install check of the live site           |
-| `get_traffic_overview`   | Page views, visitors, trend, top pages (with each page's website), referrers, countries, devices |
-| `compare_periods`        | A period against the one before, with the pages that changed most                                |
-| `get_actions`            | Clicks on buttons and links, by page                                                             |
-| `get_custom_events`      | Custom events: count, visitors, trend, pages, and property values                                |
+| Tool                     | What it answers                                                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_environments`      | Every environment, whether it works, which one this conversation uses                                                                                    |
+| `use_environment`        | Switch this conversation's environment                                                                                                                   |
+| `get_environment_status` | Role and scope, Worker and database versions against this package, database and storage health                                                           |
+| `list_websites`          | Projects and websites                                                                                                                                    |
+| `get_website_status`     | Collection and configuration status, how many addresses are excluded and how many events that dropped, plus the console's install check of the live site |
+| `get_traffic_overview`   | Page views, visitors, trend, top pages (with each page's website), referrers, countries, devices                                                         |
+| `compare_periods`        | A period against the one before, with the pages that changed most                                                                                        |
+| `get_actions`            | Clicks on buttons and links, by page                                                                                                                     |
+| `get_custom_events`      | Custom events: count, visitors, trend, pages, and property values                                                                                        |
+| `get_campaigns`          | Which tagged links (UTM source, medium, campaign) brought visitors, with a trend and top pairs                                                           |
 
 Projects and websites can be named by name or id. Ranges are UTC and at most 30 days per call, the same limit as
 the console. An owner or analyst access key sees exactly what it sees in the console, nothing more. There are also

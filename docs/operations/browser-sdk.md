@@ -71,6 +71,13 @@ declines, do not load the script.
 
 The script reads its own `data-*` attributes and initializes itself. By default it sends a page-view event and exposes the client as `window.vizoalica`.
 
+The landing page view also carries the page's `utm_source`, `utm_medium` and `utm_campaign`, cleaned, when
+the address has them (reported on the console's Campaigns page; see [Campaigns](campaigns.md)). No other query
+value is read.
+
+To leave your own browser out of the numbers, open any page of the site once with `?vizoalica_ignore=1` added; see
+[Exclude your own visits](internal-traffic.md).
+
 Optional custom event (reported on the console's Events page; see [Custom events](custom-events.md)):
 
 ```html

@@ -718,6 +718,28 @@ describe('excluding your own visits', () => {
     );
   });
 
+  it('confirms a saved list normally, and warns when the backend is too old to have applied it', async () => {
+    sites.p1 = [excludedSite(), blog];
+    const user = userEvent.setup();
+    for (const [reply, expected] of [
+      [
+        { ...docs, excludedAddresses: ['10.0.0.1'] },
+        /Nothing needs to change on your installed site/
+      ],
+      [docs, /backend is older than 0\.11 and did not apply the excluded addresses/]
+    ] as const) {
+      go('manage/websites/s1/edit');
+      api.updateWebsite.mockResolvedValueOnce(reply);
+      render(<App />);
+      const field = await screen.findByRole('textbox', { name: /Exclude your own visits/ });
+      await user.clear(field);
+      await user.type(field, '10.0.0.1');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(await screen.findByText(expected)).toBeTruthy();
+      cleanup();
+    }
+  });
+
   it('can clear the list', async () => {
     sites.p1 = [excludedSite(), blog];
     go('manage/websites/s1/edit');

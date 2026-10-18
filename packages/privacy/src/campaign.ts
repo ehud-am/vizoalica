@@ -20,10 +20,11 @@ const QUERY_NAMES = {
   utm_campaign: 'campaign'
 } as const satisfies Record<string, keyof CampaignLabels>;
 
-// Letters, digits, space and a few separators. The brackets keep the redaction placeholders
-// (`[email]`, `[number]`, `[token]`) intact; everything else, markup and control characters
+// Letters (with their combining marks, which scripts such as Devanagari and Thai need), digits,
+// space and a few separators. The brackets keep the redaction placeholders (`[email]`, `[number]`,
+// `[token]`) intact; everything else, markup, control and invisible formatting characters
 // included, is dropped.
-const DISALLOWED = /[^\p{L}\p{N} _.+:/[\]-]/gu;
+const DISALLOWED = /[^\p{L}\p{M}\p{N} _.+:/[\]-]/gu;
 
 /**
  * A campaign value as reports store it, or '' when nothing is left. Redaction runs before

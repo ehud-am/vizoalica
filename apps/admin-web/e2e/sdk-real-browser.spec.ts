@@ -141,3 +141,75 @@ test('reports pages and actions from the built bundle in a real browser', async 
   for (const secret of ['a private note', 'jane@example.com', 'utm=demo', '8841', '8842'])
     expect(wire, secret).not.toContain(secret);
 });
+
+async function openWithBundle(
+  page: import('@playwright/test').Page,
+  path: string,
+  posts: Sent,
+  options: { html?: string } = {}
+) {
+  await page.route(`${ORIGIN}/vizoalica.js`, (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: bundle })
+  );
+  await page.route(`${ORIGIN}/**`, (route) => {
+    if (route.request().url().endsWith('/vizoalica.js')) return route.fallback();
+    if (route.request().url().endsWith('/token')) return route.fulfill({ status: 404, body: '' });
+    return route.fulfill({ contentType: 'text/html', body: options.html ?? pageHtml });
+  });
+  await page.route(INGEST, async (route) => {
+    posts.push(JSON.parse(route.request().postData() ?? '[]'));
+    await route.fulfill({ status: 202, body: '{}' });
+  });
+  await page.goto(`${ORIGIN}${path}`);
+  await page.waitForTimeout(400);
+}
+
+test('sends the cleaned campaign on the landing page view only, from the built bundle', async ({
+  page
+}) => {
+  const posts: Sent = [];
+  await openWithBundle(
+    page,
+    '/?utm_source=Newsletter&utm_medium=email&utm_campaign=Spring-Sale&utm_term=shoes&token=abc',
+    posts
+  );
+  await page.getByRole('link', { name: 'Pricing' }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Docs' }).click();
+  await page.waitForTimeout(300);
+
+  const views = posts.flat().filter((e) => e.type.endsWith('page_view.v1'));
+  expect(views.length).toBeGreaterThanOrEqual(3);
+  expect(views[0]!.data.campaign).toEqual({
+    source: 'newsletter',
+    medium: 'email',
+    campaign: 'spring-sale'
+  });
+  expect(views.slice(1).filter((e) => e.data.campaign)).toEqual([]);
+  const wire = JSON.stringify(posts);
+  for (const unread of ['shoes', 'utm_term', 'abc', 'token='])
+    expect(wire, unread).not.toContain(unread);
+});
+
+test('?vizoalica_ignore=1 silences the built bundle, and sticks until it is turned off', async ({
+  page
+}) => {
+  const posts: Sent = [];
+  await openWithBundle(page, '/?vizoalica_ignore=1', posts);
+  await page.getByRole('link', { name: 'Pricing' }).click();
+  await page.getByRole('button', { name: 'cart' }).click();
+  await page.waitForTimeout(400);
+  expect(posts).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('vizoalica.ignore'))).toBe('1');
+
+  // A later visit without the parameter is still silent.
+  await page.goto(`${ORIGIN}/pricing`);
+  await page.waitForTimeout(400);
+  expect(posts).toEqual([]);
+
+  // Turning it off restores counting, and clears the stored value.
+  await page.goto(`${ORIGIN}/?vizoalica_ignore=0`);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => localStorage.getItem('vizoalica.ignore'))).toBeNull();
+  expect(posts.flat().filter((e) => e.type.endsWith('page_view.v1'))).toHaveLength(1);
+});
