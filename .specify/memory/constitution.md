@@ -1,7 +1,10 @@
 <!--
 Sync Impact Report
-Version change: 2.0.0 → 3.0.0
-Modified principles:
+Version change: 3.0.0 → 3.1.0
+Modified sections:
+- Development Workflow, Verification, and Release Gates: the contrarian QA review MUST be run by a
+  separate AI agent started with clean context, not by the agent that wrote or changed the code.
+Earlier change (2.0.0 → 3.0.0). Modified principles:
 - I. Privacy-Minimal Analytics → I. Privacy-Minimal Analytics (expanded retention and review rules)
 - II. Security and Abuse Resistance by Design → II. Security, Privacy, and Abuse Resistance
 - III. Open Standards and Interoperability → III. Open Source and Portable Interoperability
@@ -127,6 +130,12 @@ available to people with diverse access needs.
 - Before an official release, maintainers MUST run an alignment review of code, specifications,
   contracts, operational documents, and README; a full testing cycle; and a contrarian QA review
   in which an AI agent acts as a skeptical QA engineer and produces a written QA report.
+- The contrarian QA review and the pre-release test cycle MUST be run by a separate AI agent
+  started with clean context: it receives the repository, the specifications, and the release
+  scope, but not the conversation, plans, or self-review of the agent that implemented the change.
+  It MUST re-run the checks itself rather than rely on reported results, and its written report
+  MUST say that it was produced this way. A review by the implementing agent may be kept as a
+  self-review but does not satisfy this gate.
 - A human release owner MUST make the final go/no-go decision after reviewing alignment evidence,
   test results, security findings, accessibility evidence, deployment validation, and the QA
   report. AI agents may recommend but MUST NOT make that release decision.
@@ -151,4 +160,4 @@ Compliance evidence belongs with the relevant specification, plan, pull request,
 record. Complexity, coverage exclusions, security exceptions, and deferred accessibility work are
 invalid unless explicitly approved, time-bounded, and tracked to resolution.
 
-**Version**: 3.0.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-09-05
+**Version**: 3.1.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-10-17
