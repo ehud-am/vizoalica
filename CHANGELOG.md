@@ -4,6 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-18
+
+### Changed
+
+- **Dependency updates only; no database migration, no change to behavior.** `wrangler` 4.150.0, `vite` 8.3.4,
+  `zod` 4.6.7, `@playwright/test` 1.64.0, `prettier` 3.9.10, `@typescript-eslint` 8.71.2 and
+  `@testing-library/user-event` 14.6.8, and the pinned `reviewdog/action-actionlint` 1.80.2 in CI. The package, the
+  Worker and the console are rebuilt with them. Contributors running the browser tests need
+  `playwright install chromium` once for the new Playwright.
+
 ## [0.11.0] - 2026-10-17
 
 ### Added
