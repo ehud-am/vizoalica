@@ -3,7 +3,7 @@
 `GET /v1/admin/projects/{project}/analytics/rage-clicks?start&end[&source_id][&page][&action]`
 
 - Auth, scope and range rules as the actions report. `page` (at most 1024) and `action` (at most 80) are exact
-  matches; an empty value, an over-limit value, or a control character is `400 invalid_request`. A bad range is
+  matches; an over-limit value or a control character is `400 invalid_request`; an empty value means no filter, as for the actions report (the local API and the MCP tool refuse an empty value before asking). A bad range is
   `400 invalid_range`.
 - `404 not_found` for an unknown project or website, or a repository without the report.
 - `503 database_update_needed` when the database lacks migration 0007.

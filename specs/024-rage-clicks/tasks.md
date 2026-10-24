@@ -24,7 +24,9 @@
 
 - [X] T010 `docs/operations/rage-clicks.md`, privacy review, navigation, SDK/AI/privacy/operator pages, skill, `llms.txt`, README
 - [X] T011 Release notes `docs/releases/v0.12.0.md`, CHANGELOG, version 0.12.0
-- [ ] T012 Clean-context QA review and pre-release test cycle (constitution gate); release owner go/no-go
+- [X] T012 Clean-context QA review and pre-release test cycle: [qa-report-independent.md](qa-report-independent.md) (GO WITH CONDITIONS)
+- [X] T013 QA follow-up: retention and purge tolerate a table a database update has not created yet (M1); wording of clicks and rate, look-alike controls, empty filter, and consent enforcement (m1 to m4)
+- [ ] T014 Release owner go/no-go
 
 ## Notes
 

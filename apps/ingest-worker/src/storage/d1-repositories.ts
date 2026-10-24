@@ -1224,15 +1224,31 @@ export class D1Repositories
     // Tables that came back short are drained and dropped from later passes, so they are not
     // rescanned (some have no index on the retention column).
     for (let pass = 0; pass < RETENTION_MAX_PASSES && pending.length > 0; pass += 1) {
-      const results = await this.runBatch(
-        pending.map(([table, column]) =>
-          this.db
-            .prepare(
-              `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${column} < ? LIMIT ${RETENTION_BATCH_ROWS})`
-            )
-            .bind(beforeUtc)
-        )
+      const statements = pending.map(([table, column]) =>
+        this.db
+          .prepare(
+            `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${column} < ? LIMIT ${RETENTION_BATCH_ROWS})`
+          )
+          .bind(beforeUtc)
       );
+      let results: Array<{ meta?: { changes?: number } }>;
+      try {
+        results = await this.runBatch(statements);
+      } catch (error) {
+        if (!isMissingSchema(error)) throw error;
+        // A Worker newer than its database has no table for the newest reports yet. One missing
+        // table must not stop the others from expiring (or the daily salt deletion after this),
+        // so run them one by one and treat a missing table as drained.
+        results = [];
+        for (const statement of statements) {
+          try {
+            results.push(await statement.run());
+          } catch (single) {
+            if (!isMissingSchema(single)) throw single;
+            results.push({ meta: { changes: 0 } });
+          }
+        }
+      }
       pending = pending.filter(
         (_entry, index) => (results[index]?.meta?.changes ?? 0) >= RETENTION_BATCH_ROWS
       );
@@ -1255,10 +1271,16 @@ export class D1Repositories
   async countPurgeRows(): Promise<Record<string, number>> {
     const rows: Record<string, number> = {};
     for (const { table, where } of PURGE_TABLES) {
-      const result = await this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`)
-        .first<{ n: number }>();
-      rows[table] = Number(result?.n ?? 0);
+      try {
+        const result = await this.db
+          .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`)
+          .first<{ n: number }>();
+        rows[table] = Number(result?.n ?? 0);
+      } catch (error) {
+        // A table a database update has not created yet has nothing to purge.
+        if (!isMissingSchema(error)) throw error;
+        rows[table] = 0;
+      }
     }
     return rows;
   }
@@ -1275,11 +1297,17 @@ export class D1Repositories
       for (;;) {
         if (budget.remaining < 1) return { rows, complete: false };
         budget.remaining -= 1;
-        const result = await this.db
-          .prepare(
-            `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${where} LIMIT ${RETENTION_BATCH_ROWS})`
-          )
-          .run();
+        let result: { meta?: { changes?: number } };
+        try {
+          result = await this.db
+            .prepare(
+              `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${where} LIMIT ${RETENTION_BATCH_ROWS})`
+            )
+            .run();
+        } catch (error) {
+          if (!isMissingSchema(error)) throw error;
+          break;
+        }
         const changes = result.meta?.changes ?? 0;
         rows[table] += changes;
         if (changes < RETENTION_BATCH_ROWS) break;

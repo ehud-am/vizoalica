@@ -56,6 +56,13 @@ See the [rage clicks privacy review](../privacy/rage-clicks-review.md).
 
 ## Limits
 
+- **Clicks and the rate are rough.** The SDK records repeat clicks on one control within 500 ms once, so a control
+  that is hammered shows only one or two ordinary clicks per burst. "Clicks" is the number of recorded clicks, not
+  every physical click, and "bursts per click" can approach 100% on a control that is hammered every time. Use it
+  to rank controls, not as a precise rate.
+- **Look-alike controls merge.** Controls on one page with the same name and destination count as one control, so
+  clicks spread over three "Remove" buttons can add up to a burst. A triple click on one control counts as a burst.
+
 - It cannot tell frustration from a double-click on a slow page or from a control that is meant to be pressed
   repeatedly (a stepper, a counter). Read a burst as a prompt to look, not as a verdict.
 - It shows controls, not where on the screen the clicks landed. Vizoalica does not record click positions.

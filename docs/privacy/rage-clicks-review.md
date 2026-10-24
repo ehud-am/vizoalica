@@ -27,7 +27,9 @@ on the click events the SDK already sends.
    and one row per control per minute in storage, which the 32-day retention removes.
 6. Nothing is added to the browser: no cookie, no storage. The one extra network request is the burst itself,
    sent in its own batch so an older backend can reject it without losing anything else.
-7. With consent denied, the SDK records no actions, so it records no bursts either.
+7. With consent denied, the SDK records no actions, so it records no bursts either. This is enforced in the SDK
+   only: the Worker treats a burst like the click it follows, so a sender that ignores consent is handled the same
+   way for both.
 
 ## Known limits
 

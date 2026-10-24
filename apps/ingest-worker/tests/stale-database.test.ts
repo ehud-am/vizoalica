@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index.js';
 import type { Env, R2Bucket } from '../src/env.js';
+import { D1Repositories } from '../src/storage/d1-repositories.js';
 import { count } from './support/fixtures.js';
 import { d1, freshDatabase } from './support/sqlite-d1.js';
 
@@ -189,5 +190,19 @@ describe('a Worker newer than its database (the update stopped before the migrat
     const response = await admin(env, `/v1/admin/projects/p1/analytics/rage-clicks?${RANGE}`);
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: 'database_update_needed' });
+  });
+
+  it('still expires old data, deletes old salts and counts purge rows when the newest tables are missing', async () => {
+    const { sqlite } = environment(6);
+    sqlite.exec(
+      "INSERT INTO dashboard_minute_totals VALUES ('p1','s1','2025-01-01T00:00:00.000Z',5)"
+    );
+    const repositories = new D1Repositories(d1(sqlite), 'test-digest-secret');
+    await repositories.deleteExpiredDashboardData('2025-12-01T00:00:00.000Z');
+    expect(count(sqlite, 'dashboard_minute_totals')).toBe(0);
+    expect(await repositories.countPurgeRows()).toMatchObject({ dashboard_minute_totals: 0 });
+    expect(await repositories.purgeDeletedRows({ remaining: 1000 })).toMatchObject({
+      complete: true
+    });
   });
 });
