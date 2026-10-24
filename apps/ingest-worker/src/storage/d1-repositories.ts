@@ -18,6 +18,7 @@ import type {
   ActionsReport,
   CampaignsFilters,
   CampaignsReport,
+  RageClicksReport,
   ExcludedHitsReport,
   CustomEventsFilters,
   CustomEventsReport
@@ -42,6 +43,7 @@ import {
   campaignsReportQueries,
   type CampaignItem
 } from './campaign-rollups.js';
+import { rageReportQueries, rageStatements } from './rage-rollups.js';
 import {
   CUSTOM_EVENT_TYPE,
   customEventStatements,
@@ -152,6 +154,7 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_custom_event_properties',
   'dashboard_minute_campaigns',
   'dashboard_minute_campaign_visitors',
+  'dashboard_minute_rage_clicks',
   'dashboard_excluded_hits',
   'dashboard_aggregate_watermarks',
   'quota_windows',
@@ -316,6 +319,7 @@ export class D1Repositories
       identityKind?: 'source-local' | 'project-supplied';
     }> = [];
     const actionItems: ActionItem[] = [];
+    const rageItems: ActionItem[] = [];
     const customItems: CustomEventItem[] = [];
     const campaignItems: CampaignItem[] = [];
     const digest = (...parts: string[]) => hmacDigest(this.analyticsDigestSecret, ...parts);
@@ -325,7 +329,7 @@ export class D1Repositories
       if (eventType === ACTION_EVENT_TYPE) {
         // Actions have their own aggregates; none of the page-view tables below are touched.
         const item = await expandActionEvent(stored, digest, context);
-        if (item) actionItems.push(item);
+        if (item) (item.rage ? rageItems : actionItems).push(item);
         continue;
       }
       const data = stored.event.data as { page?: { url_path?: unknown } };
@@ -436,7 +440,7 @@ export class D1Repositories
         }
       }
     }
-    if (!expanded.length && !actionItems.length && !customItems.length) return;
+    if (!expanded.length && !actionItems.length && !rageItems.length && !customItems.length) return;
 
     const nonce = crypto.randomUUID();
     const seen = [
@@ -446,6 +450,7 @@ export class D1Repositories
         receivedAt: event.receivedAt
       })),
       ...actionItems,
+      ...rageItems,
       ...customItems
     ];
     const statements = seen.map(({ projectId, eventDigest, receivedAt }) =>
@@ -582,6 +587,7 @@ export class D1Repositories
         minute: entry.minute
       })),
       ...actionItems,
+      ...rageItems,
       ...customItems
     ]) {
       const key = `${item.projectId}\0${item.sourceId}`;
@@ -606,19 +612,27 @@ export class D1Repositories
     const releaseNonce = this.db
       .prepare('UPDATE dashboard_seen_events SET request_nonce = NULL WHERE request_nonce = ?')
       .bind(nonce);
-    if (campaignItems.length === 0) {
+    if (campaignItems.length === 0 && rageItems.length === 0) {
       statements.push(releaseNonce);
       await this.runBatch(statements);
       return;
     }
-    // Campaign counts run on their own, after the rest and before the nonce is released, so a
-    // database that has not had migration 0005 yet loses only the campaign counts of this batch,
-    // not the page views, dimensions and visitors recorded alongside them.
+    // Campaign and rage click counts run on their own, after the rest and before the nonce is
+    // released, so a database that has not had migration 0005 or 0007 yet loses only those counts
+    // of this batch, not the page views, dimensions and visitors recorded alongside them.
     await this.runBatch(statements);
     try {
-      await this.runBatch(campaignStatements(this.db, campaignItems, nonce));
-    } catch (error) {
-      if (!isMissingSchema(error)) throw error;
+      for (const later of [
+        campaignItems.length ? campaignStatements(this.db, campaignItems, nonce) : [],
+        rageItems.length ? rageStatements(this.db, rageItems, nonce) : []
+      ]) {
+        if (!later.length) continue;
+        try {
+          await this.runBatch(later);
+        } catch (error) {
+          if (!isMissingSchema(error)) throw error;
+        }
+      }
     } finally {
       await this.runBatch([releaseNonce]);
     }
@@ -1137,6 +1151,33 @@ export class D1Repositories
     return shape(await this.readAll(statements));
   }
 
+  async getRageClicksReport(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters: ActionsFilters = {}
+  ): Promise<RageClicksReport | undefined> {
+    const project = await this.findProject(projectId);
+    if (!project) return undefined;
+    const source = sourceId ? await this.getSource(projectId, sourceId) : undefined;
+    if (sourceId && (!source || source.status === 'deleted')) return undefined;
+    const { statements, shape } = rageReportQueries(this.db, {
+      projectId,
+      sourceId,
+      startUtc,
+      endUtc,
+      filters,
+      scope: {
+        projectId,
+        sourceId: sourceId ?? null,
+        label: source?.name ?? 'All websites',
+        identityMode: 'source-local'
+      }
+    });
+    return shape(await this.readAll(statements));
+  }
+
   /** Today's visitor salt, created on first use; the same value for every caller that day. */
   async dailyVisitorSalt(dayUtc: string): Promise<string | undefined> {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -1171,6 +1212,7 @@ export class D1Repositories
       ['dashboard_minute_custom_event_properties', 'minute_utc'],
       ['dashboard_minute_campaigns', 'minute_utc'],
       ['dashboard_minute_campaign_visitors', 'minute_utc'],
+      ['dashboard_minute_rage_clicks', 'minute_utc'],
       ['dashboard_excluded_hits', 'day_utc'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.

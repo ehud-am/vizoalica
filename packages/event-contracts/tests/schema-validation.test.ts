@@ -87,6 +87,13 @@ describe('action event contract', () => {
     return copy;
   };
 
+  it('accepts the rage flag as true only', () => {
+    expect(validate([withData((data) => (data.action.rage = true))])).toBe(true);
+    expect(validate([withData((data) => (data.action.rage = false))])).toBe(false);
+    expect(validate([withData((data) => (data.action.rage = 'yes'))])).toBe(false);
+    expect(validate([withData((data) => (data.action.rage = 3))])).toBe(false);
+  });
+
   it('accepts a valid action event, with and without a link destination', () => {
     expect(validate([actionEvent])).toBe(true);
     expect(

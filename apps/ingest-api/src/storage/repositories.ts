@@ -14,6 +14,7 @@ import type {
   ActionsReport,
   CampaignsFilters,
   CampaignsReport,
+  RageClicksReport,
   ExcludedHitsReport,
   CustomEventsFilters,
   CustomEventsReport,
@@ -121,6 +122,13 @@ export interface AdminRepository {
     endUtc: string,
     filters?: CampaignsFilters
   ): Promise<CampaignsReport | undefined>;
+  getRageClicksReport?(
+    projectId: string,
+    sourceId: string | undefined,
+    startUtc: string,
+    endUtc: string,
+    filters?: ActionsFilters
+  ): Promise<RageClicksReport | undefined>;
   /** Events dropped for excluded addresses over the last `windowDays` UTC days, today included. */
   getExcludedHits?(
     projectId: string,

@@ -97,7 +97,8 @@ export function buildActionEvent(
     action: {
       name: observation.name,
       kind: observation.kind,
-      ...(observation.destination ? { destination: observation.destination } : {})
+      ...(observation.destination ? { destination: observation.destination } : {}),
+      ...(observation.rage ? { rage: true as const } : {})
     },
     visitor: { anonymous_id: context.anonymousId },
     session: { id: context.sessionId }

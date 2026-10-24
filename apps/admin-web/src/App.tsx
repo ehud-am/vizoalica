@@ -17,6 +17,7 @@ import { ConnectionNotice } from './components/ConnectionNotice.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
 import { CampaignsPage } from './analytics/CampaignsPage.js';
+import { RageClicksPage } from './analytics/RageClicksPage.js';
 import { EventsPage } from './analytics/EventsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
 import { GeographyPage } from './analytics/GeographyPage.js';
@@ -155,6 +156,8 @@ function Console({ route }: { route: Route }) {
               <EventsPage />
             ) : route.path === 'analytics/campaigns' ? (
               <CampaignsPage />
+            ) : route.path === 'analytics/rage-clicks' ? (
+              <RageClicksPage />
             ) : area === 'analytics' ? (
               <AnalyticsProvider comparePrevious={route.path === 'analytics/overview'}>
                 <AnalyticsRoute route={route} />

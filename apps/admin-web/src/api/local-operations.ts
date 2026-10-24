@@ -217,6 +217,25 @@ export type CampaignsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+export type RageClicksReport = {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsOverview['range'];
+  /** `clicks` is every click in the range, bursts excluded. */
+  totals: { bursts: number; clicks: number };
+  trend: Array<{ startUtc: string; bursts: number }>;
+  rows: Array<{
+    page: string;
+    action: string;
+    kind: 'button' | 'link' | 'other';
+    destination?: string;
+    count: number;
+    clicks: number;
+  }>;
+  /** What lies beyond `rows`; keeps the totals exact. */
+  other: { rows: number; count: number };
+  availability: AnalyticsOverview['availability'];
+};
+
 /** What the service said was wrong with one field: its position in a list and why, never its text. */
 export type ApiErrorDetail = { field?: string; reason?: string; index?: number };
 
@@ -393,6 +412,21 @@ export const getAnalyticsCampaigns = (
   if (filters.campaign) query.set('campaign', filters.campaign);
   return request<CampaignsReport>(
     `/api/projects/${encodeURIComponent(projectId)}/analytics/campaigns?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+
+export const getAnalyticsRageClicks = (
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  return request<RageClicksReport>(
+    `/api/projects/${encodeURIComponent(projectId)}/analytics/rage-clicks?${query.toString()}`,
     signal ? { signal } : undefined
   );
 };

@@ -36,6 +36,7 @@ export default {
       getActionsReport: configuration.getActionsReport.bind(configuration),
       getCustomEventsReport: configuration.getCustomEventsReport.bind(configuration),
       getCampaignsReport: configuration.getCampaignsReport.bind(configuration),
+      getRageClicksReport: configuration.getRageClicksReport.bind(configuration),
       getExcludedHits: configuration.getExcludedHits.bind(configuration),
       recordExcludedHits: configuration.recordExcludedHits.bind(configuration),
       deleteExpiredDashboardData: configuration.deleteExpiredDashboardData.bind(configuration),

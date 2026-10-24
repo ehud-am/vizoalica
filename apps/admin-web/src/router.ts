@@ -53,6 +53,14 @@ export const ROUTES = define([
     range: true
   },
   {
+    path: 'analytics/rage-clicks',
+    area: 'analytics',
+    label: 'Rage clicks',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
     path: 'analytics/sources',
     area: 'analytics',
     label: 'Sources',

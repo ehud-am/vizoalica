@@ -1,6 +1,7 @@
 import type {
   ActionsReport,
   CampaignsReport,
+  RageClicksReport,
   CustomEventsReport,
   AnalyticsOverview,
   Integration,
@@ -285,6 +286,44 @@ export function makeCampaignsReport(overrides: Partial<CampaignsReport> = {}): C
       { source: 'twitter', medium: 'social', campaign: '', count: 8, visitors: 6 }
     ],
     other: { rows: 4, count: 3 },
+    availability: { state: 'complete', taxonomyVersions: [1] },
+    ...overrides
+  };
+}
+
+/** A rage clicks report: two controls, with the rest as Other. */
+export function makeRageClicksReport(overrides: Partial<RageClicksReport> = {}): RageClicksReport {
+  return {
+    scope: {
+      projectId: 'p1',
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: '2026-01-01T00:00:00.000Z',
+      endUtc: '2026-01-01T03:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { bursts: 14, clicks: 120 },
+    trend: [
+      { startUtc: '2026-01-01T00:00:00.000Z', bursts: 2 },
+      { startUtc: '2026-01-01T01:00:00.000Z', bursts: 0 },
+      { startUtc: '2026-01-01T02:00:00.000Z', bursts: 12 }
+    ],
+    rows: [
+      { page: '/checkout', action: 'Pay now', kind: 'button', count: 9, clicks: 60 },
+      {
+        page: '/pricing',
+        action: 'Start free trial',
+        kind: 'link',
+        destination: 'https://app.example.com/signup',
+        count: 3,
+        clicks: 0
+      }
+    ],
+    other: { rows: 2, count: 2 },
     availability: { state: 'complete', taxonomyVersions: [1] },
     ...overrides
   };

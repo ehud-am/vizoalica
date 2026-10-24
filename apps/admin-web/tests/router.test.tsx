@@ -256,6 +256,24 @@ describe('router: the Events page', () => {
   });
 });
 
+describe('router: the Rage clicks page', () => {
+  it('is an Analytics navigation item directly after Events, with project-and-website scope and a range', () => {
+    const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);
+    expect(analytics.indexOf('analytics/rage-clicks')).toBe(
+      analytics.indexOf('analytics/events') + 1
+    );
+    expect(routeLabel('analytics/rage-clicks')).toBe('Rage clicks');
+    expect(scopeControls('analytics/rage-clicks')).toBe('project-website');
+    expect(showsRange('analytics/rage-clicks')).toBe(true);
+  });
+
+  it('carries no selection in the address', () => {
+    expect(parseRoute('#/analytics/rage-clicks?page=%2F&action=x')).toEqual({
+      path: 'analytics/rage-clicks'
+    });
+  });
+});
+
 describe('router: the Campaigns page', () => {
   it('is an Analytics navigation item directly after Sources, with project-and-website scope and a range', () => {
     const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);

@@ -19,6 +19,9 @@ Vizoalica is designed to collect minimal product analytics data by default.
 - Campaign labels: the `utm_source`, `utm_medium` and `utm_campaign` of the landing address, cleaned and cut to
   64 characters (see [Campaigns](campaigns.md) and the
   [campaign labels review](../privacy/campaign-labels-review.md)). No other query value is read.
+- Rage clicks: a count of bursts of 3 or more rapid mouse or touch clicks on one button or link, sent as a flag on
+  the click event (see [Rage clicks](rage-clicks.md) and the
+  [rage clicks review](../privacy/rage-clicks-review.md)). No position and no visitor is stored with it.
 - Safe scalar custom properties after filtering.
 
 ## How unique visitors are counted

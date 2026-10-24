@@ -106,7 +106,8 @@ test('the new pages fit at phone width and 200% zoom, and pass axe in both theme
     'manage/websites/site-1',
     'manage/websites/site-1/edit',
     'manage/websites/site-1/install',
-    'analytics/campaigns'
+    'analytics/campaigns',
+    'analytics/rage-clicks'
   ]) {
     await page.goto(`/#/${address}`);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();

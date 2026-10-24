@@ -153,4 +153,41 @@ describe('a Worker newer than its database (the update stopped before the migrat
     expect((await ingest(env, [view('evt-stale-0003')])).status).toBe(202);
     expect(count(sqlite, 'dashboard_minute_totals')).toBe(1);
   });
+
+  it('keeps recording clicks when only the rage click table is missing', async () => {
+    const { env, sqlite } = environment(6);
+    const action = (id: string, rage?: boolean) => ({
+      specversion: '1.0',
+      id,
+      type: 'com.vizoalica.action.v1',
+      source: ORIGIN,
+      time: new Date().toISOString(),
+      datacontenttype: 'application/json',
+      vizoalicaconsent: 'analytics-granted',
+      data: {
+        page: { url_origin: ORIGIN, url_path: '/pricing' },
+        action: { name: 'Pay', kind: 'button', ...(rage ? { rage: true } : {}) },
+        visitor: { anonymous_id: 'anon-1' },
+        session: { id: 'sess-1' }
+      }
+    });
+    expect(
+      (await ingest(env, [action('evt-stale-0010'), action('evt-stale-0011', true)])).status
+    ).toBe(202);
+    expect(
+      sqlite.prepare('SELECT SUM(event_count) AS n FROM dashboard_minute_actions').get()
+    ).toEqual({ n: 1 });
+    expect(
+      sqlite
+        .prepare('SELECT COUNT(*) AS n FROM dashboard_seen_events WHERE request_nonce IS NOT NULL')
+        .get()
+    ).toEqual({ n: 0 });
+  });
+
+  it('answers the rage clicks report with a clear 503', async () => {
+    const { env } = environment(6);
+    const response = await admin(env, `/v1/admin/projects/p1/analytics/rage-clicks?${RANGE}`);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: 'database_update_needed' });
+  });
 });
