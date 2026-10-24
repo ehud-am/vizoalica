@@ -37,6 +37,8 @@ export interface ActionOptions {
   name?: string;
   kind?: string;
   destination?: { url_origin: string; url_path: string };
+  /** A rage click signal rather than a click. */
+  rage?: boolean;
   visitor?: string;
   at?: string;
   project?: string;
@@ -49,6 +51,7 @@ export function actionEvent(id: string, options: ActionOptions = {}): StoredEven
     name = 'Go',
     kind = 'button',
     destination,
+    rage = false,
     visitor = 'anon-1',
     at = AT,
     project = 'p1',
@@ -65,7 +68,12 @@ export function actionEvent(id: string, options: ActionOptions = {}): StoredEven
       type: 'com.vizoalica.action.v1',
       data: {
         page: { url_origin: 'https://example.com', url_path: page },
-        action: { name, kind, ...(destination ? { destination } : {}) },
+        action: {
+          name,
+          kind,
+          ...(destination ? { destination } : {}),
+          ...(rage ? { rage: true } : {})
+        },
         visitor: { anonymous_id: visitor },
         session: { id: 'sess-1' }
       }

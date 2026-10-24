@@ -22,6 +22,7 @@ import {
   analytics,
   analyticsActions,
   analyticsCampaigns,
+  analyticsRageClicks,
   analyticsCustomEvents,
   analyticsOverview
 } from './routes/analytics.js';
@@ -300,6 +301,28 @@ export function createLocalServer(options: ServerOptions) {
                 : {}),
               ...(url.searchParams.get('campaign') !== null
                 ? { campaign: url.searchParams.get('campaign')! }
+                : {})
+            }
+          )
+        );
+      }
+      const rageMatch = /^\/api\/projects\/([^/]+)\/analytics\/rage-clicks$/.exec(url.pathname);
+      if (request.method === 'GET' && rageMatch) {
+        return send(
+          response,
+          200,
+          await analyticsRageClicks(
+            client,
+            rageMatch[1]!,
+            url.searchParams.get('source_id') ?? undefined,
+            url.searchParams.get('start') ?? '',
+            url.searchParams.get('end') ?? '',
+            {
+              ...(url.searchParams.get('page') !== null
+                ? { page: url.searchParams.get('page')! }
+                : {}),
+              ...(url.searchParams.get('action') !== null
+                ? { action: url.searchParams.get('action')! }
                 : {})
             }
           )

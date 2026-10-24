@@ -197,6 +197,26 @@ describe('applying the real migrations', () => {
     ).toThrow();
   });
 
+  it('0007 adds the rage click tables only, starts availability now, and refuses a negative count', () => {
+    const sqlite = freshDatabase({ upTo: 6 });
+    const before = tableNames(sqlite);
+    sqlite.exec(readFileSync(join(migrationsDir, '0007_rage_click_reports.sql'), 'utf8'));
+    expect(tableNames(sqlite).filter((name) => !before.includes(name))).toEqual([
+      'dashboard_minute_rage_clicks',
+      'dashboard_rage_click_availability'
+    ]);
+    expect(
+      sqlite.prepare('SELECT available_from_utc AS at FROM dashboard_rage_click_availability').get()
+    ).toEqual({ at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/) });
+    expect(() =>
+      sqlite.exec(
+        "INSERT INTO dashboard_minute_rage_clicks VALUES ('p','s','m','/','a','button','',-1)"
+      )
+    ).toThrow();
+    // No visitor column: a burst is a count, not a person.
+    expect(columnList(sqlite, 'dashboard_minute_rage_clicks')).not.toContain('visitor_digest');
+  });
+
   it('upgrades a real 0.5.2 database through every later migration to the same schema as a new install', () => {
     const upgraded = new DatabaseSync(':memory:');
     upgraded.exec(

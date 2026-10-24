@@ -60,6 +60,11 @@ export interface ActionData {
     kind: ActionKind;
     /** Links only; origin and page-key path, never a query. */
     destination?: { url_origin: string; url_path: string };
+    /**
+     * True on the extra event sent when a burst of rapid clicks hits one control. It is a signal
+     * about the clicks already recorded, not another click.
+     */
+    rage?: true;
   };
   visitor: { anonymous_id: string };
   session: { id: string };

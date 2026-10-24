@@ -1,4 +1,5 @@
 import { watchActions } from './actions.js';
+import type { ActionData } from '@vizoalica/event-contracts';
 import {
   buildActionEvent,
   buildCustomEvent,
@@ -62,8 +63,13 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
     const events = queue.drain(25);
     // Actions go in their own batch. A backend that does not know the action type rejects that
     // batch outright, and page views must not be lost with it.
+    // Rage clicks are a third batch for the same reason: a backend older than the rage report
+    // rejects them, and the clicks recorded alongside must still arrive.
+    const isRage = (event: VizoalicaEvent) =>
+      event.type === ACTION_EVENT && (event.data as ActionData).action.rage === true;
     await send(events.filter((event) => event.type !== ACTION_EVENT));
-    await send(events.filter((event) => event.type === ACTION_EVENT));
+    await send(events.filter((event) => event.type === ACTION_EVENT && !isRage(event)));
+    await send(events.filter(isRage));
   }
 
   const watchers: Array<() => void> = [];

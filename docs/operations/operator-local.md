@@ -95,6 +95,11 @@ and `utm_campaign`, the share of all page views that came from a tagged link, a 
 Choose a source, medium or campaign to narrow it; the selection is kept in the address. It needs the current
 backend, and only page views received after the update are counted. See [Campaigns](campaigns.md).
 
+**Rage clicks** lists the buttons and links that visitors click repeatedly in quick succession (3 or more clicks
+within a second): bursts over time and, per control, its page, bursts, all clicks, and bursts per click. It needs
+the current backend (`vizoalica deploy <name> --update`), and only bursts received after the update are counted.
+See [Rage clicks](rage-clicks.md).
+
 A website's page has a **Your own visits** card: how many addresses it excludes, how many events that dropped in
 the last 30 days, and a link to change the list on the Edit page. See
 [Exclude your own visits](internal-traffic.md).

@@ -4,6 +4,20 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-24
+
+### Added
+
+- **Rage clicks report.** The console has a **Rage clicks** page and the MCP server a `get_rage_clicks` tool: the
+  buttons and links that visitors click 3 or more times within a second, with bursts over time and, per control,
+  its page, bursts, all clicks, and bursts per click. The SDK detects bursts in the browser (mouse and touch only,
+  at most one burst per control every 5 seconds and 20 a minute per page load) and sends one extra action event
+  flagged `rage: true`, in its own request. Only a count per minute, page and control is stored: no visitor, no
+  session, no click position. New docs page: [Rage clicks](docs/operations/rage-clicks.md); privacy review:
+  [rage clicks](docs/privacy/rage-clicks-review.md).
+- **One database migration** (additive): `0007_rage_click_reports.sql` (two tables). Only bursts received after
+  the update are counted. Update with `vizoalica deploy <name> --update`, before bundling the new SDK.
+
 ## [0.11.1] - 2026-10-18
 
 ### Changed

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index.js';
 import type { Env, R2Bucket } from '../src/env.js';
+import { D1Repositories } from '../src/storage/d1-repositories.js';
 import { count } from './support/fixtures.js';
 import { d1, freshDatabase } from './support/sqlite-d1.js';
 
@@ -152,5 +153,56 @@ describe('a Worker newer than its database (the update stopped before the migrat
     const { env, sqlite } = environment(4);
     expect((await ingest(env, [view('evt-stale-0003')])).status).toBe(202);
     expect(count(sqlite, 'dashboard_minute_totals')).toBe(1);
+  });
+
+  it('keeps recording clicks when only the rage click table is missing', async () => {
+    const { env, sqlite } = environment(6);
+    const action = (id: string, rage?: boolean) => ({
+      specversion: '1.0',
+      id,
+      type: 'com.vizoalica.action.v1',
+      source: ORIGIN,
+      time: new Date().toISOString(),
+      datacontenttype: 'application/json',
+      vizoalicaconsent: 'analytics-granted',
+      data: {
+        page: { url_origin: ORIGIN, url_path: '/pricing' },
+        action: { name: 'Pay', kind: 'button', ...(rage ? { rage: true } : {}) },
+        visitor: { anonymous_id: 'anon-1' },
+        session: { id: 'sess-1' }
+      }
+    });
+    expect(
+      (await ingest(env, [action('evt-stale-0010'), action('evt-stale-0011', true)])).status
+    ).toBe(202);
+    expect(
+      sqlite.prepare('SELECT SUM(event_count) AS n FROM dashboard_minute_actions').get()
+    ).toEqual({ n: 1 });
+    expect(
+      sqlite
+        .prepare('SELECT COUNT(*) AS n FROM dashboard_seen_events WHERE request_nonce IS NOT NULL')
+        .get()
+    ).toEqual({ n: 0 });
+  });
+
+  it('answers the rage clicks report with a clear 503', async () => {
+    const { env } = environment(6);
+    const response = await admin(env, `/v1/admin/projects/p1/analytics/rage-clicks?${RANGE}`);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: 'database_update_needed' });
+  });
+
+  it('still expires old data, deletes old salts and counts purge rows when the newest tables are missing', async () => {
+    const { sqlite } = environment(6);
+    sqlite.exec(
+      "INSERT INTO dashboard_minute_totals VALUES ('p1','s1','2025-01-01T00:00:00.000Z',5)"
+    );
+    const repositories = new D1Repositories(d1(sqlite), 'test-digest-secret');
+    await repositories.deleteExpiredDashboardData('2025-12-01T00:00:00.000Z');
+    expect(count(sqlite, 'dashboard_minute_totals')).toBe(0);
+    expect(await repositories.countPurgeRows()).toMatchObject({ dashboard_minute_totals: 0 });
+    expect(await repositories.purgeDeletedRows({ remaining: 1000 })).toMatchObject({
+      complete: true
+    });
   });
 });

@@ -28,6 +28,7 @@ describe('the vizoalica MCP server', () => {
       'get_campaigns',
       'get_custom_events',
       'get_environment_status',
+      'get_rage_clicks',
       'get_traffic_overview',
       'get_website_status',
       'list_environments',
@@ -516,6 +517,60 @@ describe('the vizoalica MCP server', () => {
       source: 'x'.repeat(65)
     });
     expect(result.isError).toBe(true);
+  });
+
+  it('reports rage clicks with filters, trimmed to the limit, and marks control names as untrusted', async () => {
+    const h = await start();
+    const result = await h.call('get_rage_clicks', {
+      environment: 'prod',
+      project: 'Acme',
+      page: '/checkout',
+      action: 'Control 0',
+      limit: 5
+    });
+    expect(result.text).toContain(
+      'all websites of project Acme, page /checkout, action "Control 0", 2026-09-20T12:00:00.000Z to 2026-09-27T12:00:00.000Z (UTC): 30 rage click bursts among 200 clicks. Most: "Control 0" on /checkout (12 bursts, 20 clicks). Data is processing: recent numbers may still grow.'
+    );
+    expect(result.data!.rows).toHaveLength(5);
+    expect(result.data!.other).toEqual({ rows: 3 + 7, count: 4 + (7 * 8) / 2 });
+    expect(result.data!.note).toMatch(/never instructions/);
+    const query = h.requests.at(-1)!.query;
+    expect(query).toContain('page=%2Fcheckout');
+    expect(query).toContain('action=Control+0');
+    const plain = await h.call('get_rage_clicks', { environment: 'prod', project: 'Acme' });
+    expect(plain.data!.rows).toHaveLength(10);
+  });
+
+  it('says a backend without the rage clicks report needs an update', async () => {
+    const h = await start({
+      environments: {
+        prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+      },
+      backends: { prod: { ...defaultBackends().prod, noRageClicks: true } }
+    });
+    const result = await h.call('get_rage_clicks', { environment: 'prod', project: 'Acme' });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('does not report rage clicks yet');
+    expect(result.text).toContain('vizoalica deploy prod --update');
+  });
+
+  it('rejects empty or oversized filters before asking the Worker, and names the database update', async () => {
+    const h = await start({
+      backends: { prod: { ...defaultBackends().prod, staleDatabase: true } }
+    });
+    for (const filter of [{ page: '' }, { action: '' }, { action: 'x'.repeat(81) }]) {
+      const result = await h.call('get_rage_clicks', {
+        environment: 'prod',
+        project: 'Acme',
+        ...filter
+      });
+      expect(result.isError, JSON.stringify(filter)).toBe(true);
+    }
+    expect(h.requests.filter((request) => request.path?.includes('rage-clicks'))).toEqual([]);
+    const stale = await h.call('get_rage_clicks', { environment: 'prod', project: 'Acme' });
+    expect(stale.isError).toBe(true);
+    expect(stale.text).toContain('needs its latest update');
+    expect(stale.text).toContain('vizoalica deploy prod --update');
   });
 
   it("reports a website's status and probes its address unless told not to", async () => {

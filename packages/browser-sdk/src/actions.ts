@@ -14,6 +14,11 @@ export interface ActionObservation {
   /** The page key the action happened on. */
   page: string;
   destination?: { url_origin: string; url_path: string };
+  /**
+   * Set on the extra observation sent when a burst of rapid clicks hits one control. It is not
+   * another click: the clicks themselves are recorded as usual.
+   */
+  rage?: true;
 }
 
 const ELIGIBLE = [
@@ -37,6 +42,12 @@ const DUPLICATE_WINDOW_MS = 500;
 // handling it. The gap between pressing and clicking is normally well under a second.
 const INTERACTION_WINDOW_MS = 5000;
 const MAX_ACTIONS_PER_MINUTE = 100;
+// Rage clicks: this many mouse or touch clicks on one control within the window is one burst. A
+// control reports at most one burst per cooldown, and all controls together at most 20 a minute.
+const RAGE_CLICKS = 3;
+const RAGE_WINDOW_MS = 1000;
+const RAGE_COOLDOWN_MS = 5000;
+const MAX_RAGE_PER_MINUTE = 20;
 const FALLBACK_NAME: Record<ActionKind, string> = {
   button: 'Unlabeled button',
   link: 'Unlabeled link',
@@ -106,6 +117,8 @@ export function watchActions(
   const now = options.now ?? (() => Date.now());
   const recent = new Map<string, number>();
   const stamps: number[] = [];
+  const bursts = new Map<string, { clicks: number[]; reportedAt?: number }>();
+  const rageStamps: number[] = [];
   let interaction: { page: string; at: number } | undefined;
 
   // Single-page routers commonly handle a link click in a capture listener on `window`, which runs
@@ -117,6 +130,26 @@ export function watchActions(
     } catch {
       interaction = undefined;
     }
+  };
+
+  // True when this click completes a burst on the control, at most once per cooldown. It runs
+  // before the duplicate filter, which would otherwise drop the quick repeats that make a burst.
+  const rageOf = (key: string, time: number): boolean => {
+    const burst = bursts.get(key) ?? { clicks: [] };
+    burst.clicks = burst.clicks.filter((at) => time - at < RAGE_WINDOW_MS);
+    burst.clicks.push(time);
+    bursts.set(key, burst);
+    if (bursts.size > 200)
+      for (const [stale, entry] of bursts)
+        if (!entry.clicks.some((at) => time - at < RAGE_COOLDOWN_MS)) bursts.delete(stale);
+    if (burst.clicks.length < RAGE_CLICKS) return false;
+    if (burst.reportedAt !== undefined && time - burst.reportedAt < RAGE_COOLDOWN_MS) return false;
+    while (rageStamps.length && time - rageStamps[0]! >= 60_000) rageStamps.shift();
+    if (rageStamps.length >= MAX_RAGE_PER_MINUTE) return false;
+    rageStamps.push(time);
+    burst.reportedAt = time;
+    burst.clicks = [];
+    return true;
   };
 
   const handler = (event: Event) => {
@@ -140,6 +173,9 @@ export function watchActions(
       interaction = undefined;
 
       const key = [page, name, kind, destination?.url_origin, destination?.url_path].join('\0');
+      // Mouse and touch only: a held key repeats clicks (detail 0) and is not frustration.
+      if (((event as MouseEvent).detail ?? 0) > 0 && rageOf(key, time))
+        onAction({ name, kind, page, ...(destination ? { destination } : {}), rage: true });
       const previous = recent.get(key);
       recent.set(key, time);
       if (recent.size > 200)

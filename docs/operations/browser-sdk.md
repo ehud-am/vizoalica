@@ -185,6 +185,13 @@ minute per page load. Actions are sent in their own requests, so a backend that 
 about them can never delay or lose page views: a batch the backend rejects as invalid or too large
 (HTTP 400 or 413) is dropped rather than retried forever. Upgrade the backend before the SDK file.
 
+### Rage clicks
+
+When a button or link gets 3 or more mouse or touch clicks within a second, the SDK sends one extra action event
+flagged `rage: true` (at most one per control every 5 seconds, 20 a minute per page load). Keyboard activation
+never counts. The burst goes in its own request, so a backend older than 0.12 rejects only the burst. See
+[Rage clicks](rage-clicks.md).
+
 ## Naming and excluding controls
 
 ```html

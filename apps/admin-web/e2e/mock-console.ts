@@ -162,6 +162,35 @@ function campaignsReport(url: URL) {
   };
 }
 
+/** The rage clicks report. */
+function rageClicksReport(url: URL) {
+  return {
+    scope: {
+      projectId: project.id,
+      sourceId: null,
+      label: 'All websites',
+      identityMode: 'source-local'
+    },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'hour',
+      timezone: 'UTC'
+    },
+    totals: { bursts: 12, clicks: 90 },
+    trend: [
+      { startUtc: '2026-09-10T00:00:00.000Z', bursts: 4 },
+      { startUtc: '2026-09-10T01:00:00.000Z', bursts: 8 }
+    ],
+    rows: [
+      { page: '/checkout', action: 'Pay now', kind: 'button', count: 9, clicks: 60 },
+      { page: '/pricing', action: 'Start free trial', kind: 'link', count: 3, clicks: 30 }
+    ],
+    other: { rows: 0, count: 0 },
+    availability: { state: 'complete', taxonomyVersions: [1] }
+  };
+}
+
 const eventTotals = [
   { event: 'signup', count: 30, visitors: 22, pages: 2 },
   { event: 'file_download', count: 12, visitors: 9, pages: 1 }
@@ -602,6 +631,7 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
     else if (path.endsWith('/analytics/actions')) body = actionsReport(url);
     else if (path.endsWith('/analytics/custom-events')) body = customEventsReport(url);
     else if (path.endsWith('/analytics/campaigns')) body = campaignsReport(url);
+    else if (path.endsWith('/analytics/rage-clicks')) body = rageClicksReport(url);
     else if (path.endsWith('/analytics'))
       body = overview(
         url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
