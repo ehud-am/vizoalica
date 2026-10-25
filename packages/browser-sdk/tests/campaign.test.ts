@@ -27,7 +27,7 @@ function start(options: Record<string, unknown> = {}) {
 describe('campaign labels on the landing page view', () => {
   it('sends the cleaned UTM labels and no other query value', async () => {
     setUrl(
-      '/?utm_source=Newsletter&utm_medium=email&utm_campaign=Spring-Sale&utm_term=shoes&token=secret-valuetoken=abc&email=a@b.co'
+      '/?utm_source=Newsletter&utm_medium=email&utm_campaign=Spring-Sale&utm_term=shoes&token=secret-value&email=a@b.co'
     );
     const { captured, client } = start();
     await client.flush();
