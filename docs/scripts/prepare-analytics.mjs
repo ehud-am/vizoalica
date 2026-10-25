@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DIST = join(ROOT, 'docs/.vitepress/dist');
 
-const REQUIRED = ['VIZOALICA_INGEST_ENDPOINT', 'VIZOALICA_PUBLIC_SOURCE_KEY'];
+const REQUIRED = ['VIZOALICA_INGEST_ENDPOINT', 'VIZOALICA_WEBSITE_KEY'];
 
 export function prepare(input = process.env, root = ROOT, dist = DIST) {
   // A variable that is set but empty counts as not set, as GitHub passes an unset variable as "".

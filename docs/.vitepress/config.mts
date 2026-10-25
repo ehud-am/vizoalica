@@ -55,15 +55,15 @@ function linkOutsideDocsToGithub(md: MarkdownRenderer): void {
 export default defineConfig({
   base: BASE,
   // The consent prompt and the analytics script exist only when the site is built for a Vizoalica
-  // backend (VIZOALICA_INGEST_ENDPOINT and VIZOALICA_PUBLIC_SOURCE_KEY set, both public). Without
+  // backend (VIZOALICA_INGEST_ENDPOINT and VIZOALICA_WEBSITE_KEY set, both public). Without
   // them the site is exactly as before: no prompt, no analytics.
   vite: {
     define: {
       __VIZOALICA_ANALYTICS__: JSON.stringify(
-        Boolean(process.env.VIZOALICA_INGEST_ENDPOINT && process.env.VIZOALICA_PUBLIC_SOURCE_KEY)
+        Boolean(process.env.VIZOALICA_INGEST_ENDPOINT && process.env.VIZOALICA_WEBSITE_KEY)
       ),
       __VIZOALICA_ENDPOINT__: JSON.stringify(process.env.VIZOALICA_INGEST_ENDPOINT ?? ''),
-      __VIZOALICA_SOURCE__: JSON.stringify(process.env.VIZOALICA_PUBLIC_SOURCE_KEY ?? '')
+      __VIZOALICA_SOURCE__: JSON.stringify(process.env.VIZOALICA_WEBSITE_KEY ?? '')
     }
   },
   title: 'Vizoalica',

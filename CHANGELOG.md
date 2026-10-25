@@ -4,6 +4,23 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-25
+
+### Fixed
+
+- **Security updates.** `undici` 7.30.1 (through `wrangler`'s local runtime; one high, two moderate advisories),
+  `fast-uri` 3.1.9 (through `ajv`; four moderate and low advisories) and `ip-address` 10.7.4 (through the MCP SDK;
+  one moderate advisory). No database migration and no change to behavior; the Worker is rebuilt.
+- **Dependabot security updates** failed on `main` because the `vitest` and `@vitest/coverage-v8` versions were
+  pinned apart; both are now 4.1.12.
+
+### Changed
+
+- **The documentation site sends unsigned events** (`data-token-url="none"`): no token endpoint, Pages Function or
+  signing secret. Its workflow reads the public settings from repository variables, and accepts
+  `VIZOALICA_WEBSITE_KEY` (the older `VIZOALICA_PUBLIC_SOURCE_KEY` still works).
+- **Accessibility:** the docs search button and the console's install-path tabs are named by their visible text.
+
 ## [0.12.0] - 2026-10-24
 
 ### Added

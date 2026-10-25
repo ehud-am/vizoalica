@@ -7,7 +7,7 @@ import { prepare } from '../scripts/prepare-analytics.mjs';
 
 const settings = {
   VIZOALICA_INGEST_ENDPOINT: 'https://ingest.example.test/v1/events:batch',
-  VIZOALICA_PUBLIC_SOURCE_KEY: 'public-key'
+  VIZOALICA_WEBSITE_KEY: 'public-key'
 };
 
 function workspace() {
@@ -39,7 +39,7 @@ describe('adding analytics to the built docs site', () => {
     const { root, dist } = workspace();
     expect(() =>
       prepare({ VIZOALICA_INGEST_ENDPOINT: settings.VIZOALICA_INGEST_ENDPOINT }, root, dist)
-    ).toThrow(/Missing: VIZOALICA_PUBLIC_SOURCE_KEY/);
+    ).toThrow(/Missing: VIZOALICA_WEBSITE_KEY/);
     const empty = mkdtempSync(join(tmpdir(), 'docs-analytics-'));
     mkdirSync(join(empty, 'dist'));
     expect(() => prepare(settings, empty, join(empty, 'dist'))).toThrow(/browser-sdk:build/);
