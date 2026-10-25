@@ -54,12 +54,16 @@ function linkOutsideDocsToGithub(md: MarkdownRenderer): void {
 
 export default defineConfig({
   base: BASE,
-  // The consent prompt and the analytics loader exist only when the site is built for a Vizoalica
-  // backend (VIZOALICA_INGEST_ENDPOINT set). Without it the site is exactly as before: no prompt,
-  // no analytics.
+  // The consent prompt and the analytics script exist only when the site is built for a Vizoalica
+  // backend (VIZOALICA_INGEST_ENDPOINT and VIZOALICA_PUBLIC_SOURCE_KEY set, both public). Without
+  // them the site is exactly as before: no prompt, no analytics.
   vite: {
     define: {
-      __VIZOALICA_ANALYTICS__: JSON.stringify(Boolean(process.env.VIZOALICA_INGEST_ENDPOINT))
+      __VIZOALICA_ANALYTICS__: JSON.stringify(
+        Boolean(process.env.VIZOALICA_INGEST_ENDPOINT && process.env.VIZOALICA_PUBLIC_SOURCE_KEY)
+      ),
+      __VIZOALICA_ENDPOINT__: JSON.stringify(process.env.VIZOALICA_INGEST_ENDPOINT ?? ''),
+      __VIZOALICA_SOURCE__: JSON.stringify(process.env.VIZOALICA_PUBLIC_SOURCE_KEY ?? '')
     }
   },
   title: 'Vizoalica',
@@ -111,7 +115,12 @@ export default defineConfig({
     nav,
     sidebar,
     socialLinks: [{ icon: 'github', link: REPO, ariaLabel: 'Vizoalica on GitHub' }],
-    search: { provider: 'local' },
+    // An empty label leaves the button named by its visible text ("Search" and the shortcut), which is
+    // what voice-control users say; a fixed "Search" label hides the shortcut from the name.
+    search: {
+      provider: 'local',
+      options: { translations: { button: { buttonText: 'Search', buttonAriaLabel: '' } } }
+    },
     editLink: { pattern: `${REPO}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     outline: { level: [2, 3], label: 'On this page' },
     footer: {

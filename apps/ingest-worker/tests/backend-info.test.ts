@@ -42,15 +42,16 @@ describe('GET /v1/admin/backend', () => {
     expect(await response.json()).toEqual({
       workerVersion: '0.6.4',
       schema: {
-        applied: 6,
-        expected: 6,
+        applied: 7,
+        expected: 7,
         appliedNames: [
           '0001_initial.sql',
           '0002_access_keys.sql',
           '0003_static_sites_daily_visitors.sql',
           '0004_custom_event_reports.sql',
           '0005_campaign_reports.sql',
-          '0006_internal_traffic_exclusion.sql'
+          '0006_internal_traffic_exclusion.sql',
+          '0007_rage_click_reports.sql'
         ],
         status: 'current'
       },

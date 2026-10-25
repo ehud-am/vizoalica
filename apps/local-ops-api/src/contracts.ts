@@ -2,6 +2,7 @@ import type {
   ActionsReport as WorkerActionsReport,
   CampaignsReport as WorkerCampaignsReport,
   CustomEventsReport as WorkerCustomEventsReport,
+  RageClicksReport as WorkerRageClicksReport,
   ExcludedHitsReport as WorkerExcludedHitsReport,
   AnalyticsOverview as WorkerAnalyticsOverview
 } from '../../ingest-api/src/domain/types.js';
@@ -182,6 +183,7 @@ export type AnalyticsOverview = WorkerAnalyticsOverview;
 export type ActionsReport = WorkerActionsReport;
 export type CustomEventsReport = WorkerCustomEventsReport;
 export type CampaignsReport = WorkerCampaignsReport;
+export type RageClicksReport = WorkerRageClicksReport;
 export type ExcludedHitsReport = WorkerExcludedHitsReport;
 
 export type Theme = 'light' | 'dark';

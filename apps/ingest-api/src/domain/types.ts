@@ -193,6 +193,32 @@ export interface ActionsReport {
   availability: AnalyticsOverview['availability'];
 }
 
+/** One control of the rage clicks report. */
+export interface RageClickRow {
+  page: string;
+  action: string;
+  kind: ActionKindName;
+  /** Links only: origin plus path, never a query. */
+  destination?: string;
+  /** Bursts of rapid clicks on this control. */
+  count: number;
+  /** All clicks on the same control, page and range, so a rate can be shown. */
+  clicks: number;
+}
+
+export interface RageClicksReport {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  /** `clicks` is every click in the range and selection, bursts included. */
+  totals: { bursts: number; clicks: number };
+  trend: Array<{ startUtc: string; bursts: number }>;
+  /** At most 50 controls, most bursts first. */
+  rows: RageClickRow[];
+  /** What is beyond `rows`, so `sum(rows.count) + other.count` is exactly `totals.bursts`. */
+  other: { rows: number; count: number };
+  availability: AnalyticsOverview['availability'];
+}
+
 export interface CustomEventsFilters {
   /** Exact event name. */
   event?: string;

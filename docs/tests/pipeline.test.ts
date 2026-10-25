@@ -29,47 +29,34 @@ describe('docs site pipeline', () => {
     for (const action of uses) expect(action, action).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
   });
 
-  // Public identifiers (the ingest address, project, source and public key, and the account ID) may
-  // be kept as secrets for preference; what matters is that the two credentials never spread.
-  const IDENTIFIERS = [
-    'CF_ACCOUNT_ID',
-    'VIZOALICA_INGEST_ENDPOINT',
-    'VIZOALICA_PROJECT_ID',
-    'VIZOALICA_PUBLIC_SOURCE_KEY',
-    'VIZOALICA_SOURCE_ID'
-  ];
-  const CREDENTIALS = ['CF_DOCS_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'];
+  // The ingest address, the website key and the account ID are public: they are set as variables
+  // (a secret of the same name also works). What must never spread is the one credential.
+  const IDENTIFIERS = ['CF_ACCOUNT_ID', 'VIZOALICA_INGEST_ENDPOINT', 'VIZOALICA_PUBLIC_SOURCE_KEY'];
+  const CREDENTIAL = 'CF_DOCS_API_TOKEN';
 
-  it('keeps the two credentials out of the build job and in exactly one publish step', () => {
+  it('keeps the credential out of the build job and in exactly one publish step', () => {
     expect(buildJob).not.toContain('secrets.');
     expect(buildJob).not.toContain('CLOUDFLARE_API_TOKEN');
-    // Only these secrets exist in the workflow: the two credentials and the public identifiers.
+    // Only the Cloudflare token and the public identifiers (as fallbacks to variables) are secrets.
     const used = new Set([...workflow.matchAll(/secrets\.(\w+)/g)].map((match) => match[1]!));
-    expect([...used].sort()).toEqual([...CREDENTIALS, ...IDENTIFIERS].sort());
-    // Each credential is named once, in the one publish step: the Cloudflare token, and the analytics
-    // signing secret that is handed to Cloudflare Pages.
-    for (const name of CREDENTIALS)
-      expect(workflow.match(new RegExp(`secrets\\.${name}\\b`, 'g')), name).toHaveLength(1);
+    expect([...used].sort()).toEqual([CREDENTIAL, ...IDENTIFIERS].sort());
+    expect(workflow.match(new RegExp(`secrets\\.${CREDENTIAL}\\b`, 'g'))).toHaveLength(1);
     const [beforePublish, publishStep] = publishJob.split('- name: Publish\n') as [string, string];
-    for (const name of CREDENTIALS) expect(beforePublish).not.toContain(name);
+    expect(beforePublish).not.toContain(CREDENTIAL);
     expect(publishStep).toMatch(
       /env:\n\s+CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CF_DOCS_API_TOKEN \}\}/
     );
-    expect(publishStep).toContain('VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}');
   });
 
-  it('adds analytics only from public values, and never writes the signing secret to a file', () => {
+  it('has no token endpoint and no signing secret: the site sends unsigned events', () => {
+    expect(workflow).not.toMatch(/TOKEN_SECRET|ingest-token|pages secret put/);
     expect(publishJob).toContain('node docs/scripts/prepare-analytics.mjs');
     const addStep = publishJob
       .split('- name: Add Vizoalica analytics\n')[1]!
       .split('# The Cloudflare')[0]!;
-    // Public identifiers only: neither credential reaches the step that writes the configuration file.
-    for (const name of CREDENTIALS) expect(addStep).not.toContain(name);
+    expect(addStep).not.toContain(CREDENTIAL);
     for (const match of addStep.matchAll(/secrets\.(\w+)/g))
       expect(IDENTIFIERS, match[1]).toContain(match[1]);
-    expect(publishJob).toMatch(
-      /printf '%s' "\$VIZOALICA_TOKEN_SECRET" \| pnpm exec wrangler pages secret put/
-    );
     expect(publishJob).not.toMatch(/>\s*\S*wrangler\.toml/);
   });
 

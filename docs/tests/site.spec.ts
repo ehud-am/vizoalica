@@ -16,10 +16,13 @@ const PAGES = [
   '/privacy/action-collection-review',
   '/privacy/access-keys-review',
   '/privacy/campaign-labels-review',
+  '/privacy/rage-clicks-review',
   '/privacy/internal-traffic-review',
   '/operations/campaigns',
+  '/operations/rage-clicks',
   '/operations/internal-traffic',
   '/brand',
+  '/releases/v0.12.0',
   '/releases/v0.11.1',
   '/releases/v0.11.0',
   '/releases/v0.10.0',
@@ -104,8 +107,8 @@ for (const scheme of ['light', 'dark'] as const) {
 test('loads nothing from another origin, and the Content-Security-Policy blocks nothing it needs', async ({
   page
 }) => {
-  // Analytics is on by default, and the placeholder build has no loader, so give the page an inert one.
-  await page.route('**/vizoalica-loader.js', (route) =>
+  // Analytics is on by default, and the placeholder build has no SDK, so give the page an inert one.
+  await page.route('**/vizoalica.js', (route) =>
     route.fulfill({ contentType: 'text/javascript', body: '' })
   );
   const problems = await collectProblems(page);
@@ -260,11 +263,14 @@ test.describe('analytics consent', () => {
     );
   });
 
-  test('is on by default: the loader runs without a prompt, and it can be turned off', async ({
+  test('is on by default: the SDK loads without a prompt, and it can be turned off', async ({
     page
   }) => {
-    await page.route('**/vizoalica-loader.js', (route) =>
-      route.fulfill({ contentType: 'text/javascript', body: 'window.__loaderRan = true;' })
+    await page.route('**/vizoalica.js', (route) =>
+      route.fulfill({
+        contentType: 'text/javascript',
+        body: 'window.__loaderRan = document.currentScript.dataset.tokenUrl === "none";'
+      })
     );
     await page.reload();
     await expect(page.getByRole('region', { name: /improve these docs/i })).toHaveCount(0);
@@ -278,12 +284,12 @@ test.describe('analytics consent', () => {
   test('"Turn off" is remembered and loads nothing afterwards', async ({ page }) => {
     const requested: string[] = [];
     await page.getByRole('button', { name: 'Analytics: on. Change' }).click();
-    await page.getByRole('button', { name: 'Turn off' }).click(); // reloads without the loader
+    await page.getByRole('button', { name: 'Turn off' }).click(); // reloads without the SDK
     await page.waitForLoadState('load');
     page.on('request', (request) => requested.push(request.url()));
     await page.reload();
     await expect(page.getByRole('button', { name: 'Analytics: off. Change' })).toBeVisible();
     await page.waitForLoadState('networkidle');
-    expect(requested.filter((url) => /vizoalica-loader/.test(url))).toEqual([]);
+    expect(requested.filter((url) => /vizoalica\.js/.test(url))).toEqual([]);
   });
 });

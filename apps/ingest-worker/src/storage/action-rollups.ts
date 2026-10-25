@@ -32,6 +32,8 @@ export interface ActionItem {
   eventDigest: string;
   visitorDigest?: string;
   identityKind?: 'source-local' | 'project-supplied';
+  /** A burst signal, not a click: counted by the rage rollup only. */
+  rage?: true;
 }
 
 const keyOf = (item: ActionItem) =>
@@ -112,6 +114,7 @@ export async function expandActionEvent(
     kind: kind as ActionKindName,
     destination,
     eventDigest: await digest('event-v1', stored.projectId, event.id),
+    ...(data?.action?.rage === true ? { rage: true as const } : {}),
     ...(visitorDigest ? { visitorDigest, identityKind } : {})
   };
 }

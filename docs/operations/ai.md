@@ -66,6 +66,7 @@ Environment: prod (admin, https://analytics.example.com; default: the one last u
 | `get_actions`            | Clicks on buttons and links, by page                                                                                                                     |
 | `get_custom_events`      | Custom events: count, visitors, trend, pages, and property values                                                                                        |
 | `get_campaigns`          | Which tagged links (UTM source, medium, campaign) brought visitors, with a trend and top pairs                                                           |
+| `get_rage_clicks`        | Buttons and links clicked repeatedly in quick succession: bursts per control and page, with all clicks on the control and the trend                      |
 
 Projects and websites can be named by name or id. Ranges are UTC and at most 30 days per call, the same limit as
 the console. An owner or analyst access key sees exactly what it sees in the console, nothing more. There are also

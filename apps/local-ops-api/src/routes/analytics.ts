@@ -3,7 +3,8 @@ import type {
   AnalyticsOverview,
   AnalyticsSummary,
   CampaignsReport,
-  CustomEventsReport
+  CustomEventsReport,
+  RageClicksReport
 } from '../contracts.js';
 import { isAnalyticsWindow, isSafeId } from '../contracts.js';
 import { WorkerClient } from '../remote-client/worker-client.js';
@@ -220,4 +221,50 @@ export async function analyticsCampaigns(
     throw new Error('database_update_needed');
   if (!response.ok) throw new Error('unavailable');
   return (await response.json()) as CampaignsReport;
+}
+
+export async function analyticsRageClicks(
+  client: WorkerClient,
+  projectId: string,
+  sourceId: string | undefined,
+  startUtc: string,
+  endUtc: string,
+  filters: ActionsFilterInput = {}
+): Promise<RageClicksReport> {
+  if (!isSafeId(projectId) || (sourceId !== undefined && !isSafeId(sourceId)))
+    throw new Error('invalid_request');
+  const range = parseAnalyticsRange(startUtc, endUtc);
+  const query = new URLSearchParams({ start: range.startUtc, end: range.endUtc });
+  if (sourceId) query.set('source_id', sourceId);
+  // The same limits the Worker enforces, so a bad value never travels further than this process.
+  for (const [name, limit] of [
+    ['page', 1024],
+    ['action', 80]
+  ] as const) {
+    const value = filters[name];
+    if (value === undefined) continue;
+    // An empty filter is a mistake, not "no filter".
+    if (!value || value.length > limit || CONTROL_CHARACTERS.test(value))
+      throw new Error('invalid_request');
+    query.set(name, value);
+  }
+  const response = await client.request(
+    `/v1/admin/projects/${encodeURIComponent(projectId)}/analytics/rage-clicks?${query.toString()}`
+  );
+  if (response.status === 401 || response.status === 403) throw new Error('unauthorized');
+  if (response.status === 404) throw new Error('not_found');
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => undefined)) as
+      { error?: unknown; field?: unknown; message?: unknown } | undefined;
+    if (body?.error === 'invalid_range')
+      throw new AnalyticsRangeError(
+        body.field === 'start' ? 'start' : 'end',
+        typeof body.message === 'string' ? body.message : 'Invalid time range.'
+      );
+    throw new Error('invalid_request');
+  }
+  if (response.status === 503 && (await databaseUpdateNeeded(response)))
+    throw new Error('database_update_needed');
+  if (!response.ok) throw new Error('unavailable');
+  return (await response.json()) as RageClicksReport;
 }

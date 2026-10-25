@@ -34,7 +34,9 @@ export type FakeBackend = {
   availability?: string;
   /** Answer the campaigns report as a Worker that predates it does. */
   noCampaigns?: boolean;
-  /** Answer the campaigns report as a Worker newer than its database does. */
+  /** Answer the rage clicks report as a Worker that predates it does. */
+  noRageClicks?: boolean;
+  /** Answer the campaigns and rage clicks reports as a Worker newer than its database does. */
   staleDatabase?: boolean;
   /** What the website status says about excluded addresses; absent from an older backend. */
   excluded?: { count: number; hits30d?: number };
@@ -198,6 +200,25 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           campaign: index === 0 ? 'spring-sale' : '',
           count: 12 - index,
           visitors: 1
+        })),
+        other: { rows: 3, count: 4 },
+        availability: { state: 'processing', taxonomyVersions: [1] }
+      });
+    }
+    if (/^\/v1\/admin\/projects\/[^/]+\/analytics\/rage-clicks$/.test(path)) {
+      if (backend.noRageClicks) return json({ error: 'not_found' }, 404);
+      if (backend.staleDatabase) return json({ error: 'database_update_needed' }, 503);
+      return json({
+        scope: {},
+        range: {},
+        totals: { bursts: 30, clicks: 200 },
+        trend: [{ startUtc: '2026-09-20T00:00:00.000Z', bursts: 30 }],
+        rows: Array.from({ length: 12 }, (_, index) => ({
+          page: '/checkout',
+          action: `Control ${index}`,
+          kind: 'button',
+          count: 12 - index,
+          clicks: 20
         })),
         other: { rows: 3, count: 4 },
         availability: { state: 'processing', taxonomyVersions: [1] }

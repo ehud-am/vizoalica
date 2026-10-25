@@ -337,6 +337,133 @@ describe('duplicate suppression and rate cap', () => {
   });
 });
 
+describe('rage clicks', () => {
+  const rage = () => seen.filter((action) => action.rage);
+
+  it('reports one rage observation when a control is clicked 3 times within a second', () => {
+    mount('<button id="a">Pay</button>');
+    watch();
+    click($('#a'));
+    clock += 200;
+    click($('#a'));
+    expect(rage()).toEqual([]);
+    clock += 200;
+    click($('#a'));
+    expect(rage()).toEqual([{ name: 'Pay', kind: 'button', page: '/', rage: true }]);
+  });
+
+  it('still records the first click as an ordinary action, and the rage as a separate observation', () => {
+    mount('<button id="a">Pay</button>');
+    watch();
+    for (let index = 0; index < 3; index += 1) {
+      click($('#a'));
+      clock += 100;
+    }
+    expect(seen.filter((action) => !action.rage)).toHaveLength(1);
+    expect(rage()).toHaveLength(1);
+  });
+
+  it('does not report slow clicks, or clicks spread over different controls', () => {
+    mount('<button id="a">One</button><button id="b">Two</button>');
+    watch();
+    for (let index = 0; index < 6; index += 1) {
+      click($('#a'));
+      clock += 600;
+    }
+    for (let index = 0; index < 6; index += 1) {
+      click($(index % 2 ? '#a' : '#b'));
+      clock += 300;
+    }
+    expect(rage()).toEqual([]);
+  });
+
+  it('ignores keyboard activation and programmatic clicks (detail 0)', () => {
+    mount('<button id="a">Go</button>');
+    watch();
+    for (let index = 0; index < 10; index += 1) {
+      keyboardActivate($('#a'));
+      clock += 50;
+    }
+    expect(rage()).toEqual([]);
+  });
+
+  it('reports a continuing burst once per 5 s cooldown, not once per click', () => {
+    mount('<button id="a">Go</button>');
+    watch();
+    for (let index = 0; index < 40; index += 1) {
+      click($('#a'));
+      clock += 100;
+    }
+    expect(rage()).toHaveLength(1);
+    clock += 5000;
+    for (let index = 0; index < 3; index += 1) {
+      click($('#a'));
+      clock += 100;
+    }
+    expect(rage()).toHaveLength(2);
+  });
+
+  it('keeps the destination of a link and reports nothing for typing fields or ignored controls', () => {
+    mount(
+      '<a id="a" href="/pricing?x=1">Pricing</a><input id="t" type="text"><div data-vizoalica-ignore><button id="i">Skip</button></div>'
+    );
+    watch();
+    for (let index = 0; index < 4; index += 1) {
+      click($('#a'));
+      click($('#t'));
+      click($('#i'));
+      clock += 100;
+    }
+    expect(rage()).toEqual([
+      {
+        name: 'Pricing',
+        kind: 'link',
+        page: '/',
+        destination: { url_origin: location.origin, url_path: '/pricing' },
+        rage: true
+      }
+    ]);
+  });
+
+  it('caps rage observations at 20 a minute across controls', () => {
+    mount(
+      Array.from(
+        { length: 30 },
+        (_value, index) => `<button id="b${index}">B${index}</button>`
+      ).join('')
+    );
+    watch();
+    for (let index = 0; index < 30; index += 1) {
+      for (let tap = 0; tap < 3; tap += 1) {
+        click($(`#b${index}`));
+        clock += 10;
+      }
+    }
+    expect(rage()).toHaveLength(20);
+  });
+
+  it('sends rage events in their own batch, after the actions', async () => {
+    const captured = captureFetch();
+    mount('<button id="a">Pay</button>');
+    const client = init({
+      endpoint,
+      sourceKey: 'src_1',
+      projectId: 'proj_1',
+      consentState: 'analytics-granted',
+      autoPageView: false
+    });
+    stops.push(() => client.stop());
+    for (let index = 0; index < 3; index += 1) click($('#a'));
+    await flushMicrotasks();
+    await client.flush();
+    const sent = captured.events('com.vizoalica.action.v1');
+    expect(sent.filter((event) => event.data.action.rage)).toHaveLength(1);
+    const batches = captured.requests.map((request) => request.events);
+    const rageBatch = batches.find((events) => events.some((event) => event.data.action?.rage));
+    expect(rageBatch?.every((event) => event.data.action?.rage === true)).toBe(true);
+  });
+});
+
 describe('safety', () => {
   it('never calls preventDefault or stopPropagation', () => {
     mount('<button id="a">Go</button>');

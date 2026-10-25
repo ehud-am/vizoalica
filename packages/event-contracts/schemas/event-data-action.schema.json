@@ -29,7 +29,8 @@
             "url_path": { "type": "string", "maxLength": 1024 }
           },
           "additionalProperties": false
-        }
+        },
+        "rage": { "const": true }
       },
       "additionalProperties": false
     },

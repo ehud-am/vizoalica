@@ -44,7 +44,9 @@ async function openInstall(id = 's1') {
   await screen.findByRole('tablist', { name: 'Deployment path' });
   return view;
 }
-const tab = (name: string) => screen.getByRole('tab', { name });
+// A tab with rich content is named by its visible text, so the title is matched as a prefix.
+const tab = (name: string) =>
+  screen.getByRole('tab', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
 const steps = () => within(screen.getByRole('tabpanel', { name: /./ })).getAllByRole('listitem');
 const stepTitles = () =>
   Array.from(document.querySelectorAll('.install-step > h3')).map((heading) => heading.textContent);
@@ -58,10 +60,7 @@ describe('choosing how the website is deployed', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Deployment path' })).getAllByRole(
       'tab'
     );
-    expect(tabs.map((item) => item.getAttribute('aria-label'))).toEqual([
-      'GitHub → Cloudflare Pages',
-      'Paste a snippet'
-    ]);
+    expect(tabs.map((item) => item.getAttribute('aria-label'))).toEqual([null, null]);
     expect(tab('GitHub → Cloudflare Pages').getAttribute('aria-selected')).toBe('true');
     expect(within(tab('GitHub → Cloudflare Pages')).getByText('Recommended')).toBeTruthy();
     expect(within(tab('GitHub → Cloudflare Pages')).getByText(/Push to deploy/)).toBeTruthy();

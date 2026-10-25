@@ -24,6 +24,9 @@
 - **Campaign labels**: the `utm_source`, `utm_medium` and `utm_campaign` of the landing address, on the first
   page view of a page load only: lowercased, emails/long digit runs/tokens replaced, letters, digits, space and
   `_ - . + : /` only, 64 characters. `utm_term`, `utm_content` and click ids are never stored.
+- **Rage clicks**: an extra action event with `rage: true` when a control gets 3 or more mouse or touch clicks
+  within a second (at most one per control per 5 seconds). Stored as a count per minute, page and control, with
+  no visitor digest, no position and no element id.
 - **Context per event**: country and continent, browser, operating system, device type (desktop, mobile,
   tablet), bot vs human, referrer (minimised), consent state.
 - **Unique visitors**: counted by the backend from a daily-rotating digest (daily salt, IP address, user agent; the salt is deleted after the day). Nothing is stored in the browser. A person counts once per website per day, so a multi-day range sums daily visitors. There are no visitor identifiers to list.
@@ -52,6 +55,9 @@ session replay, cookies, auth headers, raw URL query values, per-visitor histori
   be shown), `trend`, three rankings (`sources`, `mediums`, `campaigns`: label, count, visitors; an empty label
   means not set), `rows` (source/medium/campaign combinations), `other`. Only page views received after the
   backend got the campaigns update are counted; earlier ranges report `incomplete`.
+- Rage clicks report: `totals` (`bursts` and all `clicks` of the range and selection), `trend`, `rows` (page,
+  action, kind, destination, bursts as `count`, and `clicks` on the same control; at most 50), `other`. Only
+  bursts received after the backend got the rage click update are counted; earlier ranges report `incomplete`.
 - Website status also reports `excludedAddressCount` and `excludedHits30d`: events dropped for addresses the
   website excludes (never the addresses); browser opt-outs send nothing and are not counted.
 - A range is at most 30 days. Data older than the project's retention period is not available.

@@ -632,6 +632,47 @@ export async function handleAdminRequest(
         : notFound();
     });
   }
+  const rageMatch = /^\/v1\/admin\/projects\/([^/]+)\/analytics\/rage-clicks$/.exec(url.pathname);
+  if (rageMatch && request.method === 'GET') {
+    if (principal.role !== 'admin' && !projectInScope(principal.scope, rageMatch[1]!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    const filters = actionsFilters(url);
+    if (!filters) return invalid();
+    if (
+      principal.role !== 'admin' &&
+      principal.scope.sourceId !== null &&
+      url.searchParams.get('source_id') &&
+      url.searchParams.get('source_id') !== principal.scope.sourceId
+    )
+      return notFound();
+    const sourceId =
+      principal.role !== 'admin' && principal.scope.sourceId !== null
+        ? principal.scope.sourceId
+        : (url.searchParams.get('source_id') ?? undefined);
+    return needingSchema(async () => {
+      const report = await dependencies.repositories.getRageClicksReport?.(
+        rageMatch[1]!,
+        sourceId,
+        range.startUtc,
+        range.endUtc,
+        filters
+      );
+      return report
+        ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
+  }
   const sourceMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(url.pathname);
   if (sourceMatch && request.method === 'GET') {
     if (principal.role !== 'admin' && !projectInScope(principal.scope, sourceMatch[1]!))

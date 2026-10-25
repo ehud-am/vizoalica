@@ -27,7 +27,7 @@ function start(options: Record<string, unknown> = {}) {
 describe('campaign labels on the landing page view', () => {
   it('sends the cleaned UTM labels and no other query value', async () => {
     setUrl(
-      '/?utm_source=Newsletter&utm_medium=email&utm_campaign=Spring-Sale&utm_term=shoes&token=abc&email=a@b.co'
+      '/?utm_source=Newsletter&utm_medium=email&utm_campaign=Spring-Sale&utm_term=shoes&token=secret-value&email=a@b.co'
     );
     const { captured, client } = start();
     await client.flush();
@@ -38,7 +38,7 @@ describe('campaign labels on the landing page view', () => {
       campaign: 'spring-sale'
     });
     const body = JSON.stringify(captured.requests);
-    for (const secret of ['shoes', 'abc', 'a@b.co', 'utm_term', 'token']) {
+    for (const secret of ['shoes', 'secret-value', 'a@b.co', 'utm_term', 'token']) {
       expect(body).not.toContain(secret);
     }
   });

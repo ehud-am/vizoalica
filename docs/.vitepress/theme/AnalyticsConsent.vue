@@ -5,6 +5,8 @@ import { onMounted, ref } from 'vue';
 // backend, in which case this component renders nothing and loads nothing. When it is true,
 // analytics runs unless the visitor turned it off or their browser sends a privacy signal.
 declare const __VIZOALICA_ANALYTICS__: boolean;
+declare const __VIZOALICA_ENDPOINT__: string;
+declare const __VIZOALICA_SOURCE__: string;
 
 const KEY = 'vizoalica-docs-analytics';
 type Choice = 'granted' | 'denied';
@@ -25,11 +27,15 @@ function stored(): Choice | undefined {
 }
 
 function load(): void {
-  if (document.querySelector('script[data-vizoalica-loader]')) return;
+  if (document.querySelector('script[data-vizoalica-sdk]')) return;
   const script = document.createElement('script');
   script.async = true;
-  script.src = '/vizoalica-loader.js';
-  script.dataset.vizoalicaLoader = '';
+  script.src = '/vizoalica.js';
+  script.dataset.vizoalicaSdk = '';
+  script.dataset.endpoint = __VIZOALICA_ENDPOINT__;
+  script.dataset.source = __VIZOALICA_SOURCE__;
+  // A static site has no server to sign tokens: events are sent unsigned, from its allowed origin.
+  script.dataset.tokenUrl = 'none';
   document.head.append(script);
 }
 
