@@ -82,7 +82,7 @@
     "@types/topojson-client": "^3.1.5",
     "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.71.2",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "countries-list": "^3.4.1",
     "d3-geo": "^3.1.1",
     "esbuild": "0.28.2",
@@ -93,7 +93,7 @@
     "topojson-client": "^3.1.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "world-atlas": "^2.0.2",
     "wrangler": "^4.150.0"
   },
