@@ -130,7 +130,7 @@ exactly as before, with no consent prompt and no analytics.
    that does not require signed tokens. Its **Install** page lists the two values below.
 2. Add two repository **variables** (Settings → Secrets and variables → Actions → Variables). Both are public:
    `VIZOALICA_INGEST_ENDPOINT` (the ingestion endpoint, ending in `/v1/events:batch`) and
-   `VIZOALICA_PUBLIC_SOURCE_KEY` (the website key). A secret of the same name also works, and a variable wins.
+   `VIZOALICA_WEBSITE_KEY` (the website key). A secret of the same name also works, and a variable wins. The older name `VIZOALICA_PUBLIC_SOURCE_KEY` is still read when `VIZOALICA_WEBSITE_KEY` is not set.
 3. Run the workflow. The site sends unsigned events (`data-token-url="none"`): there is no token endpoint,
    no Pages Function and no signing secret to set or rotate. The backend accepts them only from the
    website's allowed origins. Then open the site (analytics is on by default; **Turn off** in the corner stops it), and watch the event arrive in the console.

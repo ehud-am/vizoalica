@@ -22,6 +22,7 @@ const PAGES = [
   '/operations/rage-clicks',
   '/operations/internal-traffic',
   '/brand',
+  '/releases/v0.12.1',
   '/releases/v0.12.0',
   '/releases/v0.11.1',
   '/releases/v0.11.0',

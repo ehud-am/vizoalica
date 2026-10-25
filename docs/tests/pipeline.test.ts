@@ -31,7 +31,12 @@ describe('docs site pipeline', () => {
 
   // The ingest address, the website key and the account ID are public: they are set as variables
   // (a secret of the same name also works). What must never spread is the one credential.
-  const IDENTIFIERS = ['CF_ACCOUNT_ID', 'VIZOALICA_INGEST_ENDPOINT', 'VIZOALICA_PUBLIC_SOURCE_KEY'];
+  const IDENTIFIERS = [
+    'CF_ACCOUNT_ID',
+    'VIZOALICA_INGEST_ENDPOINT',
+    'VIZOALICA_PUBLIC_SOURCE_KEY',
+    'VIZOALICA_WEBSITE_KEY'
+  ];
   const CREDENTIAL = 'CF_DOCS_API_TOKEN';
 
   it('keeps the credential out of the build job and in exactly one publish step', () => {

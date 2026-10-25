@@ -60,7 +60,7 @@ jobs:
       - name: Build the site
         env:
           VIZOALICA_INGEST_ENDPOINT: https://ingest.example.test/v1/events:batch
-          VIZOALICA_PUBLIC_SOURCE_KEY: placeholder-website-key
+          VIZOALICA_WEBSITE_KEY: placeholder-website-key
         run: pnpm docs:build
 
       - name: Install Chromium
@@ -108,12 +108,12 @@ jobs:
         run: pnpm install --frozen-lockfile --filter . --filter @vizoalica/docs
 
       # Built again here, from this exact commit, rather than passed between jobs. The endpoint and
-      # website key are public (set as variables; a secret of the same name also works). When either is
+      # website key are public (set as variables; a secret of the same name also works; the old name VIZOALICA_PUBLIC_SOURCE_KEY is still read). When either is
       # not set the site is built and published without analytics.
       - name: Build the site
         env:
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT || secrets.VIZOALICA_INGEST_ENDPOINT }}
-          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY || secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_WEBSITE_KEY: ${{ vars.VIZOALICA_WEBSITE_KEY || secrets.VIZOALICA_WEBSITE_KEY || vars.VIZOALICA_PUBLIC_SOURCE_KEY || secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
         run: pnpm docs:build
 
       - name: Build the browser SDK
@@ -124,7 +124,7 @@ jobs:
       - name: Add Vizoalica analytics
         env:
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT || secrets.VIZOALICA_INGEST_ENDPOINT }}
-          VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY || secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
+          VIZOALICA_WEBSITE_KEY: ${{ vars.VIZOALICA_WEBSITE_KEY || secrets.VIZOALICA_WEBSITE_KEY || vars.VIZOALICA_PUBLIC_SOURCE_KEY || secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
         run: node docs/scripts/prepare-analytics.mjs
 
       # The Cloudflare token exists only in this step's environment.
