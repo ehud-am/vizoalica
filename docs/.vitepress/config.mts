@@ -115,7 +115,12 @@ export default defineConfig({
     nav,
     sidebar,
     socialLinks: [{ icon: 'github', link: REPO, ariaLabel: 'Vizoalica on GitHub' }],
-    search: { provider: 'local' },
+    // An empty label leaves the button named by its visible text ("Search" and the shortcut), which is
+    // what voice-control users say; a fixed "Search" label hides the shortcut from the name.
+    search: {
+      provider: 'local',
+      options: { translations: { button: { buttonText: 'Search', buttonAriaLabel: '' } } }
+    },
     editLink: { pattern: `${REPO}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     outline: { level: [2, 3], label: 'On this page' },
     footer: {
