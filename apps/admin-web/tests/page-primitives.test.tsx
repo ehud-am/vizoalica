@@ -131,7 +131,7 @@ describe('Tabs', () => {
     screen.getByRole('tab', { name: 'Alpha' }).focus();
     await user.keyboard('{ArrowRight}');
     expect(screen.getByText('Panel for c')).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Gamma' }));
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Custom Gamma' }));
     await user.keyboard('{ArrowRight}');
     expect(screen.getByText('Panel for a')).toBeTruthy();
     await user.keyboard('{ArrowLeft}');

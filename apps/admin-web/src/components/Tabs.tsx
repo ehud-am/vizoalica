@@ -2,7 +2,7 @@ import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 export interface TabItem<T extends string> {
   id: T;
-  /** Accessible name. */
+  /** Accessible name. When `content` is given, the visible content names the tab instead. */
   label: string;
   /** Visible content of the tab; defaults to the label. */
   content?: ReactNode;
@@ -70,7 +70,7 @@ export function Tabs<T extends string>({
               role="tab"
               aria-selected={selected}
               aria-controls={`${base}-panel`}
-              aria-label={item.label}
+              aria-label={item.content ? undefined : item.label}
               aria-disabled={item.disabled || undefined}
               disabled={item.disabled}
               tabIndex={selected ? 0 : -1}
