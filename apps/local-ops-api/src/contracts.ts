@@ -73,7 +73,7 @@ export type StaticInstallation = {
  * no access to the customer's Cloudflare account or their chosen secrets.
  */
 export type CloudflareGuidance = {
-  workflowRef: string;
+  workflowUrl: string;
   /** What must be added: one public value that bundles this website's public settings. */
   repoVariables: Record<string, string>;
   /** The same settings as separate variables, for people who prefer them or already use them. */
@@ -86,7 +86,7 @@ export type CloudflareGuidance = {
   accountLookupCommand: string;
   accountSpecificVariables: string[];
   repoSecretNames: string[];
-  starterWorkflowYaml: string;
+  workflowDownloadCommand: string;
   setupCommands: string[];
   warnings: string[];
 };

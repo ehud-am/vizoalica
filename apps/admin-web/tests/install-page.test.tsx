@@ -163,11 +163,10 @@ describe('GitHub → Cloudflare Pages path', () => {
       dynamicMode.snippet
     );
     expect(screen.getByRole('region', { name: 'Deploy workflow' }).textContent).toBe(
-      dynamicMode.cloudflare.starterWorkflowYaml
+      dynamicMode.cloudflare.workflowDownloadCommand
     );
     // A site at the top of the repository needs no edit; a folder needs the one named change.
-    expect(dynamicMode.cloudflare.starterWorkflowYaml).not.toContain('YOUR_SITE_DIRECTORY');
-    expect(screen.getByText('site-directory: YOUR_FOLDER')).toBeTruthy();
+    expect(screen.getByText('SITE_DIRECTORY')).toBeTruthy();
   });
 
   it('offers the same information two ways in one step: GitHub website or the gh command line', async () => {
@@ -254,8 +253,8 @@ describe('GitHub → Cloudflare Pages path', () => {
     expect(writeText).toHaveBeenLastCalledWith(dynamicMode.snippet);
     expect(screen.getByRole('button', { name: 'Copy loader tag' }).textContent).toContain('Copied');
     expect(screen.getByText('Loader tag copied to clipboard.')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Copy workflow file' }));
-    expect(writeText).toHaveBeenLastCalledWith(dynamicMode.cloudflare.starterWorkflowYaml);
+    await user.click(screen.getByRole('button', { name: 'Copy download command' }));
+    expect(writeText).toHaveBeenLastCalledWith(dynamicMode.cloudflare.workflowDownloadCommand);
     await user.click(screen.getByRole('button', { name: 'Copy variable list' }));
     expect(writeText.mock.calls.at(-1)![0]).toContain('VIZOALICA_SITE=');
   });

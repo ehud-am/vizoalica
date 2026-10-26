@@ -1,44 +1,34 @@
-name: Deploy Vizoalica website
+name: Deploy website
 
-# Reusable workflow a Vizoalica customer's own website repository calls to
-# publish their site to their own Cloudflare Pages project, along with the
-# Vizoalica configuration and token-issuing Pages Functions, on every push to
-# their configured site path. See:
-# specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md
+# Template: copy this file to .github/workflows/deploy-website.yml in your own website repository.
+# It publishes your site to your own Cloudflare Pages project on every push to main, together with
+# the Vizoalica configuration and the token-issuing Pages Functions (the signed-token path). If you
+# do not need signed tokens, skip this file: one script tag is enough (docs/operations/pages.md).
 #
-# Caller example (in the customer's own repo):
+# Edit SITE_DIRECTORY below when your site is in a folder rather than at the repository root.
 #
-#   jobs:
-#     deploy:
-#       uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3
-#       with:
-#         site-directory: docs   # optional: omit when the site is at the repository root
-#       secrets: inherit
+# Repository variables: VIZOALICA_SITE (one JSON value with this website's public settings:
+# endpoint, websiteKey, projectId, sourceId, origins), CF_ACCOUNT_ID, CF_PAGES_PROJECT.
+# Repository secrets: CF_API_TOKEN (Cloudflare Pages: Edit scope only), VIZOALICA_TOKEN_SECRET
+# (>= 32 random characters).
 #
-# Required caller repository variables: VIZOALICA_SITE (one JSON value with this
-# website's public settings: endpoint, sourceKey, projectId, sourceId, origins),
-# CF_ACCOUNT_ID, CF_PAGES_PROJECT.
-# Required caller repository secrets: CF_API_TOKEN (Cloudflare Pages: Edit
-# scope only), VIZOALICA_TOKEN_SECRET (>= 32 random characters).
+# Instead of VIZOALICA_SITE you may set the five values separately (VIZOALICA_INGEST_ENDPOINT,
+# VIZOALICA_WEBSITE_KEY, VIZOALICA_PROJECT_ID, VIZOALICA_SOURCE_ID, VIZOALICA_SITE_ORIGINS); a
+# separate value wins over the bundled one. The older names VIZOALICA_PUBLIC_SOURCE_KEY and
+# "sourceKey" are still read when the website key is not set. The SDK path, token URL and consent
+# state follow fixed conventions (/vizoalica.js, /vizoalica/ingest-token, unknown).
 #
-# Optional, with defaults: VIZOALICA_SDK_SRC (/vizoalica.js), VIZOALICA_TOKEN_URL
-# (/vizoalica/ingest-token), VIZOALICA_CONSENT (unknown). Instead of VIZOALICA_SITE
-# you may still set the five values separately (VIZOALICA_INGEST_ENDPOINT,
-# VIZOALICA_PUBLIC_SOURCE_KEY, VIZOALICA_PROJECT_ID, VIZOALICA_SOURCE_ID,
-# VIZOALICA_SITE_ORIGINS); a separate value wins over the bundled one.
-#
-# None of these values are ever read from, or written to, the caller's
-# repository source. They are supplied by GitHub Actions and wired into the
-# Cloudflare Pages environment for this deployment only.
+# None of these values are read from, or written to, your repository source. They are supplied by
+# GitHub Actions and wired into the Cloudflare Pages environment for this deployment only.
+# Source of the embedded files: examples/cloudflare-pages/ in the Vizoalica repository.
 
 on:
-  workflow_call:
-    inputs:
-      site-directory:
-        description: Path, relative to the caller repository root, of the static site to deploy. Defaults to the repository root.
-        required: false
-        default: '.'
-        type: string
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  SITE_DIRECTORY: '.'
 
 permissions:
   contents: read
@@ -60,21 +50,18 @@ jobs:
       - name: Resolve and validate configuration
         env:
           SITE_BUNDLE: ${{ vars.VIZOALICA_SITE }}
-          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_WEBSITE_KEY: ${{ vars.VIZOALICA_WEBSITE_KEY }}
           VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
           VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
-          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
-          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
           VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
           VIZOALICA_SITE_ORIGINS: ${{ vars.VIZOALICA_SITE_ORIGINS }}
           CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           VIZOALICA_TOKEN_SECRET: ${{ secrets.VIZOALICA_TOKEN_SECRET }}
-          # Inputs and variables reach the shell as environment variables, never as text pasted into
+          # Variables reach the shell as environment variables, never as text pasted into
           # the script, so a crafted value cannot become a command.
-          SITE_DIRECTORY: ${{ inputs.site-directory }}
         run: |
           set -euo pipefail
           # The bundled value fills in whatever was not set separately. jq reads it as data.
@@ -85,18 +72,20 @@ jobs:
             fi
             bundled() { echo "$SITE_BUNDLE" | jq -r "$1 // empty"; }
             : "${VIZOALICA_INGEST_ENDPOINT:=$(bundled .endpoint)}"
-            : "${VIZOALICA_PUBLIC_SOURCE_KEY:=$(bundled .sourceKey)}"
+            : "${VIZOALICA_WEBSITE_KEY:=$(bundled '.websiteKey // .sourceKey')}"
             : "${VIZOALICA_PROJECT_ID:=$(bundled .projectId)}"
             : "${VIZOALICA_SOURCE_ID:=$(bundled .sourceId)}"
             : "${VIZOALICA_SITE_ORIGINS:=$(bundled '(.origins // []) | join(",")')}"
           fi
-          # Settings that follow a convention need no variable.
-          : "${VIZOALICA_SDK_SRC:=/vizoalica.js}"
-          : "${VIZOALICA_TOKEN_URL:=/vizoalica/ingest-token}"
-          : "${VIZOALICA_CONSENT:=unknown}"
+          # The older variable name still works when the website key is not set.
+          : "${VIZOALICA_WEBSITE_KEY:=${VIZOALICA_PUBLIC_SOURCE_KEY:-}}"
+          # Settings that follow a convention are fixed, not variables.
+          VIZOALICA_SDK_SRC=/vizoalica.js
+          VIZOALICA_TOKEN_URL=/vizoalica/ingest-token
+          VIZOALICA_CONSENT=unknown
           missing=()
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
-            VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
+          for name in VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
+            VIZOALICA_PROJECT_ID VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS CF_ACCOUNT_ID CF_PAGES_PROJECT CF_API_TOKEN \
             VIZOALICA_TOKEN_SECRET; do
             value="${!name:-}"
@@ -116,8 +105,8 @@ jobs:
           fi
           # The public values are written into a generated TOML file, so none may contain a character
           # that could end a value or start a new line, and none may carry a shell metacharacter.
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
-            VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
+          for name in VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
+            VIZOALICA_PROJECT_ID VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS CF_ACCOUNT_ID CF_PAGES_PROJECT; do
             value="${!name}"
             if [[ "$value" =~ [^[:graph:]] || "$value" == *\"* || "$value" == *\\* \
@@ -128,16 +117,16 @@ jobs:
           done
           # A relative path inside this repository ("." is the root): no leading slash or dash, no "..", no odd characters.
           if [ "$SITE_DIRECTORY" != "." ] && [[ ! "$SITE_DIRECTORY" =~ ^[A-Za-z0-9_][A-Za-z0-9._/-]*$ || "$SITE_DIRECTORY" == *..* ]]; then
-            echo "::error::site-directory must be a relative path made of letters, digits, dots, dashes, underscores, and slashes"
+            echo "::error::SITE_DIRECTORY must be a relative path made of letters, digits, dots, dashes, underscores, and slashes"
             exit 1
           fi
           if [ ! -d "$SITE_DIRECTORY" ]; then
-            echo "::error::site-directory '$SITE_DIRECTORY' does not exist in this repository"
+            echo "::error::SITE_DIRECTORY '$SITE_DIRECTORY' does not exist in this repository"
             exit 1
           fi
           # Only values that passed the checks above (single line, no metacharacters) reach later
           # steps, so this file cannot be used to inject another variable.
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
+          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
             VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS; do
             printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"
@@ -153,7 +142,6 @@ jobs:
         # source under examples/cloudflare-pages/ by
         # `pnpm run generate:deploy-workflow` (enforced in CI).
         env:
-          SITE_DIRECTORY: ${{ inputs.site-directory }}
           # BEGIN GENERATED: pnpm run generate:deploy-workflow
           CONFIG_JSON_TS_B64: aW50ZXJmYWNlIEVudiB7CiAgVklaT0FMSUNBX1NES19TUkM6IHN0cmluZzsKICBWSVpPQUxJQ0FfSU5HRVNUX0VORFBPSU5UOiBzdHJpbmc7CiAgVklaT0FMSUNBX1BVQkxJQ19TT1VSQ0VfS0VZOiBzdHJpbmc7CiAgVklaT0FMSUNBX1BST0pFQ1RfSUQ6IHN0cmluZzsKICBWSVpPQUxJQ0FfVE9LRU5fVVJMOiBzdHJpbmc7CiAgVklaT0FMSUNBX0NPTlNFTlQ6IHN0cmluZzsKfQoKY29uc3QgaGVhZGVycyA9IHsKICAnY29udGVudC10eXBlJzogJ2FwcGxpY2F0aW9uL2pzb247IGNoYXJzZXQ9dXRmLTgnLAogICdjYWNoZS1jb250cm9sJzogJ25vLXN0b3JlJywKICAneC1jb250ZW50LXR5cGUtb3B0aW9ucyc6ICdub3NuaWZmJwp9OwoKZnVuY3Rpb24gdW5hdmFpbGFibGUoc3RhdHVzID0gNTAzLCBleHRyYTogUmVjb3JkPHN0cmluZywgc3RyaW5nPiA9IHt9KTogUmVzcG9uc2UgewogIHJldHVybiBuZXcgUmVzcG9uc2UoSlNPTi5zdHJpbmdpZnkoeyBlcnJvcjogJ2NvbmZpZ3VyYXRpb25fdW5hdmFpbGFibGUnIH0pLCB7CiAgICBzdGF0dXMsCiAgICBoZWFkZXJzOiB7IC4uLmhlYWRlcnMsIC4uLmV4dHJhIH0KICB9KTsKfQoKZnVuY3Rpb24gdmFsaWRJZGVudGl0eSh2YWx1ZTogc3RyaW5nKTogYm9vbGVhbiB7CiAgcmV0dXJuIC9eW0EtWmEtejAtOV8tXXsxLDEyOH0kLy50ZXN0KHZhbHVlKSAmJiAhdmFsdWUuc3RhcnRzV2l0aCgnUkVQTEFDRV8nKTsKfQoKZnVuY3Rpb24gdmFsaWRIdHRwVXJsKHZhbHVlOiBzdHJpbmcsIG9yaWdpbjogc3RyaW5nLCBzYW1lT3JpZ2luID0gZmFsc2UpOiBib29sZWFuIHsKICB0cnkgewogICAgY29uc3QgdXJsID0gbmV3IFVSTCh2YWx1ZSwgb3JpZ2luKTsKICAgIGlmICghWydodHRwOicsICdodHRwczonXS5pbmNsdWRlcyh1cmwucHJvdG9jb2wpKSByZXR1cm4gZmFsc2U7CiAgICBpZiAodXJsLnByb3RvY29sID09PSAnaHR0cDonICYmICFbJ2xvY2FsaG9zdCcsICcxMjcuMC4wLjEnLCAnWzo6MV0nXS5pbmNsdWRlcyh1cmwuaG9zdG5hbWUpKQogICAgICByZXR1cm4gZmFsc2U7CiAgICByZXR1cm4gIXNhbWVPcmlnaW4gfHwgdXJsLm9yaWdpbiA9PT0gb3JpZ2luOwogIH0gY2F0Y2ggewogICAgcmV0dXJuIGZhbHNlOwogIH0KfQoKZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIG9uUmVxdWVzdCh7CiAgcmVxdWVzdCwKICBlbnYKfTogewogIHJlcXVlc3Q6IFJlcXVlc3Q7CiAgZW52OiBFbnY7Cn0pOiBQcm9taXNlPFJlc3BvbnNlPiB7CiAgaWYgKHJlcXVlc3QubWV0aG9kICE9PSAnR0VUJykgcmV0dXJuIHVuYXZhaWxhYmxlKDQwNSwgeyBhbGxvdzogJ0dFVCcgfSk7CiAgY29uc3Qgb3JpZ2luID0gbmV3IFVSTChyZXF1ZXN0LnVybCkub3JpZ2luOwogIGlmICgKICAgICF2YWxpZEh0dHBVcmwoZW52LlZJWk9BTElDQV9TREtfU1JDLCBvcmlnaW4pIHx8CiAgICAhdmFsaWRIdHRwVXJsKGVudi5WSVpPQUxJQ0FfSU5HRVNUX0VORFBPSU5ULCBvcmlnaW4pIHx8CiAgICAhdmFsaWRJZGVudGl0eShlbnYuVklaT0FMSUNBX1BVQkxJQ19TT1VSQ0VfS0VZKSB8fAogICAgIXZhbGlkSWRlbnRpdHkoZW52LlZJWk9BTElDQV9QUk9KRUNUX0lEKSB8fAogICAgIXZhbGlkSHR0cFVybChlbnYuVklaT0FMSUNBX1RPS0VOX1VSTCwgb3JpZ2luLCB0cnVlKSB8fAogICAgIVsnYW5hbHl0aWNzLWdyYW50ZWQnLCAnYW5hbHl0aWNzLWRlbmllZCcsICd1bmtub3duJ10uaW5jbHVkZXMoZW52LlZJWk9BTElDQV9DT05TRU5UKQogICkKICAgIHJldHVybiB1bmF2YWlsYWJsZSgpOwogIHJldHVybiBuZXcgUmVzcG9uc2UoCiAgICBKU09OLnN0cmluZ2lmeSh7CiAgICAgIHZlcnNpb246IDEsCiAgICAgIHNyYzogZW52LlZJWk9BTElDQV9TREtfU1JDLAogICAgICAnZGF0YS1lbmRwb2ludCc6IGVudi5WSVpPQUxJQ0FfSU5HRVNUX0VORFBPSU5ULAogICAgICAnZGF0YS1zb3VyY2UnOiBlbnYuVklaT0FMSUNBX1BVQkxJQ19TT1VSQ0VfS0VZLAogICAgICAnZGF0YS1wcm9qZWN0JzogZW52LlZJWk9BTElDQV9QUk9KRUNUX0lELAogICAgICAnZGF0YS10b2tlbi11cmwnOiBlbnYuVklaT0FMSUNBX1RPS0VOX1VSTCwKICAgICAgJ2RhdGEtY29uc2VudCc6IGVudi5WSVpPQUxJQ0FfQ09OU0VOVAogICAgfSksCiAgICB7IGhlYWRlcnMgfQogICk7Cn0K
           INGEST_TOKEN_TS_B64: aW50ZXJmYWNlIEVudiB7CiAgVklaT0FMSUNBX1RPS0VOX1NFQ1JFVDogc3RyaW5nOwogIFZJWk9BTElDQV9QUk9KRUNUX0lEOiBzdHJpbmc7CiAgVklaT0FMSUNBX1NPVVJDRV9JRDogc3RyaW5nOwogIC8qKiBDb21tYS1zZXBhcmF0ZWQgbGlzdCBvZiBhbGxvd2VkIG9yaWdpbnMgKGUuZy4gYXBleCArIHd3dyBzZXJ2aW5nIHRoZSBzYW1lIHNpdGUpLiAqLwogIFZJWk9BTElDQV9TSVRFX09SSUdJTlM6IHN0cmluZzsKfQoKY29uc3QgZW5jb2RlciA9IG5ldyBUZXh0RW5jb2RlcigpOwpmdW5jdGlvbiBiYXNlNjR1cmwoYnl0ZXM6IFVpbnQ4QXJyYXkpOiBzdHJpbmcgewogIHJldHVybiBidG9hKFN0cmluZy5mcm9tQ2hhckNvZGUoLi4uYnl0ZXMpKQogICAgLnJlcGxhY2UoLz0vZywgJycpCiAgICAucmVwbGFjZSgvXCsvZywgJy0nKQogICAgLnJlcGxhY2UoL1wvL2csICdfJyk7Cn0KZnVuY3Rpb24gZW5jb2RlZCh2YWx1ZTogdW5rbm93bik6IHN0cmluZyB7CiAgcmV0dXJuIGJhc2U2NHVybChlbmNvZGVyLmVuY29kZShKU09OLnN0cmluZ2lmeSh2YWx1ZSkpKTsKfQpmdW5jdGlvbiByZXBseShib2R5OiBzdHJpbmcsIHN0YXR1czogbnVtYmVyKTogUmVzcG9uc2UgewogIHJldHVybiBuZXcgUmVzcG9uc2UoYm9keSwgewogICAgc3RhdHVzLAogICAgaGVhZGVyczogewogICAgICAnY29udGVudC10eXBlJzogJ3RleHQvcGxhaW47IGNoYXJzZXQ9dXRmLTgnLAogICAgICAnY2FjaGUtY29udHJvbCc6ICduby1zdG9yZScsCiAgICAgICd4LWNvbnRlbnQtdHlwZS1vcHRpb25zJzogJ25vc25pZmYnLAogICAgICAuLi4oc3RhdHVzID09PSA0MDUgPyB7IGFsbG93OiAnR0VUJyB9IDoge30pCiAgICB9CiAgfSk7Cn0KCmV4cG9ydCBhc3luYyBmdW5jdGlvbiBvblJlcXVlc3QoewogIHJlcXVlc3QsCiAgZW52Cn06IHsKICByZXF1ZXN0OiBSZXF1ZXN0OwogIGVudjogRW52Owp9KTogUHJvbWlzZTxSZXNwb25zZT4gewogIGlmIChyZXF1ZXN0Lm1ldGhvZCAhPT0gJ0dFVCcpIHJldHVybiByZXBseSgnTWV0aG9kIG5vdCBhbGxvd2VkJywgNDA1KTsKICBsZXQgYWxsb3dlZE9yaWdpbnM6IHN0cmluZ1tdOwogIHRyeSB7CiAgICBhbGxvd2VkT3JpZ2lucyA9IGVudi5WSVpPQUxJQ0FfU0lURV9PUklHSU5TLnNwbGl0KCcsJykKICAgICAgLm1hcCgoZW50cnkpID0+IGVudHJ5LnRyaW0oKSkKICAgICAgLmZpbHRlcihCb29sZWFuKTsKICAgIGlmICgKICAgICAgIWVudi5WSVpPQUxJQ0FfVE9LRU5fU0VDUkVUIHx8CiAgICAgIGVudi5WSVpPQUxJQ0FfVE9LRU5fU0VDUkVULmxlbmd0aCA8IDMyIHx8CiAgICAgICFlbnYuVklaT0FMSUNBX1BST0pFQ1RfSUQgfHwKICAgICAgZW52LlZJWk9BTElDQV9QUk9KRUNUX0lELnN0YXJ0c1dpdGgoJ1JFUExBQ0VfJykgfHwKICAgICAgIWVudi5WSVpPQUxJQ0FfU09VUkNFX0lEIHx8CiAgICAgIGVudi5WSVpPQUxJQ0FfU09VUkNFX0lELnN0YXJ0c1dpdGgoJ1JFUExBQ0VfJykgfHwKICAgICAgYWxsb3dlZE9yaWdpbnMubGVuZ3RoID09PSAwIHx8CiAgICAgIGFsbG93ZWRPcmlnaW5zLnNvbWUoCiAgICAgICAgKG9yaWdpbikgPT4gbmV3IFVSTChvcmlnaW4pLm9yaWdpbiAhPT0gb3JpZ2luIHx8ICFvcmlnaW4uc3RhcnRzV2l0aCgnaHR0cHM6Ly8nKQogICAgICApCiAgICApCiAgICAgIHJldHVybiByZXBseSgnVG9rZW4gaXNzdWVyIGlzIG5vdCBjb25maWd1cmVkJywgNTAzKTsKICB9IGNhdGNoIHsKICAgIHJldHVybiByZXBseSgnVG9rZW4gaXNzdWVyIGlzIG5vdCBjb25maWd1cmVkJywgNTAzKTsKICB9CiAgbGV0IHByb3ZlbmFuY2UgPSByZXF1ZXN0LmhlYWRlcnMuZ2V0KCdvcmlnaW4nKTsKICBpZiAoIXByb3ZlbmFuY2UpIHsKICAgIHRyeSB7CiAgICAgIHByb3ZlbmFuY2UgPSBuZXcgVVJMKHJlcXVlc3QuaGVhZGVycy5nZXQoJ3JlZmVyZXInKSA/PyAnJykub3JpZ2luOwogICAgfSBjYXRjaCB7CiAgICAgIHJldHVybiByZXBseSgnT3JpZ2luIG5vdCBhbGxvd2VkJywgNDAzKTsKICAgIH0KICB9CiAgaWYgKCFhbGxvd2VkT3JpZ2lucy5pbmNsdWRlcyhwcm92ZW5hbmNlKSB8fCAhYWxsb3dlZE9yaWdpbnMuaW5jbHVkZXMobmV3IFVSTChyZXF1ZXN0LnVybCkub3JpZ2luKSkKICAgIHJldHVybiByZXBseSgnT3JpZ2luIG5vdCBhbGxvd2VkJywgNDAzKTsKCiAgLy8gU2NvcGUgY29tZXMgb25seSBmcm9tIHNlcnZlciBjb25maWd1cmF0aW9uLCBuZXZlciByZXF1ZXN0IHBhcmFtZXRlcnMgb3IgaGVhZGVycy4KICBjb25zdCBub3cgPSBNYXRoLmZsb29yKERhdGUubm93KCkgLyAxMDAwKTsKICBjb25zdCBjbGFpbXMgPSB7CiAgICBpc3M6ICd2aXpvYWxpY2EtcGFnZXMnLAogICAgYXVkOiAndml6b2FsaWNhLWluZ2VzdCcsCiAgICBzdWI6IGBzb3VyY2UvJHtlbnYuVklaT0FMSUNBX1NPVVJDRV9JRH1gLAogICAgcHJvamVjdF9pZDogZW52LlZJWk9BTElDQV9QUk9KRUNUX0lELAogICAgc291cmNlX2lkOiBlbnYuVklaT0FMSUNBX1NPVVJDRV9JRCwKICAgIG9yaWdpbjogcHJvdmVuYW5jZSwKICAgIHNjb3BlOiAnZXZlbnRzOndyaXRlJywKICAgIGlhdDogbm93LAogICAgbmJmOiBub3csCiAgICBleHA6IG5vdyArIDMwMCwKICAgIGp0aTogY3J5cHRvLnJhbmRvbVVVSUQoKSwKICAgIG1heF9ldmVudHM6IDI1CiAgfTsKICBjb25zdCBpbnB1dCA9IGAke2VuY29kZWQoeyBhbGc6ICdIUzI1NicsIHR5cDogJ0pXVCcgfSl9LiR7ZW5jb2RlZChjbGFpbXMpfWA7CiAgY29uc3Qga2V5ID0gYXdhaXQgY3J5cHRvLnN1YnRsZS5pbXBvcnRLZXkoCiAgICAncmF3JywKICAgIGVuY29kZXIuZW5jb2RlKGVudi5WSVpPQUxJQ0FfVE9LRU5fU0VDUkVUKSwKICAgIHsgbmFtZTogJ0hNQUMnLCBoYXNoOiAnU0hBLTI1NicgfSwKICAgIGZhbHNlLAogICAgWydzaWduJ10KICApOwogIGNvbnN0IHNpZ25hdHVyZSA9IGF3YWl0IGNyeXB0by5zdWJ0bGUuc2lnbignSE1BQycsIGtleSwgZW5jb2Rlci5lbmNvZGUoaW5wdXQpKTsKICByZXR1cm4gcmVwbHkoYCR7aW5wdXR9LiR7YmFzZTY0dXJsKG5ldyBVaW50OEFycmF5KHNpZ25hdHVyZSkpfWAsIDIwMCk7Cn0K
@@ -172,7 +160,6 @@ jobs:
         # job environment.
         env:
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
-          SITE_DIRECTORY: ${{ inputs.site-directory }}
         run: |
           set -euo pipefail
           # This file exists only in the ephemeral CI workspace for this run.
@@ -185,7 +172,7 @@ jobs:
           [vars]
           VIZOALICA_SDK_SRC = "$VIZOALICA_SDK_SRC"
           VIZOALICA_INGEST_ENDPOINT = "$VIZOALICA_INGEST_ENDPOINT"
-          VIZOALICA_PUBLIC_SOURCE_KEY = "$VIZOALICA_PUBLIC_SOURCE_KEY"
+          VIZOALICA_PUBLIC_SOURCE_KEY = "$VIZOALICA_WEBSITE_KEY"
           VIZOALICA_PROJECT_ID = "$VIZOALICA_PROJECT_ID"
           VIZOALICA_TOKEN_URL = "$VIZOALICA_TOKEN_URL"
           VIZOALICA_CONSENT = "$VIZOALICA_CONSENT"
@@ -211,7 +198,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
-          SITE_DIRECTORY: ${{ inputs.site-directory }}
           # A branch name is chosen by whoever pushes it, so it too goes through the environment.
           DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |

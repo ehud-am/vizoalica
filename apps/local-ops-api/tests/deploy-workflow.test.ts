@@ -7,10 +7,10 @@ import { validateDynamicConfig } from '../../../packages/browser-sdk/src/dynamic
 import { onRequest as configEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/config.json.js';
 import { onRequest as tokenEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/ingest-token.js';
 
-// The reusable workflow resolves the bundled site value and the defaults in one shell step. That
+// The deploy workflow template resolves the bundled site value and the defaults in one shell step. That
 // step runs with a Cloudflare token nearby, so it is tested here as real shell, not read by eye.
 const workflow = readFileSync(
-  new URL('../../../.github/workflows/deploy-vizoalica-pages.yml', import.meta.url),
+  new URL('../../../examples/cloudflare-pages/deploy-workflow.yml', import.meta.url),
   'utf8'
 );
 const hasJq = spawnSync('jq', ['--version']).status === 0;
@@ -30,7 +30,7 @@ function stepScript(name: string): string {
 
 const bundle = {
   endpoint: 'https://worker.test/v1/events:batch',
-  sourceKey: 'key1',
+  websiteKey: 'key1',
   projectId: 'p1',
   sourceId: 's1',
   origins: ['https://a.test', 'https://www.a.test']
@@ -72,7 +72,7 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
     expect(result.written).toEqual({
       VIZOALICA_SDK_SRC: '/vizoalica.js',
       VIZOALICA_INGEST_ENDPOINT: bundle.endpoint,
-      VIZOALICA_PUBLIC_SOURCE_KEY: 'key1',
+      VIZOALICA_WEBSITE_KEY: 'key1',
       VIZOALICA_PROJECT_ID: 'p1',
       VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
       VIZOALICA_CONSENT: 'unknown',
@@ -84,18 +84,48 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
   it('lets a separate variable win over the bundle, so existing setups keep working', () => {
     const result = run({
       SITE_BUNDLE: JSON.stringify(bundle),
-      VIZOALICA_SOURCE_ID: 'override',
-      VIZOALICA_CONSENT: 'analytics-granted'
+      VIZOALICA_SOURCE_ID: 'override'
     });
     expect(result.status).toBe(0);
     expect(result.written.VIZOALICA_SOURCE_ID).toBe('override');
-    expect(result.written.VIZOALICA_CONSENT).toBe('analytics-granted');
+  });
+
+  it('still reads the older website key names, and the new name wins', () => {
+    const old = run({
+      SITE_BUNDLE: JSON.stringify({ ...bundle, websiteKey: undefined, sourceKey: 'old1' })
+    });
+    expect(old.written.VIZOALICA_WEBSITE_KEY).toBe('old1');
+    const legacyVar = run({
+      SITE_BUNDLE: JSON.stringify({ ...bundle, websiteKey: undefined }),
+      VIZOALICA_PUBLIC_SOURCE_KEY: 'legacy'
+    });
+    expect(legacyVar.written.VIZOALICA_WEBSITE_KEY).toBe('legacy');
+    const both = run({
+      SITE_BUNDLE: JSON.stringify(bundle),
+      VIZOALICA_WEBSITE_KEY: 'new',
+      VIZOALICA_PUBLIC_SOURCE_KEY: 'legacy'
+    });
+    expect(both.written.VIZOALICA_WEBSITE_KEY).toBe('new');
+  });
+
+  it('ignores the removed SDK path, token URL and consent variables', () => {
+    const result = run({
+      SITE_BUNDLE: JSON.stringify(bundle),
+      VIZOALICA_SDK_SRC: '/other.js',
+      VIZOALICA_TOKEN_URL: '/other',
+      VIZOALICA_CONSENT: 'analytics-granted'
+    });
+    expect(result.written).toMatchObject({
+      VIZOALICA_SDK_SRC: '/vizoalica.js',
+      VIZOALICA_TOKEN_URL: '/vizoalica/ingest-token',
+      VIZOALICA_CONSENT: 'unknown'
+    });
   });
 
   it('still accepts the five separate variables and no bundle', () => {
     const result = run({
       VIZOALICA_INGEST_ENDPOINT: bundle.endpoint,
-      VIZOALICA_PUBLIC_SOURCE_KEY: 'key1',
+      VIZOALICA_WEBSITE_KEY: 'key1',
       VIZOALICA_PROJECT_ID: 'p1',
       VIZOALICA_SOURCE_ID: 's1',
       VIZOALICA_SITE_ORIGINS: 'https://a.test'
@@ -117,7 +147,7 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
   });
 
   it('refuses a value that could inject another variable, and writes nothing', () => {
-    const result = run({ SITE_BUNDLE: JSON.stringify({ ...bundle, sourceKey: 'k\nEVIL=1' }) });
+    const result = run({ SITE_BUNDLE: JSON.stringify({ ...bundle, websiteKey: 'k\nEVIL=1' }) });
     expect(result.status).toBe(1);
     expect(result.written).toEqual({});
   });
@@ -135,7 +165,7 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
   });
 
   it('defaults the site folder to the repository root and rejects a path that escapes it', () => {
-    expect(workflow).toMatch(/site-directory:[\s\S]*?required: false[\s\S]*?default: '\.'/);
+    expect(workflow).toMatch(/^env:\n {2}SITE_DIRECTORY: '\.'$/m);
     expect(run({ SITE_BUNDLE: JSON.stringify(bundle), SITE_DIRECTORY: '../x' }).status).toBe(1);
   });
 });
@@ -227,7 +257,7 @@ describe.skipIf(!hasJq)('workflow steps chained into the real Pages functions', 
     const bundled = deployed({ SITE_BUNDLE: JSON.stringify(bundle) }).vars;
     const separate = deployed({
       VIZOALICA_INGEST_ENDPOINT: bundle.endpoint,
-      VIZOALICA_PUBLIC_SOURCE_KEY: 'key1',
+      VIZOALICA_WEBSITE_KEY: 'key1',
       VIZOALICA_PROJECT_ID: 'p1',
       VIZOALICA_SOURCE_ID: 's1',
       VIZOALICA_SITE_ORIGINS: 'https://a.test,https://www.a.test'

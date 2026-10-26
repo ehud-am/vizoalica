@@ -102,17 +102,29 @@ no analytics values ever committed to the website's source.
    variables → Actions), and the two account-specific values (`CF_ACCOUNT_ID`, `CF_PAGES_PROJECT`)
    plus a Cloudflare API token scoped to **Cloudflare Pages: Edit only** (create it without any
    Client IP Address Filtering restriction — a CI runner has no fixed IP).
-3. **Add the workflow file** shown on the page to `.github/workflows/` in the website's repo, and
-   push. The workflow deploys the site, vendors the Vizoalica configuration and token-issuing
-   Functions, and wires the analytics configuration into the Cloudflare Pages environment — all
-   from repository variables/secrets, never from committed source.
+3. **Add the workflow file.** It is a template, not a shared workflow, so it lives in your own
+   repository. Download it (the Install page shows this command) and commit it:
+
+   ```sh
+   mkdir -p .github/workflows
+   curl -fsSL https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml \
+     -o .github/workflows/deploy-website.yml
+   ```
+
+   Read it before you commit it: it runs with your Cloudflare token. If the site is in a folder,
+   edit `SITE_DIRECTORY` near the top. A push to `main` then deploys the site, adds the Vizoalica
+   configuration and token-issuing Functions, and wires the analytics configuration into the
+   Cloudflare Pages environment, all from repository variables and secrets, never from committed
+   source. It is for the signed-token path only; without signed tokens you need no workflow, only the
+   [script tag](#one-script-tag).
+
 4. **Verify** with [Verify website activation](#verify-website-activation) against the deployed
    URL, and check the website's page in the console shows **Website reachable**.
 
-See the [deploy workflow contract](../../specs/011-quality-simplicity-release/contracts/deploy-workflow-contract.md)
-for the full technical contract, including the caveat that a **public** website repository cannot
-call a reusable workflow hosted in a private repository — vendor the workflow's steps directly
-into the website's own repo instead in that case (see the contract for the exact reason).
+The template's source is
+[`examples/cloudflare-pages/deploy-workflow.yml`](https://github.com/ehud-am/vizoalica/blob/main/examples/cloudflare-pages/deploy-workflow.yml).
+It embeds the Functions and loader from the same folder, so it works in a public or private website
+repository.
 
 ### Path B: manual (Direct Upload or Git-connected Pages)
 
@@ -160,6 +172,11 @@ allowed origins and to the endpoint's list, or list only the address that serves
 > to the repository root. Changing a website's allowed origins in the console means updating the origin
 > list here (or in `VIZOALICA_SITE`) to match, then deploying. The manual `wrangler.toml` below still
 > uses the separate fields.
+>
+> **Website key name.** The deploy workflow template reads `VIZOALICA_WEBSITE_KEY` (and `websiteKey` in
+> `VIZOALICA_SITE`). The older `VIZOALICA_PUBLIC_SOURCE_KEY` and `sourceKey` are still read when the
+> new name is not set. `VIZOALICA_SDK_SRC`, `VIZOALICA_TOKEN_URL` and `VIZOALICA_CONSENT` are no
+> longer read by the workflow: it always uses the defaults.
 
 Edit the working copy's `wrangler.toml`:
 

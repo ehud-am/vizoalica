@@ -44,7 +44,7 @@ export type StaticInstallation = {
   defaults?: Record<string, string>;
 };
 export type CloudflareGuidance = {
-  workflowRef: string;
+  workflowUrl: string;
   repoVariables: Record<string, string>;
   /** The same settings as separate variables. Absent from an older local API. */
   expandedRepoVariables?: Record<string, string>;
@@ -56,7 +56,7 @@ export type CloudflareGuidance = {
   accountLookupCommand?: string;
   accountSpecificVariables: string[];
   repoSecretNames: string[];
-  starterWorkflowYaml: string;
+  workflowDownloadCommand: string;
   setupCommands: string[];
   warnings: string[];
 };

@@ -68,7 +68,8 @@ export const primaryIntegration: Integration = {
         'data-consent': 'unknown'
       },
       cloudflare: {
-        workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3',
+        workflowUrl:
+          'https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml',
         repoVariables: {
           VIZOALICA_SITE:
             '{"endpoint":"https://worker.test/v1/events:batch","sourceKey":"public-key","projectId":"project-1","sourceId":"site-1","origins":["https://docs.example.com"]}'
@@ -89,8 +90,8 @@ export const primaryIntegration: Integration = {
         accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
         accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
         repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
-        starterWorkflowYaml:
-          'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3\n    secrets: inherit',
+        workflowDownloadCommand:
+          'mkdir -p .github/workflows && curl -fsSL https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml -o .github/workflows/deploy-website.yml',
         setupCommands: [
           `gh variable set VIZOALICA_SITE --body '{"endpoint":"https://worker.test/v1/events:batch"}'`,
           'gh variable set CF_ACCOUNT_ID --body YOUR_CF_ACCOUNT_ID',

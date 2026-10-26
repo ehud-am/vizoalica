@@ -574,7 +574,8 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               'data-consent': 'unknown'
             },
             cloudflare: {
-              workflowRef: 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3',
+              workflowUrl:
+                'https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml',
               repoVariables: {
                 VIZOALICA_SITE: JSON.stringify({
                   endpoint: 'https://worker.test/v1/events:batch',
@@ -600,8 +601,8 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
               accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
               accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
               repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
-              starterWorkflowYaml:
-                'name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3\n    secrets: inherit',
+              workflowDownloadCommand:
+                'mkdir -p .github/workflows && curl -fsSL https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml -o .github/workflows/deploy-website.yml',
               setupCommands: [
                 "gh variable set VIZOALICA_SITE --body '{}'",
                 'gh secret set CF_API_TOKEN'
