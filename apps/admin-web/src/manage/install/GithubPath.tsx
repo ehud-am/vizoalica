@@ -110,15 +110,15 @@ export function GithubPath({
 
       <InstallStep title="Add the deploy workflow">
         <p>
-          Save this as <code>.github/workflows/deploy-website.yml</code> in your website’s
-          repository. It works as it is when your site is at the top of the repository. If your site
-          is in a folder, add <code>with:</code> and <code>site-directory: YOUR_FOLDER</code> under
-          the <code>uses</code> line.
+          Run this in your website’s repository to save the workflow as{' '}
+          <code>.github/workflows/deploy-website.yml</code>, then commit it. It works as it is when
+          your site is at the top of the repository. If your site is in a folder, edit{' '}
+          <code>SITE_DIRECTORY</code> near the top of the file.
         </p>
         <CodeBlock
           label="Deploy workflow"
-          code={cloudflare.starterWorkflowYaml}
-          what="workflow file"
+          code={cloudflare.workflowDownloadCommand}
+          what="download command"
         />
       </InstallStep>
 

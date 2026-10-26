@@ -41,14 +41,12 @@ describe('complete installation snippet', () => {
       }
     });
     const cloudflare = response.body.modes[1].cloudflare;
-    expect(cloudflare.workflowRef).toBe(
-      'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3'
-    );
+    expect(cloudflare.workflowUrl).toContain('/examples/cloudflare-pages/deploy-workflow.yml');
     // One public value carries the website's settings; the rest follow a convention.
     expect(Object.keys(cloudflare.repoVariables)).toEqual(['VIZOALICA_SITE']);
     expect(JSON.parse(cloudflare.repoVariables.VIZOALICA_SITE)).toEqual({
       endpoint: 'https://worker.test/v1/events:batch',
-      sourceKey: 'public-key',
+      websiteKey: 'public-key',
       projectId: 'project-1',
       sourceId: 'source-1',
       origins: ['https://site.test']
@@ -72,12 +70,8 @@ describe('complete installation snippet', () => {
       'CF_API_TOKEN',
       'VIZOALICA_TOKEN_SECRET'
     ]);
-    // Works unedited for a site at the repository root: no folder placeholder.
-    expect(response.body.modes[1].cloudflare.starterWorkflowYaml).toContain(
-      'uses: ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3'
-    );
-    expect(response.body.modes[1].cloudflare.starterWorkflowYaml).not.toContain(
-      'YOUR_SITE_DIRECTORY'
+    expect(response.body.modes[1].cloudflare.workflowDownloadCommand).toContain(
+      `curl -fsSL ${cloudflare.workflowUrl} -o .github/workflows/deploy-website.yml`
     );
     expect(response.body.modes[1].cloudflare.setupCommands.join('\n')).not.toMatch(
       /gh secret set (CF_API_TOKEN|VIZOALICA_TOKEN_SECRET) --body/

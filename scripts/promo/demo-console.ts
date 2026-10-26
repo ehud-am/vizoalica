@@ -299,7 +299,8 @@ function integration(site: Site) {
     'data-token-url': '/vizoalica/ingest-token',
     'data-consent': 'unknown'
   };
-  const ref = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3';
+  const ref =
+    'https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml';
   const variables: Record<string, string> = {
     VIZOALICA_SITE: JSON.stringify({
       endpoint: config['data-endpoint'],
@@ -332,7 +333,7 @@ function integration(site: Site) {
         configUrl: '/vizoalica/config.json',
         config,
         cloudflare: {
-          workflowRef: ref,
+          workflowUrl: ref,
           repoVariables: variables,
           defaults: {
             VIZOALICA_SDK_SRC: '/vizoalica.js',
@@ -343,7 +344,7 @@ function integration(site: Site) {
           accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
           accountSpecificVariables: ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'],
           repoSecretNames: ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'],
-          starterWorkflowYaml: `name: Deploy website\non:\n  push:\n    branches: [main]\n\njobs:\n  deploy:\n    uses: ${ref}\n    secrets: inherit`,
+          workflowDownloadCommand: `mkdir -p .github/workflows && curl -fsSL ${ref} -o .github/workflows/deploy-website.yml`,
           setupCommands: [
             ...Object.entries(variables).map(
               ([name, value]) => `gh variable set ${name} --body '${value}'`

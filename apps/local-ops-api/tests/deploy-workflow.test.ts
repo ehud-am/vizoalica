@@ -7,10 +7,10 @@ import { validateDynamicConfig } from '../../../packages/browser-sdk/src/dynamic
 import { onRequest as configEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/config.json.js';
 import { onRequest as tokenEndpoint } from '../../../examples/cloudflare-pages/functions/vizoalica/ingest-token.js';
 
-// The reusable workflow resolves the bundled site value and the defaults in one shell step. That
+// The deploy workflow template resolves the bundled site value and the defaults in one shell step. That
 // step runs with a Cloudflare token nearby, so it is tested here as real shell, not read by eye.
 const workflow = readFileSync(
-  new URL('../../../.github/workflows/deploy-vizoalica-pages.yml', import.meta.url),
+  new URL('../../../examples/cloudflare-pages/deploy-workflow.yml', import.meta.url),
   'utf8'
 );
 const hasJq = spawnSync('jq', ['--version']).status === 0;
@@ -165,7 +165,7 @@ describe.skipIf(!hasJq)('deploy workflow configuration step', () => {
   });
 
   it('defaults the site folder to the repository root and rejects a path that escapes it', () => {
-    expect(workflow).toMatch(/site-directory:[\s\S]*?required: false[\s\S]*?default: '\.'/);
+    expect(workflow).toMatch(/^env:\n {2}SITE_DIRECTORY: '\.'$/m);
     expect(run({ SITE_BUNDLE: JSON.stringify(bundle), SITE_DIRECTORY: '../x' }).status).toBe(1);
   });
 });

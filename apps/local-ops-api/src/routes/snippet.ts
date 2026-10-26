@@ -14,11 +14,9 @@ function attribute(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
-/**
- * The reusable workflow that understands the bundled `VIZOALICA_SITE` variable and the defaults.
- * It is the release that ships this change; the starter workflow must point at a tag that exists.
- */
-const WORKFLOW_REF = 'ehud-am/vizoalica/.github/workflows/deploy-vizoalica-pages.yml@v0.7.3';
+/** The deploy workflow template a website copies into its own repository (not a reusable workflow). */
+const WORKFLOW_URL =
+  'https://raw.githubusercontent.com/ehud-am/vizoalica/main/examples/cloudflare-pages/deploy-workflow.yml';
 
 /** The settings that follow a convention, so a website only states them to change them. */
 const DEFAULTS = {
@@ -37,7 +35,7 @@ function cloudflareGuidance(
   // Everything the workflow needs about this website in one public value; the workflow splits it.
   const site = JSON.stringify({
     endpoint: config['data-endpoint'],
-    sourceKey: config['data-source'],
+    websiteKey: config['data-source'],
     projectId: config['data-project'],
     sourceId,
     origins: siteOrigins
@@ -52,18 +50,7 @@ function cloudflareGuidance(
   };
   const accountSpecificVariables = ['CF_ACCOUNT_ID', 'CF_PAGES_PROJECT'];
   const repoSecretNames = ['CF_API_TOKEN', 'VIZOALICA_TOKEN_SECRET'];
-  // A site at the repository root needs no folder; a subfolder needs the one edit the console names.
-  const starterWorkflowYaml = [
-    'name: Deploy website',
-    'on:',
-    '  push:',
-    '    branches: [main]',
-    '',
-    'jobs:',
-    '  deploy:',
-    `    uses: ${WORKFLOW_REF}`,
-    '    secrets: inherit'
-  ].join('\n');
+  const workflowDownloadCommand = `mkdir -p .github/workflows && curl -fsSL ${WORKFLOW_URL} -o .github/workflows/deploy-website.yml`;
   const setupCommands = [
     ...Object.entries(repoVariables).map(
       ([name, value]) => `gh variable set ${name} --body ${shellQuote(value)}`
@@ -72,7 +59,7 @@ function cloudflareGuidance(
     ...repoSecretNames.map((name) => `gh secret set ${name}`)
   ];
   return {
-    workflowRef: WORKFLOW_REF,
+    workflowUrl: WORKFLOW_URL,
     repoVariables,
     expandedRepoVariables,
     defaults: { ...DEFAULTS },
@@ -83,7 +70,7 @@ function cloudflareGuidance(
     accountLookupCommand: 'npx wrangler whoami && npx wrangler pages project list',
     accountSpecificVariables,
     repoSecretNames,
-    starterWorkflowYaml,
+    workflowDownloadCommand,
     setupCommands,
     warnings: [
       'The listed repository variables are public browser configuration, not secrets.',

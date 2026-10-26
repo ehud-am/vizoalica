@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Regenerates the base64-embedded Pages Functions/loader block inside
-// .github/workflows/deploy-vizoalica-pages.yml from their real source files.
+// examples/cloudflare-pages/deploy-workflow.yml from their real source files.
 //
 // The reusable deploy workflow cannot `actions/checkout` this repository from
 // a customer's workflow run: GITHUB_TOKEN never carries cross-repo access to
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const workflowPath = join(root, '.github/workflows/deploy-vizoalica-pages.yml');
+const workflowPath = join(root, 'examples/cloudflare-pages/deploy-workflow.yml');
 
 const sources = {
   CONFIG_JSON_TS_B64: 'examples/cloudflare-pages/functions/vizoalica/config.json.ts',
@@ -46,14 +46,14 @@ const updated = workflow.slice(0, beginIndex) + block + workflow.slice(endIndex)
 if (process.argv.includes('--check')) {
   if (updated !== workflow) {
     console.error(
-      'deploy-vizoalica-pages.yml is out of date with its source files.\n' +
+      'deploy-workflow.yml is out of date with its source files.\n' +
         'Run `pnpm run generate:deploy-workflow` and commit the result.'
     );
     process.exit(1);
   }
-  console.log('deploy-vizoalica-pages.yml is up to date.');
+  console.log('deploy-workflow.yml is up to date.');
   process.exit(0);
 }
 
 writeFileSync(workflowPath, updated);
-console.log('Regenerated the embedded block in deploy-vizoalica-pages.yml.');
+console.log('Regenerated the embedded block in deploy-workflow.yml.');
