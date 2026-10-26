@@ -16,16 +16,17 @@ name: Deploy Vizoalica website
 #       secrets: inherit
 #
 # Required caller repository variables: VIZOALICA_SITE (one JSON value with this
-# website's public settings: endpoint, sourceKey, projectId, sourceId, origins),
+# website's public settings: endpoint, websiteKey, projectId, sourceId, origins),
 # CF_ACCOUNT_ID, CF_PAGES_PROJECT.
 # Required caller repository secrets: CF_API_TOKEN (Cloudflare Pages: Edit
 # scope only), VIZOALICA_TOKEN_SECRET (>= 32 random characters).
 #
-# Optional, with defaults: VIZOALICA_SDK_SRC (/vizoalica.js), VIZOALICA_TOKEN_URL
-# (/vizoalica/ingest-token), VIZOALICA_CONSENT (unknown). Instead of VIZOALICA_SITE
-# you may still set the five values separately (VIZOALICA_INGEST_ENDPOINT,
-# VIZOALICA_PUBLIC_SOURCE_KEY, VIZOALICA_PROJECT_ID, VIZOALICA_SOURCE_ID,
-# VIZOALICA_SITE_ORIGINS); a separate value wins over the bundled one.
+# Instead of VIZOALICA_SITE you may set the five values separately
+# (VIZOALICA_INGEST_ENDPOINT, VIZOALICA_WEBSITE_KEY, VIZOALICA_PROJECT_ID,
+# VIZOALICA_SOURCE_ID, VIZOALICA_SITE_ORIGINS); a separate value wins over the bundled one.
+# The older names VIZOALICA_PUBLIC_SOURCE_KEY and "sourceKey" are still read when the website
+# key is not set. The SDK path, token URL and consent state follow fixed conventions
+# (/vizoalica.js, /vizoalica/ingest-token, unknown) and are no longer variables.
 #
 # None of these values are ever read from, or written to, the caller's
 # repository source. They are supplied by GitHub Actions and wired into the
@@ -60,12 +61,10 @@ jobs:
       - name: Resolve and validate configuration
         env:
           SITE_BUNDLE: ${{ vars.VIZOALICA_SITE }}
-          VIZOALICA_SDK_SRC: ${{ vars.VIZOALICA_SDK_SRC }}
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT }}
+          VIZOALICA_WEBSITE_KEY: ${{ vars.VIZOALICA_WEBSITE_KEY }}
           VIZOALICA_PUBLIC_SOURCE_KEY: ${{ vars.VIZOALICA_PUBLIC_SOURCE_KEY }}
           VIZOALICA_PROJECT_ID: ${{ vars.VIZOALICA_PROJECT_ID }}
-          VIZOALICA_TOKEN_URL: ${{ vars.VIZOALICA_TOKEN_URL }}
-          VIZOALICA_CONSENT: ${{ vars.VIZOALICA_CONSENT }}
           VIZOALICA_SOURCE_ID: ${{ vars.VIZOALICA_SOURCE_ID }}
           VIZOALICA_SITE_ORIGINS: ${{ vars.VIZOALICA_SITE_ORIGINS }}
           CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
@@ -85,18 +84,20 @@ jobs:
             fi
             bundled() { echo "$SITE_BUNDLE" | jq -r "$1 // empty"; }
             : "${VIZOALICA_INGEST_ENDPOINT:=$(bundled .endpoint)}"
-            : "${VIZOALICA_PUBLIC_SOURCE_KEY:=$(bundled .sourceKey)}"
+            : "${VIZOALICA_WEBSITE_KEY:=$(bundled '.websiteKey // .sourceKey')}"
             : "${VIZOALICA_PROJECT_ID:=$(bundled .projectId)}"
             : "${VIZOALICA_SOURCE_ID:=$(bundled .sourceId)}"
             : "${VIZOALICA_SITE_ORIGINS:=$(bundled '(.origins // []) | join(",")')}"
           fi
-          # Settings that follow a convention need no variable.
-          : "${VIZOALICA_SDK_SRC:=/vizoalica.js}"
-          : "${VIZOALICA_TOKEN_URL:=/vizoalica/ingest-token}"
-          : "${VIZOALICA_CONSENT:=unknown}"
+          # The older variable name still works when the website key is not set.
+          : "${VIZOALICA_WEBSITE_KEY:=${VIZOALICA_PUBLIC_SOURCE_KEY:-}}"
+          # Settings that follow a convention are fixed, not variables.
+          VIZOALICA_SDK_SRC=/vizoalica.js
+          VIZOALICA_TOKEN_URL=/vizoalica/ingest-token
+          VIZOALICA_CONSENT=unknown
           missing=()
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
-            VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
+          for name in VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
+            VIZOALICA_PROJECT_ID VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS CF_ACCOUNT_ID CF_PAGES_PROJECT CF_API_TOKEN \
             VIZOALICA_TOKEN_SECRET; do
             value="${!name:-}"
@@ -116,8 +117,8 @@ jobs:
           fi
           # The public values are written into a generated TOML file, so none may contain a character
           # that could end a value or start a new line, and none may carry a shell metacharacter.
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
-            VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
+          for name in VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
+            VIZOALICA_PROJECT_ID VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS CF_ACCOUNT_ID CF_PAGES_PROJECT; do
             value="${!name}"
             if [[ "$value" =~ [^[:graph:]] || "$value" == *\"* || "$value" == *\\* \
@@ -137,7 +138,7 @@ jobs:
           fi
           # Only values that passed the checks above (single line, no metacharacters) reach later
           # steps, so this file cannot be used to inject another variable.
-          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_PUBLIC_SOURCE_KEY \
+          for name in VIZOALICA_SDK_SRC VIZOALICA_INGEST_ENDPOINT VIZOALICA_WEBSITE_KEY \
             VIZOALICA_PROJECT_ID VIZOALICA_TOKEN_URL VIZOALICA_CONSENT VIZOALICA_SOURCE_ID \
             VIZOALICA_SITE_ORIGINS; do
             printf '%s=%s\n' "$name" "${!name}" >> "$GITHUB_ENV"
@@ -185,7 +186,7 @@ jobs:
           [vars]
           VIZOALICA_SDK_SRC = "$VIZOALICA_SDK_SRC"
           VIZOALICA_INGEST_ENDPOINT = "$VIZOALICA_INGEST_ENDPOINT"
-          VIZOALICA_PUBLIC_SOURCE_KEY = "$VIZOALICA_PUBLIC_SOURCE_KEY"
+          VIZOALICA_PUBLIC_SOURCE_KEY = "$VIZOALICA_WEBSITE_KEY"
           VIZOALICA_PROJECT_ID = "$VIZOALICA_PROJECT_ID"
           VIZOALICA_TOKEN_URL = "$VIZOALICA_TOKEN_URL"
           VIZOALICA_CONSENT = "$VIZOALICA_CONSENT"

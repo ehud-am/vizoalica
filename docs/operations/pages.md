@@ -160,6 +160,11 @@ allowed origins and to the endpoint's list, or list only the address that serves
 > to the repository root. Changing a website's allowed origins in the console means updating the origin
 > list here (or in `VIZOALICA_SITE`) to match, then deploying. The manual `wrangler.toml` below still
 > uses the separate fields.
+>
+> **Website key name.** The deploy workflow reads `VIZOALICA_WEBSITE_KEY` (and `websiteKey` in
+> `VIZOALICA_SITE`). The older `VIZOALICA_PUBLIC_SOURCE_KEY` and `sourceKey` are still read when the
+> new name is not set. `VIZOALICA_SDK_SRC`, `VIZOALICA_TOKEN_URL` and `VIZOALICA_CONSENT` are no
+> longer read by the workflow: it always uses the defaults.
 
 Edit the working copy's `wrangler.toml`:
 
