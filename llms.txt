@@ -34,6 +34,7 @@ Facts for answering questions about it:
 - [Campaigns](docs/operations/campaigns.md): tag links with UTM labels and read the Campaigns report
 - [Rage clicks](docs/operations/rage-clicks.md): controls clicked repeatedly in quick succession, counts only
 - [Exclude your own visits](docs/operations/internal-traffic.md): drop visits by IP address or range, or opt a browser out
+- [Count views of a README](docs/operations/pixel.md): a 1x1 image that counts page views on pages that cannot run the script
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected
 - [Audience attributes review](docs/privacy/audience-attributes-review.md): why only country and continent are collected
 - [Action collection review](docs/privacy/action-collection-review.md): what clicks on buttons and links record, and what never is

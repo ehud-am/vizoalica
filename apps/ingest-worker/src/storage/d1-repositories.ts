@@ -74,6 +74,8 @@ type SourceRow = {
   token_required?: number | null;
   /** Absent on a database older than schema 6, where nothing is excluded. */
   excluded_addresses_json?: string | null;
+  /** Absent on a database older than schema 8, where the pixel is off. */
+  pixel_enabled?: number | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -99,6 +101,7 @@ function sourceFromRow(row: SourceRow): Source {
     ...(row.quota_policy_id ? { quotaPolicyId: row.quota_policy_id } : {}),
     tokenRequired: row.token_required !== 0,
     excludedAddresses: excludedAddressesFrom(row.excluded_addresses_json),
+    pixelEnabled: row.pixel_enabled === 1,
     ...(row.created_at ? { createdAt: row.created_at } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {})
   };
@@ -712,9 +715,10 @@ export class D1Repositories
     const staticSite = source.tokenRequired === false;
     // Likewise the exclusion list: written only when there is one.
     const excluded = source.excludedAddresses?.length ? source.excludedAddresses : undefined;
+    const pixel = source.pixelEnabled === true;
     await this.db
       .prepare(
-        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}${excluded ? ', excluded_addresses_json' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''}${excluded ? ', ?' : ''})`
+        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}${excluded ? ', excluded_addresses_json' : ''}${pixel ? ', pixel_enabled' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''}${excluded ? ', ?' : ''}${pixel ? ', 1' : ''})`
       )
       .bind(
         source.id,
@@ -774,15 +778,17 @@ export class D1Repositories
       status?: 'active' | 'disabled';
       tokenRequired?: boolean;
       excludedAddresses?: string[];
+      pixelEnabled?: boolean;
     }
   ): Promise<Source | undefined> {
     const existing = await this.getSource(projectId, sourceId);
     if (!existing || existing.status === 'deleted') return undefined;
     const withToken = changes.tokenRequired !== undefined;
     const withExcluded = changes.excludedAddresses !== undefined;
+    const withPixel = changes.pixelEnabled !== undefined;
     const result = await this.db
       .prepare(
-        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''}${withExcluded ? ', excluded_addresses_json = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
+        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''}${withExcluded ? ', excluded_addresses_json = ?' : ''}${withPixel ? ', pixel_enabled = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
       )
       .bind(
         changes.name ?? existing.name,
@@ -791,6 +797,7 @@ export class D1Repositories
         new Date().toISOString(),
         ...(withToken ? [changes.tokenRequired ? 1 : 0] : []),
         ...(withExcluded ? [JSON.stringify(changes.excludedAddresses)] : []),
+        ...(withPixel ? [changes.pixelEnabled ? 1 : 0] : []),
         sourceId,
         projectId
       )

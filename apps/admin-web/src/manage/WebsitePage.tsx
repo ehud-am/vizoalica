@@ -12,6 +12,7 @@ import {
   type Website
 } from '../api/local-operations.js';
 import { ActionButton, ActionLink } from '../components/ActionButton.js';
+import { CodeBlock } from '../components/CodeBlock.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
 import { IdentifierList, identifiersFor } from '../components/IdentifierList.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
@@ -107,6 +108,46 @@ function ExcludedVisits({
   );
 }
 
+/** The README snippet when the pixel is on; otherwise what it is and where to switch it on. */
+function PixelPanel({ website, endpoint }: { website: Website; endpoint?: string }) {
+  const docs = 'https://vizoalica.dev/operations/pixel';
+  if (website.pixelEnabled === undefined)
+    return (
+      <p className="hint">
+        This backend is older than 0.13, so it cannot count pixel views yet. Update it with{' '}
+        <code>vizoalica deploy &lt;name&gt; --update</code>. <a href={docs}>How it works</a>
+      </p>
+    );
+  const url = endpoint
+    ? `${new URL('/v1/pixel.gif', endpoint).href}?website=${encodeURIComponent(website.publicSourceKey)}&path=/readme`
+    : undefined;
+  return (
+    <>
+      {website.pixelEnabled && url ? (
+        <>
+          <p>
+            On. Add this to a README. Change <code>path</code> for each page, so views are told
+            apart.
+          </p>
+          <CodeBlock label="README image" code={`![](${url})`} what="README image" />
+        </>
+      ) : (
+        <p className="hint">
+          Off. Switch it on to count views of a README or any page that cannot run scripts.{' '}
+          <a href={docs}>How it works</a>
+        </p>
+      )}
+      <ActionLink
+        capability="edit-website"
+        className="secondary button-link"
+        href={hrefFor('manage/websites/:id/edit', website.id)}
+      >
+        {website.pixelEnabled ? 'Change pixel setting' : 'Turn on the pixel'}
+      </ActionLink>
+    </>
+  );
+}
+
 function WebsiteHub({ website }: { website: Website }) {
   const scope = useScope();
   const setup = useSetup();
@@ -122,6 +163,7 @@ function WebsiteHub({ website }: { website: Website }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const { projectId, project } = scope;
+  const workerUrl = setup.state?.connection.workerUrl;
 
   useEffect(() => {
     setStatus(undefined);
@@ -309,6 +351,11 @@ function WebsiteHub({ website }: { website: Website }) {
         <section className="detail-card" aria-labelledby="website-excluded-heading">
           <h2 id="website-excluded-heading">Your own visits</h2>
           <ExcludedVisits website={website} hits={excludedHits} />
+        </section>
+
+        <section className="detail-card" aria-labelledby="website-pixel-heading">
+          <h2 id="website-pixel-heading">No-script pixel</h2>
+          <PixelPanel website={website} {...(workerUrl ? { endpoint: workerUrl } : {})} />
         </section>
 
         <section className="detail-card" aria-labelledby="website-install-heading">

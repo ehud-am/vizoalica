@@ -24,6 +24,8 @@ export type Website = {
   excludedAddresses?: string[];
   /** How many there are; sent to every role. */
   excludedAddressCount?: number;
+  /** Whether the no-JavaScript pixel counts views for this website. Off unless switched on. */
+  pixelEnabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

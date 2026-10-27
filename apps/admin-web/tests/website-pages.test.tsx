@@ -755,6 +755,28 @@ describe('excluding your own visits', () => {
     }
   });
 
+  it('switches the pixel on only when asked, and sends nothing about it otherwise', async () => {
+    sites.p1 = [{ ...excludedSite(), pixelEnabled: false }, blog];
+    go('manage/websites/s1/edit');
+    const user = userEvent.setup();
+    render(<App />);
+    const name = await screen.findByRole('textbox', { name: 'Website name' });
+    await user.type(name, ' v2');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.updateWebsite).toHaveBeenCalledTimes(1));
+    expect(api.updateWebsite.mock.calls[0]![2]).not.toHaveProperty('pixelEnabled');
+    cleanup();
+
+    go('manage/websites/s1/edit');
+    render(<App />);
+    await user.click(
+      await screen.findByRole('checkbox', { name: /pages that cannot run scripts/ })
+    );
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(api.updateWebsite).toHaveBeenCalledTimes(2));
+    expect(api.updateWebsite.mock.calls[1]![2]).toMatchObject({ pixelEnabled: true });
+  });
+
   it('can clear the list', async () => {
     sites.p1 = [excludedSite(), blog];
     go('manage/websites/s1/edit');

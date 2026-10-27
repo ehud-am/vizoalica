@@ -704,6 +704,7 @@ export async function handleAdminRequest(
           origins?: unknown;
           tokenRequired?: unknown;
           excludedAddresses?: unknown;
+          pixelEnabled?: unknown;
         }
       | undefined;
     const excluded =
@@ -715,6 +716,7 @@ export async function handleAdminRequest(
     if (
       !allowedOrigins ||
       (body.tokenRequired !== undefined && typeof body.tokenRequired !== 'boolean') ||
+      (body.pixelEnabled !== undefined && typeof body.pixelEnabled !== 'boolean') ||
       typeof body?.name !== 'string' ||
       body.name.trim().length < 1 ||
       body.name.length > 120 ||
@@ -732,13 +734,15 @@ export async function handleAdminRequest(
       quotaPolicyId: policy.id,
       // A client that does not say keeps the earlier behaviour: tokens required.
       tokenRequired: body.tokenRequired !== false,
-      ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {})
+      ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {}),
+      ...(body.pixelEnabled === true ? { pixelEnabled: true } : {})
     };
     await dependencies.repositories.createQuotaPolicy(policy);
     try {
       await dependencies.repositories.createSource(source);
     } catch (error) {
-      if (source.excludedAddresses?.length && isMissingSchema(error)) return databaseUpdateNeeded();
+      if ((source.excludedAddresses?.length || source.pixelEnabled) && isMissingSchema(error))
+        return databaseUpdateNeeded();
       throw error;
     }
     await dependencies.repositories.saveAdminAudit({
@@ -798,6 +802,7 @@ export async function handleAdminRequest(
           status?: unknown;
           tokenRequired?: unknown;
           excludedAddresses?: unknown;
+          pixelEnabled?: unknown;
         }
       | undefined;
     const excluded =
@@ -815,14 +820,17 @@ export async function handleAdminRequest(
     const status =
       body?.status === 'active' || body?.status === 'disabled' ? body.status : undefined;
     const tokenRequired = typeof body?.tokenRequired === 'boolean' ? body.tokenRequired : undefined;
+    const pixelEnabled = typeof body?.pixelEnabled === 'boolean' ? body.pixelEnabled : undefined;
     const valid =
       !!body &&
       (name !== undefined ||
         allowedOrigins !== undefined ||
         status !== undefined ||
         tokenRequired !== undefined ||
+        pixelEnabled !== undefined ||
         excluded !== undefined) &&
       (body.tokenRequired === undefined || tokenRequired !== undefined) &&
+      (body.pixelEnabled === undefined || pixelEnabled !== undefined) &&
       (body.name === undefined || (name !== undefined && name.length > 0 && name.length <= 120)) &&
       ((body.allowedOrigins === undefined && body.origins === undefined) ||
         allowedOrigins !== undefined) &&
@@ -835,12 +843,14 @@ export async function handleAdminRequest(
             ...(allowedOrigins !== undefined ? { allowedOrigins } : {}),
             ...(status !== undefined ? { status } : {}),
             ...(tokenRequired !== undefined ? { tokenRequired } : {}),
+            ...(pixelEnabled !== undefined ? { pixelEnabled } : {}),
             ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
           })
         : undefined;
     } catch (error) {
-      // Only a list can need the newer column, so only a request that carries one is told so.
-      if (excluded?.ok && isMissingSchema(error)) return databaseUpdateNeeded();
+      // Only these fields can need a newer column, so only a request that carries one is told so.
+      if ((excluded?.ok || pixelEnabled !== undefined) && isMissingSchema(error))
+        return databaseUpdateNeeded();
       throw error;
     }
     if (!source) return invalid();

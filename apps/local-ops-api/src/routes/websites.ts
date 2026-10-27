@@ -57,6 +57,7 @@ export function validateWebsiteBody(body: unknown, partial = false) {
         status?: unknown;
         tokenRequired?: unknown;
         excludedAddresses?: unknown;
+        pixelEnabled?: unknown;
       }
     | undefined;
   if (!value || (!partial && (!validName(value.name) || !validOrigins(value.allowedOrigins))))
@@ -68,6 +69,8 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     throw new Error('invalid_request');
   if (value.tokenRequired !== undefined && typeof value.tokenRequired !== 'boolean')
     throw new Error('invalid_request');
+  if (value.pixelEnabled !== undefined && typeof value.pixelEnabled !== 'boolean')
+    throw new Error('invalid_request');
   const excluded =
     value.excludedAddresses === undefined ? undefined : parseAddressList(value.excludedAddresses);
   if (excluded && !excluded.ok) throw new InvalidExcludedAddresses(excluded.reason, excluded.index);
@@ -77,6 +80,7 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     value.allowedOrigins === undefined &&
     value.status === undefined &&
     value.tokenRequired === undefined &&
+    value.pixelEnabled === undefined &&
     excluded === undefined
   )
     throw new Error('invalid_request');
@@ -85,6 +89,7 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     ...(value.allowedOrigins !== undefined ? { allowedOrigins: value.allowedOrigins } : {}),
     ...(value.status !== undefined ? { status: value.status } : {}),
     ...(value.tokenRequired !== undefined ? { tokenRequired: value.tokenRequired } : {}),
+    ...(value.pixelEnabled !== undefined ? { pixelEnabled: value.pixelEnabled } : {}),
     ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
   };
 }
