@@ -323,3 +323,6 @@ goes.
 | Vulnerability reports, contributing, brand                         | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |
 
 Vizoalica is released under the [MIT License](LICENSE).
+
+<!-- readme-pixel:start -->
+<!-- readme-pixel:end -->

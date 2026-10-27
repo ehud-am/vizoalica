@@ -77,3 +77,6 @@ downloads the first time.
 
 Guides, privacy notes, and the deployment steps are at <https://vizoalica.dev>. Report a problem or a question at
 <https://github.com/ehud-am/vizoalica/issues>. MIT licensed.
+
+<!-- readme-pixel:start -->
+<!-- readme-pixel:end -->

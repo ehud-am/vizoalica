@@ -15,6 +15,9 @@ All notable changes to Vizoalica are documented in this file.
   Visitors are counted with the daily salted digest; nothing is stored in the browser. Known limits: image proxies,
   generic referrers, blockers. New docs page: [Count views of a README](docs/operations/pixel.md); privacy review:
   [pixel](docs/privacy/pixel-review.md).
+- **README pixel from the pipeline.** `scripts/readme-pixel.mjs` fills a marked block in a README from
+  `VIZOALICA_INGEST_ENDPOINT` and `VIZOALICA_README_WEBSITE_KEY` (or `VIZOALICA_WEBSITE_KEY`). A workflow
+  (`readme-pixel.yml`) does it for `README.md` on a push to `main`; the npm build does it for the package README.
 - **One database migration** (additive): `0008_pixel_page_views.sql` (one column with a default). Update with
   `vizoalica deploy <name> --update`.
 

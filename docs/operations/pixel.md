@@ -26,6 +26,20 @@ It is **off by default** and switched on **per website**.
 
 The same line works in any HTML too (`<img src="…" width="1" height="1" alt="">`).
 
+## Fill it from your pipeline
+
+To keep the endpoint and key out of a repository's README, put a block between two markers and let CI fill it:
+
+```md
+<!-- readme-pixel:start -->
+<!-- readme-pixel:end -->
+```
+
+`scripts/readme-pixel.mjs <file> <path>` writes the image between them from `VIZOALICA_INGEST_ENDPOINT` and
+`VIZOALICA_README_WEBSITE_KEY` (or `VIZOALICA_WEBSITE_KEY`), all public values, and leaves the block empty when
+they are not set. Vizoalica's own repository does this: `.github/workflows/readme-pixel.yml` fills `README.md`
+on a push to `main` and commits it, and the npm build fills the package README at publish time.
+
 ## What is counted
 
 - One **page view** per image load, under the `path` you chose. It appears in Overview, Pages and real-time
