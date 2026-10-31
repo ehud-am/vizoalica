@@ -3,6 +3,7 @@ name: Publish to npm
 on:
   release:
     types: [published]
+  # Also started by release.yml: a release created with the workflow token does not fire `release`.
   workflow_dispatch: {}
 
 permissions:

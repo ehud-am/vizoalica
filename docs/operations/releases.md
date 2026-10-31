@@ -33,6 +33,26 @@ implementing agent's conversation or self-review, and it re-runs the checks itse
 Document the release version, commit SHA, compatibility changes, and whether the release changes the
 D1 schema. A self-hosting operator decides whether and when to use the release.
 
+## Automated release after approval
+
+A release happens only after the release owner approves it in the project chat (constitution,
+release gates). Once approved, the agent merges the release pull request, which bumps `version` in
+`package.json` and adds `docs/releases/vX.Y.Z.md`. On that push to `main`,
+`.github/workflows/release.yml`:
+
+1. reads the version and skips if tag `vX.Y.Z` already exists (safe to re-run);
+2. fails if `docs/releases/vX.Y.Z.md` is missing;
+3. creates the tag and GitHub Release from that file;
+4. dispatches `publish.yml` (npm) and `skill-release.yml` (skill zip) on the new tag. The workflow
+   token's releases do not fire `release` events, but `workflow_dispatch` is allowed.
+
+`publish.yml` stays a standalone workflow so the npm trusted publisher (bound to that filename)
+keeps working. Re-run a release by running `release.yml` manually from `main`.
+
+One-time setup: Settings → Actions → General → Workflow permissions must allow the workflow token
+to write contents and actions (the workflow requests them explicitly; org policy may cap them).
+If `main` has tag protection rules, allow `v*` tags created by GitHub Actions.
+
 ## Publishing the `vizoalica` package to npm
 
 Installing the console with `npm install -g vizoalica` (see [the quick start](../get-started.md)) needs
