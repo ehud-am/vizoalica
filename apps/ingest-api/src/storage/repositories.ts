@@ -86,6 +86,7 @@ export interface AdminRepository {
       status?: 'active' | 'disabled';
       tokenRequired?: boolean;
       excludedAddresses?: string[];
+      pixelEnabled?: boolean;
     }
   ): Promise<Source | undefined>;
   getSource(projectId: string, sourceId: string): Promise<Source | undefined>;

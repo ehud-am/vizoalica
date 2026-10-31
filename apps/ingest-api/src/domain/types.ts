@@ -27,6 +27,12 @@ export interface Source {
    * instead of counting. Operator configuration: never logged, audited or returned to analysts.
    */
   excludedAddresses?: string[];
+  /**
+   * Whether the website counts page views from the no-JavaScript pixel (`GET /v1/pixel.gif`). An
+   * image request carries no origin, so this is off unless the owner switches it on. Absent means
+   * false.
+   */
+  pixelEnabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

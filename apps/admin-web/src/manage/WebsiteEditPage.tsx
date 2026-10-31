@@ -23,6 +23,7 @@ function EditForm({ website }: { website: Website }) {
       name: input.name,
       allowedOrigins: input.allowedOrigins,
       tokenRequired: input.tokenRequired,
+      ...(input.pixelEnabled !== undefined ? { pixelEnabled: input.pixelEnabled } : {}),
       ...(input.excludedAddresses ? { excludedAddresses: input.excludedAddresses } : {})
     });
     await scope.refreshWebsites();
@@ -64,6 +65,9 @@ function EditForm({ website }: { website: Website }) {
           initialName={website.name}
           initialOrigins={website.allowedOrigins}
           initialTokenRequired={website.tokenRequired !== false}
+          {...(website.pixelEnabled !== undefined
+            ? { initialPixelEnabled: website.pixelEnabled }
+            : {})}
           {...(website.excludedAddresses ? { initialExcluded: website.excludedAddresses } : {})}
           submitLabel="Save changes"
           onSubmit={save}

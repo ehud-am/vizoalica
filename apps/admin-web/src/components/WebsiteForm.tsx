@@ -11,6 +11,8 @@ export interface WebsiteInput {
   tokenRequired: boolean;
   /** Only when the form shows the field and the list changed. */
   excludedAddresses?: string[];
+  /** Only when the form shows the switch and it changed. */
+  pixelEnabled?: boolean;
 }
 
 const MAX_NAME = 120;
@@ -71,6 +73,7 @@ export function WebsiteForm({
   initialOrigins = [''],
   initialTokenRequired = false,
   initialExcluded,
+  initialPixelEnabled,
   submitLabel = 'Add website',
   onDirtyChange,
   cancel,
@@ -88,6 +91,11 @@ export function WebsiteForm({
    * it is left out for a viewer who may not see them (an analyst gets only a count).
    */
   initialExcluded?: string[];
+  /**
+   * Whether the no-JavaScript pixel is on. When given, the form shows the switch; it is left out
+   * for a backend that predates it.
+   */
+  initialPixelEnabled?: boolean;
   submitLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
   /** A leave control (for example Cancel) shown next to the submit button. */
@@ -100,6 +108,8 @@ export function WebsiteForm({
   const [includeWww, setIncludeWww] = useState(true);
   const [tokenRequired, setTokenRequired] = useState(initialTokenRequired);
   const [excluded, setExcluded] = useState((initialExcluded ?? []).join('\n'));
+  const [pixelEnabled, setPixelEnabled] = useState(initialPixelEnabled ?? false);
+  const pixelChanged = initialPixelEnabled !== undefined && pixelEnabled !== initialPixelEnabled;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -132,6 +142,7 @@ export function WebsiteForm({
     : name !== initialName ||
       tokenRequired !== initialTokenRequired ||
       excludedChanged ||
+      pixelChanged ||
       resolved.origins.join('\n') !==
         resolveOrigins(initialOrigins.join('\n'), undefined).origins.join('\n');
 
@@ -160,7 +171,8 @@ export function WebsiteForm({
         name: name.trim() || defaultName,
         allowedOrigins: resolved.origins,
         tokenRequired,
-        ...(excludedChanged ? { excludedAddresses: excludedEntries } : {})
+        ...(excludedChanged ? { excludedAddresses: excludedEntries } : {}),
+        ...(pixelChanged ? { pixelEnabled } : {})
       });
       if (creating) {
         setName('');
@@ -315,6 +327,24 @@ export function WebsiteForm({
           a small server function, such as on Cloudflare Pages, to make fake events harder to send.
         </small>
       </div>
+      {initialPixelEnabled !== undefined && (
+        <div className="field">
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={pixelEnabled}
+              aria-describedby={`${id}-pixel-help`}
+              onChange={(event) => setPixelEnabled(event.target.checked)}
+            />
+            <span>Count views from pages that cannot run scripts (pixel)</span>
+          </label>
+          <small id={`${id}-pixel-help`}>
+            For a GitHub or npm README. An image request carries no origin, so anyone who knows the
+            website key could add fake views: leave this off unless you need it.{' '}
+            <a href="https://vizoalica.dev/operations/pixel">How it works</a>
+          </small>
+        </div>
+      )}
       {initialExcluded !== undefined && (
         <div className="field">
           <label htmlFor={`${id}-excluded`}>

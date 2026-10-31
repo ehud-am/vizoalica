@@ -7,6 +7,7 @@ import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { classifyRequest } from '../analytics/classifier.js';
 import type { RateLimiter } from '../env.js';
 import { dailyVisitorId, type DailySaltStore } from '../analytics/daily-visitor.js';
+import { countPixelHit } from '../../../ingest-api/src/ingestion/pixel.js';
 import { BROWSER_SDK } from '../generated/browser-sdk.js';
 
 /**
@@ -19,6 +20,27 @@ function sdkResponse(): Response {
       'content-type': 'text/javascript; charset=utf-8',
       'cache-control': 'public, max-age=3600',
       'access-control-allow-origin': '*',
+      'x-content-type-options': 'nosniff'
+    }
+  });
+}
+
+// A 1x1 transparent GIF.
+const PIXEL_GIF = Uint8Array.from(
+  atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'),
+  (char) => char.charCodeAt(0)
+);
+
+/**
+ * The same image for every request, counted or not, so the endpoint reveals nothing about which
+ * website keys exist. `no-store` makes each view reach the Worker instead of a cache.
+ */
+function pixelResponse(): Response {
+  return new Response(PIXEL_GIF, {
+    headers: {
+      'content-type': 'image/gif',
+      'cache-control': 'no-store, max-age=0',
+      'cross-origin-resource-policy': 'cross-origin',
       'x-content-type-options': 'nosniff'
     }
   });
@@ -93,6 +115,35 @@ export async function handleWorkerRequest(
   if (request.method === 'GET' && url.pathname === '/healthz') return healthResponse();
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/vizoalica.js')
     return sdkResponse();
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/v1/pixel.gif') {
+    const key = url.searchParams.get('website');
+    const path = url.searchParams.get('path');
+    // A HEAD is never a view. A request over the limit still gets the image, uncounted.
+    if (
+      request.method === 'GET' &&
+      key &&
+      path &&
+      (!dependencies.rateLimiter || (await withinRateLimit(request, dependencies.rateLimiter)))
+    ) {
+      const context = classifyRequest(request);
+      const daily = dependencies.visitorSalts
+        ? await dailyVisitorId(request, dependencies.visitorSalts)
+        : undefined;
+      if (daily) context.dailyVisitorId = daily;
+      // Never an error to the page that embeds the image: a failure only means the view is lost.
+      await countPixelHit(
+        {
+          publicSourceKey: key,
+          path,
+          workerOrigin: url.origin,
+          clientAddress: request.headers.get('cf-connecting-ip'),
+          analyticsContext: context
+        },
+        dependencies
+      ).catch(() => undefined);
+    }
+    return pixelResponse();
+  }
   if (dependencies.adminSecret && dependencies.adminRepositories) {
     const adminResponse = await handleAdminRequest(request, {
       adminSecret: dependencies.adminSecret,

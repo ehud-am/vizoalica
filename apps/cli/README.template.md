@@ -28,6 +28,20 @@ and which `vizoalica env` command fixes it. Pick between environments (`dev`, `s
 
 Press Ctrl+C once in the terminal to stop it.
 
+## Count views of a README
+
+A GitHub or npm README cannot run the script tag. For pages like these, switch on the **pixel** for a website
+(console: website → **Edit** → _Count views from pages that cannot run scripts_; update the backend first with
+`vizoalica deploy <name> --update`), then add a Markdown image to the README, with its own `path`:
+
+```md
+![](https://<backend>/v1/pixel.gif?website=<website-key>&path=/github/readme)
+```
+
+It is off by default because an image request carries no origin, so anyone who knows the website key can forge
+views: use a separate website for READMEs. GitHub and npm proxy images, so counts there are rough and unique
+visitors cannot be told apart. Details: [vizoalica.dev/operations/pixel](https://vizoalica.dev/operations/pixel).
+
 ## Update and uninstall
 
 ```sh
@@ -63,3 +77,6 @@ downloads the first time.
 
 Guides, privacy notes, and the deployment steps are at <https://vizoalica.dev>. Report a problem or a question at
 <https://github.com/ehud-am/vizoalica/issues>. MIT licensed.
+
+<!-- readme-pixel:start -->
+<!-- readme-pixel:end -->

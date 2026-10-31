@@ -4,6 +4,23 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-27
+
+### Added
+
+- **No-script pixel** (issue #47). `GET /v1/pixel.gif?website=<website-key>&path=/npm/vizoalica` records one page
+  view and returns a 1x1 GIF with `Cache-Control: no-store`, for pages that cannot run the script, such as a GitHub
+  or npm README. It is off by default and switched on per website (`pixelEnabled`, console: website → Edit), because
+  an image request carries no origin and hits can be forged. Pixel events are marked `pixel` in the raw archive.
+  Visitors are counted with the daily salted digest; nothing is stored in the browser. Known limits: image proxies,
+  generic referrers, blockers. New docs page: [Count views of a README](docs/operations/pixel.md); privacy review:
+  [pixel](docs/privacy/pixel-review.md).
+- **README pixel from the pipeline.** `scripts/readme-pixel.mjs` fills a marked block in a README from
+  `VIZOALICA_INGEST_ENDPOINT` and `VIZOALICA_README_WEBSITE_KEY` (or `VIZOALICA_WEBSITE_KEY`). A workflow
+  (`readme-pixel.yml`) does it for `README.md` on a push to `main`; the npm build does it for the package README.
+- **One database migration** (additive): `0008_pixel_page_views.sql` (one column with a default). Update with
+  `vizoalica deploy <name> --update`.
+
 ## [0.12.1] - 2026-10-25
 
 ### Fixed

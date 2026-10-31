@@ -17,6 +17,8 @@ export type Website = {
   excludedAddresses?: string[];
   /** How many there are; absent from an older backend. */
   excludedAddressCount?: number;
+  /** Whether the no-JavaScript pixel counts views for this website; absent from an older backend. */
+  pixelEnabled?: boolean;
 };
 export type ExcludedHits = {
   /** Events dropped in the window. */
@@ -311,7 +313,9 @@ export const createWebsite = (
 export const updateWebsite = (
   projectId: string,
   websiteId: string,
-  input: Partial<Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired'>> & {
+  input: Partial<
+    Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired' | 'pixelEnabled'>
+  > & {
     excludedAddresses?: string[];
   }
 ) =>

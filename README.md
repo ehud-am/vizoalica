@@ -26,6 +26,7 @@ answer questions from the same data. Visitor data stays in your own Cloudflare a
 
 - **Ask your AI assistant:** a local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor ("How did my websites do last week?"). See [Use Vizoalica with AI](docs/operations/ai.md).
 - **Install on a website:** one script tag, on any host. Nothing is stored in visitors' browsers: no cookies, no local storage. (Only if you opt your own browser out of being counted, with `?vizoalica_ignore=1`, does it store one value on your own device.)
+- **No-script pages:** an optional 1x1 image counts views of a README or any page that cannot run the script. See [Count views of a README](docs/operations/pixel.md).
 - **Runs on:** Cloudflare Workers (event ingestion and admin API), D1 (aggregates), and R2 (raw event batches), all in your account.
 - **Collects:** page views (each screen of a single-page site, with identifiers such as `/orders/8841` grouped as `/orders/:id`), clicks on buttons and links as **actions** (and a count of rage clicks, bursts of rapid clicks on one control), custom events, and the UTM source, medium and campaign of the landing address, with URLs, referrers, and properties minimised before delivery. It never collects form values, typed text, page text, click positions, or session replay, and it records the consent state on every event.
 - **Standards:** CloudEvents batches, JSON Schema validation, and optional short-lived signed (JWT/JOSE) ingest tokens.
@@ -151,6 +152,20 @@ not secrets.
 
 Full guide: **[docs/operations/pages.md](docs/operations/pages.md)**; SDK reference:
 [docs/operations/browser-sdk.md](docs/operations/browser-sdk.md).
+
+## Count views of a README
+
+A GitHub or npm README cannot run the script tag. For pages like these, switch on the **pixel** for a website
+(console: website → **Edit** → _Count views from pages that cannot run scripts_; update the backend first with
+`vizoalica deploy <name> --update`), then add a Markdown image to the README, with its own `path`:
+
+```md
+![](https://<backend>/v1/pixel.gif?website=<website-key>&path=/github/readme)
+```
+
+It is off by default because an image request carries no origin, so anyone who knows the website key can forge
+views: use a separate website for READMEs. GitHub and npm proxy images, so counts there are rough and unique
+visitors cannot be told apart. Details: [docs/operations/pixel.md](docs/operations/pixel.md).
 
 ## Step 4: verify it works
 
@@ -308,3 +323,6 @@ goes.
 | Vulnerability reports, contributing, brand                         | [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Brand](docs/brand.md)               |
 
 Vizoalica is released under the [MIT License](LICENSE).
+
+<!-- readme-pixel:start -->
+<!-- readme-pixel:end -->

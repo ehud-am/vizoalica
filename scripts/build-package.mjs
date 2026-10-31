@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyReadmePixel, settingsFromEnv } from './lib/readme-pixel.mjs';
 import { buildWorkerAssets } from './lib/worker-assets.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -97,7 +98,14 @@ const manifest = readFileSync(at('apps', 'cli', 'package.json.template'), 'utf8'
   version
 );
 writeFileSync(join(out, 'package.json'), manifest);
-cpSync(at('apps', 'cli', 'README.template.md'), join(out, 'README.md'));
+// The README's pixel block is filled from the pipeline's public variables, so the npm page counts its own views.
+writeFileSync(
+  join(out, 'README.md'),
+  applyReadmePixel(
+    readFileSync(at('apps', 'cli', 'README.template.md'), 'utf8'),
+    settingsFromEnv(process.env, '/npm/vizoalica')
+  )
+);
 for (const name of ['LICENSE', 'CHANGELOG.md']) cpSync(at(name), join(out, name));
 
 if (!existsSync(join(dist, 'console', 'index.html')))
