@@ -35,7 +35,7 @@ A GitHub or npm README cannot run the script tag. For pages like these, switch o
 `vizoalica deploy <name> --update`), then add a Markdown image to the README, with its own `path`:
 
 ```md
-![](https://<backend>/v1/pixel.gif?website=<website-key>&path=/github/readme)
+![](https://<backend>/v1/pixel.gif?website=<website-key>&path=/readme)
 ```
 
 It is off by default because an image request carries no origin, so anyone who knows the website key can forge

@@ -18,10 +18,10 @@ It is **off by default** and switched on **per website**.
 2. On the website's page, **No-script pixel** shows the line to paste. It is a Markdown image:
 
    ```md
-   ![](https://<ingestion-endpoint>/v1/pixel.gif?website=<website-key>&path=/github/readme)
+   ![](https://<ingestion-endpoint>/v1/pixel.gif?website=<website-key>&path=/readme)
    ```
 
-3. Give each page its own `path`, so views are told apart: `/github/readme`, `/npm/vizoalica`. It must start
+3. Give each page its own `path`, so views are told apart: `/readme`, `/npm/readme`. It must start
    with `/`, be at most 512 characters, and carry no `?` or `#`. A path that does not meet this is not counted.
 
 The same line works in any HTML too (`<img src="…" width="1" height="1" alt="">`).
