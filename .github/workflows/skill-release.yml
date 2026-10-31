@@ -4,6 +4,12 @@ name: Attach the AI assistant skill
 on:
   release:
     types: [published]
+  # Also started by release.yml: a release created with the workflow token does not fire `release`.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the skill to (for example v0.13.0)
+        required: true
 
 permissions:
   contents: read
@@ -28,4 +34,4 @@ jobs:
           gh release upload "$TAG" ../vizoalica-skill.zip --clobber
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
