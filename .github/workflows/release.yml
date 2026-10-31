@@ -1,0 +1,64 @@
+name: Release
+
+# A merge to main that changes the package version creates the tag and GitHub Release, then starts
+# the npm publish. Merging happens only after the release owner approves (see the constitution).
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag, create the GitHub Release, and start the publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read the version
+        id: version
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already released
+        id: exists
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "done=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$TAG already exists; nothing to release."
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+
+      - name: Create the tag and GitHub Release from the release notes
+        if: steps.exists.outputs.done == 'false'
+        run: |
+          notes="docs/releases/$TAG.md"
+          test -f "$notes" || { echo "::error::Missing $notes"; exit 1; }
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file "$notes"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+
+      # A release created with the workflow token does not fire `release` events, so start the
+      # follow-up workflows directly (workflow_dispatch is exempt from that rule).
+      - name: Start the npm publish and the skill upload
+        if: steps.exists.outputs.done == 'false'
+        run: |
+          gh workflow run publish.yml --ref "$TAG"
+          gh workflow run skill-release.yml --ref "$TAG" -f tag="$TAG"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}

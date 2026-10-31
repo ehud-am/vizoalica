@@ -1,7 +1,10 @@
 <!--
 Sync Impact Report
-Version change: 3.0.0 → 3.1.0
+Version change: 3.1.0 → 3.2.0
 Modified sections:
+- Development Workflow, Verification, and Release Gates: a release requires explicit chat approval
+  from the release owner and is then executed by the agent through release.yml.
+Earlier change (3.0.0 → 3.1.0). Modified sections:
 - Development Workflow, Verification, and Release Gates: the contrarian QA review MUST be run by a
   separate AI agent started with clean context, not by the agent that wrote or changed the code.
 Earlier change (2.0.0 → 3.0.0). Modified principles:
@@ -139,6 +142,12 @@ available to people with diverse access needs.
 - A human release owner MUST make the final go/no-go decision after reviewing alignment evidence,
   test results, security findings, accessibility evidence, deployment validation, and the QA
   report. AI agents may recommend but MUST NOT make that release decision.
+- A release (Git tag, GitHub Release, npm publish) MUST happen only after the release owner
+  explicitly approves it in the project chat. Without that approval no agent may merge a release
+  change to `main` or start a release. With it, the agent carries out the whole release without the
+  owner using GitHub: it merges the approved release pull request, and `release.yml` then creates
+  the tag and GitHub Release from `docs/releases/vX.Y.Z.md` and dispatches the npm publish. Approval
+  covers that release only. Deploying an operator's backend stays a separate owner action.
 
 ## Governance
 
@@ -160,4 +169,4 @@ Compliance evidence belongs with the relevant specification, plan, pull request,
 record. Complexity, coverage exclusions, security exceptions, and deferred accessibility work are
 invalid unless explicitly approved, time-bounded, and tracked to resolution.
 
-**Version**: 3.1.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-10-17
+**Version**: 3.2.0 | **Ratified**: 2026-08-15 | **Last Amended**: 2026-10-31
