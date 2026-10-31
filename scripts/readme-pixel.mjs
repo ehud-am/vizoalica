@@ -1,6 +1,5 @@
 // node scripts/readme-pixel.mjs <file> <path>
-// Fills the pixel block of a README from VIZOALICA_INGEST_ENDPOINT and VIZOALICA_README_WEBSITE_KEY
-// (or VIZOALICA_WEBSITE_KEY). Used by the README workflow; the npm build does the same inline.
+// Fills the pixel block of a README from VIZOALICA_INGEST_ENDPOINT and VIZOALICA_WEBSITE_KEY. Used by the README workflow; the npm build does the same inline.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { applyReadmePixel, settingsFromEnv } from './lib/readme-pixel.mjs';
 

@@ -4,6 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-31
+
+### Changed
+
+- **README pixel uses the shared website key.** The pipeline reads `VIZOALICA_INGEST_ENDPOINT` and
+  `VIZOALICA_WEBSITE_KEY`, the same variables as the docs site; `VIZOALICA_README_WEBSITE_KEY` is no longer read.
+  The repository README counts under the page `/readme` and the npm README under `/npm/readme`, so they can be
+  told apart. The filled block keeps Prettier's blank lines, so the file stays formatted after the workflow runs.
+- Dependency updates: `reviewdog/action-actionlint` 1.80.8 and the minor-and-patch group.
+
 ## [0.13.0] - 2026-10-27
 
 ### Added

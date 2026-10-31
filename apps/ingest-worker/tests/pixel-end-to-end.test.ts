@@ -106,6 +106,24 @@ describe('the no-JavaScript pixel', () => {
     expect(stored).toHaveLength(1);
   });
 
+  it('counts the repository README and the npm README as two pages', async () => {
+    const { env, sqlite } = environment();
+    await admin(env, { pixelEnabled: true });
+    await pixel(env, 'website=readme-key&path=/readme');
+    await pixel(env, 'website=readme-key&path=/npm/readme');
+    await pixel(env, 'website=readme-key&path=/npm/readme');
+    expect(
+      sqlite
+        .prepare(
+          "SELECT page_path AS path, event_count AS n FROM dashboard_rollups WHERE event_type = 'com.vizoalica.page_view.v1' ORDER BY page_path"
+        )
+        .all()
+    ).toEqual([
+      { path: '/npm/readme', n: 2 },
+      { path: '/readme', n: 1 }
+    ]);
+  });
+
   it('never counts a HEAD request, a bad path, or an excluded address', async () => {
     const { env, stored } = environment();
     await admin(env, { pixelEnabled: true, excludedAddresses: [OFFICE] });

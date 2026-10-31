@@ -36,8 +36,8 @@ To keep the endpoint and key out of a repository's README, put a block between t
 ```
 
 `scripts/readme-pixel.mjs <file> <path>` writes the image between them from `VIZOALICA_INGEST_ENDPOINT` and
-`VIZOALICA_README_WEBSITE_KEY` (or `VIZOALICA_WEBSITE_KEY`), all public values, and leaves the block empty when
-they are not set. Vizoalica's own repository does this: `.github/workflows/readme-pixel.yml` fills `README.md`
+`VIZOALICA_WEBSITE_KEY`, both public values, and leaves the block empty when
+they are not set. Vizoalica's own repository does this, with path `/readme` for the repository README and `/npm/readme` for the npm README, so the two can be told apart in Pages: `.github/workflows/readme-pixel.yml` fills `README.md`
 on a push to `main` and commits it, and the npm build fills the package README at publish time.
 
 ## What is counted

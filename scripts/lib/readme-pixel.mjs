@@ -14,9 +14,9 @@ export function pixelMarkdown({ endpoint, websiteKey, path }) {
     return '';
   }
   if (base.protocol !== 'https:') return '';
-  base.searchParams.set('website', websiteKey);
-  base.searchParams.set('path', path);
-  return `![](${base.href})`;
+  // The path is written as it is read, with its slashes, so the link in a README is easy to recognize.
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  return `![](${base.origin}${base.pathname}?website=${encodeURIComponent(websiteKey)}&path=${encodedPath})`;
 }
 
 /** Replaces what is between the markers; a file without markers is returned as it is. */
@@ -25,14 +25,15 @@ export function applyReadmePixel(text, settings) {
   const end = text.indexOf(END);
   if (start < 0 || end < start) return text;
   const image = pixelMarkdown(settings);
-  return `${text.slice(0, start + START.length)}${image ? `\n${image}\n` : '\n'}${text.slice(end)}`;
+  // Blank lines around the image keep the file as Prettier writes it.
+  return `${text.slice(0, start + START.length)}${image ? `\n\n${image}\n\n` : '\n'}${text.slice(end)}`;
 }
 
 /** The settings as the workflows pass them: public repository variables, secrets as a fallback. */
 export function settingsFromEnv(env, path) {
   return {
     endpoint: env.VIZOALICA_INGEST_ENDPOINT,
-    websiteKey: env.VIZOALICA_README_WEBSITE_KEY || env.VIZOALICA_WEBSITE_KEY,
+    websiteKey: env.VIZOALICA_WEBSITE_KEY,
     path
   };
 }
