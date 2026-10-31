@@ -103,7 +103,7 @@ writeFileSync(
   join(out, 'README.md'),
   applyReadmePixel(
     readFileSync(at('apps', 'cli', 'README.template.md'), 'utf8'),
-    settingsFromEnv(process.env, '/npm/vizoalica')
+    settingsFromEnv(process.env, '/npm/readme')
   )
 );
 for (const name of ['LICENSE', 'CHANGELOG.md']) cpSync(at(name), join(out, name));

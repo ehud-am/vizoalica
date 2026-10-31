@@ -10,13 +10,13 @@ const block = 'a\n<!-- readme-pixel:start -->\n<!-- readme-pixel:end -->\nb\n';
 const settings = {
   endpoint: 'https://w.example.workers.dev/v1/events:batch',
   websiteKey: 'k1',
-  path: '/npm/vizoalica'
+  path: '/npm/readme'
 };
 
 describe('README pixel block', () => {
   it('builds the image from the endpoint, website key and path', () => {
     expect(pixelMarkdown(settings)).toBe(
-      '![](https://w.example.workers.dev/v1/pixel.gif?website=k1&path=%2Fnpm%2Fvizoalica)'
+      '![](https://w.example.workers.dev/v1/pixel.gif?website=k1&path=/npm/readme)'
     );
   });
 
@@ -29,7 +29,7 @@ describe('README pixel block', () => {
 
   it('fills the block, replaces an earlier fill, and empties it again', () => {
     const filled = applyReadmePixel(block, settings);
-    expect(filled).toContain('<!-- readme-pixel:start -->\n![](https://w.example.workers.dev');
+    expect(filled).toContain('<!-- readme-pixel:start -->\n\n![](https://w.example.workers.dev');
     expect(filled.startsWith('a\n') && filled.endsWith('<!-- readme-pixel:end -->\nb\n')).toBe(
       true
     );
@@ -41,13 +41,8 @@ describe('README pixel block', () => {
     expect(applyReadmePixel('plain', settings)).toBe('plain');
   });
 
-  it('reads the dedicated website key before the shared one', () => {
-    const env = {
-      VIZOALICA_INGEST_ENDPOINT: 'e',
-      VIZOALICA_WEBSITE_KEY: 'a',
-      VIZOALICA_README_WEBSITE_KEY: 'b'
-    };
-    expect(settingsFromEnv(env, '/x').websiteKey).toBe('b');
-    expect(settingsFromEnv({ VIZOALICA_WEBSITE_KEY: 'a' }, '/x').websiteKey).toBe('a');
+  it('reads the website key from VIZOALICA_WEBSITE_KEY', () => {
+    const env = { VIZOALICA_INGEST_ENDPOINT: 'e', VIZOALICA_WEBSITE_KEY: 'a' };
+    expect(settingsFromEnv(env, '/x')).toEqual({ endpoint: 'e', websiteKey: 'a', path: '/x' });
   });
 });

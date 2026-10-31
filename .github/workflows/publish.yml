@@ -49,7 +49,6 @@ jobs:
         env:
           # Public values; the package README's pixel block is filled from them (empty when unset).
           VIZOALICA_INGEST_ENDPOINT: ${{ vars.VIZOALICA_INGEST_ENDPOINT || secrets.VIZOALICA_INGEST_ENDPOINT }}
-          VIZOALICA_README_WEBSITE_KEY: ${{ vars.VIZOALICA_README_WEBSITE_KEY || secrets.VIZOALICA_README_WEBSITE_KEY }}
           VIZOALICA_WEBSITE_KEY: ${{ vars.VIZOALICA_WEBSITE_KEY || secrets.VIZOALICA_WEBSITE_KEY || vars.VIZOALICA_PUBLIC_SOURCE_KEY || secrets.VIZOALICA_PUBLIC_SOURCE_KEY }}
 
       # With a trusted publisher configured on the npm package (Settings → Trusted Publisher →

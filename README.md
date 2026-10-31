@@ -325,5 +325,7 @@ goes.
 Vizoalica is released under the [MIT License](LICENSE).
 
 <!-- readme-pixel:start -->
-![](https://prod-worker.vizoalica.dev/v1/pixel.gif?website=546ad4fe-0a95-45af-8dce-f8a4aac8ab1a&path=%2Fgithub%2Freadme)
+
+![](https://prod-worker.vizoalica.dev/v1/pixel.gif?website=546ad4fe-0a95-45af-8dce-f8a4aac8ab1a&path=/readme)
+
 <!-- readme-pixel:end -->
