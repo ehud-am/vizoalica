@@ -191,6 +191,36 @@ function rageClicksReport(url: URL) {
   };
 }
 
+/** The goals report of one website: one event goal and one page goal. */
+function goalsReport(url: URL) {
+  return {
+    scope: { projectId: project.id, sourceId: 'site-1', label: 'Docs' },
+    range: {
+      startUtc: url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',
+      endUtc: url.searchParams.get('end') ?? '2026-09-11T00:00:00.000Z',
+      interval: 'day'
+    },
+    totals: { pageViews: 500, visitors: 200 },
+    goals: [
+      {
+        goal: {
+          id: 'g1',
+          name: 'Signed up',
+          kind: 'event',
+          target: 'signup',
+          createdAt: '2026-09-01T00:00:00.000Z'
+        },
+        conversions: 30,
+        visitors: 22,
+        rate: 0.11,
+        rateBasis: 'visitors',
+        trend: []
+      }
+    ],
+    availability: { state: 'complete' }
+  };
+}
+
 const eventTotals = [
   { event: 'signup', count: 30, visitors: 22, pages: 2 },
   { event: 'file_download', count: 12, visitors: 9, pages: 1 }
@@ -633,6 +663,8 @@ export async function mockConsole(page: Page, options: MockOptions = {}) {
     else if (path.endsWith('/analytics/custom-events')) body = customEventsReport(url);
     else if (path.endsWith('/analytics/campaigns')) body = campaignsReport(url);
     else if (path.endsWith('/analytics/rage-clicks')) body = rageClicksReport(url);
+    else if (path.endsWith('/goals/report')) body = goalsReport(url);
+    else if (path.endsWith('/goals')) body = [];
     else if (path.endsWith('/analytics'))
       body = overview(
         url.searchParams.get('start') ?? '2026-09-10T00:00:00.000Z',

@@ -3,6 +3,9 @@ import type {
   CampaignsReport as WorkerCampaignsReport,
   CustomEventsReport as WorkerCustomEventsReport,
   RageClicksReport as WorkerRageClicksReport,
+  GoalsReport as WorkerGoalsReport,
+  Goal as WorkerGoal,
+  GroupingRule as WorkerGroupingRule,
   ExcludedHitsReport as WorkerExcludedHitsReport,
   AnalyticsOverview as WorkerAnalyticsOverview
 } from '../../ingest-api/src/domain/types.js';
@@ -26,6 +29,8 @@ export type Website = {
   excludedAddressCount?: number;
   /** Whether the no-JavaScript pixel counts views for this website. Off unless switched on. */
   pixelEnabled?: boolean;
+  /** Rules that rename page keys as events arrive; empty or absent means none. */
+  groupingRules?: GroupingRule[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -187,6 +192,9 @@ export type CustomEventsReport = WorkerCustomEventsReport;
 export type CampaignsReport = WorkerCampaignsReport;
 export type RageClicksReport = WorkerRageClicksReport;
 export type ExcludedHitsReport = WorkerExcludedHitsReport;
+export type GoalsReport = WorkerGoalsReport;
+export type Goal = WorkerGoal;
+export type GroupingRule = WorkerGroupingRule;
 
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResponse = { theme: Theme | null; updatedAt?: string };

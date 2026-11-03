@@ -15,6 +15,9 @@ import type {
   CampaignsFilters,
   CampaignsReport,
   RageClicksReport,
+  Goal,
+  GoalsReport,
+  GroupingRule,
   ExcludedHitsReport,
   CustomEventsFilters,
   CustomEventsReport,
@@ -43,6 +46,17 @@ export type QuotaReservation = {
 export interface EventRepository {
   saveAcceptedEvents(events: StoredEvent[]): Promise<void>;
   listAcceptedEvents(projectId?: string): Promise<StoredEvent[]>;
+  /**
+   * Whether the pixel may count this path: already known, or the website is under its cap. A new
+   * path over the cap is refused. Absent on a database older than schema 9, where there is no cap.
+   */
+  admitPixelPath?(input: {
+    projectId: string;
+    sourceId: string;
+    path: string;
+    maxPaths: number;
+    now: Date;
+  }): Promise<boolean>;
   /** Counts events dropped because their address is excluded: a count per website and day, no address. */
   recordExcludedHits?(input: {
     projectId: string;
@@ -87,6 +101,7 @@ export interface AdminRepository {
       tokenRequired?: boolean;
       excludedAddresses?: string[];
       pixelEnabled?: boolean;
+      groupingRules?: GroupingRule[];
     }
   ): Promise<Source | undefined>;
   getSource(projectId: string, sourceId: string): Promise<Source | undefined>;
@@ -130,6 +145,18 @@ export interface AdminRepository {
     endUtc: string,
     filters?: ActionsFilters
   ): Promise<RageClicksReport | undefined>;
+  /** Goals of a website, newest last. Absent on a Worker whose database predates schema 9. */
+  listGoals?(projectId: string, sourceId: string): Promise<Goal[]>;
+  createGoal?(goal: Goal): Promise<void>;
+  deleteGoal?(projectId: string, sourceId: string, goalId: string): Promise<boolean>;
+  getGoalsReport?(
+    projectId: string,
+    sourceId: string,
+    startUtc: string,
+    endUtc: string
+  ): Promise<GoalsReport | undefined>;
+  /** Distinct pixel paths counted for a website. */
+  getPixelPathUsage?(sourceId: string): Promise<{ count: number }>;
   /** Events dropped for excluded addresses over the last `windowDays` UTC days, today included. */
   getExcludedHits?(
     projectId: string,

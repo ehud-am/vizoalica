@@ -108,6 +108,7 @@ export async function handleWorkerRequest(
     backendInfo?: () => Promise<BackendInfo>;
     rateLimiter?: RateLimiter;
     visitorSalts?: DailySaltStore;
+    pixelMaxPaths?: number;
   },
   maxRequestBytes: number
 ): Promise<Response> {
@@ -137,7 +138,8 @@ export async function handleWorkerRequest(
           path,
           workerOrigin: url.origin,
           clientAddress: request.headers.get('cf-connecting-ip'),
-          analyticsContext: context
+          analyticsContext: context,
+          ...(dependencies.pixelMaxPaths ? { maxPaths: dependencies.pixelMaxPaths } : {})
         },
         dependencies
       ).catch(() => undefined);
@@ -149,7 +151,8 @@ export async function handleWorkerRequest(
       adminSecret: dependencies.adminSecret,
       repositories: dependencies.adminRepositories,
       ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {}),
-      ...(dependencies.backendInfo ? { backendInfo: dependencies.backendInfo } : {})
+      ...(dependencies.backendInfo ? { backendInfo: dependencies.backendInfo } : {}),
+      ...(dependencies.pixelMaxPaths ? { pixelMaxPaths: dependencies.pixelMaxPaths } : {})
     });
     if (adminResponse) return adminResponse;
   }

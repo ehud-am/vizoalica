@@ -8,9 +8,17 @@ import type {
   Principal,
   Project,
   QuotaPolicy,
-  Source
+  Source,
+  GoalKind,
+  GroupingRule
 } from '../../../ingest-api/src/domain/types.js';
 import { parseAddressList } from '../../../ingest-api/src/ingestion/address-match.js';
+import {
+  parseGroupingRules,
+  MAX_GROUPING_RULES
+} from '../../../ingest-api/src/ingestion/grouping-rules.js';
+import { DEFAULT_MAX_PIXEL_PATHS } from '../../../ingest-api/src/ingestion/pixel.js';
+import { MAX_GOALS_PER_WEBSITE } from '../storage/goal-reports.js';
 import { isMissingSchema } from '../storage/missing-schema.js';
 import type { PurgeSummary } from '../storage/purge-deleted.js';
 import { resolvePrincipal } from '../auth/principal.js';
@@ -39,6 +47,8 @@ type Dependencies = {
   backendInfo?: () => Promise<BackendInfo>;
   /** Decides whether this denied request is recorded; see denial-audit.ts. */
   auditDenial?: DenialAuditGate;
+  /** Distinct pixel paths allowed per website; defaults to {@link DEFAULT_MAX_PIXEL_PATHS}. */
+  pixelMaxPaths?: number;
 };
 
 const safePolicy = (id: string): QuotaPolicy => ({
@@ -94,6 +104,26 @@ function excludedAddressesFrom(
   };
 }
 
+/** Validates the `groupingRules` field of a request body; the refusal names the rule's position. */
+function groupingRulesFrom(
+  value: unknown
+): { ok: true; rules: GroupingRule[] } | { ok: false; response: Response } {
+  const parsed = parseGroupingRules(value);
+  if (parsed.ok) return { ok: true, rules: parsed.rules };
+  return {
+    ok: false,
+    response: Response.json(
+      {
+        error: 'invalid_request',
+        field: 'groupingRules',
+        reason: parsed.reason,
+        ...(parsed.index !== undefined ? { index: parsed.index } : {}),
+        limit: MAX_GROUPING_RULES
+      },
+      { status: 400 }
+    )
+  };
+}
 /** How far back the excluded-hits figures reach. */
 const EXCLUDED_HITS_WINDOW_DAYS = 30;
 
@@ -705,6 +735,7 @@ export async function handleAdminRequest(
           tokenRequired?: unknown;
           excludedAddresses?: unknown;
           pixelEnabled?: unknown;
+          groupingRules?: unknown;
         }
       | undefined;
     const excluded =
@@ -712,6 +743,9 @@ export async function handleAdminRequest(
         ? undefined
         : excludedAddressesFrom(body.excludedAddresses);
     if (excluded && !excluded.ok) return excluded.response;
+    const grouping =
+      body?.groupingRules === undefined ? undefined : groupingRulesFrom(body.groupingRules);
+    if (grouping && !grouping.ok) return grouping.response;
     const allowedOrigins = body && origins(body.allowedOrigins ?? body.origins);
     if (
       !allowedOrigins ||
@@ -735,13 +769,17 @@ export async function handleAdminRequest(
       // A client that does not say keeps the earlier behaviour: tokens required.
       tokenRequired: body.tokenRequired !== false,
       ...(excluded?.ok && excluded.entries.length ? { excludedAddresses: excluded.entries } : {}),
-      ...(body.pixelEnabled === true ? { pixelEnabled: true } : {})
+      ...(body.pixelEnabled === true ? { pixelEnabled: true } : {}),
+      ...(grouping?.ok && grouping.rules.length ? { groupingRules: grouping.rules } : {})
     };
     await dependencies.repositories.createQuotaPolicy(policy);
     try {
       await dependencies.repositories.createSource(source);
     } catch (error) {
-      if ((source.excludedAddresses?.length || source.pixelEnabled) && isMissingSchema(error))
+      if (
+        (source.excludedAddresses?.length || source.pixelEnabled || source.groupingRules?.length) &&
+        isMissingSchema(error)
+      )
         return databaseUpdateNeeded();
       throw error;
     }
@@ -803,6 +841,7 @@ export async function handleAdminRequest(
           tokenRequired?: unknown;
           excludedAddresses?: unknown;
           pixelEnabled?: unknown;
+          groupingRules?: unknown;
         }
       | undefined;
     const excluded =
@@ -810,6 +849,9 @@ export async function handleAdminRequest(
         ? undefined
         : excludedAddressesFrom(body.excludedAddresses);
     if (excluded && !excluded.ok) return excluded.response;
+    const grouping =
+      body?.groupingRules === undefined ? undefined : groupingRulesFrom(body.groupingRules);
+    if (grouping && !grouping.ok) return grouping.response;
     const allowedOrigins =
       body && body.allowedOrigins !== undefined
         ? origins(body.allowedOrigins)
@@ -828,6 +870,7 @@ export async function handleAdminRequest(
         status !== undefined ||
         tokenRequired !== undefined ||
         pixelEnabled !== undefined ||
+        grouping !== undefined ||
         excluded !== undefined) &&
       (body.tokenRequired === undefined || tokenRequired !== undefined) &&
       (body.pixelEnabled === undefined || pixelEnabled !== undefined) &&
@@ -844,12 +887,13 @@ export async function handleAdminRequest(
             ...(status !== undefined ? { status } : {}),
             ...(tokenRequired !== undefined ? { tokenRequired } : {}),
             ...(pixelEnabled !== undefined ? { pixelEnabled } : {}),
-            ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
+            ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {}),
+            ...(grouping?.ok ? { groupingRules: grouping.rules } : {})
           })
         : undefined;
     } catch (error) {
       // Only these fields can need a newer column, so only a request that carries one is told so.
-      if ((excluded?.ok || pixelEnabled !== undefined) && isMissingSchema(error))
+      if ((excluded?.ok || grouping?.ok || pixelEnabled !== undefined) && isMissingSchema(error))
         return databaseUpdateNeeded();
       throw error;
     }
@@ -910,6 +954,11 @@ export async function handleAdminRequest(
     const excludedHits = await dependencies.repositories
       .getExcludedHits?.(status[1]!, status[2]!, EXCLUDED_HITS_WINDOW_DAYS)
       .catch(() => undefined);
+    // The pixel's distinct paths against the cap, only for a website that has the pixel on.
+    const pixelMax = dependencies.pixelMaxPaths ?? DEFAULT_MAX_PIXEL_PATHS;
+    const pixelUsage = source.pixelEnabled
+      ? await dependencies.repositories.getPixelPathUsage?.(source.id).catch(() => undefined)
+      : undefined;
     return Response.json({
       sourceId: source.id,
       collection: source.status === 'active' ? 'healthy' : 'disabled',
@@ -917,7 +966,16 @@ export async function handleAdminRequest(
       configuration: source.allowedOrigins.length ? 'healthy' : 'attention',
       dataAccess: 'available',
       excludedAddressCount: source.excludedAddresses?.length ?? 0,
-      ...(excludedHits ? { excludedHits30d: excludedHits.total } : {})
+      ...(excludedHits ? { excludedHits30d: excludedHits.total } : {}),
+      ...(pixelUsage
+        ? {
+            pixelPaths: {
+              count: pixelUsage.count,
+              max: pixelMax,
+              capReached: pixelUsage.count >= pixelMax
+            }
+          }
+        : {})
     });
   }
   const excludedHitsMatch =
@@ -935,6 +993,140 @@ export async function handleAdminRequest(
         EXCLUDED_HITS_WINDOW_DAYS
       );
       return hits ? Response.json(hits, { headers: { 'cache-control': 'no-store' } }) : notFound();
+    });
+  }
+  const goalsReportMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/goals\/report$/.exec(
+    url.pathname
+  );
+  if (goalsReportMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = goalsReportMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    return needingSchema(async () => {
+      const report = await dependencies.repositories.getGoalsReport?.(
+        projectId!,
+        sourceId!,
+        range.startUtc,
+        range.endUtc
+      );
+      return report
+        ? Response.json(report, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
+  }
+  const goalsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/goals$/.exec(url.pathname);
+  if (goalsMatch && request.method === 'GET') {
+    if (
+      principal.role !== 'admin' &&
+      !sourceInScope(principal.scope, goalsMatch[1]!, goalsMatch[2]!)
+    )
+      return notFound();
+    return needingSchema(async () => {
+      const goals = await dependencies.repositories.listGoals?.(goalsMatch[1]!, goalsMatch[2]!);
+      return goals
+        ? Response.json(goals, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
+  }
+  if (goalsMatch && request.method === 'POST') {
+    const [, projectId, sourceId] = goalsMatch;
+    const guarded = guardSourceWrite(principal, projectId!, sourceId!);
+    if (guarded) {
+      await auditDenied(dependencies, 'create_goal', 'forbidden', {
+        projectId: projectId!,
+        sourceId: sourceId!,
+        actor
+      });
+      return guarded;
+    }
+    const body = (await request.json().catch(() => undefined)) as
+      { name?: unknown; kind?: unknown; target?: unknown } | undefined;
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const target = typeof body?.target === 'string' ? body.target.trim() : '';
+    const kind = body?.kind;
+    if (
+      !name ||
+      name.length > 80 ||
+      CONTROL_CHARACTERS.test(name) ||
+      (kind !== 'page' && kind !== 'action' && kind !== 'event') ||
+      !target ||
+      target.length > (kind === 'page' ? 512 : 80) ||
+      CONTROL_CHARACTERS.test(target) ||
+      (kind === 'page' && (!target.startsWith('/') || /[?]/.test(target)))
+    )
+      return invalid();
+    return needingSchema(async () => {
+      const source = await dependencies.repositories.getSource(projectId!, sourceId!);
+      if (!source || source.status === 'deleted' || !dependencies.repositories.createGoal)
+        return notFound();
+      const existing = (await dependencies.repositories.listGoals?.(projectId!, sourceId!)) ?? [];
+      if (existing.length >= MAX_GOALS_PER_WEBSITE)
+        return Response.json(
+          {
+            error: 'invalid_request',
+            field: 'goals',
+            reason: 'too_many',
+            limit: MAX_GOALS_PER_WEBSITE
+          },
+          { status: 400 }
+        );
+      const goal = {
+        id: crypto.randomUUID(),
+        projectId: projectId!,
+        sourceId: sourceId!,
+        name,
+        kind: kind as GoalKind,
+        target,
+        createdAt: new Date().toISOString()
+      };
+      await dependencies.repositories.createGoal(goal);
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'create_goal',
+        outcome: 'allowed',
+        reasonCode: 'created',
+        projectId: projectId!,
+        sourceId: sourceId!,
+        ...(actor ? { actor } : {})
+      });
+      return Response.json(goal, { status: 201 });
+    });
+  }
+  const goalMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/goals\/([^/]+)$/.exec(
+    url.pathname
+  );
+  if (goalMatch && request.method === 'DELETE') {
+    const [, projectId, sourceId, goalId] = goalMatch;
+    const guarded = guardSourceWrite(principal, projectId!, sourceId!);
+    if (guarded) {
+      await auditDenied(dependencies, 'delete_goal', 'forbidden', {
+        projectId: projectId!,
+        sourceId: sourceId!,
+        actor
+      });
+      return guarded;
+    }
+    return needingSchema(async () => {
+      const deleted = await dependencies.repositories.deleteGoal?.(projectId!, sourceId!, goalId!);
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'delete_goal',
+        outcome: deleted ? 'allowed' : 'denied',
+        reasonCode: deleted ? 'deleted' : 'not_found',
+        projectId: projectId!,
+        sourceId: sourceId!,
+        ...(actor ? { actor } : {})
+      });
+      return deleted ? Response.json({ status: 'deleted' }) : notFound();
     });
   }
   const analyticsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/analytics$/.exec(

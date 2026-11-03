@@ -17,6 +17,8 @@ export type Website = {
   excludedAddresses?: string[];
   /** How many there are; absent from an older backend. */
   excludedAddressCount?: number;
+  /** Rules that rename page keys as events arrive; absent from an older backend. */
+  groupingRules?: GroupingRule[];
   /** Whether the no-JavaScript pixel counts views for this website; absent from an older backend. */
   pixelEnabled?: boolean;
 };
@@ -105,6 +107,8 @@ export type Status = {
   aggregation: 'available' | 'processing' | 'unavailable';
   configuration?: 'healthy' | 'attention';
   dataAccess: 'available' | 'unavailable';
+  /** Distinct pixel paths against the cap; only for a website with the pixel on. */
+  pixelPaths?: { count: number; max: number; capReached: boolean };
 };
 export type CountItem = {
   label: string;
@@ -219,6 +223,32 @@ export type CampaignsReport = {
   availability: AnalyticsOverview['availability'];
 };
 
+export type GroupingRule = { pattern: string; key: string };
+export type GoalKind = 'page' | 'action' | 'event';
+export type Goal = {
+  id: string;
+  name: string;
+  kind: GoalKind;
+  target: string;
+  createdAt: string;
+};
+export type GoalResult = {
+  goal: Goal;
+  conversions: number;
+  /** Null for a page goal: page views are not kept per visitor. */
+  visitors: number | null;
+  rate: number | null;
+  rateBasis: 'visitors' | 'page_views';
+  trend: Array<{ startUtc: string; conversions: number }>;
+};
+export type GoalsReport = {
+  scope: { projectId: string; sourceId: string | null; label: string };
+  range: { startUtc: string; endUtc: string; interval: 'hour' | 'day' };
+  totals: { pageViews: number; visitors: number };
+  goals: GoalResult[];
+  availability: { state: string; lastCompletedAt?: string };
+};
+
 export type RageClicksReport = {
   scope: AnalyticsOverview['scope'];
   range: AnalyticsOverview['range'];
@@ -307,6 +337,7 @@ export const createWebsite = (
     allowedOrigins: string[];
     tokenRequired?: boolean;
     excludedAddresses?: string[];
+    groupingRules?: GroupingRule[];
   }
 ) =>
   request<Website>(`/api/projects/${encodeURIComponent(projectId)}/websites`, json('POST', input));
@@ -317,6 +348,7 @@ export const updateWebsite = (
     Pick<Website, 'name' | 'allowedOrigins' | 'status' | 'tokenRequired' | 'pixelEnabled'>
   > & {
     excludedAddresses?: string[];
+    groupingRules?: GroupingRule[];
   }
 ) =>
   request<Website>(
@@ -434,6 +466,34 @@ export const getAnalyticsRageClicks = (
     signal ? { signal } : undefined
   );
 };
+
+const goalsPath = (projectId: string, websiteId: string) =>
+  `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/goals`;
+export const getGoalsReport = (
+  projectId: string,
+  websiteId: string,
+  startUtc: string,
+  endUtc: string,
+  signal?: AbortSignal
+) => {
+  const query = new URLSearchParams({ start: startUtc, end: endUtc });
+  return request<GoalsReport>(
+    `${goalsPath(projectId, websiteId)}/report?${query.toString()}`,
+    signal ? { signal } : undefined
+  );
+};
+export const getGoalsList = (projectId: string, websiteId: string) =>
+  request<Goal[]>(goalsPath(projectId, websiteId));
+export const createGoal = (
+  projectId: string,
+  websiteId: string,
+  input: { name: string; kind: GoalKind; target: string }
+) => request<Goal>(goalsPath(projectId, websiteId), json('POST', input));
+export const deleteGoal = (projectId: string, websiteId: string, goalId: string) =>
+  request<{ status: string }>(
+    `${goalsPath(projectId, websiteId)}/${encodeURIComponent(goalId)}`,
+    json('DELETE')
+  );
 
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };

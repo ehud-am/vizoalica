@@ -33,8 +33,53 @@ export interface Source {
    * false.
    */
   pixelEnabled?: boolean;
+  /**
+   * Rules that rename page keys as events arrive (at most 25, first match wins), such as
+   * `/blog/*` to `/blog/:post`. Absent means none.
+   */
+  groupingRules?: GroupingRule[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Maps a path pattern to a page key. `*` matches one path segment; a final `**` matches the rest. */
+export interface GroupingRule {
+  pattern: string;
+  key: string;
+}
+
+export type GoalKind = 'page' | 'action' | 'event';
+
+/** A conversion goal of one website. `target` is a page key, an action name, or an event name. */
+export interface Goal {
+  id: string;
+  projectId: string;
+  sourceId: string;
+  name: string;
+  kind: GoalKind;
+  target: string;
+  createdAt: string;
+}
+
+export interface GoalResult {
+  goal: Goal;
+  /** Page views of the path, clicks of the action, or occurrences of the event. */
+  conversions: number;
+  /** Distinct visitors who converted. Null for a page goal: page views are not kept per visitor. */
+  visitors: number | null;
+  /** Converted visitors over all visitors, or page goal views over all page views. Null with no traffic. */
+  rate: number | null;
+  rateBasis: 'visitors' | 'page_views';
+  trend: Array<{ startUtc: string; conversions: number }>;
+}
+
+export interface GoalsReport {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  /** Everything in the range, the base of the rates. */
+  totals: { pageViews: number; visitors: number };
+  goals: GoalResult[];
+  availability: AnalyticsOverview['availability'];
 }
 
 export interface AdminAuditEntry {

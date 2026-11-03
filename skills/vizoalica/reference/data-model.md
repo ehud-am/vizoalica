@@ -58,6 +58,11 @@ session replay, cookies, auth headers, raw URL query values, per-visitor histori
 - Rage clicks report: `totals` (`bursts` and all `clicks` of the range and selection), `trend`, `rows` (page,
   action, kind, destination, bursts as `count`, and `clicks` on the same control; at most 50), `other`. Only
   bursts received after the backend got the rage click update are counted; earlier ranges report `incomplete`.
+- Goals report (one website): `totals` (`pageViews`, `visitors`), `goals` (name, kind `page`/`action`/`event`,
+  target, `conversions`, `visitors` or null for a page goal, `rate`, `rateBasis`, `trend`). Conversions come from
+  the existing counts, so a new goal also covers earlier days within retention.
+- Website status also reports `pixelPaths` (`count`, `max`, `capReached`) when the pixel is on: views of new
+  paths past the cap are ignored. Page grouping rules (per website) rename page keys as events arrive.
 - Website status also reports `excludedAddressCount` and `excludedHits30d`: events dropped for addresses the
   website excludes (never the addresses); browser opt-outs send nothing and are not counted.
 - A range is at most 30 days. Data older than the project's retention period is not available.

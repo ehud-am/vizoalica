@@ -58,6 +58,13 @@ export const CAPABILITIES = [
     area: 'manage',
     description: 'Enable or disable a website'
   },
+  { id: 'add-goal', class: 'operate', area: 'manage', description: 'Add a goal to a website' },
+  {
+    id: 'delete-goal',
+    class: 'operate',
+    area: 'manage',
+    description: 'Delete a goal of a website'
+  },
   { id: 'delete-website', class: 'operate', area: 'manage', description: 'Delete a website' },
   { id: 'delete-project', class: 'operate', area: 'manage', description: 'Delete a project' },
   {

@@ -7,6 +7,8 @@ import { isExcluded } from './address-match.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
 
 export const MAX_PIXEL_PATH_LENGTH = 512;
+/** Distinct paths one website's pixel counts; a new path beyond this is ignored. */
+export const DEFAULT_MAX_PIXEL_PATHS = 100;
 
 export interface PixelRequest {
   /** The website key, the same public value a script tag carries. */
@@ -18,6 +20,8 @@ export interface PixelRequest {
   clientAddress?: string | null;
   analyticsContext?: RequestAnalyticsContext;
   now?: Date;
+  /** Cap on distinct paths per website; defaults to {@link DEFAULT_MAX_PIXEL_PATHS}. */
+  maxPaths?: number;
 }
 
 /** A path that is not a plain page key is ignored rather than cleaned, so a typo never counts. */
@@ -76,8 +80,23 @@ export async function countPixelHit(
       session: { id: 'pixel' }
     }
   };
-  const privacy = applyPrivacyGuard([event]);
+  const privacy = applyPrivacyGuard([event], source.groupingRules);
   if (!privacy.ok) return false;
+
+  // The cap counts the page key the view is stored under, after grouping rules. A path over
+  // the cap is refused before the quota is touched, so path spam costs the owner nothing. A database without the table has no cap.
+  const storedPath = (privacy.events[0] as CloudEvent<PageViewData>).data.page.url_path;
+  if (
+    repositories.admitPixelPath &&
+    !(await repositories.admitPixelPath({
+      projectId: project.id,
+      sourceId: source.id,
+      path: storedPath,
+      maxPaths: request.maxPaths ?? DEFAULT_MAX_PIXEL_PATHS,
+      now
+    }))
+  )
+    return false;
 
   const policy = await repositories.findQuotaPolicy(source.quotaPolicyId ?? project.quotaPolicyId);
   if (!policy) return false;

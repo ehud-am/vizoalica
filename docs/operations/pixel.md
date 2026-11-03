@@ -48,6 +48,11 @@ on a push to `main` and commits it, and the npm build fills the package README a
   agent. Nothing is stored in the browser. The address is not stored.
 - Pixel views are marked `pixel` in the raw event archive (`vizoalicaauth`), so they can be told apart there.
   The reports do not split them out.
+- **Each website counts at most 100 different paths.** A path already counted keeps counting; a new path past the
+  limit is ignored, and the image is still answered the same way. The website's page in the console shows how many
+  paths are used and says when the limit is reached. This stops anyone who knows the public key from filling your
+  tables with made-up paths. Raise it with the Worker variable `VIZOALICA_PIXEL_MAX_PATHS`. Paths are counted
+  after [grouping rules](page-grouping.md), so `/npm/* => /npm/:package` keeps many packages in one path.
 - Quota applies like any event. [Exclude your own visits](internal-traffic.md) applies too.
 - A `HEAD` request is never a view. The image is always answered the same way (`200`, `Cache-Control: no-store`),
   whether the view was counted or not, so the endpoint does not reveal which website keys exist.

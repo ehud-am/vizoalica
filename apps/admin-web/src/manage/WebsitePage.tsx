@@ -14,6 +14,7 @@ import {
 import { ActionButton, ActionLink } from '../components/ActionButton.js';
 import { CodeBlock } from '../components/CodeBlock.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.js';
+import { GoalsPanel } from './GoalsPanel.js';
 import { IdentifierList, identifiersFor } from '../components/IdentifierList.js';
 import { OperationalStatus } from '../components/OperationalStatus.js';
 import { PageHeader } from '../components/PageHeader.js';
@@ -109,7 +110,15 @@ function ExcludedVisits({
 }
 
 /** The README snippet when the pixel is on; otherwise what it is and where to switch it on. */
-function PixelPanel({ website, endpoint }: { website: Website; endpoint?: string }) {
+function PixelPanel({
+  website,
+  endpoint,
+  paths
+}: {
+  website: Website;
+  endpoint?: string;
+  paths?: { count: number; max: number; capReached: boolean } | undefined;
+}) {
   const docs = 'https://vizoalica.dev/operations/pixel';
   if (website.pixelEnabled === undefined)
     return (
@@ -130,6 +139,13 @@ function PixelPanel({ website, endpoint }: { website: Website; endpoint?: string
             apart.
           </p>
           <CodeBlock label="README image" code={`![](${url})`} what="README image" />
+          {paths && (
+            <p className={paths.capReached ? 'notice' : 'hint'} role="status">
+              {paths.capReached
+                ? `Path limit reached: ${paths.count} of ${paths.max} paths are counted. Views of new paths are ignored; known paths keep counting.`
+                : `${paths.count} of ${paths.max} paths used.`}
+            </p>
+          )}
         </>
       ) : (
         <p className="hint">
@@ -353,9 +369,18 @@ function WebsiteHub({ website }: { website: Website }) {
           <ExcludedVisits website={website} hits={excludedHits} />
         </section>
 
+        <section className="detail-card" aria-labelledby="website-goals-heading">
+          <h2 id="website-goals-heading">Goals</h2>
+          <GoalsPanel projectId={projectId} websiteId={website.id} />
+        </section>
+
         <section className="detail-card" aria-labelledby="website-pixel-heading">
           <h2 id="website-pixel-heading">No-script pixel</h2>
-          <PixelPanel website={website} {...(workerUrl ? { endpoint: workerUrl } : {})} />
+          <PixelPanel
+            website={website}
+            paths={status?.pixelPaths}
+            {...(workerUrl ? { endpoint: workerUrl } : {})}
+          />
         </section>
 
         <section className="detail-card" aria-labelledby="website-install-heading">
