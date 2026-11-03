@@ -18,6 +18,8 @@ function isStrongSecret(value: string): boolean {
 export function loadWorkerConfig(env: Env): {
   allowUnsignedDemo: boolean;
   maxRequestBytes: number;
+  /** Distinct pixel paths per website; undefined means the built-in default. */
+  pixelMaxPaths?: number;
 } {
   if (
     !env.VIZOALICA_DB ||
@@ -37,5 +39,13 @@ export function loadWorkerConfig(env: Env): {
   const maxRequestBytes = Number(env.VIZOALICA_MAX_REQUEST_BYTES ?? 131072);
   if (!Number.isSafeInteger(maxRequestBytes) || maxRequestBytes < 1)
     throw new Error('invalid_max_request_bytes');
-  return { allowUnsignedDemo: env.VIZOALICA_DEMO_MODE === 'true', maxRequestBytes };
+  const pixelMaxPaths =
+    env.VIZOALICA_PIXEL_MAX_PATHS === undefined ? undefined : Number(env.VIZOALICA_PIXEL_MAX_PATHS);
+  if (pixelMaxPaths !== undefined && (!Number.isSafeInteger(pixelMaxPaths) || pixelMaxPaths < 1))
+    throw new Error('invalid_pixel_max_paths');
+  return {
+    allowUnsignedDemo: env.VIZOALICA_DEMO_MODE === 'true',
+    maxRequestBytes,
+    ...(pixelMaxPaths !== undefined ? { pixelMaxPaths } : {})
+  };
 }

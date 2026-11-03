@@ -8,7 +8,7 @@ test('the admin creates and sees a key', async ({ page }) => {
   await expect(
     page.getByRole('heading', { level: 1, name: 'Access keys', exact: true })
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Create access key' }).click();
+  await page.getByRole('button', { name: 'Add key' }).click();
   await page.getByLabel('Name').fill('Jane, analyst');
   await page.locator('.access-form').getByRole('button', { name: 'Create access key' }).click();
   await expect(page.getByRole('heading', { name: 'Save this access key now' })).toBeVisible();
@@ -23,7 +23,7 @@ test('issues a key with dropdowns, then says what to do with it', async ({ page 
   await expect(
     page.getByRole('heading', { level: 1, name: 'Access keys', exact: true })
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Create access key' }).click();
+  await page.getByRole('button', { name: 'Add key' }).click();
   const form = page.locator('.access-form');
   await expect(form.locator('input[type="radio"]')).toHaveCount(0);
   // The role is a dropdown that explains each choice.
@@ -59,7 +59,7 @@ test('the access form fits a phone and 200% zoom', async ({ page }) => {
   await mockConsole(page, { setup: setupState('admin') });
   await page.setViewportSize({ width: 320, height: 720 });
   await page.goto('/#/manage/access');
-  await page.getByRole('button', { name: 'Create access key' }).click();
+  await page.getByRole('button', { name: 'Add key' }).click();
   await expect(page.locator('.access-form')).toBeVisible();
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '200%';

@@ -20,6 +20,9 @@ import type {
   CampaignsReport,
   RageClicksReport,
   ExcludedHitsReport,
+  Goal,
+  GoalsReport,
+  GroupingRule,
   CustomEventsFilters,
   CustomEventsReport
 } from '../../../ingest-api/src/domain/types.js';
@@ -44,6 +47,7 @@ import {
   type CampaignItem
 } from './campaign-rollups.js';
 import { rageReportQueries, rageStatements } from './rage-rollups.js';
+import { goalsReportQueries } from './goal-reports.js';
 import {
   CUSTOM_EVENT_TYPE,
   customEventStatements,
@@ -76,6 +80,8 @@ type SourceRow = {
   excluded_addresses_json?: string | null;
   /** Absent on a database older than schema 8, where the pixel is off. */
   pixel_enabled?: number | null;
+  /** Absent on a database older than schema 9, where nothing is grouped. */
+  grouping_rules_json?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -85,6 +91,21 @@ function excludedAddressesFrom(json: string | null | undefined): string[] {
   try {
     const value: unknown = JSON.parse(json || '[]');
     return Array.isArray(value) ? value.filter((entry) => typeof entry === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A stored list that is not a list of rules (a hand-edited database) groups nothing. */
+function groupingRulesFrom(json: string | null | undefined): GroupingRule[] {
+  try {
+    const value: unknown = JSON.parse(json || '[]');
+    return Array.isArray(value)
+      ? value.filter(
+          (rule): rule is GroupingRule =>
+            typeof rule?.pattern === 'string' && typeof rule?.key === 'string'
+        )
+      : [];
   } catch {
     return [];
   }
@@ -102,6 +123,7 @@ function sourceFromRow(row: SourceRow): Source {
     tokenRequired: row.token_required !== 0,
     excludedAddresses: excludedAddressesFrom(row.excluded_addresses_json),
     pixelEnabled: row.pixel_enabled === 1,
+    groupingRules: groupingRulesFrom(row.grouping_rules_json),
     ...(row.created_at ? { createdAt: row.created_at } : {}),
     ...(row.updated_at ? { updatedAt: row.updated_at } : {})
   };
@@ -160,6 +182,8 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_minute_rage_clicks',
   'dashboard_excluded_hits',
   'dashboard_aggregate_watermarks',
+  'goals',
+  'pixel_paths',
   'quota_windows',
   'ingestion_decisions',
   'administrative_audit'
@@ -716,9 +740,10 @@ export class D1Repositories
     // Likewise the exclusion list: written only when there is one.
     const excluded = source.excludedAddresses?.length ? source.excludedAddresses : undefined;
     const pixel = source.pixelEnabled === true;
+    const grouping = source.groupingRules?.length ? source.groupingRules : undefined;
     await this.db
       .prepare(
-        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}${excluded ? ', excluded_addresses_json' : ''}${pixel ? ', pixel_enabled' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''}${excluded ? ', ?' : ''}${pixel ? ', 1' : ''})`
+        `INSERT INTO sources (id, project_id, name, public_source_key, allowed_origins_json, status, quota_policy_id, created_at, updated_at${staticSite ? ', token_required' : ''}${excluded ? ', excluded_addresses_json' : ''}${pixel ? ', pixel_enabled' : ''}${grouping ? ', grouping_rules_json' : ''}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${staticSite ? ', 0' : ''}${excluded ? ', ?' : ''}${pixel ? ', 1' : ''}${grouping ? ', ?' : ''})`
       )
       .bind(
         source.id,
@@ -730,7 +755,8 @@ export class D1Repositories
         source.quotaPolicyId ?? null,
         createdAt,
         source.updatedAt ?? new Date().toISOString(),
-        ...(excluded ? [JSON.stringify(excluded)] : [])
+        ...(excluded ? [JSON.stringify(excluded)] : []),
+        ...(grouping ? [JSON.stringify(grouping)] : [])
       )
       .run();
     const expandedFrom = new Date(createdAt);
@@ -779,6 +805,7 @@ export class D1Repositories
       tokenRequired?: boolean;
       excludedAddresses?: string[];
       pixelEnabled?: boolean;
+      groupingRules?: GroupingRule[];
     }
   ): Promise<Source | undefined> {
     const existing = await this.getSource(projectId, sourceId);
@@ -786,9 +813,10 @@ export class D1Repositories
     const withToken = changes.tokenRequired !== undefined;
     const withExcluded = changes.excludedAddresses !== undefined;
     const withPixel = changes.pixelEnabled !== undefined;
+    const withGrouping = changes.groupingRules !== undefined;
     const result = await this.db
       .prepare(
-        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''}${withExcluded ? ', excluded_addresses_json = ?' : ''}${withPixel ? ', pixel_enabled = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
+        `UPDATE sources SET name = ?, allowed_origins_json = ?, status = ?, updated_at = ?${withToken ? ', token_required = ?' : ''}${withExcluded ? ', excluded_addresses_json = ?' : ''}${withPixel ? ', pixel_enabled = ?' : ''}${withGrouping ? ', grouping_rules_json = ?' : ''} WHERE id = ? AND project_id = ? AND status != 'deleted'`
       )
       .bind(
         changes.name ?? existing.name,
@@ -798,6 +826,7 @@ export class D1Repositories
         ...(withToken ? [changes.tokenRequired ? 1 : 0] : []),
         ...(withExcluded ? [JSON.stringify(changes.excludedAddresses)] : []),
         ...(withPixel ? [changes.pixelEnabled ? 1 : 0] : []),
+        ...(withGrouping ? [JSON.stringify(changes.groupingRules)] : []),
         sourceId,
         projectId
       )
@@ -1183,6 +1212,130 @@ export class D1Repositories
       }
     });
     return shape(await this.readAll(statements));
+  }
+
+  async listGoals(projectId: string, sourceId: string): Promise<Goal[]> {
+    const { results } = await this.db
+      .prepare(
+        "SELECT id, project_id, source_id, name, kind, target, created_at FROM goals WHERE project_id = ? AND source_id = ? AND status = 'active' ORDER BY created_at ASC, rowid ASC"
+      )
+      .bind(projectId, sourceId)
+      .all<{
+        id: string;
+        project_id: string;
+        source_id: string;
+        name: string;
+        kind: Goal['kind'];
+        target: string;
+        created_at: string;
+      }>();
+    return results.map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      sourceId: row.source_id,
+      name: row.name,
+      kind: row.kind,
+      target: row.target,
+      createdAt: row.created_at
+    }));
+  }
+
+  async createGoal(goal: Goal): Promise<void> {
+    await this.db
+      .prepare(
+        'INSERT INTO goals (id, project_id, source_id, name, kind, target, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        goal.id,
+        goal.projectId,
+        goal.sourceId,
+        goal.name,
+        goal.kind,
+        goal.target,
+        goal.createdAt
+      )
+      .run();
+  }
+
+  async deleteGoal(projectId: string, sourceId: string, goalId: string): Promise<boolean> {
+    const result = await this.db
+      .prepare(
+        "UPDATE goals SET status = 'deleted' WHERE id = ? AND project_id = ? AND source_id = ? AND status = 'active'"
+      )
+      .bind(goalId, projectId, sourceId)
+      .run();
+    return (result.meta?.changes ?? 0) === 1;
+  }
+
+  async getGoalsReport(
+    projectId: string,
+    sourceId: string,
+    startUtc: string,
+    endUtc: string
+  ): Promise<GoalsReport | undefined> {
+    const source = await this.getSource(projectId, sourceId);
+    if (!source || source.status === 'deleted') return undefined;
+    const goals = await this.listGoals(projectId, sourceId);
+    const { statements, shape } = goalsReportQueries(this.db, {
+      projectId,
+      sourceId,
+      startUtc,
+      endUtc,
+      goals,
+      scope: {
+        projectId,
+        sourceId,
+        label: source.name,
+        identityMode: 'source-local'
+      }
+    });
+    return shape(await this.readAll(statements));
+  }
+
+  /**
+   * A path already counted is always admitted. A new one is admitted only while the website has
+   * fewer than `maxPaths`. The check and the insert are one statement, so concurrent hits cannot
+   * pass the cap together. A database without the table has no cap.
+   */
+  async admitPixelPath(input: {
+    projectId: string;
+    sourceId: string;
+    path: string;
+    maxPaths: number;
+    now: Date;
+  }): Promise<boolean> {
+    try {
+      await this.db
+        .prepare(
+          `INSERT OR IGNORE INTO pixel_paths (project_id, source_id, path, first_seen_at)
+           SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM pixel_paths WHERE source_id = ?) < ?`
+        )
+        .bind(
+          input.projectId,
+          input.sourceId,
+          input.path,
+          input.now.toISOString(),
+          input.sourceId,
+          input.maxPaths
+        )
+        .run();
+      const known = await this.db
+        .prepare('SELECT 1 AS known FROM pixel_paths WHERE source_id = ? AND path = ?')
+        .bind(input.sourceId, input.path)
+        .first();
+      return !!known;
+    } catch (error) {
+      if (isMissingSchema(error)) return true;
+      throw error;
+    }
+  }
+
+  async getPixelPathUsage(sourceId: string): Promise<{ count: number }> {
+    const row = await this.db
+      .prepare('SELECT COUNT(*) AS n FROM pixel_paths WHERE source_id = ?')
+      .bind(sourceId)
+      .first<{ n: number }>();
+    return { count: Number(row?.n ?? 0) };
   }
 
   /** Today's visitor salt, created on first use; the same value for every caller that day. */

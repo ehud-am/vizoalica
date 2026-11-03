@@ -29,7 +29,8 @@ const api = vi.hoisted(() => ({
   getAnalyticsActions: vi.fn(),
   getAnalyticsCustomEvents: vi.fn(),
   getAnalyticsCampaigns: vi.fn(),
-  getAnalyticsRageClicks: vi.fn()
+  getAnalyticsRageClicks: vi.fn(),
+  getGoalsReport: vi.fn()
 }));
 vi.mock('../src/api/local-operations.js', async (load) => ({ ...(await load()), ...api }));
 
@@ -112,9 +113,11 @@ describe('view and manage separation', () => {
       render(<App />);
       await screen.findByRole('heading', { level: 1 });
       // Each view loads its own data; the Actions page never needs the overview.
+      // Goals belong to one website: with none chosen the page asks for nothing.
       await waitFor(() =>
         expect(
-          api.getAnalyticsOverview.mock.calls.length +
+          (path === 'analytics/goals' ? 1 : 0) +
+            api.getAnalyticsOverview.mock.calls.length +
             api.getAnalyticsActions.mock.calls.length +
             api.getAnalyticsCustomEvents.mock.calls.length +
             api.getAnalyticsCampaigns.mock.calls.length +

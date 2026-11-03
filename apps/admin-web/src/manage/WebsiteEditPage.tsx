@@ -24,7 +24,8 @@ function EditForm({ website }: { website: Website }) {
       allowedOrigins: input.allowedOrigins,
       tokenRequired: input.tokenRequired,
       ...(input.pixelEnabled !== undefined ? { pixelEnabled: input.pixelEnabled } : {}),
-      ...(input.excludedAddresses ? { excludedAddresses: input.excludedAddresses } : {})
+      ...(input.excludedAddresses ? { excludedAddresses: input.excludedAddresses } : {}),
+      ...(input.groupingRules ? { groupingRules: input.groupingRules } : {})
     });
     await scope.refreshWebsites();
     // The embed itself does not depend on the origins, but the site's own token endpoint keeps a
@@ -56,7 +57,7 @@ function EditForm({ website }: { website: Website }) {
         ]}
         back={{ label: `Back to ${website.name}`, href: hub, onClick: guard(hub) }}
         title={`Edit ${website.name}`}
-        description="Change the name, where this website may send analytics from, whether it needs a signed token, or which visits to leave out."
+        description="Change the name, where this website may send analytics from, whether it needs a signed token, which visits to leave out, or how pages are grouped."
       />
       <section className="panel form-panel" aria-label="Edit website details">
         <WebsiteForm
@@ -67,6 +68,9 @@ function EditForm({ website }: { website: Website }) {
           initialTokenRequired={website.tokenRequired !== false}
           {...(website.pixelEnabled !== undefined
             ? { initialPixelEnabled: website.pixelEnabled }
+            : {})}
+          {...(Array.isArray(website.groupingRules)
+            ? { initialGrouping: website.groupingRules }
             : {})}
           {...(website.excludedAddresses ? { initialExcluded: website.excludedAddresses } : {})}
           submitLabel="Save changes"

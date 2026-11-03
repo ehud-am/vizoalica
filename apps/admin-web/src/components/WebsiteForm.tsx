@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ApiError } from '../api/local-operations.js';
+import { ApiError, type GroupingRule } from '../api/local-operations.js';
 import { ActionButton } from './ActionButton.js';
 import { PlusIcon } from './Icons.js';
 import { isInsecureRemote, nameFromOrigin, normalizeOrigin, wwwCounterpart } from './origins.js';
@@ -13,6 +13,8 @@ export interface WebsiteInput {
   excludedAddresses?: string[];
   /** Only when the form shows the switch and it changed. */
   pixelEnabled?: boolean;
+  /** Only when the form shows the field and the rules changed. */
+  groupingRules?: GroupingRule[];
 }
 
 const MAX_NAME = 120;
@@ -24,10 +26,32 @@ const splitAddresses = (text: string) => text.split(/[\s,]+/).filter(Boolean);
 /** The service accepts at most this many excluded addresses or ranges for one website. */
 const MAX_EXCLUDED = 25;
 
+/** The service accepts at most this many grouping rules for one website. */
+const MAX_GROUPING = 25;
+const ARROW = '=>';
+
+/** One rule per line, `pattern => page key`. Blank lines are ignored. */
+const rulesToText = (rules: GroupingRule[]) =>
+  rules.map((rule) => `${rule.pattern} ${ARROW} ${rule.key}`).join('\n');
+function parseRuleLines(text: string): { rules: GroupingRule[]; badLine?: number } {
+  const rules: GroupingRule[] = [];
+  const lines = text.split('\n');
+  for (const [index, line] of lines.entries()) {
+    if (!line.trim()) continue;
+    const at = line.indexOf(ARROW);
+    const pattern = at === -1 ? '' : line.slice(0, at).trim();
+    const key = at === -1 ? '' : line.slice(at + ARROW.length).trim();
+    if (!pattern.startsWith('/') || !key.startsWith('/')) return { rules, badLine: index + 1 };
+    rules.push({ pattern, key });
+  }
+  return { rules };
+}
+
 interface Errors {
   name?: string;
   origins?: string;
   excluded?: string;
+  grouping?: string;
 }
 
 interface Resolved {
@@ -74,6 +98,7 @@ export function WebsiteForm({
   initialTokenRequired = false,
   initialExcluded,
   initialPixelEnabled,
+  initialGrouping,
   submitLabel = 'Add website',
   onDirtyChange,
   cancel,
@@ -96,6 +121,11 @@ export function WebsiteForm({
    * for a backend that predates it.
    */
   initialPixelEnabled?: boolean;
+  /**
+   * The website's page grouping rules. When given, the form shows the field for them; it is left
+   * out for a backend that predates them.
+   */
+  initialGrouping?: GroupingRule[];
   submitLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
   /** A leave control (for example Cancel) shown next to the submit button. */
@@ -110,6 +140,13 @@ export function WebsiteForm({
   const [excluded, setExcluded] = useState((initialExcluded ?? []).join('\n'));
   const [pixelEnabled, setPixelEnabled] = useState(initialPixelEnabled ?? false);
   const pixelChanged = initialPixelEnabled !== undefined && pixelEnabled !== initialPixelEnabled;
+  const [grouping, setGrouping] = useState(rulesToText(initialGrouping ?? []));
+  const groupingRef = useRef<HTMLTextAreaElement>(null);
+  const parsedGrouping = parseRuleLines(grouping);
+  const groupingChanged =
+    initialGrouping !== undefined &&
+    (parsedGrouping.badLine !== undefined ||
+      rulesToText(parsedGrouping.rules) !== rulesToText(initialGrouping));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -143,6 +180,7 @@ export function WebsiteForm({
       tokenRequired !== initialTokenRequired ||
       excludedChanged ||
       pixelChanged ||
+      groupingChanged ||
       resolved.origins.join('\n') !==
         resolveOrigins(initialOrigins.join('\n'), undefined).origins.join('\n');
 
@@ -164,6 +202,16 @@ export function WebsiteForm({
       setErrors({ excluded: `Use ${MAX_EXCLUDED} entries or fewer.` });
       return excludedRef.current?.focus();
     }
+    if (groupingChanged && parsedGrouping.badLine !== undefined) {
+      setErrors({
+        grouping: `Line ${parsedGrouping.badLine}: write the pattern, then =>, then the page key, both starting with /. For example /blog/* => /blog/:post`
+      });
+      return groupingRef.current?.focus();
+    }
+    if (groupingChanged && parsedGrouping.rules.length > MAX_GROUPING) {
+      setErrors({ grouping: `Use ${MAX_GROUPING} rules or fewer.` });
+      return groupingRef.current?.focus();
+    }
     setBusy(true);
     try {
       await onSubmit({
@@ -172,7 +220,8 @@ export function WebsiteForm({
         allowedOrigins: resolved.origins,
         tokenRequired,
         ...(excludedChanged ? { excludedAddresses: excludedEntries } : {}),
-        ...(pixelChanged ? { pixelEnabled } : {})
+        ...(pixelChanged ? { pixelEnabled } : {}),
+        ...(groupingChanged ? { groupingRules: parsedGrouping.rules } : {})
       });
       if (creating) {
         setName('');
@@ -192,6 +241,16 @@ export function WebsiteForm({
                 : 'Use IP addresses or ranges, one per line.'
         });
         excludedRef.current?.focus();
+      } else if (detail?.field === 'groupingRules') {
+        setErrors({
+          grouping:
+            detail.reason === 'too_many'
+              ? `Use ${MAX_GROUPING} rules or fewer.`
+              : detail.index !== undefined
+                ? `Rule ${detail.index + 1} is not valid. Use letters, digits and - _ . ~ : @ % + in the pattern, * for one whole path segment, and ** only as the last segment.`
+                : 'Rules are not valid. Write one per line: /blog/* => /blog/:post'
+        });
+        groupingRef.current?.focus();
       } else if (caught instanceof ApiError && caught.code === 'database_update_needed')
         setError(
           'The backend database needs its latest update before it can save this. Run vizoalica deploy <name> --update, then save again.'
@@ -372,6 +431,36 @@ export function WebsiteForm({
             {MAX_EXCLUDED}. Everyone behind a shared address is excluded too. It applies to new
             visits only.{' '}
             <a href="https://vizoalica.dev/operations/internal-traffic">Exclude your own visits</a>
+          </small>
+        </div>
+      )}
+      {initialGrouping !== undefined && (
+        <div className="field">
+          <label htmlFor={`${id}-grouping`}>
+            Group pages <span className="optional">(optional)</span>
+          </label>
+          <textarea
+            id={`${id}-grouping`}
+            ref={groupingRef}
+            rows={3}
+            value={grouping}
+            onChange={(event) => setGrouping(event.target.value)}
+            placeholder="/blog/* => /blog/:post"
+            spellCheck={false}
+            autoComplete="off"
+            aria-invalid={!!errors.grouping}
+            aria-describedby={`${errors.grouping ? `${id}-grouping-error ` : ''}${id}-grouping-help`}
+          />
+          {errors.grouping && (
+            <span id={`${id}-grouping-error`} className="field-error">
+              {errors.grouping}
+            </span>
+          )}
+          <small id={`${id}-grouping-help`}>
+            One rule per line: a path pattern, then =&gt;, then the page key to count it under. *
+            matches one path segment; ** matches the rest. The first matching rule wins, up to{' '}
+            {MAX_GROUPING}. It applies to new visits only.{' '}
+            <a href="https://vizoalica.dev/operations/page-grouping">How grouping works</a>
           </small>
         </div>
       )}

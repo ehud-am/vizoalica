@@ -141,7 +141,7 @@ export async function ingestBatch(
     return { status: 202, decision };
   }
 
-  const privacy = applyPrivacyGuard(validation.events);
+  const privacy = applyPrivacyGuard(validation.events, source.groupingRules);
   if (!privacy.ok) return reject(400, privacy.reason, project, source);
 
   const policy = await dependencies.repositories.findQuotaPolicy(

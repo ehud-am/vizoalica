@@ -28,6 +28,8 @@ export const sidebar: NavGroup[] = [
       { text: 'Custom events', link: '/operations/custom-events' },
       { text: 'Campaigns', link: '/operations/campaigns' },
       { text: 'Rage clicks', link: '/operations/rage-clicks' },
+      { text: 'Goals', link: '/operations/goals' },
+      { text: 'Group pages with rules', link: '/operations/page-grouping' },
       { text: 'Exclude your own visits', link: '/operations/internal-traffic' },
       { text: 'Count views of a README', link: '/operations/pixel' },
       { text: 'Ask your AI assistant', link: '/operations/ai' },
@@ -76,6 +78,7 @@ export const sidebar: NavGroup[] = [
     // the accessibility check.
     text: 'Release notes',
     items: [
+      { text: 'v0.14.0', link: '/releases/v0.14.0' },
       { text: 'v0.13.1', link: '/releases/v0.13.1' },
       { text: 'v0.13.0', link: '/releases/v0.13.0' },
       { text: 'v0.12.1', link: '/releases/v0.12.1' },
@@ -109,7 +112,7 @@ export const nav = [
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
-  { text: 'Releases', link: '/releases/v0.13.1' }
+  { text: 'Releases', link: '/releases/v0.14.0' }
 ];
 
 /** Every page address the navigation reaches, without the leading slash. */

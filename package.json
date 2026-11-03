@@ -1,6 +1,6 @@
 {
   "name": "vizoalica-workspace",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Open-source, self-hosted, privacy-first web and product analytics on Cloudflare Workers, D1, and R2.",
   "keywords": [
     "analytics",
@@ -110,7 +110,8 @@
       "undici@>=7.0.0 <7.30.1": "7.30.1",
       "body-parser@>=2.0.0 <2.4.0": "2.4.0",
       "source-map-js@<1.2.2": "1.2.2",
-      "vitepress>vite": "^6.4.3"
+      "vitepress>vite": "^6.4.3",
+      "minimatch@>=10.0.0 <11.0.1": "11.0.1"
     }
   }
 }

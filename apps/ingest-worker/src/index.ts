@@ -39,6 +39,12 @@ export default {
       getRageClicksReport: configuration.getRageClicksReport.bind(configuration),
       getExcludedHits: configuration.getExcludedHits.bind(configuration),
       recordExcludedHits: configuration.recordExcludedHits.bind(configuration),
+      listGoals: configuration.listGoals.bind(configuration),
+      createGoal: configuration.createGoal.bind(configuration),
+      deleteGoal: configuration.deleteGoal.bind(configuration),
+      getGoalsReport: configuration.getGoalsReport.bind(configuration),
+      getPixelPathUsage: configuration.getPixelPathUsage.bind(configuration),
+      admitPixelPath: configuration.admitPixelPath.bind(configuration),
       deleteExpiredDashboardData: configuration.deleteExpiredDashboardData.bind(configuration),
       saveAdminAudit: configuration.saveAdminAudit.bind(configuration),
       saveDecision: configuration.saveDecision.bind(configuration),
@@ -74,6 +80,7 @@ export default {
           health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS)
         }),
         visitorSalts: configuration,
+        ...(config.pixelMaxPaths ? { pixelMaxPaths: config.pixelMaxPaths } : {}),
         ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes

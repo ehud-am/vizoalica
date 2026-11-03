@@ -23,6 +23,7 @@ import {
   analyticsActions,
   analyticsCampaigns,
   analyticsRageClicks,
+  analyticsGoals,
   analyticsCustomEvents,
   analyticsOverview
 } from './routes/analytics.js';
@@ -33,6 +34,7 @@ import {
   jsonInit,
   validateProjectBody,
   InvalidExcludedAddresses,
+  InvalidGroupingRules,
   validateWebsiteBody,
   workerJson
 } from './routes/websites.js';
@@ -328,6 +330,54 @@ export function createLocalServer(options: ServerOptions) {
           )
         );
       }
+      const goalsRoute =
+        /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/goals(?:\/(report|[^/]+))?$/.exec(
+          url.pathname
+        );
+      if (goalsRoute) {
+        assertSafeIds(goalsRoute[1]!, goalsRoute[2]!);
+        const base = `/v1/admin/projects/${encodeURIComponent(goalsRoute[1]!)}/sources/${encodeURIComponent(goalsRoute[2]!)}/goals`;
+        const tail = goalsRoute[3];
+        if (request.method === 'GET' && tail === 'report') {
+          return send(
+            response,
+            200,
+            await analyticsGoals(
+              client,
+              goalsRoute[1]!,
+              goalsRoute[2]!,
+              url.searchParams.get('start') ?? '',
+              url.searchParams.get('end') ?? ''
+            )
+          );
+        }
+        if (request.method === 'GET' && !tail)
+          return send(response, 200, await workerJson(client, base));
+        if (request.method === 'POST' && !tail) {
+          const body = (await requestJson(request)) as Record<string, unknown> | undefined;
+          return send(
+            response,
+            201,
+            await workerJson(
+              client,
+              base,
+              jsonInit('POST', {
+                name: body?.name,
+                kind: body?.kind,
+                target: body?.target
+              })
+            )
+          );
+        }
+        if (request.method === 'DELETE' && tail && tail !== 'report') {
+          assertSafeIds(tail);
+          return send(
+            response,
+            200,
+            await workerJson(client, `${base}/${encodeURIComponent(tail)}`, jsonInit('DELETE'))
+          );
+        }
+      }
       const overviewMatch = /^\/api\/projects\/([^/]+)\/analytics$/.exec(url.pathname);
       if (request.method === 'GET' && overviewMatch) {
         return send(
@@ -436,6 +486,15 @@ export function createLocalServer(options: ServerOptions) {
           error: error.code,
           field: error.field,
           message: error.message,
+          recovery: recoveryFor(400)
+        });
+      }
+      if (error instanceof InvalidGroupingRules) {
+        return send(response, 400, {
+          error: 'invalid_request',
+          field: 'groupingRules',
+          reason: error.reason,
+          ...(error.index !== undefined ? { index: error.index } : {}),
           recovery: recoveryFor(400)
         });
       }
