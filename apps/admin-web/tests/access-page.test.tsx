@@ -64,7 +64,7 @@ async function open() {
 /** The form is closed until asked for, so a page about keys starts with the keys. */
 async function openForm(user: ReturnType<typeof userEvent.setup> = userEvent.setup()) {
   await open();
-  await user.click(screen.getByRole('button', { name: 'Create access key' }));
+  await user.click(screen.getByRole('button', { name: 'Add key' }));
   await screen.findByLabelText('Name');
 }
 const submit = () => within(form()).getByRole('button', { name: 'Create access key' });
@@ -191,7 +191,7 @@ describe('Create an access key', () => {
       expect(api.issueAccessKey).toHaveBeenLastCalledWith({ label: 'Jane', role: 'analyst' })
     );
     await user.click(await screen.findByRole('button', { name: 'I have saved it' }));
-    await user.click(screen.getAllByRole('button', { name: 'Create access key' })[0]!);
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
 
     await user.type(screen.getByLabelText('Name'), 'Owner of blog');
     await choose(user, 'Role', /Website owner/);
@@ -496,7 +496,7 @@ describe('Access keys for one website', () => {
       'Everything key'
     ]);
     expect(screen.queryByText('Admin key')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Create access key' }));
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
     await user.type(await screen.findByLabelText('Name'), 'Docs CI');
     // The website is fixed: no access or website choice.
     expect(within(form()).queryByRole('button', { name: /^Access/ })).toBeNull();
