@@ -1240,10 +1240,17 @@ export class D1Repositories
     }));
   }
 
-  async createGoal(goal: Goal): Promise<void> {
-    await this.db
+  /**
+   * Adds a goal only while the website has fewer than `maxGoals` active ones. The check and the
+   * insert are one statement, so concurrent requests cannot pass the limit together. Returns
+   * whether the goal was added.
+   */
+  async createGoal(goal: Goal, maxGoals: number): Promise<boolean> {
+    const result = await this.db
       .prepare(
-        'INSERT INTO goals (id, project_id, source_id, name, kind, target, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        `INSERT INTO goals (id, project_id, source_id, name, kind, target, created_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE (SELECT COUNT(*) FROM goals WHERE project_id = ? AND source_id = ? AND status = 'active') < ?`
       )
       .bind(
         goal.id,
@@ -1252,9 +1259,13 @@ export class D1Repositories
         goal.name,
         goal.kind,
         goal.target,
-        goal.createdAt
+        goal.createdAt,
+        goal.projectId,
+        goal.sourceId,
+        maxGoals
       )
       .run();
+    return (result.meta?.changes ?? 0) === 1;
   }
 
   async deleteGoal(projectId: string, sourceId: string, goalId: string): Promise<boolean> {
@@ -1295,7 +1306,9 @@ export class D1Repositories
   /**
    * A path already counted is always admitted. A new one is admitted only while the website has
    * fewer than `maxPaths`. The check and the insert are one statement, so concurrent hits cannot
-   * pass the cap together. A database without the table has no cap.
+   * pass the cap together. A path unseen for the retention period is deleted by the retention job,
+   * which frees its slot; a hit refreshes `last_seen_at` at most once a day. A database without the
+   * table has no cap; one without `last_seen_at` (schema 9) keeps the first-come cap.
    */
   async admitPixelPath(input: {
     projectId: string;
@@ -1304,21 +1317,41 @@ export class D1Repositories
     maxPaths: number;
     now: Date;
   }): Promise<boolean> {
+    const now = input.now.toISOString();
     try {
-      await this.db
-        .prepare(
-          `INSERT OR IGNORE INTO pixel_paths (project_id, source_id, path, first_seen_at)
-           SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM pixel_paths WHERE source_id = ?) < ?`
-        )
-        .bind(
-          input.projectId,
-          input.sourceId,
-          input.path,
-          input.now.toISOString(),
-          input.sourceId,
-          input.maxPaths
-        )
-        .run();
+      try {
+        await this.db
+          .prepare(
+            `INSERT OR IGNORE INTO pixel_paths (project_id, source_id, path, first_seen_at, last_seen_at)
+             SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM pixel_paths WHERE source_id = ?) < ?`
+          )
+          .bind(
+            input.projectId,
+            input.sourceId,
+            input.path,
+            now,
+            now,
+            input.sourceId,
+            input.maxPaths
+          )
+          .run();
+        const dayAgo = new Date(input.now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        await this.db
+          .prepare(
+            'UPDATE pixel_paths SET last_seen_at = ? WHERE source_id = ? AND path = ? AND (last_seen_at IS NULL OR last_seen_at < ?)'
+          )
+          .bind(now, input.sourceId, input.path, dayAgo)
+          .run();
+      } catch (error) {
+        if (!/no such column|has no column named/i.test(String(error))) throw error;
+        await this.db
+          .prepare(
+            `INSERT OR IGNORE INTO pixel_paths (project_id, source_id, path, first_seen_at)
+             SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM pixel_paths WHERE source_id = ?) < ?`
+          )
+          .bind(input.projectId, input.sourceId, input.path, now, input.sourceId, input.maxPaths)
+          .run();
+      }
       const known = await this.db
         .prepare('SELECT 1 AS known FROM pixel_paths WHERE source_id = ? AND path = ?')
         .bind(input.sourceId, input.path)
@@ -1374,6 +1407,8 @@ export class D1Repositories
       ['dashboard_minute_campaign_visitors', 'minute_utc'],
       ['dashboard_minute_rage_clicks', 'minute_utc'],
       ['dashboard_excluded_hits', 'day_utc'],
+      // Frees the slots of pixel paths unseen for the retention period.
+      ['pixel_paths', 'last_seen_at'],
       ['dashboard_seen_events', 'received_at'],
       // Operational tables share the aggregate boundary so no table grows without bound.
       ['ingestion_decisions', 'received_at'],

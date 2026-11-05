@@ -41,3 +41,7 @@ Goals and filters use the grouped key, so a page goal on `/blog/:post` counts ev
 ## Update the backend
 
 Grouping rules need database schema 9. Update with `vizoalica deploy <name> --update`.
+
+## Privacy
+
+Rules are website configuration, not visitor data; see the [privacy review](../privacy/goals-grouping-pixel-paths-review.md).

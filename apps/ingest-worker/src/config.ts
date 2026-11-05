@@ -39,10 +39,15 @@ export function loadWorkerConfig(env: Env): {
   const maxRequestBytes = Number(env.VIZOALICA_MAX_REQUEST_BYTES ?? 131072);
   if (!Number.isSafeInteger(maxRequestBytes) || maxRequestBytes < 1)
     throw new Error('invalid_max_request_bytes');
-  const pixelMaxPaths =
+  // An invalid value falls back to the default: a typo here must not take the whole Worker down.
+  const requestedMaxPaths =
     env.VIZOALICA_PIXEL_MAX_PATHS === undefined ? undefined : Number(env.VIZOALICA_PIXEL_MAX_PATHS);
-  if (pixelMaxPaths !== undefined && (!Number.isSafeInteger(pixelMaxPaths) || pixelMaxPaths < 1))
-    throw new Error('invalid_pixel_max_paths');
+  const pixelMaxPaths =
+    requestedMaxPaths !== undefined &&
+    Number.isSafeInteger(requestedMaxPaths) &&
+    requestedMaxPaths >= 1
+      ? requestedMaxPaths
+      : undefined;
   return {
     allowUnsignedDemo: env.VIZOALICA_DEMO_MODE === 'true',
     maxRequestBytes,

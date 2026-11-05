@@ -228,6 +228,10 @@ describe('goals through the real Worker', () => {
       { name: 'x', kind: 'visit', target: '/x' },
       { name: 'x', kind: 'page', target: 'no-slash' },
       { name: 'x', kind: 'page', target: '/x?y=1' },
+      { name: 'x', kind: 'page', target: '/thanks/' },
+      { name: 'x', kind: 'page', target: '/a b' },
+      { name: 'x', kind: 'page', target: '/a//b' },
+      { name: 'x', kind: 'page', target: '/orders/123' },
       { name: 'x', kind: 'event', target: 'a'.repeat(81) },
       { name: 'x'.repeat(81), kind: 'event', target: 'a' }
     ])
@@ -250,6 +254,23 @@ describe('goals through the real Worker', () => {
     });
     expect(over.status).toBe(400);
     expect(await over.json()).toMatchObject({ field: 'goals', reason: 'too_many', limit: 20 });
+  });
+
+  it('keeps at most twenty goals when requests arrive together', async () => {
+    const { env, sqlite } = environment();
+    const responses = await Promise.all(
+      Array.from({ length: 30 }, (_, n) =>
+        admin(env, goalsBase, {
+          method: 'POST',
+          body: { name: `g${n}`, kind: 'event', target: `e${n}` }
+        })
+      )
+    );
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(20);
+    expect(responses.filter((response) => response.status === 400)).toHaveLength(10);
+    expect(rowsOf(sqlite, "SELECT COUNT(*) AS n FROM goals WHERE status = 'active'")).toEqual([
+      { n: 20 }
+    ]);
   });
 
   it('lets an analyst read but not change goals, and hides other websites', async () => {
@@ -305,6 +326,8 @@ describe('page grouping rules through the real Worker', () => {
 
     for (const bad of [
       [{ pattern: 'blog', key: '/x' }],
+      [{ pattern: '/blog/', key: '/x' }],
+      [{ pattern: '/a//b', key: '/x' }],
       'nope',
       Array(26).fill({ pattern: '/a', key: '/b' })
     ]) {
@@ -345,6 +368,58 @@ describe('the pixel path cap through the real Worker', () => {
       await admin(env, '/v1/admin/projects/p1/sources/s1/status')
     ).json()) as any;
     expect(none.pixelPaths).toBeUndefined();
+  });
+
+  it('frees a slot when its path has not been seen for the retention period', async () => {
+    const { env, sqlite } = environment({ VIZOALICA_PIXEL_MAX_PATHS: '2' });
+    await pixel(env, '/a');
+    await pixel(env, '/b');
+    await pixel(env, '/c');
+    expect(rowsOf(sqlite, 'SELECT path FROM pixel_paths ORDER BY path')).toEqual([
+      { path: '/a' },
+      { path: '/b' }
+    ]);
+    vi.setSystemTime(new Date('2026-02-10T12:00:00.000Z'));
+    await pixel(env, '/b');
+    const before = new Date('2026-02-10T12:00:00.000Z');
+    before.setUTCDate(before.getUTCDate() - 32);
+    sqlite.prepare('DELETE FROM pixel_paths WHERE last_seen_at < ?').run(before.toISOString());
+    expect(rowsOf(sqlite, 'SELECT path FROM pixel_paths')).toEqual([{ path: '/b' }]);
+    await pixel(env, '/c');
+    expect(rowsOf(sqlite, 'SELECT path FROM pixel_paths ORDER BY path')).toEqual([
+      { path: '/b' },
+      { path: '/c' }
+    ]);
+  });
+
+  it('refreshes last_seen_at at most once a day', async () => {
+    const { env, sqlite } = environment();
+    await pixel(env, '/a');
+    vi.setSystemTime(new Date('2026-01-01T18:00:00.000Z'));
+    await pixel(env, '/a');
+    const same = rowsOf(sqlite, 'SELECT last_seen_at AS seen FROM pixel_paths')[0]!.seen;
+    expect(same).toBe('2026-01-01T12:34:30.000Z');
+    vi.setSystemTime(new Date('2026-01-03T12:00:00.000Z'));
+    await pixel(env, '/a');
+    expect(rowsOf(sqlite, 'SELECT last_seen_at AS seen FROM pixel_paths')[0]!.seen).toBe(
+      '2026-01-03T12:00:00.000Z'
+    );
+  });
+
+  it('ignores an invalid VIZOALICA_PIXEL_MAX_PATHS and uses the default', async () => {
+    for (const value of ['abc', '0', '-3', '1.5']) {
+      const { env, sqlite } = environment({ VIZOALICA_PIXEL_MAX_PATHS: value });
+      for (const path of ['/a', '/b', '/c']) expect((await pixel(env, path)).status).toBe(200);
+      expect(rowsOf(sqlite, 'SELECT COUNT(*) AS n FROM pixel_paths'), value).toEqual([{ n: 3 }]);
+    }
+  });
+
+  it('keeps the first-come cap on a database without last_seen_at', async () => {
+    const { env, sqlite } = environment({ VIZOALICA_PIXEL_MAX_PATHS: '1' });
+    sqlite.exec('ALTER TABLE pixel_paths DROP COLUMN last_seen_at');
+    await pixel(env, '/a');
+    await pixel(env, '/b');
+    expect(rowsOf(sqlite, 'SELECT path FROM pixel_paths')).toEqual([{ path: '/a' }]);
   });
 
   it('applies a default cap of 100 paths and groups before counting', async () => {

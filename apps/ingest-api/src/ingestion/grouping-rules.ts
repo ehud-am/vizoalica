@@ -26,6 +26,9 @@ export function parseGroupingRules(value: unknown): RulesResult {
       return { ok: false, reason: 'invalid_rule', index };
     if (!PATTERN.test(pattern) || !KEY.test(key))
       return { ok: false, reason: 'invalid_rule', index };
+    // Page keys never end in a slash or hold an empty segment, so such a pattern could never match.
+    if (pattern !== '/' && (pattern.endsWith('/') || pattern.includes('//')))
+      return { ok: false, reason: 'invalid_rule', index };
     const segments = pattern.split('/').slice(1);
     // A segment is whole text, `*`, or a last `**`; `*` inside text is not a wildcard.
     if (segments.some((segment, at) => segment.includes('*') && !isWildcard(segment, at, segments)))

@@ -26,6 +26,7 @@ const PAGES = [
   '/operations/internal-traffic',
   '/operations/pixel',
   '/brand',
+  '/releases/v0.14.1',
   '/releases/v0.14.0',
   '/releases/v0.13.1',
   '/releases/v0.13.0',
@@ -115,6 +116,9 @@ for (const scheme of ['light', 'dark'] as const) {
 test('loads nothing from another origin, and the Content-Security-Policy blocks nothing it needs', async ({
   page
 }) => {
+  // It visits every page and waits for the network to settle on each, so the time grows with the
+  // number of pages: allow two seconds per page, at least the default.
+  test.setTimeout(Math.max(30_000, PAGES.length * 2000));
   // Analytics is on by default, and the placeholder build has no SDK, so give the page an inert one.
   await page.route('**/vizoalica.js', (route) =>
     route.fulfill({ contentType: 'text/javascript', body: '' })

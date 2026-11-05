@@ -104,12 +104,15 @@ describe('preferences filesystem', () => {
     expect(raw).not.toContain('credential');
   });
 
-  it('propagates a write failure when the target directory cannot be created or written to', () => {
-    const dir = tempDir();
-    const blockedRoot = join(dir, 'blocked');
-    mkdirSync(blockedRoot, { mode: 0o500 });
-    const path = join(blockedRoot, 'nested', 'preferences.json');
-    expect(() => writePreferences(path, { theme: 'light' })).toThrow();
-    chmodSync(blockedRoot, 0o700);
-  });
+  it.skipIf(process.getuid?.() === 0)(
+    'propagates a write failure when the target directory cannot be created or written to',
+    () => {
+      const dir = tempDir();
+      const blockedRoot = join(dir, 'blocked');
+      mkdirSync(blockedRoot, { mode: 0o500 });
+      const path = join(blockedRoot, 'nested', 'preferences.json');
+      expect(() => writePreferences(path, { theme: 'light' })).toThrow();
+      chmodSync(blockedRoot, 0o700);
+    }
+  );
 });

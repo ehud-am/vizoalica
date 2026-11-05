@@ -18,6 +18,9 @@ VIZOALICA_MAX_REQUEST_BYTES = "131072"
 # The release this Worker was deployed from; the console's deploy and update engines fill this in.
 # Left blank for a hand-run `wrangler deploy`, which is fine: an unset version is treated as unknown.
 VIZOALICA_WORKER_VERSION = ""
+# Optional: how many different paths the no-script pixel counts per website (default 100). A value that
+# is not a whole number of at least 1 is ignored. See docs/operations/pixel.md.
+# VIZOALICA_PIXEL_MAX_PATHS = "100"
 
 # Optional edge throttle for POST /v1/events:batch, keyed per client address.
 # Uncomment to enable; without it the Worker relies on per-source quotas only. `period` may

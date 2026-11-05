@@ -4,6 +4,27 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-05
+
+### Fixed
+
+- **Pixel path slots free themselves** (issue #86). Each counted pixel path records `last_seen_at` (refreshed at most
+  once a day); a path unseen for 32 days is deleted by the daily cleanup, so made-up or renamed paths no longer hold
+  the per-website limit for good. Documented in the pixel guide.
+- **Goal limit holds under concurrency** (issue #88): the 20-goal limit is checked in the same statement that adds
+  the goal. Page goals and grouping patterns that could never match (trailing slash, doubled slash, spaces,
+  numeric ids) are refused with a clear error. The goals panel shows a retryable error for a failed request and the
+  "older backend" note only for a backend that predates goals.
+- `VIZOALICA_PIXEL_MAX_PATHS` with an invalid value is ignored (default 100) instead of stopping the Worker.
+- README lists goals and grouping rules under "Collects"; pixel docs show the real `/readme` and `/npm/readme` paths.
+
+### Added
+
+- Privacy review for goals, grouping rules and pixel paths (issue #87), with retention for each.
+- **One database migration** (additive apart from a backfill of its own new column; annotated):
+  `0010_pixel_path_expiry.sql` (schema 10). Update with `vizoalica deploy <name> --update`; until then slots are
+  not freed and nothing else changes.
+
 ## [0.14.0] - 2026-11-03
 
 ### Added

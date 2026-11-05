@@ -28,7 +28,8 @@ const KINDS: Array<{ id: GoalKind; label: string; hint: string; example: string 
  */
 export function GoalsPanel({ projectId, websiteId }: { projectId: string; websiteId: string }) {
   const id = useId();
-  const [goals, setGoals] = useState<Goal[] | 'unavailable' | undefined>();
+  const [goals, setGoals] = useState<Goal[] | 'unavailable' | 'failed' | undefined>();
+  const [reload, setReload] = useState(0);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<GoalKind>('event');
   const [target, setTarget] = useState('');
@@ -41,11 +42,21 @@ export function GoalsPanel({ projectId, websiteId }: { projectId: string; websit
     setGoals(undefined);
     getGoalsList(projectId, websiteId)
       .then((list) => !cancelled && setGoals(Array.isArray(list) ? list : 'unavailable'))
-      .catch(() => !cancelled && setGoals('unavailable'));
+      .catch(
+        (caught: unknown) =>
+          !cancelled &&
+          // Only a backend that predates goals says "older"; any other error is a failed request.
+          setGoals(
+            caught instanceof ApiError &&
+              (caught.code === 'database_update_needed' || caught.status === 404)
+              ? 'unavailable'
+              : 'failed'
+          )
+      );
     return () => {
       cancelled = true;
     };
-  }, [projectId, websiteId]);
+  }, [projectId, websiteId, reload]);
 
   async function add(event: FormEvent) {
     event.preventDefault();
@@ -70,7 +81,9 @@ export function GoalsPanel({ projectId, websiteId }: { projectId: string; websit
           ? 'The backend database needs its latest update. Run vizoalica deploy <name> --update, then add the goal again.'
           : kind === 'page' && !target.trim().startsWith('/')
             ? 'A page goal starts with /, such as /thanks.'
-            : 'The goal could not be added. Check the entries and try again.'
+            : kind === 'page'
+              ? 'A page goal is a path as the website reports it, such as /thanks: no trailing slash or spaces, and :id in place of numbers.'
+              : 'The goal could not be added. Check the entries and try again.'
       );
     } finally {
       setBusy(false);
@@ -92,6 +105,15 @@ export function GoalsPanel({ projectId, websiteId }: { projectId: string; websit
     }
   }
 
+  if (goals === 'failed')
+    return (
+      <p className="hint" role="alert">
+        The goals could not be loaded. Check the connection and try again.{' '}
+        <button type="button" className="link-button" onClick={() => setReload((n) => n + 1)}>
+          Retry
+        </button>
+      </p>
+    );
   if (goals === 'unavailable')
     return (
       <p className="hint">
