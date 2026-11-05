@@ -4,6 +4,29 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-03
+
+### Added
+
+- **Goals** (issue #63). Per-website goals of three kinds (page view of a path, click action, custom event), a
+  **Goals** report (conversions, distinct visitors, rate, trend), a goals panel on the website page, admin API
+  routes under `/v1/admin/projects/<id>/sources/<id>/goals`, and the `get_goals` assistant tool. Conversions are
+  read from existing counts; a page goal has no visitor figure. Up to 20 goals per website.
+- **Page grouping rules** (issue #62). `groupingRules` on a website maps path patterns (`*` one segment, final `**`
+  the rest, no regular expressions) to page keys, applied as events arrive; website → Edit → Group pages.
+- **Pixel path limit** (issue #82). At most 100 distinct paths per website (`VIZOALICA_PIXEL_MAX_PATHS`); the
+  website status reports `pixelPaths`, and the console and `get_website_status` say when the limit is reached.
+- **One database migration** (additive): `0009_goals_grouping_pixel_cap.sql` (schema 9: one column with a default,
+  two tables). Update with `vizoalica deploy <name> --update`.
+
+### Fixed
+
+- `get_website_status` misdiagnosed websites that need no token (issue #83): it now probes the script tag.
+- `compare_periods` with `previous_start` and no `previous_end` now compares a period as long as the current one.
+- The assistant's instructions mark all site-controlled text (paths, referrers, event and action names) untrusted.
+- The access keys page button reads "+ Add key" on one line (issue #69).
+- `minimatch` 11.0.1 resolves the open Dependabot alert (issue #84).
+
 ## [0.13.1] - 2026-10-31
 
 ### Changed

@@ -1,5 +1,6 @@
 import { WorkerClient } from '../remote-client/worker-client.js';
 import { parseAddressList } from '../../../ingest-api/src/ingestion/address-match.js';
+import { parseGroupingRules } from '../../../ingest-api/src/ingestion/grouping-rules.js';
 import { isSafeId, validName, validOrigins } from '../contracts.js';
 
 export async function workerJson(client: WorkerClient, path: string, init?: RequestInit) {
@@ -49,6 +50,16 @@ export class InvalidExcludedAddresses extends Error {
   }
 }
 
+/** Grouping rules the console sent that are not valid: which rule (by position) and why. */
+export class InvalidGroupingRules extends Error {
+  constructor(
+    readonly reason: string,
+    readonly index?: number
+  ) {
+    super('invalid_request');
+  }
+}
+
 export function validateWebsiteBody(body: unknown, partial = false) {
   const value = body as
     | {
@@ -58,6 +69,7 @@ export function validateWebsiteBody(body: unknown, partial = false) {
         tokenRequired?: unknown;
         excludedAddresses?: unknown;
         pixelEnabled?: unknown;
+        groupingRules?: unknown;
       }
     | undefined;
   if (!value || (!partial && (!validName(value.name) || !validOrigins(value.allowedOrigins))))
@@ -74,6 +86,9 @@ export function validateWebsiteBody(body: unknown, partial = false) {
   const excluded =
     value.excludedAddresses === undefined ? undefined : parseAddressList(value.excludedAddresses);
   if (excluded && !excluded.ok) throw new InvalidExcludedAddresses(excluded.reason, excluded.index);
+  const grouping =
+    value.groupingRules === undefined ? undefined : parseGroupingRules(value.groupingRules);
+  if (grouping && !grouping.ok) throw new InvalidGroupingRules(grouping.reason, grouping.index);
   if (
     partial &&
     value.name === undefined &&
@@ -81,6 +96,7 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     value.status === undefined &&
     value.tokenRequired === undefined &&
     value.pixelEnabled === undefined &&
+    grouping === undefined &&
     excluded === undefined
   )
     throw new Error('invalid_request');
@@ -90,7 +106,8 @@ export function validateWebsiteBody(body: unknown, partial = false) {
     ...(value.status !== undefined ? { status: value.status } : {}),
     ...(value.tokenRequired !== undefined ? { tokenRequired: value.tokenRequired } : {}),
     ...(value.pixelEnabled !== undefined ? { pixelEnabled: value.pixelEnabled } : {}),
-    ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {})
+    ...(excluded?.ok ? { excludedAddresses: excluded.entries } : {}),
+    ...(grouping?.ok ? { groupingRules: grouping.rules } : {})
   };
 }
 

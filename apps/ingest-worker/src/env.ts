@@ -39,6 +39,8 @@ export interface Env {
   VIZOALICA_ANALYTICS_DIGEST_SECRET: string;
   VIZOALICA_DEMO_MODE?: string;
   VIZOALICA_MAX_REQUEST_BYTES?: string;
+  /** Distinct page paths the no-JavaScript pixel counts per website (default 100). */
+  VIZOALICA_PIXEL_MAX_PATHS?: string;
   VIZOALICA_INGEST_LIMITER?: RateLimiter;
   /** The release this Worker was deployed from; unset on an older or hand-run deployment. */
   VIZOALICA_WORKER_VERSION?: string;

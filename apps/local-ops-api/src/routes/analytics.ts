@@ -4,6 +4,7 @@ import type {
   AnalyticsSummary,
   CampaignsReport,
   CustomEventsReport,
+  GoalsReport,
   RageClicksReport
 } from '../contracts.js';
 import { isAnalyticsWindow, isSafeId } from '../contracts.js';
@@ -267,4 +268,26 @@ export async function analyticsRageClicks(
     throw new Error('database_update_needed');
   if (!response.ok) throw new Error('unavailable');
   return (await response.json()) as RageClicksReport;
+}
+
+export async function analyticsGoals(
+  client: WorkerClient,
+  projectId: string,
+  sourceId: string,
+  startUtc: string,
+  endUtc: string
+): Promise<GoalsReport> {
+  if (!isSafeId(projectId) || !isSafeId(sourceId)) throw new Error('invalid_request');
+  const range = parseAnalyticsRange(startUtc, endUtc);
+  const query = new URLSearchParams({ start: range.startUtc, end: range.endUtc });
+  const response = await client.request(
+    `/v1/admin/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/goals/report?${query.toString()}`
+  );
+  if (response.status === 401 || response.status === 403) throw new Error('unauthorized');
+  if (response.status === 404) throw new Error('not_found');
+  if (response.status === 400) throw new Error('invalid_request');
+  if (response.status === 503 && (await databaseUpdateNeeded(response)))
+    throw new Error('database_update_needed');
+  if (!response.ok) throw new Error('unavailable');
+  return (await response.json()) as GoalsReport;
 }

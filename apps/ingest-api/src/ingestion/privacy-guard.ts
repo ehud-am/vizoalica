@@ -13,6 +13,8 @@ import {
   redactLabel,
   sanitizeProperties
 } from '@vizoalica/privacy';
+import type { GroupingRule } from '../domain/types.js';
+import { applyGroupingRules } from './grouping-rules.js';
 
 export type PrivacyGuardResult =
   | { ok: true; events: CloudEvent[] }
@@ -44,7 +46,10 @@ const FALLBACK_NAME: Record<ActionKind, string> = {
  * do not group identifiers, and a hostile client could send anything. Both functions are
  * idempotent, so an updated SDK's output passes through unchanged.
  */
-function normalizePageView(event: CloudEvent<PageViewData>): CloudEvent<PageViewData> {
+function normalizePageView(
+  event: CloudEvent<PageViewData>,
+  group: PageGrouper
+): CloudEvent<PageViewData> {
   // Campaign labels are cleaned again here, and dropped when nothing is left, so a hostile client
   // cannot store anything the browser's own cleaner would have removed.
   const { campaign: sent, ...data } = event.data;
@@ -53,20 +58,23 @@ function normalizePageView(event: CloudEvent<PageViewData>): CloudEvent<PageView
     ...event,
     data: {
       ...data,
-      page: { ...data.page, url_path: normalizePagePath(data.page.url_path) },
+      page: { ...data.page, url_path: group(normalizePagePath(data.page.url_path)) },
       ...(campaign ? { campaign } : {})
     }
   };
 }
 
-function normalizeAction(event: CloudEvent<ActionData>): CloudEvent<ActionData> {
+function normalizeAction(
+  event: CloudEvent<ActionData>,
+  group: PageGrouper
+): CloudEvent<ActionData> {
   const { action, page } = event.data;
   const { destination, ...rest } = action;
   return {
     ...event,
     data: {
       ...event.data,
-      page: { ...page, url_path: normalizePagePath(page.url_path) },
+      page: { ...page, url_path: group(normalizePagePath(page.url_path)) },
       action: {
         ...rest,
         name: redactLabel(action.name) || FALLBACK_NAME[action.kind],
@@ -126,7 +134,14 @@ export function validateEventPrivacy(event: CloudEvent): PrivacyGuardResult {
   return { ok: true, events: [event] };
 }
 
-export function applyPrivacyGuard(events: CloudEvent[]): PrivacyGuardResult {
+/** Renames a normalized page key by the website's grouping rules. */
+type PageGrouper = (pageKey: string) => string;
+
+export function applyPrivacyGuard(
+  events: CloudEvent[],
+  groupingRules?: GroupingRule[]
+): PrivacyGuardResult {
+  const group: PageGrouper = (pageKey) => applyGroupingRules(pageKey, groupingRules);
   const sanitized: CloudEvent[] = [];
   for (const event of events) {
     const result = validateEventPrivacy(event);
@@ -138,14 +153,14 @@ export function applyPrivacyGuard(events: CloudEvent[]): PrivacyGuardResult {
           ...event.data,
           properties: sanitizeProperties(event.data.properties),
           ...(event.data.page
-            ? { page: { url_path: normalizePagePath(event.data.page.url_path) } }
+            ? { page: { url_path: group(normalizePagePath(event.data.page.url_path)) } }
             : {})
         }
       });
     } else if (isPageView(event)) {
-      sanitized.push(normalizePageView(event));
+      sanitized.push(normalizePageView(event, group));
     } else if (isAction(event)) {
-      sanitized.push(normalizeAction(event));
+      sanitized.push(normalizeAction(event, group));
     } else {
       sanitized.push(event);
     }

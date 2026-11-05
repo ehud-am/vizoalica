@@ -274,6 +274,16 @@ describe('router: the Rage clicks page', () => {
   });
 });
 
+describe('router: the Goals page', () => {
+  it('is an Analytics navigation item directly after Campaigns, with project-and-website scope and a range', () => {
+    const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);
+    expect(analytics.indexOf('analytics/goals')).toBe(analytics.indexOf('analytics/campaigns') + 1);
+    expect(routeLabel('analytics/goals')).toBe('Goals');
+    expect(scopeControls('analytics/goals')).toBe('project-website');
+    expect(showsRange('analytics/goals')).toBe(true);
+  });
+});
+
 describe('router: the Campaigns page', () => {
   it('is an Analytics navigation item directly after Sources, with project-and-website scope and a range', () => {
     const analytics = NAV_ROUTES.filter((route) => route.area === 'analytics').map((r) => r.path);

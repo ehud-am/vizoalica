@@ -382,7 +382,7 @@ function AccessKeys({ website }: { website?: Website | undefined }) {
               setRevealed(undefined);
             }}
           >
-            Create access key
+            <span aria-hidden="true">+</span> Add key
           </ActionButton>
         }
       />

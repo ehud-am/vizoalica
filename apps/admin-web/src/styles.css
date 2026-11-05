@@ -1484,6 +1484,9 @@ a.nav-item {
   flex-wrap: wrap;
   gap: 10px;
 }
+.page-actions button {
+  white-space: nowrap;
+}
 .title-status {
   margin-left: 12px;
   vertical-align: middle;

@@ -23,6 +23,7 @@ export type FakeBackend = {
       allowedOrigins?: string[];
       status?: string;
       publicSourceKey?: string;
+      tokenRequired?: boolean;
     }>
   >;
   pageViews?: (start: string) => number;
@@ -36,10 +37,14 @@ export type FakeBackend = {
   noCampaigns?: boolean;
   /** Answer the rage clicks report as a Worker that predates it does. */
   noRageClicks?: boolean;
+  /** Answer the goals report as a Worker that predates it does. */
+  noGoals?: boolean;
   /** Answer the campaigns and rage clicks reports as a Worker newer than its database does. */
   staleDatabase?: boolean;
   /** What the website status says about excluded addresses; absent from an older backend. */
   excluded?: { count: number; hits30d?: number };
+  /** Pixel path usage in the website status; absent unless the pixel is on. */
+  pixelPaths?: { count: number; max: number; capReached: boolean };
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
@@ -224,6 +229,33 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         availability: { state: 'processing', taxonomyVersions: [1] }
       });
     }
+    if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/goals\/report$/.test(path)) {
+      if (backend.noGoals) return json({ error: 'not_found' }, 404);
+      return json({
+        scope: {},
+        range: {},
+        totals: { pageViews: 400, visitors: 100 },
+        goals: [
+          {
+            goal: { id: 'g1', name: 'Signed up', kind: 'event', target: 'signup' },
+            conversions: 12,
+            visitors: 10,
+            rate: 0.1,
+            rateBasis: 'visitors',
+            trend: [{ startUtc: '2026-09-20T00:00:00.000Z', conversions: 12 }]
+          },
+          {
+            goal: { id: 'g2', name: 'Saw pricing', kind: 'page', target: '/pricing' },
+            conversions: 40,
+            visitors: null,
+            rate: 0.1,
+            rateBasis: 'page_views',
+            trend: []
+          }
+        ],
+        availability: { state: 'complete', taxonomyVersions: [1] }
+      });
+    }
     const status = /^\/v1\/admin\/projects\/[^/]+\/sources\/([^/]+)\/status$/.exec(path);
     if (status)
       return json({
@@ -239,7 +271,8 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
                 ? {}
                 : { excludedHits30d: backend.excluded.hits30d })
             }
-          : {})
+          : {}),
+        ...(backend.pixelPaths ? { pixelPaths: backend.pixelPaths } : {})
       });
     return json({ error: 'not_found' }, 404);
   });

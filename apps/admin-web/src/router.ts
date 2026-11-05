@@ -77,6 +77,14 @@ export const ROUTES = define([
     range: true
   },
   {
+    path: 'analytics/goals',
+    area: 'analytics',
+    label: 'Goals',
+    nav: true,
+    scope: 'project-website',
+    range: true
+  },
+  {
     path: 'analytics/geography',
     area: 'analytics',
     label: 'Geography',
