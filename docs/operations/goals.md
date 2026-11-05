@@ -65,3 +65,7 @@ admin API above is available for pipelines.
 
 Goals need database schema 9. Update with `vizoalica deploy <name> --update`; the console says when a backend
 is behind.
+
+## Privacy
+
+Goals hold a definition only; see the [privacy review](../privacy/goals-grouping-pixel-paths-review.md).

@@ -147,7 +147,8 @@ export interface AdminRepository {
   ): Promise<RageClicksReport | undefined>;
   /** Goals of a website, newest last. Absent on a Worker whose database predates schema 9. */
   listGoals?(projectId: string, sourceId: string): Promise<Goal[]>;
-  createGoal?(goal: Goal): Promise<void>;
+  /** Adds the goal unless the website already has `maxGoals`; false when the limit was reached. */
+  createGoal?(goal: Goal, maxGoals: number): Promise<boolean>;
   deleteGoal?(projectId: string, sourceId: string, goalId: string): Promise<boolean>;
   getGoalsReport?(
     projectId: string,

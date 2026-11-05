@@ -17,6 +17,7 @@ import {
   parseGroupingRules,
   MAX_GROUPING_RULES
 } from '../../../ingest-api/src/ingestion/grouping-rules.js';
+import { isStorablePageKey } from '../../../ingest-api/src/ingestion/page-key.js';
 import { DEFAULT_MAX_PIXEL_PATHS } from '../../../ingest-api/src/ingestion/pixel.js';
 import { MAX_GOALS_PER_WEBSITE } from '../storage/goal-reports.js';
 import { isMissingSchema } from '../storage/missing-schema.js';
@@ -1063,24 +1064,14 @@ export async function handleAdminRequest(
       !target ||
       target.length > (kind === 'page' ? 512 : 80) ||
       CONTROL_CHARACTERS.test(target) ||
-      (kind === 'page' && (!target.startsWith('/') || /[?]/.test(target)))
+      (kind === 'page' &&
+        (!target.startsWith('/') || /[?]/.test(target) || !isStorablePageKey(target)))
     )
       return invalid();
     return needingSchema(async () => {
       const source = await dependencies.repositories.getSource(projectId!, sourceId!);
       if (!source || source.status === 'deleted' || !dependencies.repositories.createGoal)
         return notFound();
-      const existing = (await dependencies.repositories.listGoals?.(projectId!, sourceId!)) ?? [];
-      if (existing.length >= MAX_GOALS_PER_WEBSITE)
-        return Response.json(
-          {
-            error: 'invalid_request',
-            field: 'goals',
-            reason: 'too_many',
-            limit: MAX_GOALS_PER_WEBSITE
-          },
-          { status: 400 }
-        );
       const goal = {
         id: crypto.randomUUID(),
         projectId: projectId!,
@@ -1090,7 +1081,17 @@ export async function handleAdminRequest(
         target,
         createdAt: new Date().toISOString()
       };
-      await dependencies.repositories.createGoal(goal);
+      const added = await dependencies.repositories.createGoal(goal, MAX_GOALS_PER_WEBSITE);
+      if (!added)
+        return Response.json(
+          {
+            error: 'invalid_request',
+            field: 'goals',
+            reason: 'too_many',
+            limit: MAX_GOALS_PER_WEBSITE
+          },
+          { status: 400 }
+        );
       await dependencies.repositories.saveAdminAudit({
         operation: 'create_goal',
         outcome: 'allowed',

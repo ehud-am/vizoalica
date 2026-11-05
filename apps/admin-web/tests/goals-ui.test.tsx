@@ -210,6 +210,27 @@ describe('Goals on the website page', () => {
     expect(screen.queryByRole('form', { name: 'Add a goal' })).toBeNull();
   });
 
+  it('shows a retryable error, not "older backend", when the goals request fails', async () => {
+    window.location.hash = '#/manage/websites/s1';
+    const user = userEvent.setup();
+    for (const failure of [
+      new ApiError('remote_unavailable', 502),
+      new ApiError('internal_error', 500),
+      new ApiError('forbidden', 403),
+      new Error('network')
+    ]) {
+      cleanup();
+      api.getGoalsList.mockReset();
+      api.getGoalsList.mockRejectedValueOnce(failure);
+      api.getGoalsList.mockResolvedValue([goal('g1', 'Signed up', 'event', 'signup')]);
+      render(<App />);
+      expect(await screen.findByText(/goals could not be loaded/)).toBeTruthy();
+      expect(screen.queryByText(/older than 0.14/)).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByRole('list', { name: 'Goals' })).toBeTruthy();
+    }
+  });
+
   it('says an older backend cannot count goals', async () => {
     window.location.hash = '#/manage/websites/s1';
     api.getGoalsList.mockRejectedValue(new ApiError('not_found', 404));

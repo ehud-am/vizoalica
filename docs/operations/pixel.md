@@ -51,8 +51,14 @@ on a push to `main` and commits it, and the npm build fills the package README a
 - **Each website counts at most 100 different paths.** A path already counted keeps counting; a new path past the
   limit is ignored, and the image is still answered the same way. The website's page in the console shows how many
   paths are used and says when the limit is reached. This stops anyone who knows the public key from filling your
-  tables with made-up paths. Raise it with the Worker variable `VIZOALICA_PIXEL_MAX_PATHS`. Paths are counted
+  tables with made-up paths. Raise it with the Worker variable `VIZOALICA_PIXEL_MAX_PATHS` (a value that is not a
+  whole number of at least 1 is ignored). Paths are counted
   after [grouping rules](page-grouping.md), so `/npm/* => /npm/:package` keeps many packages in one path.
+- **A slot frees itself.** Each counted path records when it was last seen (refreshed at most once a day). A path
+  not seen for 32 days, the same period as the other counts, is deleted by the daily cleanup and its slot is free
+  again. So made-up paths cannot hold the limit for good, and renamed pages stop using slots after about a month.
+  Until you run `vizoalica deploy <name> --update` (database change 0010), slots are not freed. See the
+  [privacy review](../privacy/goals-grouping-pixel-paths-review.md).
 - Quota applies like any event. [Exclude your own visits](internal-traffic.md) applies too.
 - A `HEAD` request is never a view. The image is always answered the same way (`200`, `Cache-Control: no-store`),
   whether the view was counted or not, so the endpoint does not reveal which website keys exist.
@@ -74,4 +80,4 @@ READMEs and switch the pixel on only there, so forged views cannot touch your ma
 - **Blockers.** Ad and privacy blockers may drop the image.
 - **Bots.** Crawlers that fetch images are counted by the same bot rules as other traffic.
 
-See the [privacy review](../privacy/pixel-review.md).
+See the [privacy review](../privacy/pixel-review.md) and the [path list review](../privacy/goals-grouping-pixel-paths-review.md).
