@@ -223,18 +223,21 @@ describe('vizoalica rotate', () => {
     expect(t.calls.some((call) => call.args[1] === 'bulk')).toBe(false);
   });
 
-  it('shows the new administrator secret when the environment file cannot be updated', async () => {
-    const t = setup({ answers: ['rotate', 'saved'] });
-    const folder = join(t.home, '.config', 'vizoalica');
-    chmodSync(folder, 0o500);
-    try {
-      expect(await rotateCommand(['prod', 'admin'], t.deps)).toBe(0);
-    } finally {
-      chmodSync(folder, 0o700);
+  it.skipIf(process.getuid?.() === 0)(
+    'shows the new administrator secret when the environment file cannot be updated',
+    async () => {
+      const t = setup({ answers: ['rotate', 'saved'] });
+      const folder = join(t.home, '.config', 'vizoalica');
+      chmodSync(folder, 0o500);
+      try {
+        expect(await rotateCommand(['prod', 'admin'], t.deps)).toBe(0);
+      } finally {
+        chmodSync(folder, 0o700);
+      }
+      const secret = t.stored.VIZOALICA_ADMIN_SECRET!;
+      expect(t.errors()).toContain('could not be updated');
+      expect(t.text()).toContain(`VIZOALICA_ADMIN_SECRET\n    ${secret}\n`);
+      expect(t.environments().prod!.secret).toBe(OLD);
     }
-    const secret = t.stored.VIZOALICA_ADMIN_SECRET!;
-    expect(t.errors()).toContain('could not be updated');
-    expect(t.text()).toContain(`VIZOALICA_ADMIN_SECRET\n    ${secret}\n`);
-    expect(t.environments().prod!.secret).toBe(OLD);
-  });
+  );
 });
