@@ -37,7 +37,7 @@ loader script reach a customer repo without the customer hand-copying source?
 
 **Decision (revised after live testing)**: The original design added a second `actions/checkout`
 step to check out `ehud-am/vizoalica` from inside the customer's job. Testing against a real
-customer repo (`ehud-am/vizoalica-sample`) proved this does not work: `actions/checkout`'s default
+customer repo (`ehud-am/vizoalica-example`) proved this does not work: `actions/checkout`'s default
 `GITHUB_TOKEN` never carries cross-repo access to a private source repository from within a
 reusable workflow's job, even after granting `access_level: user` for the reusable-workflow call
 itself (that setting only governs which repos may *resolve* the `workflow_call`, it does not grant

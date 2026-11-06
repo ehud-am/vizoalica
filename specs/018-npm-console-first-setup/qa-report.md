@@ -19,7 +19,7 @@ marked "before release" are done**; see the end.
 | Installed package, real terminal| `npm pack` → `npm install -g` into a scratch prefix → driven in a pseudo-terminal: `--version`, `help`, `env add --verbose` (re-asks, defaults, hidden secret, Ctrl-C), `rotate` end to end against a stand-in Wrangler |
 | Live verification (read-only)   | `vizoalica env list` against the real `dev` (workers.dev) and `prod` (custom domain) Workers: both usable               |
 | Live operator run               | The release owner's own `vizoalica rotate dev token` against Cloudflare, after the fixes F2 and F3: succeeded           |
-| Live website                    | `vizoalica-sample.pages.dev`: token endpoint, token claims, and the Worker's rejection reason (one test event, rejected) |
+| Live website                    | `vizoalica-example.pages.dev`: token endpoint, token claims, and the Worker's rejection reason (one test event, rejected) |
 | Secret handling                 | Tarball contents (19 files), the new real token secret searched for in the repository, working tree, and tarball (absent), settings permissions (`0700`/`0600`) |
 | Alignment                       | Code against specs 018/019, the CLI contract, CHANGELOG, v0.7.0 release notes, README, and the deploy guide              |
 

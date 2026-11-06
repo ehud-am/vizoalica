@@ -14,7 +14,7 @@ negative tests for security-relevant paths (credential/config handling).
 
 - [x] T001 Confirm `pnpm exec wrangler whoami` and `gh auth status` succeed in the working
       environment (already verified during planning; re-confirm before hands-on work).
-- [x] T002 [P] Use `ehud-am/vizoalica-sample` (a repo dedicated to vizoalica sample/testing, not
+- [x] T002 [P] Use `ehud-am/vizoalica-example` (a repo dedicated to vizoalica sample/testing, not
       shared with any unrelated product) as the Phase 1 validation target — confirmed with the
       user; it is only touched once the design is proven and the user has given explicit
       go-ahead.
@@ -42,7 +42,7 @@ negative tests for security-relevant paths (credential/config handling).
 Cloudflare Pages automatically, with zero real config values in their committed source.
 
 **Independent Test**: Follow `quickstart.md` steps 1-3 and the "Expected failure-path check"
-against `ehud-am/vizoalica-sample` (T002).
+against `ehud-am/vizoalica-example` (T002).
 
 ### Implementation for User Story 1
 
@@ -59,7 +59,7 @@ against `ehud-am/vizoalica-sample` (T002).
       pages deploy` steps, surfacing `wrangler`'s own success/failure output as the job's
       status (no swallowed errors).
 - [x] T009 [US1] Run `quickstart.md`'s validation steps 1-3 and the failure-path check against
-      `ehud-am/vizoalica-sample`; fix issues found. Found and fixed two real defects: (1) the
+      `ehud-am/vizoalica-example`; fix issues found. Found and fixed two real defects: (1) the
       reusable workflow could not be resolved from a private `ehud-am/vizoalica` at all (fixed by
       granting `access_level: user`); (2) the planned second `actions/checkout` of this repo could
       not read a private repo's contents even with that access granted (fixed by embedding the
@@ -112,11 +112,11 @@ values and current status from the console alone.
 - [x] T014 [US2] Rewrite `apps/local-ops-api/src/routes/snippet.ts` to emit the required
       variables/secrets list + the starter workflow YAML snippet (from the contract) instead of
       the `steps[]` shell-command generator, keeping the static-mode snippet output unchanged.
-      (Done earlier, during the live vizoalica-sample validation pass.)
+      (Done earlier, during the live vizoalica-example validation pass.)
 - [x] T015 [US2] Redesign `apps/admin-web/src/components/IntegrationSnippet.tsx`: CI/CD panel
       leads with the copyable variables/secrets checklist and starter workflow snippet; replace
       the vague `safely()` catch-all error text for this panel with specific messages. (Done
-      earlier, during the live vizoalica-sample validation pass.)
+      earlier, during the live vizoalica-example validation pass.)
 - [x] T016 [US2] Update `apps/admin-web/src/pages/WebsitesPage.tsx` to surface
       `configEndpointReachable`/`configEndpointCheckedAt` per website. New
       `components/WebsiteReachability.tsx`, wired in via `getReachability`.
@@ -161,7 +161,7 @@ Cloudflare account.
       automatic on push — true for the backend, no longer true for a connected website).
 - [~] T022 [US3] Timed what could honestly be timed this session rather than estimating: the
       **website leg** via the new CI/CD path completed in 21-32 seconds of actual GitHub Actions
-      runtime per deploy, consistently, across every real run this iteration (`vizoalica-sample`
+      runtime per deploy, consistently, across every real run this iteration (`vizoalica-example`
       and `gitlocal`) — comfortably inside the 5-minute budget once the one-time repository
       variables/secrets are configured (a few minutes, one time, not per deploy). Did **not**
       re-time the backend leg from a truly fresh Cloudflare account end-to-end this session — doing
