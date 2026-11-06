@@ -114,6 +114,7 @@ export const sidebar: NavGroup[] = [
 export const nav = [
   { text: 'Get started', link: '/get-started' },
   { text: 'Tour', link: '/tour' },
+  { text: 'Live demo', link: 'https://example.vizoalica.dev' },
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
@@ -125,5 +126,7 @@ export function navigationLinks(): string[] {
   return [
     ...sidebar.flatMap((group) => group.items.map((item) => item.link)),
     ...nav.map((item) => item.link)
-  ].map((link) => link.replace(/^\//, ''));
+  ]
+    .filter((link) => link.startsWith('/'))
+    .map((link) => link.replace(/^\//, ''));
 }
