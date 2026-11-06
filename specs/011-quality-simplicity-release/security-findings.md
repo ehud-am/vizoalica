@@ -88,7 +88,7 @@ finding is about.
   (`docs/operations/cloudflare.md`, "Suspected signing-secret exposure") already covers the
   correct response: rotate the Worker's secret and every connected website's copy together, which
   invalidates all outstanding tokens everywhere until redeployed — this iteration's live rotation
-  (done twice, for `vizoalica-sample` and the `gitlocal.dev` cutover) is a working proof that this
+  (done twice, for `vizoalica-example` and the `gitlocal.dev` cutover) is a working proof that this
   procedure is operationally feasible today.
 - Flagged as a design item for a future release: move to per-source signing secrets once the
   console has session/credential-reveal UX to support it safely.
