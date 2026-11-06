@@ -87,26 +87,7 @@ export const sidebar: NavGroup[] = [
       { text: 'v0.13.1', link: '/releases/v0.13.1' },
       { text: 'v0.13.0', link: '/releases/v0.13.0' },
       { text: 'v0.12.1', link: '/releases/v0.12.1' },
-      { text: 'v0.12.0', link: '/releases/v0.12.0' },
-      { text: 'v0.11.1', link: '/releases/v0.11.1' },
-      { text: 'v0.11.0', link: '/releases/v0.11.0' },
-      { text: 'v0.10.0', link: '/releases/v0.10.0' },
-      { text: 'v0.9.1', link: '/releases/v0.9.1' },
-      { text: 'v0.9.0', link: '/releases/v0.9.0' },
-      { text: 'v0.8.0', link: '/releases/v0.8.0' },
-      { text: 'v0.7.5', link: '/releases/v0.7.5' },
-      { text: 'v0.7.4', link: '/releases/v0.7.4' },
-      { text: 'v0.7.3', link: '/releases/v0.7.3' },
-      { text: 'v0.7.2', link: '/releases/v0.7.2' },
-      { text: 'v0.7.1', link: '/releases/v0.7.1' },
-      { text: 'v0.7.0', link: '/releases/v0.7.0' },
-      { text: 'v0.6.2', link: '/releases/v0.6.2' },
-      { text: 'v0.6.1', link: '/releases/v0.6.1' },
-      { text: 'v0.6.0', link: '/releases/v0.6.0' },
-      { text: 'v0.5.3', link: '/releases/v0.5.3' },
-      { text: 'v0.5.2', link: '/releases/v0.5.2' },
-      { text: 'v0.5.1', link: '/releases/v0.5.1' },
-      { text: 'v0.5.0', link: '/releases/v0.5.0' }
+      { text: 'Older releases (GitHub)', link: 'https://github.com/ehud-am/vizoalica/releases' }
     ]
   }
 ];
@@ -114,6 +95,7 @@ export const sidebar: NavGroup[] = [
 export const nav = [
   { text: 'Get started', link: '/get-started' },
   { text: 'Tour', link: '/tour' },
+  { text: 'Live demo', link: 'https://example.vizoalica.dev' },
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
@@ -125,5 +107,7 @@ export function navigationLinks(): string[] {
   return [
     ...sidebar.flatMap((group) => group.items.map((item) => item.link)),
     ...nav.map((item) => item.link)
-  ].map((link) => link.replace(/^\//, ''));
+  ]
+    .filter((link) => link.startsWith('/'))
+    .map((link) => link.replace(/^\//, ''));
 }

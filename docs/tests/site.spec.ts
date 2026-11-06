@@ -173,7 +173,11 @@ test('reaches every documentation page from the navigation, with working links',
     .then(() =>
       page
         .locator('.VPSidebar a')
-        .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).pathname))
+        .evaluateAll((links) =>
+          links
+            .filter((link) => (link as HTMLAnchorElement).origin === window.location.origin)
+            .map((link) => (link as HTMLAnchorElement).pathname)
+        )
     );
   expect(sidebarLinks.length).toBeGreaterThanOrEqual(20);
   for (const link of new Set(sidebarLinks)) {

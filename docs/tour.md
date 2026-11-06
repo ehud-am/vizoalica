@@ -7,6 +7,8 @@ description: 'A tour of the Vizoalica console: overview, geography, technology, 
 
 A look at the console. Everything on this page is **fictional demo data** for an invented company, Paperkite, on reserved example domains. Nothing here is real traffic.
 
+Want to click around? The [live demo site](https://example.vizoalica.dev) has a detailed demo of every Vizoalica feature.
+
 <figure class="tour-shot">
 
 ![The Overview screen for the fictional company Paperkite: 48,912 page views and 12,347 unique users in the last 24 hours, up 8.6% and 6.7% on the previous period, with a traffic chart and a table of top pages.](./assets/promo-src/01-overview.png)
