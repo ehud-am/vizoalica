@@ -8,7 +8,8 @@ hero:
   text: Web analytics your AI assistant can read
   tagline: Ask Claude, Cursor, or Codex how your site is doing, and it answers from your own data. Open source, cookieless, and running in your own Cloudflare account.
   image:
-    src: /brand/vizoalica-mark.svg
+    light: /brand/vizoalica-mark.svg
+    dark: /brand/vizoalica-mark-dark.svg
     alt: ''
   actions:
     - theme: brand

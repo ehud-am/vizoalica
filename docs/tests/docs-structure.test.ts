@@ -22,7 +22,10 @@ describe('docs site navigation', () => {
 
   it('reaches every Markdown file under docs/ (except the home page)', () => {
     const reachable = new Set(navigationLinks());
-    const missing = pages.filter((page) => page !== 'index' && !reachable.has(page));
+    // Only the latest releases are in the sidebar; older notes stay published, linked from GitHub releases.
+    const missing = pages.filter(
+      (page) => page !== 'index' && !page.startsWith('releases/') && !reachable.has(page)
+    );
     expect(missing, 'add these to docs/.vitepress/navigation.ts').toEqual([]);
   });
 
