@@ -12,6 +12,8 @@
 
 **Documentation, a product tour, and a short video: [vizoalica.dev](https://vizoalica.dev).**
 
+**Live demo of every feature: [example.vizoalica.dev](https://example.vizoalica.dev).**
+
 **Vizoalica** is an open-source (MIT) web and product analytics platform that you host yourself on
 Cloudflare Workers, D1, and R2. One script tag on your site sends privacy-filtered page views, clicks,
 and custom events to your own backend. A local console shows traffic over time, top pages, referrers,

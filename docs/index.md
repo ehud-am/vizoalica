@@ -8,7 +8,8 @@ hero:
   text: Web analytics your AI assistant can read
   tagline: Ask Claude, Cursor, or Codex how your site is doing, and it answers from your own data. Open source, cookieless, and running in your own Cloudflare account.
   image:
-    src: /brand/vizoalica-mark.svg
+    light: /brand/vizoalica-mark.svg
+    dark: /brand/vizoalica-mark-dark.svg
     alt: ''
   actions:
     - theme: brand
@@ -17,6 +18,9 @@ hero:
     - theme: alt
       text: Take the tour
       link: /tour
+    - theme: alt
+      text: Live demo site
+      link: https://example.vizoalica.dev
     - theme: alt
       text: View on GitHub
       link: https://github.com/ehud-am/vizoalica
@@ -61,7 +65,7 @@ vizoalica env add prod    # deploy a new backend for "prod", or connect one you 
 vizoalica console
 ```
 
-`env add` asks one question at a time and explains each. Deploying creates a real backend in your Cloudflare account; you sign in to Cloudflare in your browser, and there is no secret to copy. Then add your website in the console and ask your assistant: `vizoalica mcp install --client claude-code`. Already have a backend, yours or a teammate's? Answer no to deploying and give its address, your role, and your access key. [Read the quick start](/get-started) or [see the console first](/tour).
+`env add` asks one question at a time and explains each. Deploying creates a real backend in your Cloudflare account; you sign in to Cloudflare in your browser, and there is no secret to copy. Then add your website in the console and ask your assistant: `vizoalica mcp install --client claude-code`. Already have a backend, yours or a teammate's? Answer no to deploying and give its address, your role, and your access key. [Read the quick start](/get-started) or [see the console first](/tour), or explore the [live demo site](https://example.vizoalica.dev), which demonstrates every feature.
 
 ## Built in the open
 
