@@ -4,6 +4,25 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-11
+
+### Added
+
+- **Guided setup** ([spec 027](specs/027-guided-setup/spec.md)). An AI assistant on your computer proposes page
+  names, groups, grouping rules and goals from what a website collected; you review a file, then apply it.
+  `vizoalica mapping export <env>` writes an inventory (page keys, actions, events, referrers, counts; no visitor
+  data). `vizoalica mapping apply <env> <file>` shows a diff and, after a yes (or `--yes`), creates goals, saves
+  rules, and saves names. Nothing is removed; the file is validated like the console. The assistant never writes
+  to your backend.
+- **Page names and groups** (display-time labels, up to 500 per website). They apply to all data already
+  counted and can be changed at any time. Shown beside the page key in the console and in assistant answers.
+- MCP tool `get_inventory` (read-only); `get_traffic_overview` returns `pageNames`. A guided-setup recipe in the
+  Vizoalica skill.
+- Worker routes `GET /inventory` and `GET/PUT /labels` per website.
+- **One database migration** (additive): `0011_page_labels.sql` (schema 11). Update with
+  `vizoalica deploy <name> --update`; until then guided setup answers "database update needed" and nothing else
+  changes.
+
 ## [0.14.1] - 2026-11-05
 
 ### Fixed

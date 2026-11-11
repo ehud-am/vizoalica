@@ -82,6 +82,31 @@ export interface GoalsReport {
   availability: AnalyticsOverview['availability'];
 }
 
+/** A display name and optional group for a page key of one website. Never visitor data. */
+export interface PageLabel {
+  key: string;
+  name: string;
+  group: string;
+}
+
+/**
+ * What a website has collected, for setting it up: the distinct page keys, actions and custom
+ * events of a range with their counts, beside the current configuration. Counts only, no visitor data.
+ */
+export interface SetupInventory {
+  scope: AnalyticsOverview['scope'];
+  range: AnalyticsRange;
+  pages: Array<{ key: string; views: number }>;
+  actions: Array<{ name: string; kind: string; count: number }>;
+  events: Array<{ name: string; count: number }>;
+  referrers: Array<{ name: string; views: number }>;
+  /** Distinct values in the range, so a reader can tell when a list was cut. */
+  totals: { pages: number; actions: number; events: number };
+  groupingRules: GroupingRule[];
+  goals: Goal[];
+  labels: PageLabel[];
+}
+
 export interface AdminAuditEntry {
   operation: string;
   outcome: 'allowed' | 'denied';

@@ -43,6 +43,14 @@ export type FakeBackend = {
   staleDatabase?: boolean;
   /** What the website status says about excluded addresses; absent from an older backend. */
   excluded?: { count: number; hits30d?: number };
+  /** Answer the inventory and labels routes as a Worker that predates them does. */
+  noInventory?: boolean;
+  /** Page labels of every website; replaced by a PUT. */
+  labels?: Array<{ key: string; name: string; group: string }>;
+  /** Writes the Worker received (goals, website changes, labels), in order. */
+  writes?: Array<{ method: string; path: string; body: unknown }>;
+  /** Goals and grouping rules the inventory reports as already set. */
+  existing?: { goals?: unknown[]; groupingRules?: unknown[] };
   /** Pixel path usage in the website status; absent unless the pixel is on. */
   pixelPaths?: { count: number; max: number; capReached: boolean };
 };
@@ -255,6 +263,40 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         ],
         availability: { state: 'complete', taxonomyVersions: [1] }
       });
+    }
+    const site =
+      /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)(?:\/(inventory|labels|goals))?$/.exec(
+        path
+      );
+    if (site && (site[3] || init?.method === 'PATCH')) {
+      if (backend.noInventory && site[3] !== 'goals') return json({ error: 'not_found' }, 404);
+      if (init?.method && init.method !== 'GET') {
+        const body = init.body ? JSON.parse(String(init.body)) : undefined;
+        (backend.writes ??= []).push({ method: init.method, path, body });
+        if (site[3] === 'labels' && init.method === 'PUT') backend.labels = body.labels;
+        return json(
+          site[3] === 'labels' ? body.labels : { ok: true },
+          site[3] === 'goals' ? 201 : 200
+        );
+      }
+      if (site[3] === 'labels') return json(backend.labels ?? []);
+      if (site[3] === 'inventory')
+        return json({
+          scope: {},
+          range: {},
+          pages: [
+            { key: '/pricing', views: 120 },
+            { key: '/blog/a', views: 30 },
+            { key: '/blog/b', views: 20 }
+          ],
+          actions: [{ name: 'Buy', kind: 'button', count: 9 }],
+          events: [{ name: 'signup', count: 4 }],
+          referrers: [{ name: 'news.example', views: 12 }],
+          totals: { pages: 3, actions: 1, events: 1 },
+          groupingRules: backend.existing?.groupingRules ?? [],
+          goals: backend.existing?.goals ?? [],
+          labels: backend.labels ?? []
+        });
     }
     const status = /^\/v1\/admin\/projects\/[^/]+\/sources\/([^/]+)\/status$/.exec(path);
     if (status)

@@ -444,3 +444,89 @@ describe('the pixel path cap through the real Worker', () => {
     ).toEqual([{ n: 1 }]);
   });
 });
+
+describe('setup inventory and page labels through the real Worker', () => {
+  const labelsBase = '/v1/admin/projects/p1/sources/s1/labels';
+  const inventory = '/v1/admin/projects/p1/sources/s1/inventory';
+  const range = 'start=2026-01-01T00:00:00.000Z&end=2026-01-01T12:40:00.000Z';
+
+  it('lists what was collected and the current configuration', async () => {
+    const { env } = environment();
+    await admin(env, '/v1/admin/projects/p1/sources/s1/goals', {
+      method: 'POST',
+      body: { name: 'Signed up', kind: 'event', target: 'signup' }
+    });
+    await ingest(env, [
+      pageView('evt-i-000001', '/pricing', 'a'),
+      pageView('evt-i-000002', '/pricing', 'b'),
+      pageView('evt-i-000003', '/docs', 'c'),
+      custom('evt-i-000004', 'signup', 'a')
+    ]);
+    vi.setSystemTime(new Date('2026-01-01T12:40:00.000Z'));
+    const response = await admin(env, `${inventory}?${range}`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = (await response.json()) as any;
+    expect(body.pages).toEqual([
+      { key: '/pricing', views: 2 },
+      { key: '/docs', views: 1 }
+    ]);
+    expect(body.events).toEqual([{ name: 'signup', count: 1 }]);
+    expect(body.totals).toEqual({ pages: 2, actions: 0, events: 1 });
+    expect(body.goals).toHaveLength(1);
+    expect(body.labels).toEqual([]);
+    expect((await admin(env, `${inventory}?start=bad&end=bad`)).status).toBe(400);
+    expect((await admin(env, '/v1/admin/projects/p1/sources/nope/inventory?' + range)).status).toBe(
+      404
+    );
+  });
+
+  it('replaces labels as a set and validates them', async () => {
+    const { env } = environment();
+    const put = (labels: unknown, token?: string) =>
+      admin(env, labelsBase, { method: 'PUT', body: { labels }, ...(token ? { token } : {}) });
+    expect(
+      (
+        await put([
+          { key: '/pricing', name: 'Pricing', group: 'Marketing' },
+          { key: '/docs', name: 'Docs home' }
+        ])
+      ).status
+    ).toBe(200);
+    expect(await (await admin(env, labelsBase)).json()).toEqual([
+      { key: '/docs', name: 'Docs home', group: '' },
+      { key: '/pricing', name: 'Pricing', group: 'Marketing' }
+    ]);
+    // A second call replaces the first.
+    await put([{ key: '/pricing', name: 'Plans', group: 'Marketing' }]);
+    expect(await (await admin(env, labelsBase)).json()).toEqual([
+      { key: '/pricing', name: 'Plans', group: 'Marketing' }
+    ]);
+    for (const bad of [
+      'x',
+      [{ key: 'pricing', name: 'A' }],
+      [{ key: '/a?x=1', name: 'A' }],
+      [{ key: '/a', name: '' }],
+      [{ key: '/a', name: 'x'.repeat(81) }],
+      [{ key: '/a', name: 'A', group: 'g'.repeat(61) }],
+      [
+        { key: '/a', name: 'A' },
+        { key: '/a', name: 'B' }
+      ],
+      Array.from({ length: 501 }, (_, i) => ({ key: `/p${i}`, name: 'n' }))
+    ])
+      expect((await put(bad)).status).toBe(400);
+    expect(
+      (
+        await admin(env, '/v1/admin/projects/p1/sources/nope/labels', {
+          method: 'PUT',
+          body: { labels: [] }
+        })
+      ).status
+    ).toBe(404);
+    // Names are shown with the inventory.
+    vi.setSystemTime(new Date('2026-01-01T12:40:00.000Z'));
+    const body = (await (await admin(env, `${inventory}?${range}`)).json()) as any;
+    expect(body.labels).toEqual([{ key: '/pricing', name: 'Plans', group: 'Marketing' }]);
+  });
+});

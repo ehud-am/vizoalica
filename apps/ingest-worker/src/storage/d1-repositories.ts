@@ -21,6 +21,8 @@ import type {
   RageClicksReport,
   ExcludedHitsReport,
   Goal,
+  PageLabel,
+  SetupInventory,
   GoalsReport,
   GroupingRule,
   CustomEventsFilters,
@@ -48,6 +50,10 @@ import {
 } from './campaign-rollups.js';
 import { rageReportQueries, rageStatements } from './rage-rollups.js';
 import { goalsReportQueries } from './goal-reports.js';
+
+/** The most page keys, and the most actions or events, an inventory lists. */
+const INVENTORY_PAGES = 300;
+const INVENTORY_OTHERS = 100;
 import {
   CUSTOM_EVENT_TYPE,
   customEventStatements,
@@ -1301,6 +1307,110 @@ export class D1Repositories
       }
     });
     return shape(await this.readAll(statements));
+  }
+
+  async listPageLabels(projectId: string, sourceId: string): Promise<PageLabel[]> {
+    const { results } = await this.db
+      .prepare(
+        'SELECT page_key, name, group_name FROM page_labels WHERE project_id = ? AND source_id = ? ORDER BY page_key ASC'
+      )
+      .bind(projectId, sourceId)
+      .all<{ page_key: string; name: string; group_name: string }>();
+    return results.map((row) => ({ key: row.page_key, name: row.name, group: row.group_name }));
+  }
+
+  /** Replaces the labels of a website in one transaction (a D1 batch), or one by one without batching. */
+  async replacePageLabels(
+    projectId: string,
+    sourceId: string,
+    labels: PageLabel[],
+    updatedAt: string
+  ): Promise<void> {
+    const statements = [
+      this.db
+        .prepare('DELETE FROM page_labels WHERE project_id = ? AND source_id = ?')
+        .bind(projectId, sourceId),
+      ...labels.map((label) =>
+        this.db
+          .prepare(
+            'INSERT INTO page_labels (project_id, source_id, page_key, name, group_name, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+          )
+          .bind(projectId, sourceId, label.key, label.name, label.group, updatedAt)
+      )
+    ];
+    await this.runBatch(statements);
+  }
+
+  async getSetupInventory(
+    projectId: string,
+    sourceId: string,
+    startUtc: string,
+    endUtc: string
+  ): Promise<SetupInventory | undefined> {
+    const source = await this.getSource(projectId, sourceId);
+    if (!source || source.status === 'deleted') return undefined;
+    const range = 'project_id = ? AND source_id = ? AND minute_utc >= ? AND minute_utc < ?';
+    const values = [projectId, sourceId, startUtc, endUtc];
+    const q = (sql: string) => this.db.prepare(sql).bind(...values);
+    const page = "dimension_kind = 'page_path'";
+    const results = await this.readAll([
+      q(
+        `SELECT dimension_value AS key, SUM(event_count) AS n FROM dashboard_minute_dimensions WHERE ${range} AND ${page} GROUP BY dimension_value ORDER BY n DESC, dimension_value ASC LIMIT ${INVENTORY_PAGES}`
+      ),
+      q(
+        `SELECT COUNT(DISTINCT dimension_value) AS n FROM dashboard_minute_dimensions WHERE ${range} AND ${page}`
+      ),
+      q(
+        `SELECT action_name AS name, action_kind AS kind, SUM(event_count) AS n FROM dashboard_minute_actions WHERE ${range} GROUP BY action_name, action_kind ORDER BY n DESC, action_name ASC LIMIT ${INVENTORY_OTHERS}`
+      ),
+      q(
+        `SELECT COUNT(*) AS n FROM (SELECT 1 FROM dashboard_minute_actions WHERE ${range} GROUP BY action_name, action_kind)`
+      ),
+      q(
+        `SELECT event_name AS name, SUM(event_count) AS n FROM dashboard_minute_custom_events WHERE ${range} GROUP BY event_name ORDER BY n DESC, event_name ASC LIMIT ${INVENTORY_OTHERS}`
+      ),
+      q(
+        `SELECT COUNT(DISTINCT event_name) AS n FROM dashboard_minute_custom_events WHERE ${range}`
+      ),
+      q(
+        `SELECT dimension_value AS name, SUM(event_count) AS n FROM dashboard_minute_dimensions WHERE ${range} AND dimension_kind = 'referrer' GROUP BY dimension_value ORDER BY n DESC, dimension_value ASC LIMIT 20`
+      )
+    ]);
+    const rows = (index: number) =>
+      (results[index] ?? []) as Array<{ key?: string; name?: string; kind?: string; n: number }>;
+    const count = (index: number) => Number(rows(index)[0]?.n ?? 0);
+    let labels: PageLabel[] = [];
+    try {
+      labels = await this.listPageLabels(projectId, sourceId);
+    } catch (error) {
+      if (!isMissingSchema(error)) throw error;
+    }
+    return {
+      scope: {
+        projectId,
+        sourceId,
+        label: source.name,
+        identityMode: 'source-local'
+      },
+      range: {
+        startUtc,
+        endUtc,
+        interval: 'day',
+        timezone: 'UTC'
+      },
+      pages: rows(0).map((row) => ({ key: String(row.key), views: Number(row.n) })),
+      actions: rows(2).map((row) => ({
+        name: String(row.name),
+        kind: String(row.kind),
+        count: Number(row.n)
+      })),
+      events: rows(4).map((row) => ({ name: String(row.name), count: Number(row.n) })),
+      referrers: rows(6).map((row) => ({ name: String(row.name), views: Number(row.n) })),
+      totals: { pages: count(1), actions: count(3), events: count(5) },
+      groupingRules: source.groupingRules ?? [],
+      goals: await this.listGoals(projectId, sourceId),
+      labels
+    };
   }
 
   /**
