@@ -6,7 +6,8 @@ export const MAX_PAGE_LABELS = 500;
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
-export type LabelsResult = { ok: true; labels: PageLabel[] } | { ok: false; reason: string; index?: number };
+export type LabelsResult =
+  { ok: true; labels: PageLabel[] } | { ok: false; reason: string; index?: number };
 
 /**
  * Validates page labels: a page key as the reports show it, a name, and an optional group. A key

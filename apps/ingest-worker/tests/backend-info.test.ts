@@ -55,7 +55,7 @@ describe('GET /v1/admin/backend', () => {
           '0008_pixel_page_views.sql',
           '0009_goals_grouping_pixel_cap.sql',
           '0010_pixel_path_expiry.sql',
-        '0011_page_labels.sql'
+          '0011_page_labels.sql'
         ],
         status: 'current'
       },
