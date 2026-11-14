@@ -14,15 +14,15 @@
     "react-dom": "^19.3.1",
     "recharts": "^3.10.1",
     "typescript": "^6.0.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@playwright/test": "^1.64.1",
-    "@tailwindcss/vite": "^4.3.3",
+    "@playwright/test": "^1.65.0",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "tailwindcss": "^4.3.3"
+    "@vitejs/plugin-react": "^6.3.0",
+    "tailwindcss": "^4.3.5"
   }
 }
