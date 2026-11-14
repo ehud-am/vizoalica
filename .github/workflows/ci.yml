@@ -77,7 +77,7 @@ jobs:
         run: pnpm build
 
       - name: Lint GitHub Actions workflows
-        uses: reviewdog/action-actionlint@cfa6a621f27735ccc88d35af9d0608692fd9b9f7 # v1.80.8
+        uses: reviewdog/action-actionlint@78b296370c5c75abca79860e9baa9846e3286a29 # v1.84.0
         with:
           fail_level: error
 
