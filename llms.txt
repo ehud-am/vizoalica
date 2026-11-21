@@ -35,6 +35,7 @@ Facts for answering questions about it:
 - [Rage clicks](docs/operations/rage-clicks.md): controls clicked repeatedly in quick succession, counts only
 - [Goals](docs/operations/goals.md): count conversions (a page view, a click, or an event) per website, aggregate only
 - [Group pages with rules](docs/operations/page-grouping.md): count many pages as one with path patterns
+- [Guided setup](docs/operations/guided-setup.md): an AI assistant proposes page names, groups, rules and goals; you review and apply
 - [Exclude your own visits](docs/operations/internal-traffic.md): drop visits by IP address or range, or opt a browser out
 - [Count views of a README](docs/operations/pixel.md): a 1x1 image that counts page views on pages that cannot run the script
 - [Privacy defaults](docs/operations/privacy.md): what is and is not collected

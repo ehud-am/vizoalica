@@ -495,6 +495,13 @@ export const deleteGoal = (projectId: string, websiteId: string, goalId: string)
     json('DELETE')
   );
 
+export type PageLabel = { key: string; name: string; group: string };
+export const getPageLabels = (projectId: string, websiteId: string, signal?: AbortSignal) =>
+  request<PageLabel[]>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/labels`,
+    signal ? { signal } : undefined
+  );
+
 export type Theme = 'light' | 'dark';
 export type ThemePreferenceResult = { theme: Theme | null; updatedAt?: string };
 export const getThemePreference = () => request<ThemePreferenceResult>('/api/preferences/theme');

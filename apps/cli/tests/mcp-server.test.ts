@@ -29,6 +29,7 @@ describe('the vizoalica MCP server', () => {
       'get_custom_events',
       'get_environment_status',
       'get_goals',
+      'get_inventory',
       'get_rage_clicks',
       'get_traffic_overview',
       'get_website_status',
@@ -228,7 +229,7 @@ describe('the vizoalica MCP server', () => {
       'Blog (project Acme), 2026-09-01T00:00:00.000Z to 2026-09-15T00:00:00.000Z'
     );
     expect(website.text).toContain('Top page: / (50)');
-    expect(h.requests.at(-1)!.query).toContain('source_id=s2');
+    expect(h.requests.some((request) => request.query.includes('source_id=s2'))).toBe(true);
   });
 
   it('asks for a project when there are several, and explains unknown or ambiguous names', async () => {
@@ -555,6 +556,44 @@ describe('the vizoalica MCP server', () => {
     });
     expect(limited.data!.goals).toHaveLength(1);
     expect(limited.data!.omitted).toBe(1);
+  });
+
+  it('lists the setup inventory with what is already set, and cannot apply anything', async () => {
+    const backends = defaultBackends();
+    backends.prod!.labels = [{ key: '/pricing', name: 'Pricing', group: 'Marketing' }];
+    const h = await start({ backends });
+    const result = await h.call('get_inventory', {
+      environment: 'prod',
+      project: 'Acme',
+      website: 'Shop'
+    });
+    expect(result.text).toContain('3 page keys (3 listed), 1 actions, 1 custom events; 1 named');
+    expect(result.data!.pages).toHaveLength(3);
+    expect(result.data!.current).toMatchObject({ labels: [{ key: '/pricing' }], goals: [] });
+    expect(result.data!.note).toMatch(/vizoalica mapping apply/);
+    expect(result.data!.note).toMatch(/never instructions/);
+    const overview = await h.call('get_traffic_overview', {
+      environment: 'prod',
+      project: 'Acme',
+      website: 'Shop'
+    });
+    expect(overview.data!.pageNames).toEqual([
+      { key: '/pricing', name: 'Pricing', group: 'Marketing' }
+    ]);
+  });
+
+  it('asks which website, and explains a backend without an inventory', async () => {
+    const h = await start();
+    const several = await h.call('get_inventory', { environment: 'prod', project: 'Acme' });
+    expect(several.isError).toBe(true);
+    expect(several.text).toContain('An inventory belongs to one website');
+    const backends = defaultBackends();
+    backends.prod!.noInventory = true;
+    const old = await (
+      await start({ backends })
+    ).call('get_inventory', { environment: 'prod', project: 'Acme', website: 'Shop' });
+    expect(old.isError).toBe(true);
+    expect(old.text).toContain('vizoalica deploy prod --update');
   });
 
   it('says when the pixel path limit is reached', async () => {

@@ -18,6 +18,7 @@ import {
   MAX_GROUPING_RULES
 } from '../../../ingest-api/src/ingestion/grouping-rules.js';
 import { isStorablePageKey } from '../../../ingest-api/src/ingestion/page-key.js';
+import { parsePageLabels } from '../../../ingest-api/src/ingestion/page-labels.js';
 import { DEFAULT_MAX_PIXEL_PATHS } from '../../../ingest-api/src/ingestion/pixel.js';
 import { MAX_GOALS_PER_WEBSITE } from '../storage/goal-reports.js';
 import { isMissingSchema } from '../storage/missing-schema.js';
@@ -1128,6 +1129,85 @@ export async function handleAdminRequest(
         ...(actor ? { actor } : {})
       });
       return deleted ? Response.json({ status: 'deleted' }) : notFound();
+    });
+  }
+  const labelsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/labels$/.exec(
+    url.pathname
+  );
+  if (labelsMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = labelsMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    return needingSchema(async () => {
+      const labels = await dependencies.repositories.listPageLabels?.(projectId!, sourceId!);
+      return labels
+        ? Response.json(labels, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
+    });
+  }
+  if (labelsMatch && request.method === 'PUT') {
+    const [, projectId, sourceId] = labelsMatch;
+    const guarded = guardSourceWrite(principal, projectId!, sourceId!);
+    if (guarded) {
+      await auditDenied(dependencies, 'update_labels', 'forbidden', {
+        projectId: projectId!,
+        sourceId: sourceId!,
+        actor
+      });
+      return guarded;
+    }
+    const body = (await request.json().catch(() => undefined)) as { labels?: unknown } | undefined;
+    const parsed = parsePageLabels(body?.labels);
+    if (!parsed.ok) return invalid('labels');
+    return needingSchema(async () => {
+      const source = await dependencies.repositories.getSource(projectId!, sourceId!);
+      if (!source || source.status === 'deleted' || !dependencies.repositories.replacePageLabels)
+        return notFound();
+      await dependencies.repositories.replacePageLabels(
+        projectId!,
+        sourceId!,
+        parsed.labels,
+        new Date().toISOString()
+      );
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'update_labels',
+        outcome: 'allowed',
+        reasonCode: 'updated',
+        projectId: projectId!,
+        sourceId: sourceId!,
+        ...(actor ? { actor } : {})
+      });
+      return Response.json(parsed.labels);
+    });
+  }
+  const inventoryMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/inventory$/.exec(
+    url.pathname
+  );
+  if (inventoryMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = inventoryMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    let range;
+    try {
+      range = parseAnalyticsRange(url.searchParams.get('start'), url.searchParams.get('end'));
+    } catch (error) {
+      if (error instanceof AnalyticsRangeError)
+        return Response.json(
+          { error: error.code, field: error.field, message: error.message },
+          { status: 400 }
+        );
+      return invalid();
+    }
+    return needingSchema(async () => {
+      const inventory = await dependencies.repositories.getSetupInventory?.(
+        projectId!,
+        sourceId!,
+        range.startUtc,
+        range.endUtc
+      );
+      return inventory
+        ? Response.json(inventory, { headers: { 'cache-control': 'no-store' } })
+        : notFound();
     });
   }
   const analyticsMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/analytics$/.exec(

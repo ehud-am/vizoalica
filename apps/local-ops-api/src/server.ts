@@ -330,6 +330,20 @@ export function createLocalServer(options: ServerOptions) {
           )
         );
       }
+      const labelsRoute = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/labels$/.exec(
+        url.pathname
+      );
+      if (labelsRoute && request.method === 'GET') {
+        assertSafeIds(labelsRoute[1]!, labelsRoute[2]!);
+        return send(
+          response,
+          200,
+          await workerJson(
+            client,
+            `/v1/admin/projects/${encodeURIComponent(labelsRoute[1]!)}/sources/${encodeURIComponent(labelsRoute[2]!)}/labels`
+          )
+        );
+      }
       const goalsRoute =
         /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/goals(?:\/(report|[^/]+))?$/.exec(
           url.pathname

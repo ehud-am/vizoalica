@@ -17,6 +17,8 @@ import type {
   RageClicksReport,
   Goal,
   GoalsReport,
+  PageLabel,
+  SetupInventory,
   GroupingRule,
   ExcludedHitsReport,
   CustomEventsFilters,
@@ -156,6 +158,21 @@ export interface AdminRepository {
     startUtc: string,
     endUtc: string
   ): Promise<GoalsReport | undefined>;
+  /** Page labels of a website. Absent on a Worker whose database predates schema 11. */
+  listPageLabels?(projectId: string, sourceId: string): Promise<PageLabel[]>;
+  /** Replaces all labels of a website with `labels` in one step. */
+  replacePageLabels?(
+    projectId: string,
+    sourceId: string,
+    labels: PageLabel[],
+    updatedAt: string
+  ): Promise<void>;
+  getSetupInventory?(
+    projectId: string,
+    sourceId: string,
+    startUtc: string,
+    endUtc: string
+  ): Promise<SetupInventory | undefined>;
   /** Distinct pixel paths counted for a website. */
   getPixelPathUsage?(sourceId: string): Promise<{ count: number }>;
   /** Events dropped for excluded addresses over the last `windowDays` UTC days, today included. */

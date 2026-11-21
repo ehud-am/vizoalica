@@ -582,7 +582,7 @@ async function runConsole(options: Options, dependencies: Dependencies): Promise
       `Console: ${CONSOLE_URL}\n` +
       'Keep this terminal open; press Ctrl+C once to stop both processes.\n'
   );
-  if (options.open === true) setTimeout(() => openBrowser(CONSOLE_URL), 3000);
+  if (options['no-open'] !== true) setTimeout(() => openBrowser(CONSOLE_URL), 3000);
   const children: ChildProcess[] = [
     dependencies.spawn('pnpm', ['local-ops-api:dev'], { stdio: 'inherit' }),
     dependencies.spawn('pnpm', ['admin-web:dev'], { stdio: 'inherit' })
@@ -622,7 +622,10 @@ export function help(): string {
         'deploy',
         'Create a backend for an environment in your Cloudflare account (--apply), or update it (--update)'
       ],
-      ['console', 'Start the private API and the web console (alias: run)'],
+      [
+        'console',
+        'Start the private API and the web console, and open the browser (--no-open to skip; alias: run)'
+      ],
       ['connect', 'Set up this computer as an operator console for an existing backend'],
       ['demo', 'Add sample data (--env <name>; --remove deletes it)']
     ]),

@@ -40,6 +40,7 @@ const TABLES = [
   'dashboard_aggregate_watermarks',
   'goals',
   'pixel_paths',
+  'page_labels',
   'quota_windows',
   'ingestion_decisions',
   'administrative_audit'
@@ -83,6 +84,7 @@ function seed() {
       INSERT INTO dashboard_aggregate_watermarks VALUES ('${project}','${source}','t','t',1);
       INSERT INTO goals (id, project_id, source_id, name, kind, target, created_at) VALUES ('g-${source}','${project}','${source}','Goal','event','signup','t');
       INSERT INTO pixel_paths (project_id, source_id, path, first_seen_at, last_seen_at) VALUES ('${project}','${source}','/readme','t','t');
+      INSERT INTO page_labels (project_id, source_id, page_key, name, group_name, updated_at) VALUES ('${project}','${source}','/pricing','Pricing','','t');
       INSERT INTO quota_windows VALUES ('${project}','${source}','day','d',1,1);
       INSERT INTO ingestion_decisions (project_id, source_id, decision, accepted_count, rejected_count, reason_codes_json, received_at) VALUES ('${project}','${source}','accepted',1,0,'[]','t');
       INSERT INTO administrative_audit (occurred_at, operation, outcome, project_id, source_id, reason_code) VALUES ('t','update_source','allowed','${project}','${source}','ok');
