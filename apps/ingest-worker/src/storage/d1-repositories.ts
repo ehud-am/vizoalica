@@ -190,6 +190,7 @@ const PURGE_SOURCE_TABLES = [
   'dashboard_aggregate_watermarks',
   'goals',
   'pixel_paths',
+  'page_labels',
   'quota_windows',
   'ingestion_decisions',
   'administrative_audit'
