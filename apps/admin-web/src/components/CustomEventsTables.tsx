@@ -160,25 +160,6 @@ export function EventsTrend({ points }: { points: CustomEventsReport['trend'] })
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="data-scroll" tabIndex={0} role="region" aria-label="Exact event values">
-        <table className="chart-data">
-          <caption>Exact event values</caption>
-          <thead>
-            <tr>
-              <th scope="col">Interval</th>
-              <th scope="col">Events</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((point) => (
-              <tr key={point.startUtc}>
-                <th scope="row">{point.label}</th>
-                <td>{point.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </figure>
   );
 }

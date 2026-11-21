@@ -28,6 +28,8 @@ export function createService(options: ServiceOptions = {}): {
   registry: Registry;
   vault: Vault;
   settings: Settings;
+  /** Reloads every open console tab and returns how many there were. */
+  reloadTabs: () => number;
 } {
   const base = loadSettings(options.env ?? process.env);
   const homeDir = options.homeDir ?? defaultHomeDir();
@@ -55,7 +57,7 @@ export function createService(options: ServiceOptions = {}): {
     schemaDir: options.schemaDir
   });
   server.on('close', () => vault.close());
-  return { server, registry, vault, settings };
+  return { server, registry, vault, settings, reloadTabs: server.reloadTabs };
 }
 
 /** Listens on loopback only; rejects with `port_in_use` when something else holds the port. */

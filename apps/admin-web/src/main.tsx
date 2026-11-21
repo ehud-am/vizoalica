@@ -7,3 +7,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 );
+
+// The terminal's `open` command asks an already-open tab to reload instead of opening another one.
+if (typeof EventSource !== 'undefined')
+  new EventSource('/api/console/live').addEventListener('reload', () => window.location.reload());

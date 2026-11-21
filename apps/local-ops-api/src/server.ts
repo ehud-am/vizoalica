@@ -132,7 +132,9 @@ export function createLocalServer(options: ServerOptions) {
   const expectedSchema = expectedSchemaFrom(options.schemaDir);
   const sessions = new Map<string, number>();
   const preferencesPath = resolvePreferencesPath(settings);
-  return createServer(async (request, response) => {
+  /** Open console tabs listening for a reload request (see `reloadTabs`). */
+  const liveTabs = new Set<ServerResponse>();
+  const server = createServer(async (request, response) => {
     const host = request.headers.host?.split(':')[0];
     if (host !== '127.0.0.1' && host !== 'localhost')
       return send(response, 403, { error: 'forbidden' });
@@ -141,6 +143,20 @@ export function createLocalServer(options: ServerOptions) {
       return sendStatic(request, response, staticDirs, (request.url ?? '/').split(/[?#]/)[0]!);
     if (!settings.allowedOrigins.includes(requestOrigin(request) ?? ''))
       return send(response, 403, { error: 'origin_not_allowed' });
+
+    if (request.method === 'GET' && url.pathname === '/api/console/live') {
+      // Carries no data, only a "reload" signal, so it needs no session.
+      response.writeHead(200, {
+        'cache-control': 'no-store',
+        'content-type': 'text/event-stream; charset=utf-8',
+        'x-content-type-options': 'nosniff',
+        connection: 'keep-alive'
+      });
+      response.write(': connected\n\n');
+      liveTabs.add(response);
+      response.on('close', () => liveTabs.delete(response));
+      return;
+    }
 
     if (request.method === 'POST' && url.pathname === '/api/session') {
       const now = Date.now();
@@ -554,4 +570,11 @@ export function createLocalServer(options: ServerOptions) {
       });
     }
   });
+  /** Asks every open console tab to reload itself; returns how many tabs were listening. */
+  const reloadTabs = (): number => {
+    const count = liveTabs.size;
+    for (const tab of liveTabs) tab.write('event: reload\ndata: now\n\n');
+    return count;
+  };
+  return Object.assign(server, { reloadTabs });
 }

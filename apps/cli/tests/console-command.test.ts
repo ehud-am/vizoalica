@@ -99,4 +99,44 @@ describe('consoleCommand', () => {
     });
     await expect(consoleCommand({ open: false }, d)).rejects.toThrow('boom');
   });
+
+  it('opens a browser on `o` or `open` when no tab is listening, and refreshes tabs otherwise', async () => {
+    let tabs = 0;
+    let reloads = 0;
+    let type: (line: string) => void = () => undefined;
+    const d = fakeDeps({
+      createService: (() => ({
+        server: Object.assign(new EventEmitter(), {
+          close: (callback?: () => void) => callback?.(),
+          closeAllConnections: () => undefined
+        }),
+        registry: {
+          refresh: async () => undefined,
+          snapshot: { environments: [], selected: undefined }
+        },
+        settings: {},
+        reloadTabs: () => {
+          reloads += 1;
+          return tabs;
+        }
+      })) as never,
+      readCommands: (onLine) => {
+        type = onLine;
+        return () => undefined;
+      }
+    });
+    const done = consoleCommand({ open: false }, d);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    type('o');
+    expect(d.opened).toEqual(['http://127.0.0.1:4318']);
+    tabs = 1;
+    type(' OPEN ');
+    expect(d.opened).toHaveLength(1);
+    expect(reloads).toBe(2);
+    expect(d.output.join('')).toContain('Refreshed the open console tab.');
+    type('x');
+    expect(d.output.join('')).toContain('Type o (or open)');
+    d.stop();
+    await done;
+  });
 });
