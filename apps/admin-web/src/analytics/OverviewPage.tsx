@@ -7,6 +7,7 @@ import { useScope } from '../scope/ScopeProvider.js';
 import { useAnalytics } from './AnalyticsProvider.js';
 import { AnalyticsView } from './AnalyticsView.js';
 import { compareMetric } from './comparison.js';
+import { usePageLabels } from './usePageLabels.js';
 
 const periodLabel = (kind: 'preset' | 'custom', label: string) =>
   kind === 'preset' ? `previous ${label.replace(/^Last /, '')}` : 'previous period';
@@ -14,6 +15,7 @@ const periodLabel = (kind: 'preset' | 'custom', label: string) =>
 export function OverviewPage() {
   const { range } = useScope();
   const { previous } = useAnalytics();
+  const describePage = usePageLabels();
   const label =
     range.kind === 'preset'
       ? periodLabel('preset', presetText(range.preset))
@@ -59,6 +61,7 @@ export function OverviewPage() {
                 title="Top pages"
                 result={overview.rankings.pagePaths}
                 countLabel="Page views"
+                describe={describePage}
                 initialLimit={5}
                 moreLink={{ href: hrefFor('analytics/pages'), label: 'All pages' }}
               />

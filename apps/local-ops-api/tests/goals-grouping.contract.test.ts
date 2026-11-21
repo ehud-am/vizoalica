@@ -105,3 +105,15 @@ describe('goals in the local API', () => {
     expect(seen).toEqual([]);
   });
 });
+
+describe('page labels in the local API', () => {
+  it('reads the labels of a website through the Worker', async () => {
+    const { api, seen, cookie } = await start(() =>
+      Response.json([{ key: '/pricing', name: 'Pricing', group: '' }])
+    );
+    const response = await api.call('/api/projects/p1/websites/s1/labels', { cookie });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ key: '/pricing', name: 'Pricing', group: '' }]);
+    expect(seen[0]?.path).toBe('/v1/admin/projects/p1/sources/s1/labels');
+  });
+});

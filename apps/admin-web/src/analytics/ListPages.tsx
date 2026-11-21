@@ -1,8 +1,10 @@
 import { DistributionBars } from '../components/DistributionBars.js';
 import { RankedList } from '../components/RankedList.js';
 import { AnalyticsView } from './AnalyticsView.js';
+import { usePageLabels } from './usePageLabels.js';
 
 export function PagesPage() {
+  const describePage = usePageLabels();
   return (
     <AnalyticsView page="pages" title="Pages" description="Which pages people view most.">
       {(overview) => (
@@ -11,6 +13,7 @@ export function PagesPage() {
             title="Top pages"
             result={overview.rankings.pagePaths}
             countLabel="Page views"
+            describe={describePage}
           />
         </div>
       )}
