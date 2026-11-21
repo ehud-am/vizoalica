@@ -14,6 +14,8 @@ export type ConsoleDeps = {
   out: (text: string) => void;
   err: (text: string) => void;
   openBrowser: (url: string) => void;
+  /** Calls the handler for each line typed in the terminal; returns a function that stops listening. */
+  readCommands?: (onLine: (line: string) => void) => () => void;
   /** Resolves when the user asks the console to stop (an interrupt or terminate signal). */
   waitForStop: () => Promise<void>;
   /** Tests replace these; the defaults are the real service. */
@@ -61,7 +63,9 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
     }
     throw error;
   }
-  deps.out(`Vizoalica console: ${address}\nKeep this terminal open; press Ctrl+C once to stop.\n`);
+  deps.out(
+    `Vizoalica console: ${address}\nKeep this terminal open; press Ctrl+C once to stop.\nType o (or open) and press Enter to open the console in a browser, or refresh it if already open.\n`
+  );
   // The console itself explains what is wrong; the terminal only points at where to look.
   await service.registry.refresh();
   const { environments, selected } = service.registry.snapshot;
@@ -81,7 +85,18 @@ export async function consoleCommand(options: ConsoleOptions, deps: ConsoleDeps)
     );
   if (options.open) deps.openBrowser(address);
   trace(options.open ? 'Opening the browser' : 'Not opening the browser (--no-open)');
+  const stopReading = deps.readCommands?.((line) => {
+    const word = line.trim().toLowerCase();
+    if (word === 'o' || word === 'open') {
+      if (service.reloadTabs?.()) deps.out('Refreshed the open console tab.\n');
+      else {
+        deps.openBrowser(address);
+        deps.out(`Opening ${address}\n`);
+      }
+    } else if (word) deps.out('Type o (or open) to open the console, or Ctrl+C to stop.\n');
+  });
   await deps.waitForStop();
+  stopReading?.();
   trace('Stopping the console');
   await new Promise<void>((resolve) => {
     service.server.close(() => resolve());

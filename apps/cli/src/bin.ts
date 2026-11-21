@@ -1,3 +1,4 @@
+import { createInterface } from 'node:readline';
 import { spawn } from 'node:child_process';
 import { Vault } from '../../local-ops-api/src/environments/vault.js';
 import { homedir } from 'node:os';
@@ -41,6 +42,12 @@ process.exitCode = await main(process.argv.slice(2), {
   readStdin,
   vault,
   openBrowser,
+  readCommands: (onLine) => {
+    if (!process.stdin.isTTY) return () => undefined;
+    const lines = createInterface({ input: process.stdin });
+    lines.on('line', onLine);
+    return () => lines.close();
+  },
   waitForStop: () =>
     new Promise<void>((resolve) => {
       process.once('SIGINT', resolve);
