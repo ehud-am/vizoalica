@@ -35,7 +35,7 @@ it in your browser, and stops on one Ctrl+C. Add your environments first with `v
 without any, it starts anyway and shows the welcome page explaining that. If the environments file can be
 read by other users, or is damaged, the welcome page (and `vizoalica env list`) says so and prints the one
 command that fixes it, and nothing from inside the file. Update with `npm update -g vizoalica`. `--no-open`
-skips opening the browser.
+skips opening the browser. From a source checkout, `pnpm vizoalica console` also opens the browser; `--no-open` skips it.
 
 ## Check the mode and status
 

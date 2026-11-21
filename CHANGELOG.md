@@ -4,6 +4,16 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- `pnpm vizoalica console` from a source checkout now opens the browser by default, like the npm command
+  (issue #98). `--no-open` skips it.
+
+### Security
+
+- Pinned `hono` to 4.13.16 and `@hono/node-server` to 2.1.6 (pulled in by the MCP SDK) to fix the open
+  Dependabot advisories. `pnpm audit` reports no known vulnerabilities.
+
 ## [0.14.1] - 2026-11-05
 
 ### Fixed
