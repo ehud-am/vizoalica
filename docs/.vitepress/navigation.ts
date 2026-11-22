@@ -83,6 +83,7 @@ export const sidebar: NavGroup[] = [
     // the accessibility check.
     text: 'Release notes',
     items: [
+      { text: 'v0.16.0', link: '/releases/v0.16.0' },
       { text: 'v0.15.0', link: '/releases/v0.15.0' },
       { text: 'v0.14.1', link: '/releases/v0.14.1' },
       { text: 'v0.14.0', link: '/releases/v0.14.0' },
@@ -101,7 +102,7 @@ export const nav = [
   { text: 'Docs', link: '/operations/deploy' },
   { text: 'Privacy', link: '/operations/privacy' },
   { text: 'Get involved', link: '/community' },
-  { text: 'Releases', link: '/releases/v0.15.0' }
+  { text: 'Releases', link: '/releases/v0.16.0' }
 ];
 
 /** Every page address the navigation reaches, without the leading slash. */
