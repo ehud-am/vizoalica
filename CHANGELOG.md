@@ -4,6 +4,17 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-22
+
+### Changed
+
+- **Events page** no longer shows the per-interval "Exact event values" table. The chart, the events list and the
+  top pages remain.
+- **`vizoalica console`**: typing `o` or `open` and pressing Enter always shows the console. If a console tab is
+  open it is reloaded; otherwise a new browser tab opens. Works with `--no-open` too.
+- New local endpoint `GET /api/console/live` (event stream; sends only a reload signal; no data).
+- No database migration. No backend update needed.
+
 ## [0.15.0] - 2026-11-21
 
 ### Added

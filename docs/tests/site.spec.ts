@@ -27,6 +27,7 @@ const PAGES = [
   '/operations/internal-traffic',
   '/operations/pixel',
   '/brand',
+  '/releases/v0.16.0',
   '/releases/v0.15.0',
   '/releases/v0.14.1',
   '/releases/v0.14.0',
