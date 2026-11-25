@@ -314,3 +314,25 @@ total [guess]. Only the latest row is kept: no history in the backend (history i
 - Cost: one row per website per apply (few KB to 256 KB), no reads on the ingestion path; reports read it on demand.
 - Risk: backend-only mode has no history, so a bad apply overwrites the only copy. Mitigation: `spec pull` before
   edits, confirmation with diff, and `spec export` to a file for a manual backup.
+
+## 15. As built (2026-11-25, v0.17.0 PR)
+
+Differences from the text above:
+- Action events gained no `landmark`/`role` fields (action schema unchanged); control landmarks travel in the
+  `page_structure` event (`controls[].landmark`).
+- Learning window: `VIZOALICA_LEARN_START`, `VIZOALICA_LEARN_DAYS` (default 14), `VIZOALICA_LEARN_SAMPLE` (default 10
+  percent). Baked into `/vizoalica.js` by the Worker; the SDK has no data attributes for it. `vizoalica learn
+  status|enable|disable` reads/explains; the variables are set in the Cloudflare dashboard (no Cloudflare token in the
+  CLI), and `wrangler.example.toml` gets `keep_vars = true` so `deploy --update` keeps them.
+- k-threshold is `min_sessions`, default 3 (not 5): structure is sampled, so 5 would hide most labels on small sites.
+- T0 verified: session id is random per page load (`resolveSessionId`), so sessions are page loads. Multi-page funnels
+  on server-rendered sites cannot be linked; `check_funnel` and docs say so. Linking would need a daily visitor digest
+  stored with raw events (not done; privacy decision).
+- Backend read of raw events: 40 stored batches per call (about 40 to 100 events in practice, as batches are small),
+  so depth 20k is hundreds of calls; `learn_start` has a time budget and can be continued with `run`.
+- Added `spec export` (backup file `vizoalica-spec-backup`) and `spec import` (restore; replaces the backend spec only,
+  does not re-apply names/rules/goals).
+- Personal data: the validator refuses emails, IP addresses (v4/v6) and long numbers in every text field; the backend
+  validates again on PUT and never echoes rejected values.
+- Not done: spec `type` (schema.org) is a free optional name, not validated against the vocabulary; no GitHub Actions
+  example workflow yet; no JSON Schema file published for the spec (the validator is code).
