@@ -8,6 +8,8 @@ import { eventObjectPrefix } from './r2-event-batches.js';
 export const SAMPLE_DAYS = 7;
 /** One call reads this many batches (each up to 25 events): about 1,000 events. */
 export const SAMPLE_OBJECTS_PER_CALL = 40;
+/** One call lists at most this many times, so a pathological listing cannot exhaust the subrequest budget. */
+const MAX_LIST_CALLS = 10;
 const DAY_MS = 86_400_000;
 
 export type SampleSlice = { sketch: Sketch; objects: number; cursor?: string; done: boolean };
@@ -48,14 +50,18 @@ export async function sampleEvents(
   const events: CloudEvent[] = [];
   const visitorDays = new Map<CloudEvent, string>();
   let objects = 0;
-  while (position.day <= SAMPLE_DAYS && objects < maxObjects) {
+  let reads = 0;
+  let lists = 0;
+  while (position.day <= SAMPLE_DAYS && reads < maxObjects && lists < MAX_LIST_CALLS) {
+    lists += 1;
     const day = new Date(now.getTime() - position.day * DAY_MS).toISOString().slice(0, 10);
     const listed = await bucket.list({
       prefix: `${eventObjectPrefix(projectId, sourceId)}${day}/`,
-      limit: maxObjects - objects,
+      limit: maxObjects - reads,
       ...(position.list ? { cursor: position.list } : {})
     });
     for (const object of listed.objects) {
+      reads += 1;
       const body = await bucket.get(object.key);
       if (!body) continue;
       objects += 1;

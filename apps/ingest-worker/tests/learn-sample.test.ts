@@ -141,4 +141,27 @@ describe('learn sample route', () => {
     expect((await admin(env, '/v1/admin/projects/p1/sources/zzz/learn/sample')).status).toBe(404);
     expect((await admin(env, SAMPLE, 'wrong')).status).toBe(401);
   });
+
+  it('stops after a bounded number of reads even when stored objects have vanished', async () => {
+    const { sampleEvents } = await import('../src/storage/learn-sample.js');
+    let gets = 0;
+    let lists = 0;
+    const bucket = {
+      async list() {
+        lists += 1;
+        return {
+          objects: Array.from({ length: 5 }, (_, i) => ({ key: `events/p1/s1/k${lists}-${i}` })),
+          truncated: false
+        };
+      },
+      async get() {
+        gets += 1;
+        return null;
+      }
+    };
+    const slice = await sampleEvents(bucket as never, 'p1', 's1', undefined, new Date(), 8);
+    expect(gets).toBeLessThanOrEqual(8 + 5);
+    expect(lists).toBeLessThanOrEqual(10);
+    expect(slice?.objects).toBe(0);
+  });
 });

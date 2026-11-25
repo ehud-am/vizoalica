@@ -59,4 +59,19 @@ describe('normalizePageStructure', () => {
     });
     expect(normalizePageStructure(huge, (key) => key)).toBeUndefined();
   });
+
+  it('keeps a long title and description up to their own limits', () => {
+    const out = normalizePageStructure(
+      event({
+        title: 'Plan '.repeat(60),
+        description: 'info '.repeat(60),
+        headings: [{ level: 1, text: 'Head '.repeat(30) }]
+      }),
+      (key) => key
+    )!;
+    expect(out.data.structure.title!.length).toBeGreaterThan(200);
+    expect(out.data.structure.description!.length).toBeGreaterThan(100);
+    expect(out.data.structure.description!.length).toBeLessThanOrEqual(160);
+    expect(out.data.structure.headings![0]!.text.length).toBeLessThanOrEqual(80);
+  });
 });

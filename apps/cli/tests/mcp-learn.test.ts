@@ -82,6 +82,22 @@ describe('learning tools', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('does not echo the values of an invalid local spec folder', async () => {
+    const h = await harness({ backends: backends() });
+    const run = (await h.call('learn_start', { ...site, depth_k: 1 })).data!.run as string;
+    const folder = join(h.home, 'broken');
+    mkdirSync(folder);
+    writeFileSync(join(folder, 'spec.json'), '{"version":1}');
+    writeFileSync(
+      join(folder, 'pages.json'),
+      '[{"id":"x","match":["/u/jane@example.com"],"name":"X"}]'
+    );
+    const result = await h.call('learn_get', { run, section: 'gaps', spec_dir: folder });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('vizoalica spec validate');
+    expect(result.text).not.toContain('jane@example.com');
+  });
+
   it('hides what the operator already decided in a local spec folder', async () => {
     const h = await harness({ backends: backends() });
     const run = (await h.call('learn_start', { ...site, depth_k: 1 })).data!.run as string;

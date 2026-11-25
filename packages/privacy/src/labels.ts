@@ -12,7 +12,10 @@ const MAX_INPUT_LENGTH = 400;
  * long digit runs, and token-shaped words replaced by placeholders, then cut to the name limit.
  * Idempotent, and never throws.
  */
-export function redactLabel(input: unknown): string {
+export function redactLabel(
+  input: unknown,
+  maxLength: number = privacyLimits.maxActionNameLength
+): string {
   try {
     const collapsed = String(input ?? '')
       .slice(0, MAX_INPUT_LENGTH)
@@ -26,7 +29,7 @@ export function redactLabel(input: unknown): string {
       .split(' ')
       .map((word) => (isTokenLike(word) ? '[token]' : word))
       .join(' ');
-    return redacted.slice(0, privacyLimits.maxActionNameLength).trim();
+    return redacted.slice(0, maxLength).trim();
   } catch {
     return '';
   }

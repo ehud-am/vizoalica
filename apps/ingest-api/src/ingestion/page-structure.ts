@@ -5,7 +5,7 @@ export const PAGE_STRUCTURE_EVENT_TYPE = 'com.vizoalica.page_structure.v1';
 export const MAX_STRUCTURE_BYTES = 4096;
 
 const clean = (value: unknown, max: number): string | undefined => {
-  const text = redactLabel(value).slice(0, max).trim();
+  const text = redactLabel(value, max).trim();
   return text || undefined;
 };
 

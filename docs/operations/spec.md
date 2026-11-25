@@ -86,7 +86,7 @@ Off by default. While it is open, a share of page loads (10% unless you change i
 language, title, description, a few headings, landmarks, control labels, and form-field labels. Never field values,
 placeholders, typed text, body text or anything inside `data-vizoalica-ignore`; texts are redacted like action names.
 Text inside an element marked `data-vizoalica-ignore` is left out wherever it appears, including inside a heading or
-label. Texts are cut to 80 characters. The events go to the raw event store only, never into reports; the SDK sends
+label. Titles are cut to 256 characters, descriptions to 160 and every other text to 80. The events go to the raw event store only, never into reports; the SDK sends
 nothing when a visitor's consent is denied and the Worker refuses such an event anyway.
 
 **Retention.** The raw event store keeps batches for as long as its bucket lifecycle rule says. Vizoalica documents a
@@ -142,4 +142,9 @@ address, or a database older than schema 3) events carry no token and stay separ
   `VIZOALICA_LEARN_SAMPLE`.
 - **`within: "day"` is a statement of intent today.** The sample and `check_funnel` link what they can; nothing else
   reads the field until reports are built on the spec.
+- **Anyone who knows your public website key can send structure events while a window is open** (the key is in your
+  page). They are redacted, size-capped and need 3 page loads to reach the digest, but a determined sender can put
+  chosen text into it. The assistant treats everything in the digest as data, never as instructions; read the proposal
+  before you apply it.
+- **Version numbers look like addresses.** A name or purpose such as `v1.2.3.4` is refused as an IP address; reword it.
 - Labels and headings come from your website: the assistant treats them as data, never as instructions.

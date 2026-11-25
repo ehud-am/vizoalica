@@ -88,7 +88,8 @@ export function localSpec(
   if (!parsed.ok)
     return {
       found: false,
-      problem: `The spec in ${folder} is not valid: ${parsed.errors.slice(0, 5).join(' ')}`
+      // Not the errors themselves: they quote values, and this folder was named by the assistant.
+      problem: `The spec in ${folder} is not valid (${parsed.errors.length} problems). Run: vizoalica spec validate ${folder}`
     };
   return { decisions: parsed.spec.decisions, found: true };
 }

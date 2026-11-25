@@ -46,7 +46,8 @@ const MAX_FIELDS = 8;
 // Never described, even by label: they hold secrets or payment data.
 const SENSITIVE_FIELD = /password|passwd|cc-|card|cvc|cvv|otp|one-time/i;
 
-const clean = (value: unknown): string | undefined => redactLabel(value) || undefined;
+const clean = (value: unknown, max?: number): string | undefined =>
+  redactLabel(value, max) || undefined;
 
 function landmarkRole(element: Element): string | undefined {
   const explicit = element.getAttribute('role')?.toLowerCase();
@@ -96,9 +97,12 @@ export function collectStructure(doc: Document): Structure {
   const structure: Structure = {};
   const lang = clean(doc.documentElement?.getAttribute('lang'));
   if (lang) structure.lang = lang.slice(0, 8);
-  const title = clean(doc.title);
+  const title = clean(doc.title, 256);
   if (title) structure.title = title;
-  const description = clean(doc.querySelector('meta[name="description"]')?.getAttribute('content'));
+  const description = clean(
+    doc.querySelector('meta[name="description"]')?.getAttribute('content'),
+    160
+  );
   if (description) structure.description = description;
 
   const headings: NonNullable<Structure['headings']> = [];
