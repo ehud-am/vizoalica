@@ -56,6 +56,26 @@ describe('collectStructure: edge shapes', () => {
   });
 });
 
+describe('data-vizoalica-ignore inside what is described', () => {
+  it('leaves out ignored descendants and ignored label targets', () => {
+    mount(`
+      <h1>Welcome, <span data-vizoalica-ignore>Jane Doe</span></h1>
+      <button>Account <span data-vizoalica-ignore>jdoe99</span></button>
+      <button><img alt="Avatar of Jane" src="a.png" data-vizoalica-ignore><img alt="Menu" src="m.png"></button>
+      <div data-vizoalica-ignore><span id="who">Jane Doe</span><label for="n">Jane label</label></div>
+      <form aria-labelledby="who"><input id="n" type="text">
+        <label>Visible <span data-vizoalica-ignore>secret</span><input type="text"></label>
+      </form>
+    `);
+    const text = JSON.stringify(collectStructure(document));
+    expect(text).not.toMatch(/Jane|jdoe99|secret/);
+    expect(text).toContain('Welcome');
+    expect(text).toContain('Account');
+    expect(text).toContain('Visible');
+    expect(text).toContain('Menu');
+  });
+});
+
 describe('learnWindowOpen', () => {
   const now = Date.parse('2026-12-05T00:00:00Z');
   it('is open only inside a readable window', () => {

@@ -345,3 +345,12 @@ Differences from the text above:
   from a repository secret via `env add --connect --secret-stdin`).
 - Not done: spec `type` (schema.org) is a free optional name, not validated against the vocabulary; no JSON Schema
   file published for the spec (the validator is code).
+- Review fixes (2026-11-25, independent review `code-review/review-v0.17.0-independent.md`): ignored subtrees are
+  skipped inside headings, labels and control names; the validator checks path patterns, page keys and decision subjects
+  for personal data; the rare-text threshold (floor 3, enforced in the MCP schema) covers actions, events, campaigns,
+  referrers, transitions and journeys; the day token is also derived from the website id; control characters are
+  stripped from labels and sketch keys; structure events with denied consent are refused by the Worker; capture skips a
+  page the visitor already left and `stop()` cancels it; `spec apply` records its base right after storing; `spec import`
+  refuses a backup of another environment without `--force`. The example workflow checks pull requests without a secret
+  and applies from an environment job. Retention depends on the operator's bucket lifecycle rule and the docs say so.
+

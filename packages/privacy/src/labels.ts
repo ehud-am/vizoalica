@@ -16,6 +16,8 @@ export function redactLabel(input: unknown): string {
   try {
     const collapsed = String(input ?? '')
       .slice(0, MAX_INPUT_LENGTH)
+      // Control characters (C0 and C1) never belong in a label; some are used as separators later.
+      .replace(/[\u0000-\u0008\u000e-\u001f\u007f-\u009f]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
     const redacted = collapsed

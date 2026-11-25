@@ -148,9 +148,13 @@ export async function ingestBatch(
   // Page structure is accepted only while the learning window is open. A batch may mix it with
   // other events, so it is filtered out instead of rejecting the whole batch.
   const windowOpen = isLearnWindowOpen(dependencies.learnWindow, request.now ?? new Date());
-  const accepted = windowOpen
-    ? validation.events
-    : validation.events.filter((event) => event.type !== PAGE_STRUCTURE_EVENT_TYPE);
+  // Page structure is kept only inside the window and never for a visitor who denied analytics,
+  // whatever the sender claims.
+  const accepted = validation.events.filter(
+    (event) =>
+      event.type !== PAGE_STRUCTURE_EVENT_TYPE ||
+      (windowOpen && event.vizoalicaconsent !== 'analytics-denied')
+  );
   if (accepted.length === 0) {
     const decision: IngestionDecision = {
       decision: 'accepted',
@@ -196,7 +200,7 @@ export async function ingestBatch(
 
   const trustLevel = claims ? 'signed-session' : staticSite ? 'origin-checked' : 'unsigned-demo';
   const visitorDay = windowOpen
-    ? dayVisitorToken(request.analyticsContext?.dailyVisitorId)
+    ? await dayVisitorToken(request.analyticsContext?.dailyVisitorId, source.id)
     : undefined;
   const storedEvents: StoredEvent[] = privacy.events.map((event) => {
     const consentState = event.vizoalicaconsent ?? claims?.consent_state ?? 'unknown';

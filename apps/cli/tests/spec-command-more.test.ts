@@ -192,6 +192,43 @@ describe('vizoalica spec: init, pull, export, import, apply', () => {
   });
 });
 
+describe('apply and import safety', () => {
+  it('records the new base right after the spec is stored, so a failed step can be re-run', async () => {
+    const t = setup('y');
+    const folder = join(t.cwd, 'f');
+    writeFolder(folder, {
+      ...SPEC,
+      goals: [{ name: 'Seen pricing', kind: 'page', target: 'pricing' }]
+    });
+    const original = t.deps.fetch!;
+    t.deps.fetch = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/goals') && init?.method === 'POST')
+        return new Response('{}', { status: 500 });
+      return original(url as never, init as never);
+    }) as never;
+    expect(await specCommand(['apply', 'prod', folder, ...site, '--yes'], t.deps)).toBe(1);
+    expect(readFileSync(join(folder, '.vizoalica-base.json'), 'utf8')).toContain('"version":1');
+    t.deps.fetch = original;
+    t.err.length = 0;
+    expect(await specCommand(['apply', 'prod', folder, ...site, '--yes'], t.deps)).toBe(0);
+    expect(t.errs()).not.toContain('changed since this folder');
+  });
+
+  it('refuses a backup of another environment unless forced', async () => {
+    const t = setup('y');
+    writeFileSync(
+      join(t.cwd, 'dev.json'),
+      JSON.stringify({ kind: 'vizoalica-spec-backup', format: 1, environment: 'dev', spec: SPEC })
+    );
+    expect(await specCommand(['import', 'prod', 'dev.json', ...site, '--yes'], t.deps)).toBe(1);
+    expect(t.errs()).toContain('not "prod"');
+    expect(
+      await specCommand(['import', 'prod', 'dev.json', ...site, '--yes', '--force'], t.deps)
+    ).toBe(0);
+    expect(t.text()).toContain('Restored as version');
+  });
+});
+
 describe('specToMapping', () => {
   it('reports duplicate keys and skips deprecated pages', async () => {
     const { specToMapping } = await import('../src/spec/spec-mapping.js');

@@ -1,6 +1,6 @@
 import type { PageStructureData } from '@vizoalica/event-contracts';
 import { redactLabel } from '@vizoalica/privacy';
-import { accessibleName, ELIGIBLE, roleOf } from './actions.js';
+import { accessibleName, ELIGIBLE, roleOf, visibleText } from './actions.js';
 
 type Structure = PageStructureData['structure'];
 
@@ -68,7 +68,10 @@ function labelOf(element: Element, doc: Document): string | undefined {
     const text = by
       .split(/\s+/)
       .slice(0, 3)
-      .map((id) => doc.getElementById(id)?.textContent ?? '')
+      .map((id) => {
+        const target = doc.getElementById(id);
+        return target && !target.closest(IGNORED) ? visibleText(target) : '';
+      })
       .join(' ');
     return clean(text);
   }
@@ -81,12 +84,12 @@ function fieldLabel(field: Element, doc: Document): string | undefined {
   const id = field.getAttribute('id');
   if (id) {
     const label = Array.from(doc.querySelectorAll('label')).find(
-      (item) => item.getAttribute('for') === id
+      (item) => item.getAttribute('for') === id && !item.closest(IGNORED)
     );
-    if (label) return clean(label.textContent);
+    if (label) return clean(visibleText(label));
   }
   const wrapping = field.closest('label');
-  return wrapping ? clean(wrapping.textContent) : undefined;
+  return wrapping && !wrapping.closest(IGNORED) ? clean(visibleText(wrapping)) : undefined;
 }
 
 export function collectStructure(doc: Document): Structure {
@@ -102,7 +105,7 @@ export function collectStructure(doc: Document): Structure {
   for (const element of Array.from(doc.querySelectorAll('h1,h2,h3'))) {
     if (headings.length >= MAX_HEADINGS) break;
     if (element.closest(IGNORED)) continue;
-    const text = clean(element.textContent);
+    const text = clean(visibleText(element));
     if (text) headings.push({ level: Number(element.tagName[1]) as 1 | 2 | 3, text });
   }
   if (headings.length) structure.headings = headings;

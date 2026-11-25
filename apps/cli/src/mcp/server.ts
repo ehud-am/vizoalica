@@ -1067,10 +1067,10 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         min_sessions: z
           .number()
           .int()
-          .min(1)
+          .min(3)
           .max(50)
           .optional()
-          .describe('Drop labels seen in fewer page loads; default 3.'),
+          .describe('Drop labels seen in fewer page loads; default 3, never below 3.'),
         run: z
           .string()
           .optional()
@@ -1148,10 +1148,10 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         min_sessions: z
           .number()
           .int()
-          .min(1)
+          .min(3)
           .max(50)
           .optional()
-          .describe('Drop labels seen in fewer page loads; default 3.'),
+          .describe('Drop labels seen in fewer page loads; default 3, never below 3.'),
         spec_dir: z
           .string()
           .optional()

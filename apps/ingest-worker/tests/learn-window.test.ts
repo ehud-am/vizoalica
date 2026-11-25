@@ -35,9 +35,13 @@ describe('parseLearnWindow', () => {
 });
 
 describe('dayVisitorToken', () => {
-  it('keeps the day and 64 bits of a daily identifier, and nothing else', () => {
+  it('keeps the day and 64 bits of a hash of the daily identifier and the website', async () => {
     const id = `daily-v1:2026-12-01:${'ab12'.repeat(16)}`;
-    expect(dayVisitorToken(id)).toBe('2026-12-01:ab12ab12ab12ab12');
+    const a = await dayVisitorToken(id, 'site-a');
+    expect(a).toMatch(/^2026-12-01:[0-9a-f]{16}$/);
+    expect(a).not.toContain('ab12ab12');
+    expect(await dayVisitorToken(id, 'site-a')).toBe(a);
+    expect(await dayVisitorToken(id, 'site-b')).not.toBe(a);
     for (const bad of [
       undefined,
       '',
@@ -45,6 +49,6 @@ describe('dayVisitorToken', () => {
       'daily-v1:2026-12-01:short',
       `daily-v1:x:${'a'.repeat(64)}`
     ])
-      expect(dayVisitorToken(bad)).toBeUndefined();
+      expect(await dayVisitorToken(bad, 'site-a')).toBeUndefined();
   });
 });

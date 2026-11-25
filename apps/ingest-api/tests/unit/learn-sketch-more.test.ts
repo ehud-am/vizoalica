@@ -156,4 +156,47 @@ describe('sketch and digest: every event shape', () => {
     });
     expect(decided.sections.gaps).toEqual([]);
   });
+
+  it('drops rare actions, events, campaigns, referrers, transitions and journeys', () => {
+    const one = [
+      ev('com.vizoalica.page_view.v1', {
+        ...sess('a'),
+        page: { url_path: '/home' },
+        referrer: { origin: 'https://one.test' },
+        campaign: { source: 'only', medium: 'once', campaign: 'jane' }
+      }),
+      ev('com.vizoalica.page_view.v1', { ...sess('a'), page: { url_path: '/next' } }),
+      ev('com.vizoalica.action.v1', {
+        ...sess('a'),
+        page: { url_path: '/home' },
+        action: { name: 'Hi Jane Doe', kind: 'button' }
+      }),
+      ev('com.vizoalica.custom_event.v1', { ...sess('a'), name: 'jane_event' })
+    ];
+    const digest = buildDigest(sketchEvents(one), { minSessions: 3 });
+    for (const name of [
+      'actions',
+      'events',
+      'campaigns',
+      'referrers',
+      'transitions',
+      'journeys'
+    ] as const)
+      expect(digest.sections[name], name).toEqual([]);
+    expect(JSON.stringify(digest)).not.toContain('Jane');
+    expect(digest.quality.rareLabelsDropped).toBeGreaterThan(0);
+  });
+
+  it('turns control characters into spaces so a forged value cannot shift fields', () => {
+    const forged = [
+      ev('com.vizoalica.action.v1', {
+        ...sess('a'),
+        page: { url_path: '/home' },
+        action: { name: 'Pay\u0001Fake\u0002Step', kind: 'button' }
+      })
+    ];
+    const keys = Object.keys(sketchEvents(forged).actions);
+    expect(keys).toHaveLength(1);
+    expect(keys[0]!.split('\u0001')).toHaveLength(3);
+  });
 });

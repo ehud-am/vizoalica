@@ -161,4 +161,18 @@ describe('page structure', () => {
       ).text()
     ).not.toContain('__vizoalicaLearn={');
   });
+
+  it('refuses structure events whose consent is denied, even inside the window', async () => {
+    const { env, puts } = environment({
+      VIZOALICA_LEARN_START: today,
+      VIZOALICA_LEARN_DAYS: '3'
+    });
+    const denied = { ...structure('evt-struct-0090'), vizoalicaconsent: 'analytics-denied' };
+    const response = await ingest(env, [denied, pageView('evt-struct-0091', '/pricing', 'a')]);
+    expect(response.status).toBe(202);
+    const stored = puts.flatMap(
+      (put) => JSON.parse(put.value) as Array<{ event: { type: string } }>
+    );
+    expect(stored.map((item) => item.event.type)).toEqual(['com.vizoalica.page_view.v1']);
+  });
 });

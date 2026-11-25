@@ -140,7 +140,8 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
   const actions: unknown[] = [];
   for (const [raw, count] of Object.entries(sketch.actions).sort((a, b) => b[1] - a[1])) {
     const [page = '', name = '', kind = 'other'] = raw.split(SEP);
-    actions.push({ page, name, kind, count });
+    if (count >= min) actions.push({ page, name, kind, count });
+    else dropped += 1;
     if (FALLBACK_NAMES.has(name)) {
       const gapKey = [page, kind, 'clicked'].join(SEP);
       const gap = gaps.get(gapKey) ?? { page, role: kind, landmark: 'clicked', count: 0, pages: 0 };
@@ -149,11 +150,18 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
     }
   }
 
-  const events = Object.entries(sketch.customEvents)
+  const customEvents = Object.fromEntries(
+    Object.entries(sketch.customEvents).filter(([, entry]) => {
+      if (entry.count >= min) return true;
+      dropped += 1;
+      return false;
+    })
+  );
+  const events = Object.entries(customEvents)
     .sort((a, b) => b[1].count - a[1].count)
     .map(([name, entry]) => ({ name, count: entry.count, pages: topCounted(entry.pages, 3) }));
   const similar = new Map<string, string[]>();
-  for (const name of Object.keys(sketch.customEvents)) {
+  for (const name of Object.keys(customEvents)) {
     const norm = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     similar.set(norm, [...(similar.get(norm) ?? []), name]);
   }
@@ -164,7 +172,7 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
         kind: 'event',
         ref: names.join('|'),
         field: 'name',
-        options: names.map((value) => ({ value, count: sketch.customEvents[value]!.count }))
+        options: names.map((value) => ({ value, count: customEvents[value]!.count }))
       });
   }
 
@@ -195,7 +203,7 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
     pages,
     actions,
     events,
-    campaigns: Object.entries(sketch.campaigns)
+    campaigns: Object.entries(keep(sketch.campaigns))
       .sort((a, b) => b[1] - a[1])
       .map(([raw, count]) => {
         const [source, medium, campaign] = raw.split(SEP);
@@ -206,14 +214,17 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
           count
         };
       }),
-    referrers: topCounted(sketch.referrers, 50).map((r) => ({ origin: r.value, count: r.count })),
-    transitions: Object.entries(sketch.transitions)
+    referrers: topCounted(keep(sketch.referrers), 50).map((r) => ({
+      origin: r.value,
+      count: r.count
+    })),
+    transitions: Object.entries(keep(sketch.transitions))
       .sort((a, b) => b[1] - a[1])
       .map(([raw, count]) => {
         const [from, to] = raw.split(SEP);
         return { from, to, count };
       }),
-    journeys: Object.entries(sketch.journeys)
+    journeys: Object.entries(keep(sketch.journeys))
       .sort((a, b) => b[1] - a[1])
       .map(([raw, count]) => ({ steps: raw.split(STEP).map(describeToken), count })),
     gaps: gapRows,

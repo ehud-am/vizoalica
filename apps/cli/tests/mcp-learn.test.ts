@@ -60,12 +60,12 @@ describe('learning tools', () => {
     expect(started.data).toMatchObject({ events: 16, sessions: 4, calls: 2, exhausted: true });
     const run = started.data!.run as string;
 
-    const pages = await h.call('learn_get', { run, section: 'pages', min_sessions: 2 });
+    const pages = await h.call('learn_get', { run, section: 'pages', min_sessions: 3 });
     expect(pages.data).toMatchObject({ section: 'pages', total: 1 });
     expect((pages.data!.items as any[])[0]).toMatchObject({ key: '/pricing', views: 4 });
     expect((pages.data!.quality as any).labelCoverage).toBeCloseTo(0.5, 1);
 
-    const gaps = await h.call('learn_get', { run, section: 'gaps', min_sessions: 2 });
+    const gaps = await h.call('learn_get', { run, section: 'gaps', min_sessions: 3 });
     expect((gaps.data!.items as any[])[0]).toMatchObject({
       page: '/pricing',
       role: 'button',
@@ -73,6 +73,13 @@ describe('learning tools', () => {
     });
     const paged = await h.call('learn_get', { run, section: 'journeys', limit: 1 });
     expect((paged.data!.items as any[]).length).toBe(1);
+  });
+
+  it('refuses a min_sessions below 3, so the assistant cannot turn the privacy floor down', async () => {
+    const h = await harness({ backends: backends() });
+    const run = (await h.call('learn_start', { ...site, depth_k: 1 })).data!.run as string;
+    const result = await h.call('learn_get', { run, section: 'actions', min_sessions: 1 });
+    expect(result.isError).toBe(true);
   });
 
   it('hides what the operator already decided in a local spec folder', async () => {

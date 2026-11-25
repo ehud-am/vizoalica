@@ -21,6 +21,9 @@ status | enable | disable`. Worker routes `GET/PUT /spec` and `GET /learn/sample
 - **Funnels across pages**: while a learning window is open the raw store keeps a one-way token per visitor and UTC day
   (cut from the daily visitor identifier; random per-day salt deleted after the day; no address stored; never returned).
   Funnels may use `"within": "day"`; digest quality adds `linkedShare`.
+- **Privacy hardening from review**: `data-vizoalica-ignore` is honoured inside headings, labels and control names;
+  the spec validator checks path patterns, page keys and decision subjects; rare text is dropped from every digest
+  section (floor of 3 page loads); the day token differs per website; denied-consent structure events are refused.
 - **Example CI workflow** `examples/spec-ci/spec-workflow.yml`: validate and diff on pull requests, apply on main.
 - **One database migration** (additive): `0012_site_specs.sql` (schema 12). Update with
   `vizoalica deploy <name> --update`.

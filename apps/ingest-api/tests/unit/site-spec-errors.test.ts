@@ -364,3 +364,29 @@ describe('funnels across page loads', () => {
     expect(errors(funnel('week'))).toContain('"session" or "day"');
   });
 });
+
+describe('parseSiteSpec: personal data in every position', () => {
+  const page = (extra: Record<string, unknown>) => ({
+    meta,
+    pages: [{ id: 'p', match: ['/p'], name: 'P', ...extra }]
+  });
+  const conflict = (ref: string) => ({
+    ...base,
+    decisions: [
+      {
+        id: 'd',
+        type: 'conflict',
+        decision: 'custom',
+        subject: { kind: 'page', ref },
+        chosen: 'x'
+      }
+    ]
+  });
+  it('refuses an email or address in a path pattern, a page key or a decision subject', () => {
+    expect(errors(page({ match: ['/u/john@example.com'] }))).toContain('path pattern looks like');
+    expect(errors(page({ match: ['/ip/10.0.0.1'] }))).toContain('path pattern looks like');
+    expect(errors(page({ key: '/u/jane@x.org' }))).toContain('page key');
+    expect(errors(conflict('jane@x.org'))).toContain('without personal data');
+    expect(errors(conflict('a'.repeat(300)))).toContain('at most 200');
+  });
+});

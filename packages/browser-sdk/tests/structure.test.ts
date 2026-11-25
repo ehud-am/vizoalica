@@ -115,6 +115,33 @@ describe('learning window', () => {
     expect(types.filter((type) => type === 'com.vizoalica.page_structure.v1')).toHaveLength(1);
   });
 
+  it('does not describe a page the visitor already left, and stop cancels the pending capture', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-12-02T10:00:00Z'));
+    const moved = captureFetch();
+    const client = init({ endpoint, sourceKey: 'k', learn: { window: WINDOW, sampleRate: 1 } });
+    setUrl('/checkout');
+    await vi.advanceTimersByTimeAsync(2000);
+    const described = moved
+      .events()
+      .filter((event) => event.type === 'com.vizoalica.page_structure.v1')
+      .map((event) => (event.data as { page: { url_path: string } }).page.url_path);
+    expect(described).not.toContain('/pricing');
+    client.stop();
+    vi.useRealTimers();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-12-02T10:00:00Z'));
+    setUrl('/pricing');
+    const stopped = captureFetch();
+    const second = init({ endpoint, sourceKey: 'k', learn: { window: WINDOW, sampleRate: 1 } });
+    second.stop();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(stopped.events().map((event) => event.type)).not.toContain(
+      'com.vizoalica.page_structure.v1'
+    );
+  });
+
   it('sends nothing without a window, outside it, unsampled, or with consent denied', async () => {
     const none = 'com.vizoalica.page_structure.v1';
     expect(await run(undefined)).not.toContain(none);

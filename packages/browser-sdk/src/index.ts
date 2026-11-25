@@ -99,6 +99,7 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
     Math.random() < (config.learn?.sampleRate ?? servedRate ?? STRUCTURE_SAMPLE_RATE);
   const described = new Set<string>();
   const describedAt: number[] = [];
+  const pending = new Set<ReturnType<typeof setTimeout>>();
   function describePage(): void {
     try {
       const now = Date.now();
@@ -109,8 +110,11 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
       const key = currentPageKey();
       if (described.has(key) || described.size >= 50) return;
       described.add(key);
-      globalThis.setTimeout(() => {
+      const timer = globalThis.setTimeout(() => {
+        pending.delete(timer);
         try {
+          // The visitor may have moved on in a single-page app: never describe another page's DOM.
+          if (currentPageKey() !== key) return;
           const at = Date.now();
           while (describedAt.length && at - describedAt[0]! >= 60_000) describedAt.shift();
           if (describedAt.length >= MAX_STRUCTURE_PER_MINUTE) return;
@@ -121,6 +125,7 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
           // Analytics must never affect the host page.
         }
       }, STRUCTURE_DELAY_MS);
+      pending.add(timer);
     } catch {
       // Analytics must never affect the host page.
     }
@@ -141,6 +146,8 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
     flush,
     stop() {
       for (const stopWatching of watchers.splice(0)) stopWatching();
+      for (const timer of pending) globalThis.clearTimeout(timer);
+      pending.clear();
     },
     get queuedEvents() {
       return queue.size;

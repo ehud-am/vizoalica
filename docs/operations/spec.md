@@ -14,8 +14,9 @@ and proposes it; you review and apply. Reports and dashboards can later build on
 vizoalica learn enable  ->  /vizoalica learn  ->  you review the spec files  ->  vizoalica spec apply
 ```
 
-The assistant never writes to your backend. The spec never holds personal data (no email or IP addresses, phone
-numbers or names of people; the validator refuses them).
+The assistant never writes to your backend. The spec should never hold personal data. The validator refuses email
+addresses, IP addresses and long digit runs (phone and card numbers) in every text, path pattern and key; it cannot
+recognise names, so you review the proposal before you apply it.
 
 ## Steps
 
@@ -84,8 +85,16 @@ Answers go into `decisions.json`, matched by selector (page, role, landmark, nam
 Off by default. While it is open, a share of page loads (10% unless you change it) describe their pages once each:
 language, title, description, a few headings, landmarks, control labels, and form-field labels. Never field values,
 placeholders, typed text, body text or anything inside `data-vizoalica-ignore`; texts are redacted like action names.
-The events go to the raw event store only (kept 7 days), never into reports, and no event is sent when a visitor's
-consent is denied.
+Text inside an element marked `data-vizoalica-ignore` is left out wherever it appears, including inside a heading or
+label. Texts are cut to 80 characters. The events go to the raw event store only, never into reports; the SDK sends
+nothing when a visitor's consent is denied and the Worker refuses such an event anyway.
+
+**Retention.** The raw event store keeps batches for as long as its bucket lifecycle rule says. Vizoalica documents a
+7-day rule ([Cloudflare setup](/operations/cloudflare)) but cannot enforce it from the Worker: without the rule the
+structure texts and day tokens stay in the bucket. Check that the rule exists before you open a window.
+
+**Bundled SDK.** The window is added to the script the Worker serves at `/vizoalica.js`. A website that bundles the
+SDK into its own build, or serves a copy, never learns about the window and sends no structure.
 
 Set these variables on the Worker (Cloudflare dashboard: Workers & Pages, the Worker, Settings, Variables and
 Secrets); `deploy --update` keeps them:
@@ -109,7 +118,7 @@ the scheduled job deletes when the day ends. So the token:
 
 - is one-way: it cannot be turned back into an address, name, email or place, and the address itself is never stored;
 - cannot be linked to another day or another website, and after the day's salt is deleted nobody can recompute it;
-- is 64 bits, lives only in the raw event store (kept 7 days), is never returned by any route or tool, and is not
+- is 64 bits, differs for each website, lives only in the raw event store (for as long as your lifecycle rule keeps it), is never returned by any route or tool, and is not
   stored at all once the window closes;
 - is not written for events whose consent is denied;
 - is used by the learning sample only to order and link a day's events; the sample, the digest and the spec hold
@@ -126,6 +135,11 @@ address, or a database older than schema 3) events carry no token and stay separ
   call (about 1,000 events), so on a busy site funnels across pages are lower bounds. `linkedShare` in the run's
   quality figures says how much was linked. Visits on different days are never linked. A funnel check is a sample,
   not a report.
-- **Rare labels are dropped.** A label seen in fewer than 3 page loads (`min_sessions`) is left out of the digest, so
-  text about one visitor never reaches the assistant. Small sites may need a larger `VIZOALICA_LEARN_SAMPLE`.
+- **Rare text is dropped.** Anything seen in fewer than 3 page loads (`min_sessions`, never lower) is left out of the
+  digest: titles, headings, labels, actions, custom events, campaigns, referrers, transitions and journeys. This lowers
+  the chance that text about one visitor reaches the assistant; it is not a guarantee, because a page load is not a
+  visitor (one visitor can reload a page three times) and names are not recognised. Small sites may need a larger
+  `VIZOALICA_LEARN_SAMPLE`.
+- **`within: "day"` is a statement of intent today.** The sample and `check_funnel` link what they can; nothing else
+  reads the field until reports are built on the spec.
 - Labels and headings come from your website: the assistant treats them as data, never as instructions.

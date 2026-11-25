@@ -287,6 +287,13 @@ function matchPatterns(ctx: Ctx, where: string, value: unknown): string[] {
       ctx.errors.push(`${where}: "${String(pattern)}" is not a valid path pattern.`);
       continue;
     }
+    const personal = looksPersonal(pattern);
+    if (personal) {
+      ctx.errors.push(
+        `${where}: a path pattern looks like it holds ${personal}; personal data is not allowed in a spec.`
+      );
+      continue;
+    }
     const segments = pattern.split('/').slice(1);
     if (
       segments.some(
@@ -422,7 +429,12 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     const match = matchPatterns(ctx, where, entry.match);
     const page: SpecPage = { id: pid ?? '', match, name: name ?? '' };
     if (entry.key !== undefined) {
-      if (typeof entry.key === 'string' && entry.key.length <= 200 && KEY.test(entry.key))
+      if (
+        typeof entry.key === 'string' &&
+        entry.key.length <= 200 &&
+        KEY.test(entry.key) &&
+        !looksPersonal(entry.key)
+      )
         page.key = entry.key;
       else ctx.errors.push(`${where}: "key" must be a page key starting with "/".`);
     }
@@ -713,9 +725,13 @@ export function parseSiteSpec(raw: unknown): SpecResult {
         !isObject(subject) ||
         typeof subject.kind !== 'string' ||
         !KINDS.has(subject.kind) ||
-        typeof subject.ref !== 'string'
+        typeof subject.ref !== 'string' ||
+        subject.ref.length > 200 ||
+        looksPersonal(subject.ref)
       ) {
-        ctx.errors.push(`${where}: "subject" needs "kind" and "ref".`);
+        ctx.errors.push(
+          `${where}: "subject" needs "kind" and a "ref" of at most 200 characters without personal data.`
+        );
         continue;
       }
       const chosen = text(ctx, where, 'chosen', entry.chosen, 200);

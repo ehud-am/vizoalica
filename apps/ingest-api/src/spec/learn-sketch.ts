@@ -71,6 +71,10 @@ const bump = (map: Record<string, number>, key: string, by = 1): void => {
 
 type Data = Record<string, any>;
 
+/** Text from an event with control characters (used here as separators) replaced by spaces. */
+const plain = (value: unknown): string =>
+  String(value ?? '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+
 /**
  * Builds a sketch from raw events (as stored: CloudEvents). `visitorDays` maps an event to its
  * daily visitor token; events of one token form one journey even across page loads. The tokens
@@ -98,33 +102,33 @@ export function sketchEvents(
       bySession.set(session, list);
     };
     if (event.type === 'com.vizoalica.page_view.v1') {
-      const key = String(data.page?.url_path ?? '');
+      const key = plain(data.page?.url_path);
       if (!key) continue;
       bump(sketch.pages, key);
       push(`p:${key}`, key);
       const referrer = data.referrer?.origin;
-      if (typeof referrer === 'string') bump(sketch.referrers, referrer);
+      if (typeof referrer === 'string') bump(sketch.referrers, plain(referrer));
       const campaign = data.campaign;
       if (campaign)
         bump(
           sketch.campaigns,
-          [campaign.source ?? '', campaign.medium ?? '', campaign.campaign ?? ''].join(SEP)
+          [plain(campaign.source), plain(campaign.medium), plain(campaign.campaign)].join(SEP)
         );
     } else if (event.type === 'com.vizoalica.action.v1') {
       if (data.action?.rage) continue;
-      const page = String(data.page?.url_path ?? '');
-      const name = String(data.action?.name ?? '');
-      bump(sketch.actions, [page, name, data.action?.kind ?? 'other'].join(SEP));
+      const page = plain(data.page?.url_path);
+      const name = plain(data.action?.name);
+      bump(sketch.actions, [page, name, plain(data.action?.kind ?? 'other')].join(SEP));
       push(`a:${page}${SEP}${name}`);
     } else if (event.type === 'com.vizoalica.custom_event.v1') {
-      const name = String(data.name ?? '');
+      const name = plain(data.name);
       if (!name) continue;
       const entry = (sketch.customEvents[name] ??= { count: 0, pages: {} });
       entry.count += 1;
-      if (data.page?.url_path) bump(entry.pages, String(data.page.url_path));
+      if (data.page?.url_path) bump(entry.pages, plain(data.page.url_path));
       push(`e:${name}`);
     } else if (event.type === 'com.vizoalica.page_structure.v1') {
-      const key = String(data.page?.url_path ?? '');
+      const key = plain(data.page?.url_path);
       if (!key) continue;
       const s = (sketch.structure[key] ??= {
         samples: 0,

@@ -61,7 +61,8 @@ const USAGE = [
   '      and goals. Needs an administrator or website owner credential. Nothing is removed.',
   '  pull <environment> [folder] [--force]   Write the backend spec into a folder.',
   '  export <environment> [--out <file>]     Back up the backend spec to one JSON file.',
-  '  import <environment> <file> [--yes]     Restore a backup as the latest spec on the backend.',
+  '  import <environment> <file> [--yes] [--force]',
+  '      Restore a backup as the latest spec on the backend; --force allows a backup from another environment.',
   '',
   'Guide: https://vizoalica.dev/operations/spec'
 ].join('\n');
@@ -283,7 +284,7 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
       case 'export':
         return await exportBackup(ctx, flags.get('--out'));
       default:
-        return await importBackup(ctx, positional[1]!, bool.has('--yes'));
+        return await importBackup(ctx, positional[1]!, bool.has('--yes'), bool.has('--force'));
     }
   } catch (error) {
     deps.err(`${explain(error, positional[0] ?? '')}\n`);
@@ -466,6 +467,12 @@ async function apply(
     }
   }
   const saved = await putSpec(ctx, spec, baseVersion, gitSha(folder));
+  // Record the new base at once: if a later step fails, running apply again must not be refused as
+  // a change made elsewhere.
+  writeFileSync(
+    join(folder, BASE_FILE),
+    `${JSON.stringify({ version: saved.version, contentHash: saved.contentHash })}\n`
+  );
   // Goals first, then rules, then names, as in guided setup.
   for (const goal of plan.result.goalsToCreate)
     await workerJson(ctx.client, `${ctx.base}/goals`, {
@@ -485,10 +492,6 @@ async function apply(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ labels: plan.result.labels })
     });
-  writeFileSync(
-    join(folder, BASE_FILE),
-    `${JSON.stringify({ version: saved.version, contentHash: saved.contentHash })}\n`
-  );
   deps.out(
     `Applied to ${ctx.environment} / ${ctx.website}: spec version ${saved.version}, ${plan.labels.add.length + plan.labels.change.length} names, ${plan.rules.add.length} rules, ${plan.goals.add.length} goals.\n`
   );
@@ -529,7 +532,7 @@ async function exportBackup(ctx: Ctx, out: string | undefined): Promise<number> 
   return 0;
 }
 
-async function importBackup(ctx: Ctx, file: string, yes: boolean): Promise<number> {
+async function importBackup(ctx: Ctx, file: string, yes: boolean, force: boolean): Promise<number> {
   const { deps } = ctx;
   let raw: unknown;
   try {
@@ -537,13 +540,23 @@ async function importBackup(ctx: Ctx, file: string, yes: boolean): Promise<numbe
   } catch {
     throw new Refusal(`${file} could not be read as JSON.`);
   }
-  const backup = raw as { kind?: unknown; format?: unknown; spec?: unknown; website?: unknown };
+  const backup = raw as {
+    kind?: unknown;
+    format?: unknown;
+    spec?: unknown;
+    website?: unknown;
+    environment?: unknown;
+  };
   if (!backup || backup.kind !== BACKUP_KIND || backup.format !== 1)
     throw new Refusal(`${file} is not a Vizoalica spec backup.`);
   const parsed = parseSiteSpec(backup.spec);
   if (!parsed.ok)
     throw new Refusal(
       `The backup is not a valid spec:\n${parsed.errors.map((line) => `  ${line}`).join('\n')}`
+    );
+  if (typeof backup.environment === 'string' && backup.environment !== ctx.environment && !force)
+    throw new Refusal(
+      `The backup is of environment "${backup.environment}", not "${ctx.environment}". Add --force to restore it here anyway.`
     );
   const { stored, spec: current } = await fetchStored(ctx);
   deps.out(
