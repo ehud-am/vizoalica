@@ -1,3 +1,4 @@
+import { sampleEvents } from './storage/learn-sample.js';
 import { InMemoryMetricsSink } from '../../ingest-api/src/observability/index.js';
 import { loadWorkerConfig } from './config.js';
 import type { Env } from './env.js';
@@ -85,6 +86,18 @@ export default {
           health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS)
         }),
         visitorSalts: configuration,
+        ...(env.VIZOALICA_EVENTS.get
+          ? {
+              learnSample: (projectId: string, sourceId: string, cursor: string | undefined) =>
+                sampleEvents(
+                  env.VIZOALICA_EVENTS as Parameters<typeof sampleEvents>[0],
+                  projectId,
+                  sourceId,
+                  cursor,
+                  new Date()
+                )
+            }
+          : {}),
         ...(config.pixelMaxPaths ? { pixelMaxPaths: config.pixelMaxPaths } : {}),
         ...(config.learnWindow ? { learnWindow: config.learnWindow } : {}),
         ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})

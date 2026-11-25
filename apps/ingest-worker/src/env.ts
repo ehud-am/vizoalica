@@ -24,6 +24,8 @@ export interface R2Bucket {
     cursor?: string;
   }): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
   delete(keys: string | string[]): Promise<void>;
+  /** Reads one object; null when it does not exist. */
+  get?(key: string): Promise<{ text(): Promise<string> } | null>;
 }
 
 /** Cloudflare Workers Rate Limiting binding; see docs/operations/cloudflare.md. */

@@ -51,6 +51,8 @@ export type FakeBackend = {
   writes?: Array<{ method: string; path: string; body: unknown }>;
   /** Goals and grouping rules the inventory reports as already set. */
   existing?: { goals?: unknown[]; groupingRules?: unknown[] };
+  /** Slices the learn sample route returns, one per call, with the cursor to ask for the next. */
+  learnSlices?: unknown[];
   /** The stored site spec (version 0 when none); a PUT replaces it when the base version matches. */
   specStore?: { version: number; spec?: unknown };
   /** Pixel path usage in the website status; absent unless the pixel is on. */
@@ -265,6 +267,12 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         ],
         availability: { state: 'complete', taxonomyVersions: [1] }
       });
+    }
+    if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/learn\/sample$/.test(path)) {
+      if (!backend.learnSlices) return json({ error: 'not_found' }, 404);
+      const at = Number(url.searchParams.get('cursor') ?? 0);
+      const slice = backend.learnSlices[at] as Record<string, unknown>;
+      return json({ ...slice, ...(at + 1 < backend.learnSlices.length ? { cursor: String(at + 1), done: false } : { done: true }) });
     }
     if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/spec$/.test(path)) {
       if (backend.noInventory) return json({ error: 'not_found' }, 404);

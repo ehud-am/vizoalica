@@ -19,6 +19,7 @@ import {
 } from '../../../ingest-api/src/ingestion/grouping-rules.js';
 import { isStorablePageKey } from '../../../ingest-api/src/ingestion/page-key.js';
 import { parsePageLabels } from '../../../ingest-api/src/ingestion/page-labels.js';
+import type { SampleSlice } from '../storage/learn-sample.js';
 import { parseSiteSpec } from '../../../ingest-api/src/spec/site-spec.js';
 import { renderOntology } from '../../../ingest-api/src/spec/spec-files.js';
 import { DEFAULT_MAX_PIXEL_PATHS } from '../../../ingest-api/src/ingestion/pixel.js';
@@ -53,6 +54,12 @@ type Dependencies = {
   auditDenial?: DenialAuditGate;
   /** Distinct pixel paths allowed per website; defaults to {@link DEFAULT_MAX_PIXEL_PATHS}. */
   pixelMaxPaths?: number;
+  /** Summarises a slice of a website's newest raw events; absent where raw events cannot be read. */
+  learnSample?: (
+    projectId: string,
+    sourceId: string,
+    cursor: string | undefined
+  ) => Promise<SampleSlice | undefined>;
 };
 
 const safePolicy = (id: string): QuotaPolicy => ({
@@ -1270,6 +1277,23 @@ export async function handleAdminRequest(
       }
       return Response.json({ version, contentHash });
     });
+  }
+  const sampleMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/learn\/sample$/.exec(
+    url.pathname
+  );
+  if (sampleMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = sampleMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    if (!dependencies.learnSample) return notFound();
+    const source = await dependencies.repositories.getSource(projectId!, sourceId!);
+    if (!source || source.status === 'deleted') return notFound();
+    const cursor = url.searchParams.get('cursor') ?? undefined;
+    if (cursor !== undefined && cursor.length > 2048) return invalid('cursor');
+    const slice = await dependencies.learnSample(projectId!, sourceId!, cursor);
+    return slice
+      ? Response.json(slice, { headers: { 'cache-control': 'no-store' } })
+      : invalid('cursor');
   }
   const inventoryMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/inventory$/.exec(
     url.pathname

@@ -115,6 +115,7 @@ export async function handleWorkerRequest(
     rateLimiter?: RateLimiter;
     visitorSalts?: DailySaltStore;
     pixelMaxPaths?: number;
+    learnSample?: Parameters<typeof handleAdminRequest>[1]['learnSample'];
   },
   maxRequestBytes: number
 ): Promise<Response> {
@@ -158,7 +159,8 @@ export async function handleWorkerRequest(
       repositories: dependencies.adminRepositories,
       ...(dependencies.purgeDeleted ? { purgeDeleted: dependencies.purgeDeleted } : {}),
       ...(dependencies.backendInfo ? { backendInfo: dependencies.backendInfo } : {}),
-      ...(dependencies.pixelMaxPaths ? { pixelMaxPaths: dependencies.pixelMaxPaths } : {})
+      ...(dependencies.pixelMaxPaths ? { pixelMaxPaths: dependencies.pixelMaxPaths } : {}),
+      ...(dependencies.learnSample ? { learnSample: dependencies.learnSample } : {})
     });
     if (adminResponse) return adminResponse;
   }
