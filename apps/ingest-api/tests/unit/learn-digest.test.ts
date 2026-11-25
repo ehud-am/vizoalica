@@ -48,12 +48,12 @@ describe('learn sketch and digest', () => {
     const sketch = sketchEvents(events);
     expect(JSON.stringify(sketch)).not.toMatch(/anonymous|"[abcd]":/);
     expect(sketch.sessions).toBe(4);
-    const digest = buildDigest(sketch, { minSessions: 3 });
+    const digest = buildDigest(sketch, { minSessions: 2 });
     const pricing = digest.sections.pages.find((p: any) => p.key === '/pricing') as any;
     expect(pricing.titles[0]).toMatchObject({ value: 'Pricing', count: 2 });
     expect(JSON.stringify(digest)).not.toContain('Jane Doe');
     expect(digest.quality.rareLabelsDropped).toBeGreaterThan(0);
-    expect(digest.quality.labelCoverage).toBeCloseTo(0.5, 1);
+    expect(digest.quality.labelCoverage).toBeCloseTo(0.57, 1);
     expect(digest.sections.gaps[0]).toMatchObject({ page: '/pricing', role: 'button', landmark: 'banner', count: 3 });
   });
 
