@@ -42,7 +42,7 @@ describe('vizoalica learn', () => {
     const open = setup(window('2026-12-01T00:00:00.000Z', '2026-12-15T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], open.deps);
     expect(open.text()).toContain(
-      'is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of page loads'
+      'is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of visits describe their pages'
     );
     const early = setup(window('2026-12-05T00:00:00.000Z', '2026-12-19T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], early.deps);

@@ -4,6 +4,19 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-25
+
+### Added
+
+- `vizoalica spec show <environment> [--json]` and a view-only **Manage > Spec** page in the console show the latest
+  spec stored on the backend. `vizoalica learn status` suggests the next step.
+
+### Changed
+
+- README, npm README, docs and site cover the learn features; "Why Vizoalica" now leads with self-deployed, data stays
+  in your account, free to deploy, and AI-first self-learning. Docs explain how a spec is created, viewed and changed
+  without git, and that `VIZOALICA_LEARN_SAMPLE` is a percent of visits.
+
 ## [0.17.0] - 2026-11-25
 
 ### Added

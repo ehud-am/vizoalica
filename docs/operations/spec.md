@@ -18,6 +18,17 @@ The assistant never writes to your backend. The spec should never hold personal 
 addresses, IP addresses and long digit runs (phone and card numbers) in every text, path pattern and key; it cannot
 recognise names, so you review the proposal before you apply it.
 
+## Common questions
+
+- **How is a spec created?** Never automatically. Turning the learning window on only collects page structure. A
+  spec is proposed when you ask your assistant `/vizoalica learn [depth]` and stored when you run
+  `vizoalica spec apply <environment>`.
+- **How do I see the latest spec?** Console: **Manage > Spec** (view-only, the spec in words). CLI:
+  `vizoalica spec show <environment>` (words) or `--json`. Assistant: the `get_spec` tool.
+- **How do I change it without git?** `vizoalica spec pull <environment>`, edit the JSON files (or ask the assistant
+  to), `vizoalica spec render`, then `vizoalica spec apply <environment>`. `apply` refuses if the backend changed
+  since your pull. Only the latest version is kept; back up with `vizoalica spec export`.
+
 ## Steps
 
 1. **Connect an assistant once:** `vizoalica mcp install --client claude-code` and
@@ -32,6 +43,7 @@ recognise names, so you review the proposal before you apply it.
 5. **Review.** With git: the diff, and a pull request if you like. Without: `vizoalica spec diff prod`.
 6. **Apply:** `vizoalica spec apply prod` shows the changes and asks. It stores the spec as the latest on the
    backend and applies page names, grouping rules and goals. Nothing is removed.
+7. **See it:** `vizoalica spec show prod`, or **Manage > Spec** in the console.
 
 ## The spec folder
 
@@ -82,7 +94,7 @@ Answers go into `decisions.json`, matched by selector (page, role, landmark, nam
 
 ## The learning window
 
-Off by default. While it is open, a share of page loads (10% unless you change it) describe their pages once each:
+Off by default. While it is open, a share of visits (10% unless you change it) describe their pages once each:
 language, title, description, a few headings, landmarks, control labels, and form-field labels. Never field values,
 placeholders, typed text, body text or anything inside `data-vizoalica-ignore`; texts are redacted like action names.
 Text inside an element marked `data-vizoalica-ignore` is left out wherever it appears, including inside a heading or
@@ -103,7 +115,13 @@ Secrets); `deploy --update` keeps them:
 | ------------------------ | --------------------------------------------- |
 | `VIZOALICA_LEARN_START`  | first day, UTC, `YYYY-MM-DD`; unset means off |
 | `VIZOALICA_LEARN_DAYS`   | length, 1 to 90, default 14                   |
-| `VIZOALICA_LEARN_SAMPLE` | percent of page loads, 1 to 100, default 10   |
+| `VIZOALICA_LEARN_SAMPLE` | percent of visits, 1 to 100, default 10       |
+
+`VIZOALICA_LEARN_SAMPLE` is a share of visits, not a count: each visit is either in the sample or not (decided once
+when the page loads), and a sampled visit describes each page it views once, up to 20 a minute. The number of
+described pages per day is roughly visits per day × sample percent × pages per visit, so a small site needs a high
+percent and a busy site a low one. Rare text is dropped from the digest (see the limits below), so raise the percent
+if `/vizoalica learn` reports few described pages. `learn status` shows the percent.
 
 The Worker puts the window into the script it serves (`/vizoalica.js`), so the browser makes no extra request, and
 refuses these events outside it. Check it with `vizoalica learn status prod`. Websites that load the script from your

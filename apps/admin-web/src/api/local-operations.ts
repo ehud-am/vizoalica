@@ -607,3 +607,16 @@ export type BackendState = {
   featuresAccessKeys: boolean;
 };
 export const getBackendState = () => request<BackendState>('/api/backend');
+
+export type SiteSpecView = {
+  version: number;
+  appliedAt?: string;
+  appliedBy?: string;
+  gitSha?: string;
+  renderedMd?: string;
+};
+export const getSiteSpec = (projectId: string, websiteId: string, signal?: AbortSignal) =>
+  request<SiteSpecView>(
+    `/api/projects/${encodeURIComponent(projectId)}/websites/${encodeURIComponent(websiteId)}/spec`,
+    signal ? { signal } : undefined
+  );

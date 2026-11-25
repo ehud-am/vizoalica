@@ -91,7 +91,7 @@ export async function learnCommand(args: readonly string[], deps: LearnDeps): Pr
       else {
         const open = now >= new Date(learn.startUtc) && now < new Date(learn.endUtc);
         deps.out(
-          `Environment: ${ref.name}\nThe learning window is ${open ? 'open' : now < new Date(learn.startUtc) ? 'set but not open yet' : 'closed'}: ${learn.startUtc.slice(0, 10)} to ${learn.endUtc.slice(0, 10)} UTC (${learn.days} days), ${learn.samplePercent}% of page loads.\n`
+          `Environment: ${ref.name}\nThe learning window is ${open ? 'open' : now < new Date(learn.startUtc) ? 'set but not open yet' : 'closed'}: ${learn.startUtc.slice(0, 10)} to ${learn.endUtc.slice(0, 10)} UTC (${learn.days} days), ${learn.samplePercent}% of visits describe their pages.\n${open || now >= new Date(learn.endUtc) ? `Next: ask your assistant "/vizoalica learn" to propose a spec, then vizoalica spec apply ${ref.name}. View the latest spec with: vizoalica spec show ${ref.name}\n` : ''}`
         );
       }
       return 0;

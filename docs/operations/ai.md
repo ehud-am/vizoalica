@@ -54,21 +54,27 @@ Environment: prod (admin, https://analytics.example.com; default: the one last u
 
 ## What the assistant can read
 
-| Tool                     | What it answers                                                                                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_environments`      | Every environment, whether it works, which one this conversation uses                                                                                     |
-| `use_environment`        | Switch this conversation's environment                                                                                                                    |
-| `get_environment_status` | Role and scope, Worker and database versions against this package, database and storage health                                                            |
-| `list_websites`          | Projects and websites                                                                                                                                     |
-| `get_website_status`     | Collection and configuration status, how many addresses are excluded and how many events that dropped, plus the console's install check of the live site  |
-| `get_traffic_overview`   | Page views, visitors, trend, top pages (with each page's website), referrers, countries, devices                                                          |
-| `compare_periods`        | A period against the one before, with the pages that changed most                                                                                         |
-| `get_actions`            | Clicks on buttons and links, by page                                                                                                                      |
-| `get_custom_events`      | Custom events: count, visitors, trend, pages, and property values                                                                                         |
-| `get_campaigns`          | Which tagged links (UTM source, medium, campaign) brought visitors, with a trend and top pairs                                                            |
-| `get_rage_clicks`        | Buttons and links clicked repeatedly in quick succession: bursts per control and page, with all clicks on the control and the trend                       |
-| `get_goals`              | Conversions of a website's goals (page view, click, or event): conversions, visitors, rate, and trend                                                     |
-| `get_inventory`          | What a website collected (pages, actions, events, referrers, counts) and its current names, rules and goals, for [guided setup](/operations/guided-setup) |
+| Tool                                       | What it answers                                                                                                                                           |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_environments`                        | Every environment, whether it works, which one this conversation uses                                                                                     |
+| `use_environment`                          | Switch this conversation's environment                                                                                                                    |
+| `get_environment_status`                   | Role and scope, Worker and database versions against this package, database and storage health                                                            |
+| `list_websites`                            | Projects and websites                                                                                                                                     |
+| `get_website_status`                       | Collection and configuration status, how many addresses are excluded and how many events that dropped, plus the console's install check of the live site  |
+| `get_traffic_overview`                     | Page views, visitors, trend, top pages (with each page's website), referrers, countries, devices                                                          |
+| `compare_periods`                          | A period against the one before, with the pages that changed most                                                                                         |
+| `get_actions`                              | Clicks on buttons and links, by page                                                                                                                      |
+| `get_custom_events`                        | Custom events: count, visitors, trend, pages, and property values                                                                                         |
+| `get_campaigns`                            | Which tagged links (UTM source, medium, campaign) brought visitors, with a trend and top pairs                                                            |
+| `get_rage_clicks`                          | Buttons and links clicked repeatedly in quick succession: bursts per control and page, with all clicks on the control and the trend                       |
+| `get_goals`                                | Conversions of a website's goals (page view, click, or event): conversions, visitors, rate, and trend                                                     |
+| `learn_start`, `learn_get`, `check_funnel` | Summarise raw events into a digest on your computer and read it, for [`/vizoalica learn`](/operations/spec); a funnel check on a sample of page loads     |
+| `get_spec`                                 | The latest spec (ontology) stored on the backend, for [learning](/operations/spec)                                                                        |
+| `get_inventory`                            | What a website collected (pages, actions, events, referrers, counts) and its current names, rules and goals, for [guided setup](/operations/guided-setup) |
+
+The skill also adds `/vizoalica learn [depth]`: the assistant learns a website and proposes a versioned spec of named
+pages, groups, events, funnels and paths from the accessibility markers your pages carry and what visitors did. You
+review it and apply it yourself; see [Learn your website and keep a spec](/operations/spec).
 
 Projects and websites can be named by name or id. Ranges are UTC and at most 30 days per call, the same limit as
 the console. An owner or analyst access key sees exactly what it sees in the console, nothing more. There are also

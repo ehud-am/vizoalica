@@ -60,6 +60,8 @@ const USAGE = [
   '      Store the folder as the latest spec on the backend and apply page names, grouping rules',
   '      and goals. Needs an administrator or website owner credential. Nothing is removed.',
   '  pull <environment> [folder] [--force]   Write the backend spec into a folder.',
+  '  show <environment> [--json]',
+  '      Print the latest spec stored on the backend as plain words (ONTOLOGY.md); --json prints it as JSON.',
   '  export <environment> [--out <file>]     Back up the backend spec to one JSON file.',
   '  import <environment> <file> [--yes] [--force]',
   '      Restore a backup as the latest spec on the backend; --force allows a backup from another environment.',
@@ -68,7 +70,7 @@ const USAGE = [
 ].join('\n');
 
 const VALUE_FLAGS = new Set(['--project', '--website', '--dir', '--out']);
-const BOOLEAN_FLAGS = new Set(['--yes', '--no-git', '--check', '--force']);
+const BOOLEAN_FLAGS = new Set(['--json', '--yes', '--no-git', '--check', '--force']);
 const BASE_FILE = '.vizoalica-base.json';
 
 type Parsed =
@@ -200,7 +202,7 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
     deps.out(`${USAGE}\n`);
     return 0;
   }
-  const known = ['init', 'validate', 'render', 'diff', 'apply', 'pull', 'export', 'import'];
+  const known = ['init', 'validate', 'render', 'diff', 'apply', 'pull', 'show', 'export', 'import'];
   if (!known.includes(sub)) {
     deps.err(`Unknown command: ${sub}\n${USAGE}\n`);
     return 1;
@@ -281,6 +283,8 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
         });
       case 'pull':
         return await pull(ctx, folderArg ?? defaultFolder(cwd, site.name), bool.has('--force'));
+      case 'show':
+        return await show(ctx, bool.has('--json'));
       case 'export':
         return await exportBackup(ctx, flags.get('--out'));
       default:
@@ -353,6 +357,24 @@ async function init(ctx: Ctx, dir: string | undefined, bool: Set<string>): Promi
         ? 'It starts from the spec already on the backend.\n'
         : 'It is empty. Ask your assistant to run /vizoalica learn.\n'
     }`
+  );
+  return 0;
+}
+
+async function show(ctx: Ctx, json: boolean): Promise<number> {
+  const { stored } = await fetchStored(ctx);
+  if (!stored.version) {
+    ctx.deps.out(
+      `No spec is stored for ${ctx.environment} yet. Create one: run /vizoalica learn in your assistant, then vizoalica spec apply ${ctx.environment}.\n`
+    );
+    return 0;
+  }
+  if (json) {
+    ctx.deps.out(`${JSON.stringify(stored.spec, null, 2)}\n`);
+    return 0;
+  }
+  ctx.deps.out(
+    `Spec version ${stored.version} for ${ctx.environment}${stored.appliedAt ? `, applied ${stored.appliedAt}` : ''}.\n\n${stored.renderedMd ?? ''}\n`
   );
   return 0;
 }

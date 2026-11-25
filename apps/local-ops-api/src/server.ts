@@ -360,6 +360,22 @@ export function createLocalServer(options: ServerOptions) {
           )
         );
       }
+      const specRoute = /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/spec$/.exec(url.pathname);
+      if (specRoute && request.method === 'GET') {
+        assertSafeIds(specRoute[1]!, specRoute[2]!);
+        const stored = (await workerJson(
+          client,
+          `/v1/admin/projects/${encodeURIComponent(specRoute[1]!)}/sources/${encodeURIComponent(specRoute[2]!)}/spec`
+        )) as Record<string, unknown>;
+        // Read-only view: the rendered words and when it was applied, never the raw JSON.
+        return send(response, 200, {
+          version: stored.version,
+          appliedAt: stored.appliedAt,
+          appliedBy: stored.appliedBy,
+          gitSha: stored.gitSha,
+          renderedMd: stored.renderedMd
+        });
+      }
       const goalsRoute =
         /^\/api\/projects\/([^/]+)\/websites\/([^/]+)\/goals(?:\/(report|[^/]+))?$/.exec(
           url.pathname
