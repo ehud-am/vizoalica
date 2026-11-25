@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import worker from '../src/index.js';
 import type { Env, R2Bucket } from '../src/env.js';
 import { d1, freshDatabase } from './support/sqlite-d1.js';
@@ -65,14 +65,20 @@ describe('site spec routes', () => {
     const { env } = environment();
     const empty = await admin(env, PATH);
     expect(await empty.json()).toEqual({ version: 0 });
-    const first = await admin(env, PATH, { method: 'PUT', body: { spec: spec(), baseVersion: 0, gitSha: 'abc123' } });
+    const first = await admin(env, PATH, {
+      method: 'PUT',
+      body: { spec: spec(), baseVersion: 0, gitSha: 'abc123' }
+    });
     expect(first.status).toBe(200);
     const stored = (await first.json()) as { version: number; contentHash: string };
     expect(stored.version).toBe(1);
     expect(stored.contentHash).toMatch(/^[0-9a-f]{64}$/);
     const second = await admin(env, PATH, {
       method: 'PUT',
-      body: { spec: spec({ pages: [{ id: 'pricing', match: ['/pricing'], name: 'Plans' }] }), baseVersion: 1 }
+      body: {
+        spec: spec({ pages: [{ id: 'pricing', match: ['/pricing'], name: 'Plans' }] }),
+        baseVersion: 1
+      }
     });
     expect(((await second.json()) as { version: number }).version).toBe(2);
     const read = (await (await admin(env, PATH)).json()) as {
@@ -95,7 +101,12 @@ describe('site spec routes', () => {
     expect(await stale.json()).toEqual({ error: 'version_conflict', currentVersion: 1 });
     const bad = await admin(env, PATH, {
       method: 'PUT',
-      body: { spec: spec({ pages: [{ id: 'x', match: ['/x'], name: 'X', purpose: 'ask jane@example.com' }] }), baseVersion: 1 }
+      body: {
+        spec: spec({
+          pages: [{ id: 'x', match: ['/x'], name: 'X', purpose: 'ask jane@example.com' }]
+        }),
+        baseVersion: 1
+      }
     });
     expect(bad.status).toBe(400);
     expect(JSON.stringify(await bad.json())).not.toContain('jane@example.com');
@@ -104,7 +115,14 @@ describe('site spec routes', () => {
 
   it('is not found for another website and refuses without a credential', async () => {
     const { env } = environment();
-    expect((await admin(env, '/v1/admin/projects/p1/sources/zzz/spec', { method: 'PUT', body: { spec: spec(), baseVersion: 0 } })).status).toBe(404);
+    expect(
+      (
+        await admin(env, '/v1/admin/projects/p1/sources/zzz/spec', {
+          method: 'PUT',
+          body: { spec: spec(), baseVersion: 0 }
+        })
+      ).status
+    ).toBe(404);
     expect((await admin(env, PATH, { token: 'wrong' })).status).toBe(401);
   });
 });

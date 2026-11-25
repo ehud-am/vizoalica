@@ -8,7 +8,9 @@ function setup(backends: Record<string, FakeBackend> = defaultBackends()) {
   const home = tempHome();
   writePrivate(home, 'environments.json', {
     version: 1,
-    environments: { prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod } }
+    environments: {
+      prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+    }
   });
   const { fetchMock } = fakeWorkers(backends);
   const out: string[] = [];
@@ -31,10 +33,17 @@ describe('vizoalica learn', () => {
     const off = setup();
     expect(await learnCommand(['status', 'prod'], off.deps)).toBe(0);
     expect(off.text()).toContain('is off');
-    const window = (start: string, end: string) => ({ prod: { ...defaultBackends().prod!, learn: { startUtc: start, endUtc: end, days: 14, samplePercent: 10 } } });
+    const window = (start: string, end: string) => ({
+      prod: {
+        ...defaultBackends().prod!,
+        learn: { startUtc: start, endUtc: end, days: 14, samplePercent: 10 }
+      }
+    });
     const open = setup(window('2026-12-01T00:00:00.000Z', '2026-12-15T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], open.deps);
-    expect(open.text()).toContain('is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of page loads');
+    expect(open.text()).toContain(
+      'is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of page loads'
+    );
     const early = setup(window('2026-12-05T00:00:00.000Z', '2026-12-19T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], early.deps);
     expect(early.text()).toContain('not open yet');
@@ -50,9 +59,18 @@ describe('vizoalica learn', () => {
     expect(t.text()).toContain('VIZOALICA_LEARN_DAYS = 14');
     expect(t.text()).toContain('VIZOALICA_LEARN_SAMPLE = 10');
     const custom = setup();
-    expect(await learnCommand(['enable', 'prod', '--start', '2027-01-10', '--days', '30', '--sample', '25'], custom.deps)).toBe(0);
+    expect(
+      await learnCommand(
+        ['enable', 'prod', '--start', '2027-01-10', '--days', '30', '--sample', '25'],
+        custom.deps
+      )
+    ).toBe(0);
     expect(custom.text()).toContain('VIZOALICA_LEARN_SAMPLE = 25');
-    for (const bad of [['--days', '400'], ['--sample', '0'], ['--start', 'soon']]) {
+    for (const bad of [
+      ['--days', '400'],
+      ['--sample', '0'],
+      ['--start', 'soon']
+    ]) {
       const refused = setup();
       expect(await learnCommand(['enable', 'prod', ...bad], refused.deps)).toBe(1);
     }

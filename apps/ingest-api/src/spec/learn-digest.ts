@@ -65,11 +65,16 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
 
   const pageKeys = new Set([...Object.keys(sketch.pages), ...Object.keys(sketch.structure)]);
   const pages: unknown[] = [];
-  const gaps = new Map<string, { page: string; role: string; landmark: string; count: number; pages: number }>();
+  const gaps = new Map<
+    string,
+    { page: string; role: string; landmark: string; count: number; pages: number }
+  >();
   const conflicts: Array<Record<string, unknown>> = [];
   let controlsSeen = 0;
   let unlabeled = 0;
-  for (const key of [...pageKeys].sort((a, b) => (sketch.pages[b] ?? 0) - (sketch.pages[a] ?? 0) || (a < b ? -1 : 1))) {
+  for (const key of [...pageKeys].sort(
+    (a, b) => (sketch.pages[b] ?? 0) - (sketch.pages[a] ?? 0) || (a < b ? -1 : 1)
+  )) {
     const s = sketch.structure[key];
     const record: Record<string, unknown> = { key, views: sketch.pages[key] ?? 0 };
     if (s) {
@@ -88,14 +93,23 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
           gap.count += count;
           gap.pages = s.samples;
           gaps.set(gapKey, gap);
-        } else if (count >= min) controls.push({ value: `${role} "${name}"${landmark ? ` in ${landmark}` : ''}`, count });
+        } else if (count >= min)
+          controls.push({ value: `${role} "${name}"${landmark ? ` in ${landmark}` : ''}`, count });
         else dropped += 1;
       }
       Object.assign(record, {
         described: s.samples,
         titles: topCounted(titles, 3),
-        headings: topCounted(headings, 8).map((h) => ({ level: Number(h.value.split(SEP)[0]), text: h.value.split(SEP)[1], count: h.count })),
-        landmarks: topCounted(landmarks, 8).map((l) => ({ role: l.value.split(SEP)[0], label: l.value.split(SEP)[1] || undefined, count: l.count })),
+        headings: topCounted(headings, 8).map((h) => ({
+          level: Number(h.value.split(SEP)[0]),
+          text: h.value.split(SEP)[1],
+          count: h.count
+        })),
+        landmarks: topCounted(landmarks, 8).map((l) => ({
+          role: l.value.split(SEP)[0],
+          label: l.value.split(SEP)[1] || undefined,
+          count: l.count
+        })),
         controls: controls.sort((a, b) => b.count - a.count).slice(0, 12),
         formFields: topCounted(forms, 8).map((f) => {
           const [form = '', type = '', label = ''] = f.value.split(SEP);
@@ -104,7 +118,14 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
       });
       for (const [field, source] of [
         ['title', titles],
-        ['h1', Object.fromEntries(Object.entries(headings).filter(([k]) => k.startsWith(`1${SEP}`)).map(([k, v]) => [k.split(SEP)[1]!, v]))]
+        [
+          'h1',
+          Object.fromEntries(
+            Object.entries(headings)
+              .filter(([k]) => k.startsWith(`1${SEP}`))
+              .map(([k, v]) => [k.split(SEP)[1]!, v])
+          )
+        ]
       ] as const) {
         const options = topCounted(source, 5);
         if (options.length >= 2 && !findConflictDecision(decisions, 'page', key))
@@ -148,12 +169,24 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
   let gapsDecided = 0;
   const gapRows = [...gaps.values()]
     .filter((gap) => {
-      const decision = findGapDecision(decisions, { page: gap.page, role: gap.role, landmark: gap.landmark, name: '' });
+      const decision = findGapDecision(decisions, {
+        page: gap.page,
+        role: gap.role,
+        landmark: gap.landmark,
+        name: ''
+      });
       if (decision) gapsDecided += 1;
       return !decision;
     })
     .sort((a, b) => b.count - a.count)
-    .map((gap) => ({ page: gap.page, role: gap.role, landmark: gap.landmark || undefined, name: '', count: gap.count, source: gap.landmark === 'clicked' ? 'clicked controls' : 'page structure' }));
+    .map((gap) => ({
+      page: gap.page,
+      role: gap.role,
+      landmark: gap.landmark || undefined,
+      name: '',
+      count: gap.count,
+      source: gap.landmark === 'clicked' ? 'clicked controls' : 'page structure'
+    }));
 
   const described = Object.keys(sketch.structure).length;
   const sections: Digest['sections'] = {
@@ -164,7 +197,12 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
       .sort((a, b) => b[1] - a[1])
       .map(([raw, count]) => {
         const [source, medium, campaign] = raw.split(SEP);
-        return { source: source || undefined, medium: medium || undefined, campaign: campaign || undefined, count };
+        return {
+          source: source || undefined,
+          medium: medium || undefined,
+          campaign: campaign || undefined,
+          count
+        };
       }),
     referrers: topCounted(sketch.referrers, 50).map((r) => ({ origin: r.value, count: r.count })),
     transitions: Object.entries(sketch.transitions)
@@ -188,7 +226,8 @@ export function buildDigest(sketch: Sketch, options: DigestOptions): Digest {
       pagesDescribed: described,
       controlsSeen,
       unlabeledControls: unlabeled,
-      labelCoverage: controlsSeen > 0 ? Math.round((1 - unlabeled / controlsSeen) * 1000) / 1000 : null,
+      labelCoverage:
+        controlsSeen > 0 ? Math.round((1 - unlabeled / controlsSeen) * 1000) / 1000 : null,
       rareLabelsDropped: dropped,
       gapsDecided,
       conflictsDecided: decisions.filter((d) => d.type === 'conflict').length,
@@ -211,7 +250,11 @@ export type FunnelStepInput =
   | { kind: 'event'; name: string };
 
 const tokenOf = (step: FunnelStepInput): string =>
-  step.kind === 'page' ? `p:${step.key}` : step.kind === 'event' ? `e:${step.name}` : `a:${step.page}${SEP}${step.name}`;
+  step.kind === 'page'
+    ? `p:${step.key}`
+    : step.kind === 'event'
+      ? `e:${step.name}`
+      : `a:${step.page}${SEP}${step.name}`;
 
 /** How many sampled sessions reached each step in order (a step may be preceded by others). */
 export function evaluateFunnel(sketch: Sketch, steps: FunnelStepInput[]): number[] {

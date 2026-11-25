@@ -43,7 +43,11 @@ describe('collectStructure', () => {
       { level: 2, text: 'Compare' }
     ]);
     expect(structure.landmarks).toEqual(
-      expect.arrayContaining([{ role: 'navigation', label: 'Main' }, { role: 'main' }, { role: 'banner' }])
+      expect.arrayContaining([
+        { role: 'navigation', label: 'Main' },
+        { role: 'main' },
+        { role: 'banner' }
+      ])
     );
     expect(structure.controls).toEqual(
       expect.arrayContaining([
@@ -56,11 +60,23 @@ describe('collectStructure', () => {
     expect(structure.forms).toEqual([
       {
         name: 'Contact',
-        fields: [{ type: 'email', label: 'Work email' }, { type: 'password' }, { type: 'textarea', label: 'Message' }]
+        fields: [
+          { type: 'email', label: 'Work email' },
+          { type: 'password' },
+          { type: 'textarea', label: 'Message' }
+        ]
       }
     ]);
     const text = JSON.stringify(structure);
-    for (const secret of ['jane@example.com', 'you@corp.com', 'hunter2', 'secret text', 'Welcome back', 'Hidden', 'tok'])
+    for (const secret of [
+      'jane@example.com',
+      'you@corp.com',
+      'hunter2',
+      'secret text',
+      'Welcome back',
+      'Hidden',
+      'tok'
+    ])
       expect(text).not.toContain(secret);
   });
 });
@@ -75,11 +91,19 @@ describe('learning window', () => {
     expect(learnWindowOpen(inside, { start: 'x', end: 'y' })).toBe(false);
   });
 
-  async function run(learn: Parameters<typeof init>[0]['learn'], consentState?: 'analytics-denied') {
+  async function run(
+    learn: Parameters<typeof init>[0]['learn'],
+    consentState?: 'analytics-denied'
+  ) {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-12-02T10:00:00Z'));
     const captured = captureFetch();
-    const client = init({ endpoint, sourceKey: 'k', ...(consentState ? { consentState } : {}), learn });
+    const client = init({
+      endpoint,
+      sourceKey: 'k',
+      ...(consentState ? { consentState } : {}),
+      learn
+    });
     await vi.advanceTimersByTimeAsync(2000);
     const types = captured.events().map((event) => event.type);
     client.stop();
@@ -94,7 +118,12 @@ describe('learning window', () => {
   it('sends nothing without a window, outside it, unsampled, or with consent denied', async () => {
     const none = 'com.vizoalica.page_structure.v1';
     expect(await run(undefined)).not.toContain(none);
-    expect(await run({ window: { start: '2026-01-01T00:00:00Z', end: '2026-01-10T00:00:00Z' }, sampleRate: 1 })).not.toContain(none);
+    expect(
+      await run({
+        window: { start: '2026-01-01T00:00:00Z', end: '2026-01-10T00:00:00Z' },
+        sampleRate: 1
+      })
+    ).not.toContain(none);
     expect(await run({ window: WINDOW, sampleRate: 0 })).not.toContain(none);
     expect(await run({ window: WINDOW, sampleRate: 1 }, 'analytics-denied')).not.toContain(none);
   });

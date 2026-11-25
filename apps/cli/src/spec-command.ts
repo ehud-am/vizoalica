@@ -1,12 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import {
   VaultError,
@@ -78,8 +71,7 @@ const BOOLEAN_FLAGS = new Set(['--yes', '--no-git', '--check', '--force']);
 const BASE_FILE = '.vizoalica-base.json';
 
 type Parsed =
-  | { positional: string[]; flags: Map<string, string>; bool: Set<string> }
-  | { error: string };
+  { positional: string[]; flags: Map<string, string>; bool: Set<string> } | { error: string };
 
 function parse(args: readonly string[]): Parsed {
   const positional: string[] = [];
@@ -102,7 +94,11 @@ function parse(args: readonly string[]): Parsed {
 class Refusal extends Error {}
 
 function explain(error: unknown, environment: string): string {
-  if (error instanceof Refusal || error instanceof EnvironmentProblem || error instanceof VaultError)
+  if (
+    error instanceof Refusal ||
+    error instanceof EnvironmentProblem ||
+    error instanceof VaultError
+  )
     return error.message;
   const code = error instanceof Error ? error.message : '';
   if (code === 'access_revoked')
@@ -126,7 +122,11 @@ type StoredSpec = {
 };
 
 const slug = (name: string): string =>
-  name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'website';
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'website';
 
 function insideGit(start: string): boolean {
   let dir = resolve(start);
@@ -222,7 +222,12 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
         return 0;
       }
       if (bool.has('--check') && mdIsStale(spec, files)) {
-        deps.err(`${ONTOLOGY_FILE} is out of date. Run: vizoalica spec render ${positional[0] ?? ''}\n`.replace(/ \n$/, '\n'));
+        deps.err(
+          `${ONTOLOGY_FILE} is out of date. Run: vizoalica spec render ${positional[0] ?? ''}\n`.replace(
+            / \n$/,
+            '\n'
+          )
+        );
         return 1;
       }
       deps.out(
@@ -253,7 +258,15 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
         `Name the website with --website. Available: ${found.websites.map((item) => item.name).join(', ') || 'none yet'}.`
       );
     const base = `/v1/admin/projects/${encodeURIComponent(found.project.id)}/sources/${encodeURIComponent(site.id)}`;
-    const ctx: Ctx = { client, deps, environment: ref.name, project: found.project.name, website: site.name, base, cwd };
+    const ctx: Ctx = {
+      client,
+      deps,
+      environment: ref.name,
+      project: found.project.name,
+      website: site.name,
+      base,
+      cwd
+    };
     const folderArg = needsFile ? undefined : positional[1];
     switch (sub) {
       case 'init':
@@ -261,7 +274,10 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
       case 'diff':
         return await apply(ctx, findFolder(folderArg, cwd), { dryRun: true, yes: false });
       case 'apply':
-        return await apply(ctx, findFolder(folderArg, cwd), { dryRun: false, yes: bool.has('--yes') });
+        return await apply(ctx, findFolder(folderArg, cwd), {
+          dryRun: false,
+          yes: bool.has('--yes')
+        });
       case 'pull':
         return await pull(ctx, folderArg ?? defaultFolder(cwd, site.name), bool.has('--force'));
       case 'export':
@@ -292,30 +308,49 @@ async function fetchStored(ctx: Ctx): Promise<{ stored: StoredSpec; spec: SiteSp
   const stored = (await workerJson(ctx.client, `${ctx.base}/spec`)) as StoredSpec;
   if (!stored.version) return { stored, spec: undefined };
   const parsed = parseSiteSpec(stored.spec);
-  if (!parsed.ok) throw new Refusal('The spec stored on the backend is not valid for this version of Vizoalica.');
+  if (!parsed.ok)
+    throw new Refusal('The spec stored on the backend is not valid for this version of Vizoalica.');
   return { stored, spec: parsed.spec };
 }
 
 function metaFor(ctx: Ctx, store: 'git' | 'backend'): SiteSpec['meta'] {
-  return { version: 1, store, environment: ctx.environment, project: ctx.project, website: ctx.website };
+  return {
+    version: 1,
+    store,
+    environment: ctx.environment,
+    project: ctx.project,
+    website: ctx.website
+  };
 }
 
 async function init(ctx: Ctx, dir: string | undefined, bool: Set<string>): Promise<number> {
   const { deps } = ctx;
   const folder = dir ? resolve(ctx.cwd, dir) : defaultFolder(ctx.cwd, ctx.website);
   if (existsSync(join(folder, 'spec.json'))) throw new Refusal(`${folder} already holds a spec.`);
-  const store: 'git' | 'backend' = bool.has('--no-git') ? 'backend' : insideGit(folder) || insideGit(ctx.cwd) ? 'git' : 'backend';
+  const store: 'git' | 'backend' = bool.has('--no-git')
+    ? 'backend'
+    : insideGit(folder) || insideGit(ctx.cwd)
+      ? 'git'
+      : 'backend';
   const { stored, spec } = await fetchStored(ctx);
-  const start = spec ? { ...spec, meta: { ...spec.meta, ...metaFor(ctx, store) } } : emptySpec(metaFor(ctx, store));
+  const start = spec
+    ? { ...spec, meta: { ...spec.meta, ...metaFor(ctx, store) } }
+    : emptySpec(metaFor(ctx, store));
   writeFolder(folder, {
     ...specToFiles(start),
     [ONTOLOGY_FILE]: renderOntology(start),
     '.gitignore': `${BASE_FILE}\n`,
-    ...(stored.version ? { [BASE_FILE]: `${JSON.stringify({ version: stored.version, contentHash: stored.contentHash })}\n` } : {})
+    ...(stored.version
+      ? {
+          [BASE_FILE]: `${JSON.stringify({ version: stored.version, contentHash: stored.contentHash })}\n`
+        }
+      : {})
   });
   deps.out(
     `Created ${folder} (${store === 'git' ? 'git: commit this folder; it is the source of truth' : 'no git: the backend holds the only copy'}).\n${
-      spec ? 'It starts from the spec already on the backend.\n' : 'It is empty. Ask your assistant to run /vizoalica learn.\n'
+      spec
+        ? 'It starts from the spec already on the backend.\n'
+        : 'It is empty. Ask your assistant to run /vizoalica learn.\n'
     }`
   );
   return 0;
@@ -323,9 +358,14 @@ async function init(ctx: Ctx, dir: string | undefined, bool: Set<string>): Promi
 
 async function pull(ctx: Ctx, folder: string, force: boolean): Promise<number> {
   const { stored, spec } = await fetchStored(ctx);
-  if (!spec) throw new Refusal(`There is no spec on ${ctx.environment} / ${ctx.website} yet. Create one with: vizoalica spec init ${ctx.environment}`);
+  if (!spec)
+    throw new Refusal(
+      `There is no spec on ${ctx.environment} / ${ctx.website} yet. Create one with: vizoalica spec init ${ctx.environment}`
+    );
   if (existsSync(join(folder, 'spec.json')) && !force)
-    throw new Refusal(`${folder} already holds a spec. Use --force to replace its files with the backend copy.`);
+    throw new Refusal(
+      `${folder} already holds a spec. Use --force to replace its files with the backend copy.`
+    );
   const store = spec.meta.store ?? 'backend';
   const files = specToFiles({ ...spec, meta: { ...spec.meta, store } });
   writeFolder(folder, {
@@ -334,7 +374,9 @@ async function pull(ctx: Ctx, folder: string, force: boolean): Promise<number> {
     '.gitignore': `${BASE_FILE}\n`,
     [BASE_FILE]: `${JSON.stringify({ version: stored.version, contentHash: stored.contentHash })}\n`
   });
-  ctx.deps.out(`Pulled version ${stored.version} of ${ctx.environment} / ${ctx.website} into ${folder}.\n`);
+  ctx.deps.out(
+    `Pulled version ${stored.version} of ${ctx.environment} / ${ctx.website} into ${folder}.\n`
+  );
   return 0;
 }
 
@@ -355,7 +397,9 @@ async function putSpec(
     );
   if (response.status === 400) {
     const body = (await response.json().catch(() => ({}))) as { errors?: string[] };
-    throw new Refusal(`The backend refused the spec:\n${(body.errors ?? []).map((line) => `  ${line}`).join('\n')}`);
+    throw new Refusal(
+      `The backend refused the spec:\n${(body.errors ?? []).map((line) => `  ${line}`).join('\n')}`
+    );
   }
   if (response.status === 401 || response.status === 403) throw new Error('access_revoked');
   if (response.status === 404) throw new Error('not_found');
@@ -364,7 +408,11 @@ async function putSpec(
   return (await response.json()) as { version: number; contentHash: string };
 }
 
-async function apply(ctx: Ctx, folder: string, mode: { dryRun: boolean; yes: boolean }): Promise<number> {
+async function apply(
+  ctx: Ctx,
+  folder: string,
+  mode: { dryRun: boolean; yes: boolean }
+): Promise<number> {
   const { deps } = ctx;
   const { spec, files } = loadFolder(folder);
   if (spec.meta.environment && spec.meta.environment !== ctx.environment)
@@ -378,7 +426,10 @@ async function apply(ctx: Ctx, folder: string, mode: { dryRun: boolean; yes: boo
   const { mapping, problems } = specToMapping(spec);
   const range = resolveRange({ preset: 'last_30_days' }, (deps.now ?? (() => new Date()))());
   const query = new URLSearchParams({ start: range.startUtc, end: range.endUtc });
-  const inventory = (await workerJson(ctx.client, `${ctx.base}/inventory?${query.toString()}`)) as SetupInventory;
+  const inventory = (await workerJson(
+    ctx.client,
+    `${ctx.base}/inventory?${query.toString()}`
+  )) as SetupInventory;
   const plan = planMapping(inventory, mapping);
   deps.out(
     `Environment: ${ctx.environment}\nWebsite: ${ctx.website} (project ${ctx.project})\nBackend spec: ${stored.version ? `version ${stored.version}` : 'none yet'}\n\nSpec changes:\n${describeDiff(diffs)}\n\nReports:\n${describePlan(plan)}\n`
@@ -434,7 +485,10 @@ async function apply(ctx: Ctx, folder: string, mode: { dryRun: boolean; yes: boo
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ labels: plan.result.labels })
     });
-  writeFileSync(join(folder, BASE_FILE), `${JSON.stringify({ version: saved.version, contentHash: saved.contentHash })}\n`);
+  writeFileSync(
+    join(folder, BASE_FILE),
+    `${JSON.stringify({ version: saved.version, contentHash: saved.contentHash })}\n`
+  );
   deps.out(
     `Applied to ${ctx.environment} / ${ctx.website}: spec version ${saved.version}, ${plan.labels.add.length + plan.labels.change.length} names, ${plan.rules.add.length} rules, ${plan.goals.add.length} goals.\n`
   );
@@ -445,7 +499,8 @@ const BACKUP_KIND = 'vizoalica-spec-backup';
 
 async function exportBackup(ctx: Ctx, out: string | undefined): Promise<number> {
   const { stored, spec } = await fetchStored(ctx);
-  if (!spec) throw new Refusal(`There is no spec on ${ctx.environment} / ${ctx.website} to back up.`);
+  if (!spec)
+    throw new Refusal(`There is no spec on ${ctx.environment} / ${ctx.website} to back up.`);
   const text = `${JSON.stringify(
     {
       kind: BACKUP_KIND,
@@ -468,7 +523,9 @@ async function exportBackup(ctx: Ctx, out: string | undefined): Promise<number> 
   const path = resolve(ctx.cwd, out);
   if (existsSync(path)) throw new Refusal(`${path} already exists; choose another file name.`);
   writeFileSync(path, text, { mode: 0o600 });
-  ctx.deps.out(`Wrote ${path}: version ${stored.version} of ${ctx.environment} / ${ctx.website}.\n`);
+  ctx.deps.out(
+    `Wrote ${path}: version ${stored.version} of ${ctx.environment} / ${ctx.website}.\n`
+  );
   return 0;
 }
 
@@ -485,7 +542,9 @@ async function importBackup(ctx: Ctx, file: string, yes: boolean): Promise<numbe
     throw new Refusal(`${file} is not a Vizoalica spec backup.`);
   const parsed = parseSiteSpec(backup.spec);
   if (!parsed.ok)
-    throw new Refusal(`The backup is not a valid spec:\n${parsed.errors.map((line) => `  ${line}`).join('\n')}`);
+    throw new Refusal(
+      `The backup is not a valid spec:\n${parsed.errors.map((line) => `  ${line}`).join('\n')}`
+    );
   const { stored, spec: current } = await fetchStored(ctx);
   deps.out(
     `Environment: ${ctx.environment}\nWebsite: ${ctx.website} (project ${ctx.project})\nBackup is of website "${String(backup.website ?? 'unknown')}".\nBackend spec: ${stored.version ? `version ${stored.version}` : 'none yet'}\n\nWhat the restore changes on the backend spec:\n${describeDiff(diffSpecs(current, parsed.spec))}\n`
@@ -499,7 +558,9 @@ async function importBackup(ctx: Ctx, file: string, yes: boolean): Promise<numbe
       deps.out('Nothing was changed. Run again with --yes to restore.\n');
       return 0;
     }
-    const answer = await deps.ask(`Replace the spec of ${ctx.environment} / ${ctx.website} with this backup? [y/N] `);
+    const answer = await deps.ask(
+      `Replace the spec of ${ctx.environment} / ${ctx.website} with this backup? [y/N] `
+    );
     if (!/^y(es)?$/i.test(answer.trim())) {
       deps.out('Nothing changed.\n');
       return 0;

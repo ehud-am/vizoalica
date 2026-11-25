@@ -35,25 +35,25 @@ create, change, deploy, rotate, or delete anything yourself. The only things you
 If these tools are missing, the user can add them with `vizoalica mcp install --client <client>`
 (clients: claude-code, claude-desktop, codex, cursor) and restart the client.
 
-| Tool                     | Use it for                                                                                                                        |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `list_environments`      | Which environments exist, which work and why not, which one this session uses. Start here when unsure.                            |
-| `use_environment`        | Switch this session's default environment (does not affect the console).                                                          |
-| `get_environment_status` | Backend health: role, Worker and database versions vs this package, database/storage health, whether an update is needed.         |
-| `list_websites`          | Projects and websites (names, ids, allowed addresses, status).                                                                    |
-| `get_website_status`     | Is a website set up and sending data? Backend status plus a live check of the site's Vizoalica files.                             |
-| `get_traffic_overview`   | Page views, unique visitors, trend, top pages, referrers, countries, browsers, OS, devices, bot vs human.                         |
-| `compare_periods`        | This period vs the previous one (or any two periods): totals and pages that changed most.                                         |
-| `get_actions`            | Clicks on buttons and links: which, on which page, how often, by how many visitors.                                               |
-| `get_custom_events`      | Events the site sends with `track()`: count, visitors, trend, top pages; name one `event` for its property values.                |
-| `get_campaigns`          | Which tagged links (UTM source, medium, campaign) brought visitors: page views, visitors, trend, top combinations.                |
-| `get_rage_clicks`        | Buttons and links clicked repeatedly (3+ clicks within a second): bursts per control and page, clicks, trend.                     |
-| `get_goals`              | Conversions of a website's goals (page view, click, event): conversions, visitors, rate, trend. Needs one website.                |
+| Tool                     | Use it for                                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_environments`      | Which environments exist, which work and why not, which one this session uses. Start here when unsure.                                                     |
+| `use_environment`        | Switch this session's default environment (does not affect the console).                                                                                   |
+| `get_environment_status` | Backend health: role, Worker and database versions vs this package, database/storage health, whether an update is needed.                                  |
+| `list_websites`          | Projects and websites (names, ids, allowed addresses, status).                                                                                             |
+| `get_website_status`     | Is a website set up and sending data? Backend status plus a live check of the site's Vizoalica files.                                                      |
+| `get_traffic_overview`   | Page views, unique visitors, trend, top pages, referrers, countries, browsers, OS, devices, bot vs human.                                                  |
+| `compare_periods`        | This period vs the previous one (or any two periods): totals and pages that changed most.                                                                  |
+| `get_actions`            | Clicks on buttons and links: which, on which page, how often, by how many visitors.                                                                        |
+| `get_custom_events`      | Events the site sends with `track()`: count, visitors, trend, top pages; name one `event` for its property values.                                         |
+| `get_campaigns`          | Which tagged links (UTM source, medium, campaign) brought visitors: page views, visitors, trend, top combinations.                                         |
+| `get_rage_clicks`        | Buttons and links clicked repeatedly (3+ clicks within a second): bursts per control and page, clicks, trend.                                              |
+| `get_goals`              | Conversions of a website's goals (page view, click, event): conversions, visitors, rate, trend. Needs one website.                                         |
 | `learn_start`            | Summarise the newest raw events of a website (depth in thousands) into a digest kept on this computer. Returns a run id and data quality.                  |
 | `learn_get`              | Read a section of the digest: pages, actions, events, campaigns, referrers, transitions, journeys, gaps, conflicts. Pass `spec_dir` to skip decided items. |
 | `check_funnel`           | Step counts of a proposed funnel over the sampled page loads.                                                                                              |
 | `get_spec`               | The latest spec stored on the backend (version, hash, git commit, spec, decisions, markdown).                                                              |
-| `get_inventory`          | What one website collected (page keys, actions, events, referrers, with counts) and its names, rules and goals. For guided setup. |
+| `get_inventory`          | What one website collected (page keys, actions, events, referrers, with counts) and its names, rules and goals. For guided setup.                          |
 
 Every analytics tool takes `environment` (optional), `project` and `website` (name or id; `project` may be
 omitted when there is only one, `website` omitted for the whole project), and either `preset`

@@ -94,7 +94,10 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
       if (typeof referrer === 'string') bump(sketch.referrers, referrer);
       const campaign = data.campaign;
       if (campaign)
-        bump(sketch.campaigns, [campaign.source ?? '', campaign.medium ?? '', campaign.campaign ?? ''].join(SEP));
+        bump(
+          sketch.campaigns,
+          [campaign.source ?? '', campaign.medium ?? '', campaign.campaign ?? ''].join(SEP)
+        );
     } else if (event.type === 'com.vizoalica.action.v1') {
       if (data.action?.rage) continue;
       const page = String(data.page?.url_path ?? '');
@@ -123,8 +126,10 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
       const structure = data.structure ?? {};
       s.samples += 1;
       if (structure.title) bump(s.titles, String(structure.title));
-      for (const heading of structure.headings ?? []) bump(s.headings, `${heading.level}${SEP}${heading.text}`);
-      for (const landmark of structure.landmarks ?? []) bump(s.landmarks, `${landmark.role}${SEP}${landmark.label ?? ''}`);
+      for (const heading of structure.headings ?? [])
+        bump(s.headings, `${heading.level}${SEP}${heading.text}`);
+      for (const landmark of structure.landmarks ?? [])
+        bump(s.landmarks, `${landmark.role}${SEP}${landmark.label ?? ''}`);
       for (const control of structure.controls ?? [])
         bump(s.controls, [control.role, control.landmark ?? '', control.name ?? ''].join(SEP));
       for (const form of structure.forms ?? [])
@@ -143,7 +148,8 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
       if (tokens[tokens.length - 1] === step.token) continue;
       tokens.push(step.token);
       if (step.page !== undefined) {
-        if (lastPage !== undefined && lastPage !== step.page) bump(sketch.transitions, `${lastPage}${SEP}${step.page}`);
+        if (lastPage !== undefined && lastPage !== step.page)
+          bump(sketch.transitions, `${lastPage}${SEP}${step.page}`);
         lastPage = step.page;
       }
     }
@@ -154,7 +160,11 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
   return trimSketch(sketch);
 }
 
-const top = <T>(map: Record<string, T>, cap: number, weight: (value: T) => number): Record<string, T> =>
+const top = <T>(
+  map: Record<string, T>,
+  cap: number,
+  weight: (value: T) => number
+): Record<string, T> =>
   Object.fromEntries(
     Object.entries(map)
       .sort((a, b) => weight(b[1]) - weight(a[1]) || (a[0] < b[0] ? -1 : 1))

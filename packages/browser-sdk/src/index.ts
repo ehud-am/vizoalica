@@ -78,7 +78,9 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
     const isRage = (event: VizoalicaEvent) =>
       event.type === ACTION_EVENT && (event.data as ActionData).action.rage === true;
     // Page structure is its own batch too: a backend that predates it rejects it outright.
-    await send(events.filter((event) => event.type !== ACTION_EVENT && event.type !== STRUCTURE_EVENT));
+    await send(
+      events.filter((event) => event.type !== ACTION_EVENT && event.type !== STRUCTURE_EVENT)
+    );
     await send(events.filter((event) => event.type === STRUCTURE_EVENT));
     await send(events.filter((event) => event.type === ACTION_EVENT && !isRage(event)));
     await send(events.filter(isRage));
@@ -88,7 +90,10 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
   // small sample of page loads, once per page key, and at most a few a minute.
   const learnWindow = config.learn?.window;
   const served = (globalThis as { __vizoalicaLearn?: { rate?: unknown } }).__vizoalicaLearn;
-  const servedRate = typeof served?.rate === 'number' && served.rate > 0 && served.rate <= 1 ? served.rate : undefined;
+  const servedRate =
+    typeof served?.rate === 'number' && served.rate > 0 && served.rate <= 1
+      ? served.rate
+      : undefined;
   const sampled =
     config.consentState !== 'analytics-denied' &&
     Math.random() < (config.learn?.sampleRate ?? servedRate ?? STRUCTURE_SAMPLE_RATE);

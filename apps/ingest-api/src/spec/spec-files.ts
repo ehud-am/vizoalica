@@ -81,7 +81,12 @@ export function filesToSpec(files: Record<string, string | undefined>): SpecResu
 
 // ---------------------------------------------------------------- diff
 
-export type SectionDiff = { section: string; added: string[]; changed: string[]; removed: string[] };
+export type SectionDiff = {
+  section: string;
+  added: string[];
+  changed: string[];
+  removed: string[];
+};
 
 function keyed(spec: SiteSpec, section: string): Map<string, unknown> {
   const map = new Map<string, unknown>();
@@ -111,7 +116,12 @@ function keyed(spec: SiteSpec, section: string): Map<string, unknown> {
 export function diffSpecs(current: SiteSpec | undefined, next: SiteSpec): SectionDiff[] {
   const base = current ?? emptySpec();
   const out: SectionDiff[] = [];
-  for (const section of [...['pages', 'actions', 'events', 'groups', 'campaigns', 'funnels'], 'paths', 'goals', 'decisions']) {
+  for (const section of [
+    ...['pages', 'actions', 'events', 'groups', 'campaigns', 'funnels'],
+    'paths',
+    'goals',
+    'decisions'
+  ]) {
     const before = keyed(base, section);
     const after = keyed(next, section);
     const diff: SectionDiff = { section, added: [], changed: [], removed: [] };
@@ -127,14 +137,21 @@ export function diffSpecs(current: SiteSpec | undefined, next: SiteSpec): Sectio
 
 export function describeDiff(diffs: SectionDiff[]): string {
   if (diffs.length === 0) return 'No changes.';
-  const show = (items: string[]) => (items.length > 8 ? `${items.slice(0, 8).join(', ')} and ${items.length - 8} more` : items.join(', '));
+  const show = (items: string[]) =>
+    items.length > 8
+      ? `${items.slice(0, 8).join(', ')} and ${items.length - 8} more`
+      : items.join(', ');
   return diffs
     .map((diff) =>
       [
         `${diff.section}:`,
         ...(diff.added.length ? [`  + ${diff.added.length} added: ${show(diff.added)}`] : []),
-        ...(diff.changed.length ? [`  ~ ${diff.changed.length} changed: ${show(diff.changed)}`] : []),
-        ...(diff.removed.length ? [`  - ${diff.removed.length} removed: ${show(diff.removed)}`] : [])
+        ...(diff.changed.length
+          ? [`  ~ ${diff.changed.length} changed: ${show(diff.changed)}`]
+          : []),
+        ...(diff.removed.length
+          ? [`  - ${diff.removed.length} removed: ${show(diff.removed)}`]
+          : [])
       ].join('\n')
     )
     .join('\n');
@@ -168,7 +185,10 @@ export function renderOntology(spec: SiteSpec): string {
   const actionName = new Map(spec.actions.map((action) => [action.id, action.name]));
   const eventName = new Map(spec.events.map((event) => [event.id, event.name]));
   const flag = (item: { confidence?: string; status?: string }) =>
-    [item.status === 'deprecated' ? 'deprecated' : '', item.confidence && item.confidence !== 'high' ? `${item.confidence} confidence` : '']
+    [
+      item.status === 'deprecated' ? 'deprecated' : '',
+      item.confidence && item.confidence !== 'high' ? `${item.confidence} confidence` : ''
+    ]
       .filter(Boolean)
       .join(', ');
 
@@ -180,7 +200,12 @@ export function renderOntology(spec: SiteSpec): string {
       grouped.set(name, [...(grouped.get(name) ?? []), page]);
     }
     for (const name of [...grouped.keys()].sort()) {
-      lines.push(`### ${name}`, '', '| Page | Match | Purpose | Notes |', '| --- | --- | --- | --- |');
+      lines.push(
+        `### ${name}`,
+        '',
+        '| Page | Match | Purpose | Notes |',
+        '| --- | --- | --- | --- |'
+      );
       for (const page of grouped.get(name)!)
         lines.push(
           `| ${cell(page.name)} (\`${page.id}\`) | ${page.match.map((m) => `\`${m}\``).join(', ')}${page.key ? ` → \`${page.key}\`` : ''} | ${cell(page.purpose)} | ${cell([page.type, flag(page)].filter(Boolean).join('; '))} |`
@@ -191,7 +216,10 @@ export function renderOntology(spec: SiteSpec): string {
 
   lines.push(`## Actions (${spec.actions.length})`, '');
   if (spec.actions.length) {
-    lines.push('| Action | Page | Control label | Role | Landmark | Notes |', '| --- | --- | --- | --- | --- | --- |');
+    lines.push(
+      '| Action | Page | Control label | Role | Landmark | Notes |',
+      '| --- | --- | --- | --- | --- | --- |'
+    );
     for (const action of byId(spec.actions))
       lines.push(
         `| ${cell(action.name)} (\`${action.id}\`) | ${action.page === '*' ? 'any' : cell(pageName.get(action.page) ?? action.page)} | ${cell(action.label)} | ${cell(action.role)} | ${cell(action.landmark)} | ${cell(flag(action))} |`
@@ -203,13 +231,18 @@ export function renderOntology(spec: SiteSpec): string {
   if (spec.events.length) {
     lines.push('| Event | Name | Description | Notes |', '| --- | --- | --- | --- |');
     for (const event of byId(spec.events))
-      lines.push(`| \`${event.event}\` | ${cell(event.name)} | ${cell(event.description)} | ${cell(flag(event))} |`);
+      lines.push(
+        `| \`${event.event}\` | ${cell(event.name)} | ${cell(event.description)} | ${cell(flag(event))} |`
+      );
     lines.push('');
   } else lines.push('None yet.', '');
 
   lines.push(`## Campaigns (${spec.campaigns.length})`, '');
   if (spec.campaigns.length) {
-    lines.push('| Campaign | Channel | Source aliases | Medium aliases | Campaign aliases |', '| --- | --- | --- | --- | --- |');
+    lines.push(
+      '| Campaign | Channel | Source aliases | Medium aliases | Campaign aliases |',
+      '| --- | --- | --- | --- | --- |'
+    );
     for (const campaign of byId(spec.campaigns))
       lines.push(
         `| ${cell(campaign.name)} (\`${campaign.id}\`) | ${cell(campaign.channel)} | ${cell((campaign.aliases.utm_source ?? []).join(', '))} | ${cell((campaign.aliases.utm_medium ?? []).join(', '))} | ${cell((campaign.aliases.utm_campaign ?? []).join(', '))} |`
@@ -223,7 +256,9 @@ export function renderOntology(spec: SiteSpec): string {
   if (spec.funnels.length)
     for (const funnel of byId(spec.funnels)) {
       lines.push(`### ${funnel.name} (\`${funnel.id}\`)`, '');
-      funnel.steps.forEach((step, at) => lines.push(`${at + 1}. ${step.kind}: ${stepName(step.kind, step.ref)}`));
+      funnel.steps.forEach((step, at) =>
+        lines.push(`${at + 1}. ${step.kind}: ${stepName(step.kind, step.ref)}`)
+      );
       lines.push('');
     }
   else lines.push('None yet.', '');
@@ -234,7 +269,8 @@ export function renderOntology(spec: SiteSpec): string {
       lines.push(
         `- ${anchor.name ?? anchor.id}: ${anchor.start ? `starts at ${pageName.get(anchor.start) ?? anchor.start}` : ''}${anchor.start && anchor.end ? ', ' : ''}${anchor.end ? `ends at ${pageName.get(anchor.end) ?? anchor.end}` : ''}`
       );
-    for (const item of spec.paths.collapse) lines.push(`- Collapse group: ${groupName.get(item.group) ?? item.group}`);
+    for (const item of spec.paths.collapse)
+      lines.push(`- Collapse group: ${groupName.get(item.group) ?? item.group}`);
     lines.push('');
   } else lines.push('None yet.', '');
 
@@ -246,7 +282,10 @@ export function renderOntology(spec: SiteSpec): string {
 
   lines.push(`## Decisions (${spec.decisions.length})`, '');
   if (spec.decisions.length) {
-    lines.push('| Id | Type | Decision | About | Result | Reason |', '| --- | --- | --- | --- | --- | --- |');
+    lines.push(
+      '| Id | Type | Decision | About | Result | Reason |',
+      '| --- | --- | --- | --- | --- | --- |'
+    );
     for (const decision of byId(spec.decisions)) {
       const about =
         decision.type === 'gap'
@@ -261,7 +300,10 @@ export function renderOntology(spec: SiteSpec): string {
     }
     lines.push('');
   } else lines.push('None yet.', '');
-  return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+  return `${lines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd()}\n`;
 }
 
 // ---------------------------------------------------------------- decisions
@@ -270,13 +312,24 @@ const globMatch = (pattern: string, value: string): boolean => {
   if (pattern === '*') return true;
   if (!pattern.includes('*')) return pattern === value;
   const [head, tail] = pattern.split('*', 2) as [string, string];
-  return value.startsWith(head) && value.endsWith(tail) && value.length >= head.length + tail.length;
+  return (
+    value.startsWith(head) && value.endsWith(tail) && value.length >= head.length + tail.length
+  );
 };
 
-export type GapDescriptor = { page: string; role: string; landmark: string; name: string; index?: number };
+export type GapDescriptor = {
+  page: string;
+  role: string;
+  landmark: string;
+  name: string;
+  index?: number;
+};
 
 /** The first gap decision whose selector matches the element, if any. */
-export function findGapDecision(decisions: Decision[], gap: GapDescriptor): Extract<Decision, { type: 'gap' }> | undefined {
+export function findGapDecision(
+  decisions: Decision[],
+  gap: GapDescriptor
+): Extract<Decision, { type: 'gap' }> | undefined {
   for (const decision of decisions) {
     if (decision.type !== 'gap') continue;
     const match: GapMatch = decision.match;
@@ -297,7 +350,11 @@ export function findConflictDecision(
   ref: string
 ): Extract<Decision, { type: 'conflict' }> | undefined {
   for (const decision of decisions)
-    if (decision.type === 'conflict' && decision.subject.kind === kind && decision.subject.ref === ref)
+    if (
+      decision.type === 'conflict' &&
+      decision.subject.kind === kind &&
+      decision.subject.ref === ref
+    )
       return decision;
   return undefined;
 }

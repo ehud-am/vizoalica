@@ -1388,13 +1388,33 @@ export class D1Repositories
             .prepare(
               'INSERT OR IGNORE INTO site_specs (project_id, source_id, version, content_hash, spec_json, rendered_md, git_sha, applied_at, applied_by) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)'
             )
-            .bind(projectId, sourceId, spec.contentHash, spec.specJson, spec.renderedMd, spec.gitSha, spec.appliedAt, spec.appliedBy)
+            .bind(
+              projectId,
+              sourceId,
+              spec.contentHash,
+              spec.specJson,
+              spec.renderedMd,
+              spec.gitSha,
+              spec.appliedAt,
+              spec.appliedBy
+            )
             .run()
         : await this.db
             .prepare(
               'UPDATE site_specs SET version = ?, content_hash = ?, spec_json = ?, rendered_md = ?, git_sha = ?, applied_at = ?, applied_by = ? WHERE project_id = ? AND source_id = ? AND version = ?'
             )
-            .bind(next, spec.contentHash, spec.specJson, spec.renderedMd, spec.gitSha, spec.appliedAt, spec.appliedBy, projectId, sourceId, baseVersion)
+            .bind(
+              next,
+              spec.contentHash,
+              spec.specJson,
+              spec.renderedMd,
+              spec.gitSha,
+              spec.appliedAt,
+              spec.appliedBy,
+              projectId,
+              sourceId,
+              baseVersion
+            )
             .run();
     return (result.meta?.changes ?? 0) === 1 ? next : undefined;
   }

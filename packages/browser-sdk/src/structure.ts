@@ -52,9 +52,11 @@ function landmarkRole(element: Element): string | undefined {
   const explicit = element.getAttribute('role')?.toLowerCase();
   if (explicit) return LANDMARK_ROLES.has(explicit) ? explicit : undefined;
   const tag = element.tagName.toLowerCase();
-  if (tag === 'form' || tag === 'section') return element.getAttribute('aria-label') ? (tag === 'form' ? 'form' : 'region') : undefined;
+  if (tag === 'form' || tag === 'section')
+    return element.getAttribute('aria-label') ? (tag === 'form' ? 'form' : 'region') : undefined;
   // header and footer are landmarks only outside article, section, main, aside and nav.
-  if ((tag === 'header' || tag === 'footer') && element.closest('article,section,main,aside,nav')) return undefined;
+  if ((tag === 'header' || tag === 'footer') && element.closest('article,section,main,aside,nav'))
+    return undefined;
   return LANDMARK_BY_TAG[tag];
 }
 
@@ -78,7 +80,9 @@ function fieldLabel(field: Element, doc: Document): string | undefined {
   if (aria) return aria;
   const id = field.getAttribute('id');
   if (id) {
-    const label = Array.from(doc.querySelectorAll('label')).find((item) => item.getAttribute('for') === id);
+    const label = Array.from(doc.querySelectorAll('label')).find(
+      (item) => item.getAttribute('for') === id
+    );
     if (label) return clean(label.textContent);
   }
   const wrapping = field.closest('label');
@@ -153,14 +157,19 @@ export function collectStructure(doc: Document): Structure {
       fields.push({ type: type.slice(0, 24), ...(label ? { label: label.slice(0, 60) } : {}) });
     }
     const name = labelOf(form, doc);
-    forms.push({ ...(name ? { name: name.slice(0, 60) } : {}), ...(fields.length ? { fields } : {}) });
+    forms.push({
+      ...(name ? { name: name.slice(0, 60) } : {}),
+      ...(fields.length ? { fields } : {})
+    });
   }
   if (forms.length) structure.forms = forms;
 
   structure.a11y = {
     controls: total,
     unlabeledControls: unlabeled,
-    imagesWithoutAlt: Array.from(doc.querySelectorAll('img:not([alt])')).filter((img) => !img.closest(IGNORED)).length
+    imagesWithoutAlt: Array.from(doc.querySelectorAll('img:not([alt])')).filter(
+      (img) => !img.closest(IGNORED)
+    ).length
   };
   return structure;
 }
@@ -171,7 +180,10 @@ export interface LearnWindowConfig {
 }
 
 /** Whether the Worker-provided window covers `now`. Anything unreadable means closed. */
-export function learnWindowOpen(now: number, config: unknown = (globalThis as { __vizoalicaLearn?: unknown }).__vizoalicaLearn): boolean {
+export function learnWindowOpen(
+  now: number,
+  config: unknown = (globalThis as { __vizoalicaLearn?: unknown }).__vizoalicaLearn
+): boolean {
   const window = config as Partial<LearnWindowConfig> | undefined;
   if (!window || typeof window.start !== 'string' || typeof window.end !== 'string') return false;
   const start = Date.parse(window.start);

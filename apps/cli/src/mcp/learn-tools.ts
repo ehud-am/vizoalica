@@ -3,7 +3,11 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { WorkerClient } from '../../../local-ops-api/src/remote-client/worker-client.js';
 import { workerJson } from '../../../local-ops-api/src/routes/websites.js';
-import { emptySketch, mergeSketches, type Sketch } from '../../../ingest-api/src/spec/learn-sketch.js';
+import {
+  emptySketch,
+  mergeSketches,
+  type Sketch
+} from '../../../ingest-api/src/spec/learn-sketch.js';
 import { parseSiteSpec, type Decision } from '../../../ingest-api/src/spec/site-spec.js';
 import { filesToSpec, SPEC_FILES } from '../../../ingest-api/src/spec/spec-files.js';
 
@@ -68,19 +72,24 @@ export async function collect(
 }
 
 /** The decisions in a local spec folder (read-only); undefined when there is none. */
-export function localSpec(specDir: string | undefined):
-  | { decisions: Decision[]; found: true }
-  | { found: false; problem?: string } {
+export function localSpec(
+  specDir: string | undefined
+): { decisions: Decision[]; found: true } | { found: false; problem?: string } {
   if (!specDir) return { found: false };
   const folder = resolve(specDir);
-  if (!existsSync(join(folder, 'spec.json'))) return { found: false, problem: `${folder} has no spec.json.` };
+  if (!existsSync(join(folder, 'spec.json')))
+    return { found: false, problem: `${folder} has no spec.json.` };
   const files: Record<string, string> = {};
   for (const name of SPEC_FILES) {
     const path = join(folder, name);
     if (existsSync(path)) files[name] = readFileSync(path, 'utf8');
   }
   const parsed = filesToSpec(files);
-  if (!parsed.ok) return { found: false, problem: `The spec in ${folder} is not valid: ${parsed.errors.slice(0, 5).join(' ')}` };
+  if (!parsed.ok)
+    return {
+      found: false,
+      problem: `The spec in ${folder} is not valid: ${parsed.errors.slice(0, 5).join(' ')}`
+    };
   return { decisions: parsed.spec.decisions, found: true };
 }
 

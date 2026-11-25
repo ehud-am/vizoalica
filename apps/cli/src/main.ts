@@ -56,7 +56,7 @@ export function help(): string {
     '                        health, read-only, across every environment. Run "vizoalica mcp help"',
     '  mapping export|apply  Let an AI assistant propose page names, groups and goals from collected data;',
     '                        you review the file, then apply it. Run "vizoalica mapping"',
-    '  spec <command>        Keep a website\'s spec (ontology) as versioned files: init, validate, render,',
+    "  spec <command>        Keep a website's spec (ontology) as versioned files: init, validate, render,",
     '                        diff, apply, pull, export, import. Run "vizoalica spec"',
     '  learn <command>       Open or close the learning window, in which a small share of page loads',
     '                        describe their pages for an assistant. Run "vizoalica learn"',

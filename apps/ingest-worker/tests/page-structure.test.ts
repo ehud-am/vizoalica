@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import worker from '../src/index.js';
 import type { Env, R2Bucket } from '../src/env.js';
 import { d1, freshDatabase } from './support/sqlite-d1.js';
@@ -53,13 +53,6 @@ const pageView = (id: string, path: string, who: string) =>
     visitor: { anonymous_id: who },
     session: { id: `s-${who}` }
   });
-const custom = (id: string, name: string, who: string) =>
-  event(id, 'com.vizoalica.custom_event.v1', {
-    name,
-    page: { url_path: '/pricing' },
-    visitor: { anonymous_id: who },
-    session: { id: `s-${who}` }
-  });
 const ingest = (env: Env, batch: unknown[]) =>
   worker.fetch(
     new Request('https://worker.test/v1/events:batch', {
@@ -92,9 +85,14 @@ const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 describe('page structure', () => {
   it('is dropped while no learning window is set, and the other events are kept', async () => {
     const { env, puts } = environment();
-    const response = await ingest(env, [structure('evt-struct-0001'), pageView('evt-struct-0002', '/pricing', 'a')]);
+    const response = await ingest(env, [
+      structure('evt-struct-0001'),
+      pageView('evt-struct-0002', '/pricing', 'a')
+    ]);
     expect(response.status).toBe(202);
-    const stored = puts.flatMap((put) => JSON.parse(put.value) as Array<{ event: { type: string } }>);
+    const stored = puts.flatMap(
+      (put) => JSON.parse(put.value) as Array<{ event: { type: string } }>
+    );
     expect(stored.map((item) => item.event.type)).toEqual(['com.vizoalica.page_view.v1']);
     const only = await ingest(env, [structure('evt-struct-0003')]);
     expect(only.status).toBe(202);
@@ -102,13 +100,22 @@ describe('page structure', () => {
   });
 
   it('is stored, redacted, in the raw store only, while the window is open', async () => {
-    const { env, puts, sqlite } = environment({ VIZOALICA_LEARN_START: today, VIZOALICA_LEARN_DAYS: '3' });
+    const { env, puts, sqlite } = environment({
+      VIZOALICA_LEARN_START: today,
+      VIZOALICA_LEARN_DAYS: '3'
+    });
     expect((await ingest(env, [structure('evt-struct-0004')])).status).toBe(202);
-    const stored = puts.flatMap((put) => JSON.parse(put.value) as Array<{ event: { type: string; data: any } }>);
+    const stored = puts.flatMap(
+      (put) => JSON.parse(put.value) as Array<{ event: { type: string; data: any } }>
+    );
     expect(stored).toHaveLength(1);
     expect(stored[0]!.event.data.structure.headings[0].text).toBe('Plans for [email]');
     expect(JSON.stringify(stored)).not.toContain('jane@example.com');
-    const rollups = sqlite.prepare("SELECT COUNT(*) AS n FROM dashboard_rollups WHERE event_type LIKE '%page_structure%'").get() as { n: number };
+    const rollups = sqlite
+      .prepare(
+        "SELECT COUNT(*) AS n FROM dashboard_rollups WHERE event_type LIKE '%page_structure%'"
+      )
+      .get() as { n: number };
     expect(rollups.n).toBe(0);
   });
 
@@ -118,21 +125,40 @@ describe('page structure', () => {
     expect(early.puts).toHaveLength(0);
     const open = environment({ VIZOALICA_LEARN_START: today });
     const huge = structure('evt-struct-0006', {
-      forms: Array.from({ length: 4 }, () => ({ name: 'F'.repeat(60), fields: Array.from({ length: 8 }, () => ({ type: 'text', label: 'L'.repeat(60) })) })),
+      forms: Array.from({ length: 4 }, () => ({
+        name: 'F'.repeat(60),
+        fields: Array.from({ length: 8 }, () => ({ type: 'text', label: 'L'.repeat(60) }))
+      })),
       headings: Array.from({ length: 9 }, () => ({ level: 2, text: 'H'.repeat(80) })),
-      controls: Array.from({ length: 25 }, () => ({ role: 'button', name: 'N'.repeat(80), landmark: 'navigation' }))
+      controls: Array.from({ length: 25 }, () => ({
+        role: 'button',
+        name: 'N'.repeat(80),
+        landmark: 'navigation'
+      }))
     });
     expect((await ingest(open.env, [huge])).status).toBe(400);
   });
 
   it('serves the window inside the SDK script, and nothing when none is set', async () => {
-    const withWindow = environment({ VIZOALICA_LEARN_START: today, VIZOALICA_LEARN_DAYS: '7', VIZOALICA_LEARN_SAMPLE: '25' });
-    const script = await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), withWindow.env)).text();
+    const withWindow = environment({
+      VIZOALICA_LEARN_START: today,
+      VIZOALICA_LEARN_DAYS: '7',
+      VIZOALICA_LEARN_SAMPLE: '25'
+    });
+    const script = await (
+      await worker.fetch(new Request('https://worker.test/vizoalica.js'), withWindow.env)
+    ).text();
     expect(script.startsWith('globalThis.__vizoalicaLearn={"start":"')).toBe(true);
     expect(script.split('\n')[0]).toContain('"rate":0.25');
     const plain = environment();
-    expect(await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), plain.env)).text()).not.toContain('__vizoalicaLearn={');
+    expect(
+      await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), plain.env)).text()
+    ).not.toContain('__vizoalicaLearn={');
     const invalid = environment({ VIZOALICA_LEARN_START: 'soon' });
-    expect(await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), invalid.env)).text()).not.toContain('__vizoalicaLearn={');
+    expect(
+      await (
+        await worker.fetch(new Request('https://worker.test/vizoalica.js'), invalid.env)
+      ).text()
+    ).not.toContain('__vizoalicaLearn={');
   });
 });

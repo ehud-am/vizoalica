@@ -1,5 +1,9 @@
 import { join } from 'node:path';
-import { VaultError, type FetchLike, type Vault } from '../../local-ops-api/src/environments/vault.js';
+import {
+  VaultError,
+  type FetchLike,
+  type Vault
+} from '../../local-ops-api/src/environments/vault.js';
 import { workerJson } from '../../local-ops-api/src/routes/websites.js';
 import { expectedSchemaFrom } from '../../local-ops-api/src/setup/state.js';
 import { noTrace, type Trace } from '../../local-ops-api/src/trace.js';
@@ -22,7 +26,7 @@ const USAGE = [
   '',
   'The learning window lets a small share of page loads describe their pages (headings, landmarks,',
   'control and form-field labels; never field values or body text) so an assistant can learn the',
-  'website\'s structure. It is off until you set a start date on the backend.',
+  "website's structure. It is off until you set a start date on the backend.",
   '',
   '  status <environment>                     Show whether the window is set, and when it ends.',
   '  enable <environment> [--start <YYYY-MM-DD>] [--days <1-90>] [--sample <1-100>]',
@@ -32,7 +36,9 @@ const USAGE = [
   'Guide: https://vizoalica.dev/operations/spec'
 ].join('\n');
 
-type Info = { learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number } | null };
+type Info = {
+  learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number } | null;
+};
 
 /** `vizoalica learn`: the learning window of a backend (read from the backend; set on the Worker). */
 export async function learnCommand(args: readonly string[], deps: LearnDeps): Promise<number> {
@@ -42,15 +48,24 @@ export async function learnCommand(args: readonly string[], deps: LearnDeps): Pr
     return 0;
   }
   if (!['status', 'enable', 'disable'].includes(sub) || !environment) {
-    deps.err(`${!environment && sub ? 'Name the environment.' : `Unknown command: ${sub}`}\n${USAGE}\n`);
+    deps.err(
+      `${!environment && sub ? 'Name the environment.' : `Unknown command: ${sub}`}\n${USAGE}\n`
+    );
     return 1;
   }
   const flags = new Map<string, string>();
   for (let index = 0; index < rest.length; index += 2) {
     const name = rest[index]!;
     const value = rest[index + 1];
-    if (!['--start', '--days', '--sample'].includes(name) || sub !== 'enable' || value === undefined || value.startsWith('--')) {
-      deps.err(`${name.startsWith('--') && sub === 'enable' && value === undefined ? `${name} needs a value.` : `Unexpected argument: ${name}`}\n${USAGE}\n`);
+    if (
+      !['--start', '--days', '--sample'].includes(name) ||
+      sub !== 'enable' ||
+      value === undefined ||
+      value.startsWith('--')
+    ) {
+      deps.err(
+        `${name.startsWith('--') && sub === 'enable' && value === undefined ? `${name} needs a value.` : `Unexpected argument: ${name}`}\n${USAGE}\n`
+      );
       return 1;
     }
     flags.set(name, value);
@@ -69,7 +84,10 @@ export async function learnCommand(args: readonly string[], deps: LearnDeps): Pr
     const info = (await workerJson(client, '/v1/admin/backend')) as Info;
     const learn = info.learn ?? null;
     if (sub === 'status') {
-      if (!learn) deps.out(`Environment: ${ref.name}\nThe learning window is off (no VIZOALICA_LEARN_START on the Worker). Turn it on with: vizoalica learn enable ${ref.name}\n`);
+      if (!learn)
+        deps.out(
+          `Environment: ${ref.name}\nThe learning window is off (no VIZOALICA_LEARN_START on the Worker). Turn it on with: vizoalica learn enable ${ref.name}\n`
+        );
       else {
         const open = now >= new Date(learn.startUtc) && now < new Date(learn.endUtc);
         deps.out(
@@ -109,8 +127,12 @@ export async function learnCommand(args: readonly string[], deps: LearnDeps): Pr
     );
     return 0;
   } catch (error) {
-    if (error instanceof EnvironmentProblem || error instanceof VaultError) deps.err(`${error.message}\n`);
-    else deps.err(`The backend for "${environment}" did not answer. Check it with: vizoalica env check ${environment}\n`);
+    if (error instanceof EnvironmentProblem || error instanceof VaultError)
+      deps.err(`${error.message}\n`);
+    else
+      deps.err(
+        `The backend for "${environment}" did not answer. Check it with: vizoalica env check ${environment}\n`
+      );
     return 1;
   }
 }

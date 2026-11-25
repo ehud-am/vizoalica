@@ -1,6 +1,10 @@
 import type { CloudEvent } from '@vizoalica/event-contracts';
 import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
-import { mergeSketches, sketchEvents, type Sketch } from '../../../ingest-api/src/spec/learn-sketch.js';
+import {
+  mergeSketches,
+  sketchEvents,
+  type Sketch
+} from '../../../ingest-api/src/spec/learn-sketch.js';
 import type { R2Bucket } from '../env.js';
 import { eventObjectPrefix } from './r2-event-batches.js';
 
@@ -19,7 +23,8 @@ function decode(cursor: string | undefined): Position | undefined {
   if (!cursor) return { day: 0 };
   try {
     const value = JSON.parse(atob(cursor)) as Partial<Position>;
-    if (!Number.isInteger(value.day) || value.day! < 0 || value.day! > SAMPLE_DAYS) return undefined;
+    if (!Number.isInteger(value.day) || value.day! < 0 || value.day! > SAMPLE_DAYS)
+      return undefined;
     return { day: value.day!, ...(typeof value.list === 'string' ? { list: value.list } : {}) };
   } catch {
     return undefined;
@@ -32,7 +37,9 @@ function decode(cursor: string | undefined): Position | undefined {
  * The slice holds counts only: no event ids, visitor ids or session ids.
  */
 export async function sampleEvents(
-  bucket: Pick<R2Bucket, "list"> & { get(key: string): Promise<{ text(): Promise<string> } | null> },
+  bucket: Pick<R2Bucket, 'list'> & {
+    get(key: string): Promise<{ text(): Promise<string> } | null>;
+  },
   projectId: string,
   sourceId: string,
   cursor: string | undefined,

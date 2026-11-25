@@ -18,7 +18,15 @@ const SPEC = {
   ],
   events: [{ id: 'signup', event: 'signup', name: 'Signup' }],
   funnels: [
-    { id: 'trial', name: 'Trial', steps: [{ kind: 'page', ref: 'pricing' }, { kind: 'event', ref: 'signup' }], within: 'session' }
+    {
+      id: 'trial',
+      name: 'Trial',
+      steps: [
+        { kind: 'page', ref: 'pricing' },
+        { kind: 'event', ref: 'signup' }
+      ],
+      within: 'session'
+    }
   ],
   goals: [{ name: 'Signed up', kind: 'event', target: 'signup' }]
 };
@@ -27,7 +35,9 @@ function setup(backends: Record<string, FakeBackend> = defaultBackends(), intera
   const home = tempHome();
   writePrivate(home, 'environments.json', {
     version: 1,
-    environments: { prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod } }
+    environments: {
+      prod: { url: 'https://prod.workers.test', role: 'admin', secret: SECRETS.prod }
+    }
   });
   const { fetchMock } = fakeWorkers(backends);
   const out: string[] = [];
@@ -59,7 +69,8 @@ async function folderWithSpec(t: ReturnType<typeof setup>) {
   const parsed = parseSiteSpec(SPEC);
   if (!parsed.ok) throw new Error(parsed.errors.join());
   const { specToFiles, renderOntology } = await import('../../ingest-api/src/spec/spec-files.js');
-  for (const [name, content] of Object.entries(specToFiles(parsed.spec))) writeFileSync(join(folder, name), content);
+  for (const [name, content] of Object.entries(specToFiles(parsed.spec)))
+    writeFileSync(join(folder, name), content);
   writeFileSync(join(folder, 'ONTOLOGY.md'), renderOntology(parsed.spec));
   return folder;
 }
@@ -69,7 +80,10 @@ describe('vizoalica spec', () => {
     const t = setup();
     expect(await specCommand(['init', 'prod', ...site, '--no-git'], t.deps)).toBe(0);
     const folder = join(t.cwd, 'vizoalica-spec', 'shop');
-    expect(JSON.parse(readFileSync(join(folder, 'spec.json'), 'utf8'))).toMatchObject({ store: 'backend', environment: 'prod' });
+    expect(JSON.parse(readFileSync(join(folder, 'spec.json'), 'utf8'))).toMatchObject({
+      store: 'backend',
+      environment: 'prod'
+    });
     expect(existsSync(join(folder, 'ONTOLOGY.md'))).toBe(true);
     expect(t.text()).toContain('no git');
     expect(await specCommand(['init', 'prod', ...site], t.deps)).toBe(1);
@@ -85,7 +99,10 @@ describe('vizoalica spec', () => {
     expect(t.err.join('')).toContain('out of date');
     expect(await specCommand(['render', folder], t.deps)).toBe(0);
     expect(await specCommand(['validate', folder, '--check'], t.deps)).toBe(0);
-    writeFileSync(join(folder, 'pages.json'), '[{"id":"x","match":["/x"],"name":"X","purpose":"call 555 123 4567"}]');
+    writeFileSync(
+      join(folder, 'pages.json'),
+      '[{"id":"x","match":["/x"],"name":"X","purpose":"call 555 123 4567"}]'
+    );
     expect(await specCommand(['validate', folder], t.deps)).toBe(1);
     expect(t.err.join('')).toContain('personal data');
   });
@@ -147,7 +164,10 @@ describe('vizoalica spec', () => {
     const backup = join(t.cwd, 'backup.json');
     expect(await specCommand(['export', 'prod', ...site, '--out', backup], t.deps)).toBe(0);
     expect(await specCommand(['export', 'prod', ...site, '--out', backup], t.deps)).toBe(1);
-    expect(JSON.parse(readFileSync(backup, 'utf8'))).toMatchObject({ kind: 'vizoalica-spec-backup', version: 1 });
+    expect(JSON.parse(readFileSync(backup, 'utf8'))).toMatchObject({
+      kind: 'vizoalica-spec-backup',
+      version: 1
+    });
 
     // Lose the backend copy, then restore it.
     t.backends.prod!.specStore = { version: 5, spec: { meta: { version: 1 } } };
@@ -184,7 +204,10 @@ describe('vizoalica spec', () => {
       { key: '/blog/:post', name: 'Blog post', group: '' }
     ]);
     expect(mapping.groupingRules).toEqual([{ pattern: '/blog/*', key: '/blog/:post' }]);
-    const wild = parseSiteSpec({ meta: SPEC.meta, pages: [{ id: 'blog', match: ['/blog/*'], name: 'Blog' }] });
+    const wild = parseSiteSpec({
+      meta: SPEC.meta,
+      pages: [{ id: 'blog', match: ['/blog/*'], name: 'Blog' }]
+    });
     if (!wild.ok) throw new Error('invalid');
     expect(specToMapping(wild.spec).problems[0]).toContain('no "key"');
   });

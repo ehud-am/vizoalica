@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import worker from '../src/index.js';
 import type { Env, R2Bucket } from '../src/env.js';
 import { d1, freshDatabase } from './support/sqlite-d1.js';
@@ -27,7 +27,11 @@ function environment(extra: Record<string, string> = {}) {
       const start = cursor ? Number(cursor) : 0;
       const page = keys.slice(start, start + limit);
       const more = start + limit < keys.length;
-      return { objects: page.map((key) => ({ key })), truncated: more, ...(more ? { cursor: String(start + limit) } : {}) };
+      return {
+        objects: page.map((key) => ({ key })),
+        truncated: more,
+        ...(more ? { cursor: String(start + limit) } : {})
+      };
     },
     async delete() {},
     async get(key) {
@@ -84,17 +88,31 @@ const ingest = (env: Env, batch: unknown[]) =>
     env
   );
 
-
 const admin = (env: Env, path: string, token = ADMIN) =>
-  worker.fetch(new Request(`https://worker.test${path}`, { headers: { authorization: `Bearer ${token}` } }), env);
+  worker.fetch(
+    new Request(`https://worker.test${path}`, { headers: { authorization: `Bearer ${token}` } }),
+    env
+  );
 const SAMPLE = '/v1/admin/projects/p1/sources/s1/learn/sample';
 
 describe('learn sample route', () => {
   it('summarises the newest raw batches in slices, with counts only', async () => {
     const { env } = environment();
     for (let batch = 0; batch < 5; batch += 1)
-      expect((await ingest(env, [pageView(`evt-sample-a${batch}`, '/pricing', `v${batch}`), custom(`evt-sample-b${batch}`, 'signup', `v${batch}`)])).status).toBe(202);
-    const first = (await (await admin(env, SAMPLE)).json()) as { sketch: any; objects: number; done: boolean; cursor?: string };
+      expect(
+        (
+          await ingest(env, [
+            pageView(`evt-sample-a${batch}`, '/pricing', `v${batch}`),
+            custom(`evt-sample-b${batch}`, 'signup', `v${batch}`)
+          ])
+        ).status
+      ).toBe(202);
+    const first = (await (await admin(env, SAMPLE)).json()) as {
+      sketch: any;
+      objects: number;
+      done: boolean;
+      cursor?: string;
+    };
     expect(first.done).toBe(true);
     expect(first.objects).toBe(5);
     expect(first.sketch.pages).toEqual({ '/pricing': 5 });
@@ -104,7 +122,8 @@ describe('learn sample route', () => {
 
   it('continues from a cursor and refuses a bad one', async () => {
     const { env } = environment();
-    for (let batch = 0; batch < 3; batch += 1) await ingest(env, [pageView(`evt-cursor-${batch}`, `/p${batch}`, `v${batch}`)]);
+    for (let batch = 0; batch < 3; batch += 1)
+      await ingest(env, [pageView(`evt-cursor-${batch}`, `/p${batch}`, `v${batch}`)]);
     const { sampleEvents } = await import('../src/storage/learn-sample.js');
     const bucket = env.VIZOALICA_EVENTS as any;
     const slice = await sampleEvents(bucket, 'p1', 's1', undefined, new Date(), 2);

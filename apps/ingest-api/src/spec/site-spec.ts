@@ -69,7 +69,13 @@ export type SpecPaths = {
   collapse: Array<{ group: string }>;
 };
 export type SpecGoal = { name: string; kind: EntityKind; target: string };
-export type GapMatch = { page?: string; role?: string; landmark?: string; name?: string; index?: number };
+export type GapMatch = {
+  page?: string;
+  role?: string;
+  landmark?: string;
+  name?: string;
+  index?: number;
+};
 export type Decision =
   | {
       id: string;
@@ -146,7 +152,8 @@ export function emptySpec(meta: Partial<SpecMeta> = {}): SiteSpec {
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 const IPV4 = /(?:^|[^\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d])/;
 // Compressed (contains "::") or full (eight groups) IPv6 forms; a clock time such as 10:30 is not one.
-const IPV6 = /(?:^|[^\w:])(?:(?:[0-9a-f]{1,4}:){1,7}:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?|(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|::[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})(?![\w:])/i;
+const IPV6 =
+  /(?:^|[^\w:])(?:(?:[0-9a-f]{1,4}:){1,7}:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?|(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|::[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})(?![\w:])/i;
 const LONG_DIGITS = /\d(?:[\s().-]?\d){6,}/;
 const CONTROL = /[\u0000-\u001f\u007f]/;
 
@@ -203,7 +210,9 @@ function text(
   }
   const personal = looksPersonal(value);
   if (personal) {
-    ctx.errors.push(`${where}: "${field}" looks like it holds ${personal}; personal data is not allowed in a spec.`);
+    ctx.errors.push(
+      `${where}: "${field}" looks like it holds ${personal}; personal data is not allowed in a spec.`
+    );
     return undefined;
   }
   return value;
@@ -230,7 +239,8 @@ function common(ctx: Ctx, where: string, entry: Obj): Common {
     else ctx.errors.push(`${where}: "confidence" must be high, medium or low.`);
   }
   if (entry.status !== undefined) {
-    if (typeof entry.status === 'string' && STATUS.has(entry.status)) out.status = entry.status as Status;
+    if (typeof entry.status === 'string' && STATUS.has(entry.status))
+      out.status = entry.status as Status;
     else ctx.errors.push(`${where}: "status" must be active or deprecated.`);
   }
   const evidence = text(ctx, where, 'evidence', entry.evidence, 200, false);
@@ -276,7 +286,8 @@ function matchPatterns(ctx: Ctx, where: string, value: unknown): string[] {
     if (
       segments.some(
         (segment, at) =>
-          segment.includes('*') && !(segment === '*' || (segment === '**' && at === segments.length - 1))
+          segment.includes('*') &&
+          !(segment === '*' || (segment === '**' && at === segments.length - 1))
       )
     )
       ctx.errors.push(`${where}: "${pattern}" uses a wildcard that is not a whole segment.`);
@@ -285,9 +296,40 @@ function matchPatterns(ctx: Ctx, where: string, value: unknown): string[] {
   return out;
 }
 
-const PAGE_FIELDS = ['id', 'match', 'key', 'name', 'group', 'purpose', 'type', 'confidence', 'evidence', 'status'];
-const ACTION_FIELDS = ['id', 'page', 'label', 'name', 'role', 'landmark', 'group', 'confidence', 'evidence', 'status'];
-const EVENT_FIELDS = ['id', 'event', 'name', 'description', 'group', 'confidence', 'evidence', 'status'];
+const PAGE_FIELDS = [
+  'id',
+  'match',
+  'key',
+  'name',
+  'group',
+  'purpose',
+  'type',
+  'confidence',
+  'evidence',
+  'status'
+];
+const ACTION_FIELDS = [
+  'id',
+  'page',
+  'label',
+  'name',
+  'role',
+  'landmark',
+  'group',
+  'confidence',
+  'evidence',
+  'status'
+];
+const EVENT_FIELDS = [
+  'id',
+  'event',
+  'name',
+  'description',
+  'group',
+  'confidence',
+  'evidence',
+  'status'
+];
 
 /**
  * Validates a whole spec (the merged form of the spec files). Every problem is listed with its
@@ -375,7 +417,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     const match = matchPatterns(ctx, where, entry.match);
     const page: SpecPage = { id: pid ?? '', match, name: name ?? '' };
     if (entry.key !== undefined) {
-      if (typeof entry.key === 'string' && entry.key.length <= 200 && KEY.test(entry.key)) page.key = entry.key;
+      if (typeof entry.key === 'string' && entry.key.length <= 200 && KEY.test(entry.key))
+        page.key = entry.key;
       else ctx.errors.push(`${where}: "key" must be a page key starting with "/".`);
     }
     const group = groupRef(where, entry.group);
@@ -384,7 +427,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     if (purpose) page.purpose = purpose;
     if (entry.type !== undefined) {
       if (typeof entry.type === 'string' && SCHEMA_TYPE.test(entry.type)) page.type = entry.type;
-      else ctx.errors.push(`${where}: "type" must be a schema.org type name such as CollectionPage.`);
+      else
+        ctx.errors.push(`${where}: "type" must be a schema.org type name such as CollectionPage.`);
     }
     Object.assign(page, common(ctx, where, entry));
     if (pid && name) spec.pages.push(page);
@@ -404,7 +448,12 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     const page = pageRef(where, entry.page);
     const label = text(ctx, where, 'label', entry.label, 80);
     const name = text(ctx, where, 'name', entry.name, 80);
-    const action: SpecAction = { id: aid ?? '', page: page ?? '', label: label ?? '', name: name ?? '' };
+    const action: SpecAction = {
+      id: aid ?? '',
+      page: page ?? '',
+      label: label ?? '',
+      name: name ?? ''
+    };
     if (entry.role !== undefined) {
       if (typeof entry.role === 'string' && ROLE.test(entry.role)) action.role = entry.role;
       else ctx.errors.push(`${where}: "role" must be a lowercase ARIA role name.`);
@@ -426,7 +475,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     let eventName: string | undefined;
     if (typeof entry.event === 'string' && EVENT_NAME.test(entry.event)) {
       eventName = entry.event;
-      if (eventNames.has(eventName)) ctx.errors.push(`${where}: event "${eventName}" is used twice.`);
+      if (eventNames.has(eventName))
+        ctx.errors.push(`${where}: event "${eventName}" is used twice.`);
       eventNames.add(eventName);
     } else ctx.errors.push(`${where}: "event" must be a lowercase event name with underscores.`);
     const name = text(ctx, where, 'name', entry.name, 80);
@@ -450,7 +500,11 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     if (channel) campaign.channel = channel;
     if (!isObject(entry.aliases)) ctx.errors.push(`${where}: "aliases" must be an object.`);
     else {
-      strictKeys(ctx, `${where}.aliases`, entry.aliases, ['utm_source', 'utm_medium', 'utm_campaign']);
+      strictKeys(ctx, `${where}.aliases`, entry.aliases, [
+        'utm_source',
+        'utm_medium',
+        'utm_campaign'
+      ]);
       for (const field of ['utm_source', 'utm_medium', 'utm_campaign'] as const) {
         const values = entry.aliases[field];
         if (values === undefined) continue;
@@ -467,7 +521,11 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     if (cid && name) spec.campaigns.push(campaign);
   }
 
-  const known: Record<EntityKind, Set<string>> = { page: pageIds, action: actionIds, event: eventIds };
+  const known: Record<EntityKind, Set<string>> = {
+    page: pageIds,
+    action: actionIds,
+    event: eventIds
+  };
   const funnelIds = new Set<string>();
   for (const [index, entry] of list(ctx, 'funnels', raw.funnels, LIMITS.funnels).entries()) {
     const where = `funnels[${index}]`;
@@ -477,7 +535,11 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     if (entry.within !== undefined && entry.within !== 'session')
       ctx.errors.push(`${where}: "within" must be "session".`);
     const steps: FunnelStep[] = [];
-    if (!Array.isArray(entry.steps) || entry.steps.length < 2 || entry.steps.length > LIMITS.funnelSteps)
+    if (
+      !Array.isArray(entry.steps) ||
+      entry.steps.length < 2 ||
+      entry.steps.length > LIMITS.funnelSteps
+    )
       ctx.errors.push(`${where}: "steps" must list 2 to ${LIMITS.funnelSteps} steps.`);
     else
       for (const [at, step] of entry.steps.entries()) {
@@ -496,7 +558,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
           ctx.errors.push(`${where}.steps[${at}]: ${kind} "${step.ref}" is not defined.`);
         else steps.push({ kind, ref: step.ref });
       }
-    if (fid && name && steps.length >= 2) spec.funnels.push({ id: fid, name, steps, within: 'session' });
+    if (fid && name && steps.length >= 2)
+      spec.funnels.push({ id: fid, name, steps, within: 'session' });
   }
 
   if (raw.paths !== undefined) {
@@ -504,7 +567,12 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     else {
       strictKeys(ctx, 'paths', raw.paths, ['anchors', 'collapse']);
       const anchorIds = new Set<string>();
-      for (const [index, entry] of list(ctx, 'paths.anchors', raw.paths.anchors, LIMITS.anchors).entries()) {
+      for (const [index, entry] of list(
+        ctx,
+        'paths.anchors',
+        raw.paths.anchors,
+        LIMITS.anchors
+      ).entries()) {
         const where = `paths.anchors[${index}]`;
         strictKeys(ctx, where, entry, ['id', 'name', 'start', 'end']);
         const aid = id(ctx, where, entry.id, anchorIds);
@@ -520,7 +588,12 @@ export function parseSiteSpec(raw: unknown): SpecResult {
         if (!anchor.start && !anchor.end) ctx.errors.push(`${where}: needs "start" or "end".`);
         if (aid) spec.paths.anchors.push(anchor);
       }
-      for (const [index, entry] of list(ctx, 'paths.collapse', raw.paths.collapse, LIMITS.collapse).entries()) {
+      for (const [index, entry] of list(
+        ctx,
+        'paths.collapse',
+        raw.paths.collapse,
+        LIMITS.collapse
+      ).entries()) {
         const where = `paths.collapse[${index}]`;
         strictKeys(ctx, where, entry, ['group']);
         const group = groupRef(where, entry.group);
@@ -545,17 +618,32 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     const did = id(ctx, where, entry.id, decisionIds);
     const reason = text(ctx, where, 'reason', entry.reason, 200, false);
     const decided = entry.decided === undefined ? undefined : String(entry.decided);
-    if (decided !== undefined && !DATE.test(decided)) ctx.errors.push(`${where}: "decided" must be YYYY-MM-DD.`);
+    if (decided !== undefined && !DATE.test(decided))
+      ctx.errors.push(`${where}: "decided" must be YYYY-MM-DD.`);
     const review = entry['review-after'] === undefined ? undefined : String(entry['review-after']);
-    if (review !== undefined && !DATE.test(review)) ctx.errors.push(`${where}: "review-after" must be YYYY-MM-DD.`);
+    if (review !== undefined && !DATE.test(review))
+      ctx.errors.push(`${where}: "review-after" must be YYYY-MM-DD.`);
     const tail = {
       ...(reason ? { reason } : {}),
       ...(decided ? { decided } : {}),
       ...(review ? { 'review-after': review } : {})
     };
     if (entry.type === 'gap') {
-      strictKeys(ctx, where, entry, ['id', 'type', 'decision', 'match', 'value', 'reason', 'decided', 'review-after']);
-      if (entry.decision !== 'label' && entry.decision !== 'accept' && entry.decision !== 'ignore') {
+      strictKeys(ctx, where, entry, [
+        'id',
+        'type',
+        'decision',
+        'match',
+        'value',
+        'reason',
+        'decided',
+        'review-after'
+      ]);
+      if (
+        entry.decision !== 'label' &&
+        entry.decision !== 'accept' &&
+        entry.decision !== 'ignore'
+      ) {
         ctx.errors.push(`${where}: "decision" must be label, accept or ignore.`);
         continue;
       }
@@ -583,7 +671,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
       let value: string | undefined;
       if (entry.decision === 'label') {
         value = text(ctx, where, 'value', entry.value, 80);
-      } else if (entry.value !== undefined) ctx.errors.push(`${where}: "value" is only for label decisions.`);
+      } else if (entry.value !== undefined)
+        ctx.errors.push(`${where}: "value" is only for label decisions.`);
       if (did)
         spec.decisions.push({
           id: did,
@@ -594,7 +683,17 @@ export function parseSiteSpec(raw: unknown): SpecResult {
           ...tail
         });
     } else if (entry.type === 'conflict') {
-      strictKeys(ctx, where, entry, ['id', 'type', 'decision', 'subject', 'options', 'chosen', 'reason', 'decided', 'review-after']);
+      strictKeys(ctx, where, entry, [
+        'id',
+        'type',
+        'decision',
+        'subject',
+        'options',
+        'chosen',
+        'reason',
+        'decided',
+        'review-after'
+      ]);
       if (entry.decision !== 'option' && entry.decision !== 'custom') {
         ctx.errors.push(`${where}: "decision" must be option or custom.`);
         continue;

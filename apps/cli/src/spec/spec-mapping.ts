@@ -16,7 +16,9 @@ export function specToMapping(spec: SiteSpec): { mapping: Mapping; problems: str
     const literal = page.match.find((pattern) => !pattern.includes('*'));
     const key = page.key ?? literal;
     if (!key) {
-      problems.push(`page "${page.id}" matches only wildcards and has no "key"; add a key such as "/blog/:post".`);
+      problems.push(
+        `page "${page.id}" matches only wildcards and has no "key"; add a key such as "/blog/:post".`
+      );
       continue;
     }
     if (seenKeys.has(key)) {

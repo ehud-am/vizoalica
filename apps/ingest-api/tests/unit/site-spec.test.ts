@@ -17,20 +17,74 @@ const sample = () => ({
     { id: 'conversion', name: 'Conversion' }
   ],
   pages: [
-    { id: 'pricing', match: ['/pricing'], name: 'Pricing', group: 'marketing', purpose: 'Plans', type: 'WebPage' },
-    { id: 'blog-post', match: ['/blog/*'], key: '/blog/:post', name: 'Blog post', confidence: 'medium' }
+    {
+      id: 'pricing',
+      match: ['/pricing'],
+      name: 'Pricing',
+      group: 'marketing',
+      purpose: 'Plans',
+      type: 'WebPage'
+    },
+    {
+      id: 'blog-post',
+      match: ['/blog/*'],
+      key: '/blog/:post',
+      name: 'Blog post',
+      confidence: 'medium'
+    }
   ],
-  actions: [{ id: 'start-trial', page: 'pricing', label: 'Start free trial', name: 'Start trial', role: 'button', group: 'conversion' }],
+  actions: [
+    {
+      id: 'start-trial',
+      page: 'pricing',
+      label: 'Start free trial',
+      name: 'Start trial',
+      role: 'button',
+      group: 'conversion'
+    }
+  ],
   events: [{ id: 'signup', event: 'signup', name: 'Signup' }],
-  campaigns: [{ id: 'facebook', name: 'Facebook', channel: 'paid-social', aliases: { utm_source: ['fb', 'facebook'] } }],
-  funnels: [
-    { id: 'trial', name: 'Trial', steps: [{ kind: 'page', ref: 'pricing' }, { kind: 'action', ref: 'start-trial' }, { kind: 'event', ref: 'signup' }], within: 'session' }
+  campaigns: [
+    {
+      id: 'facebook',
+      name: 'Facebook',
+      channel: 'paid-social',
+      aliases: { utm_source: ['fb', 'facebook'] }
+    }
   ],
-  paths: { anchors: [{ id: 'from-pricing', start: 'pricing' }], collapse: [{ group: 'marketing' }] },
+  funnels: [
+    {
+      id: 'trial',
+      name: 'Trial',
+      steps: [
+        { kind: 'page', ref: 'pricing' },
+        { kind: 'action', ref: 'start-trial' },
+        { kind: 'event', ref: 'signup' }
+      ],
+      within: 'session'
+    }
+  ],
+  paths: {
+    anchors: [{ id: 'from-pricing', start: 'pricing' }],
+    collapse: [{ group: 'marketing' }]
+  },
   goals: [{ name: 'Signed up', kind: 'event', target: 'signup' }],
   decisions: [
-    { id: 'd-1', type: 'gap', decision: 'ignore', match: { page: '*', role: 'button', landmark: 'banner', name: '' }, reason: 'Logo' },
-    { id: 'd-2', type: 'conflict', decision: 'option', subject: { kind: 'action', ref: 'start-trial' }, options: ['Start free trial', 'Try it free'], chosen: 'Start free trial' }
+    {
+      id: 'd-1',
+      type: 'gap',
+      decision: 'ignore',
+      match: { page: '*', role: 'button', landmark: 'banner', name: '' },
+      reason: 'Logo'
+    },
+    {
+      id: 'd-2',
+      type: 'conflict',
+      decision: 'option',
+      subject: { kind: 'action', ref: 'start-trial' },
+      options: ['Start free trial', 'Try it free'],
+      chosen: 'Start free trial'
+    }
   ]
 });
 
@@ -60,7 +114,12 @@ describe('site spec', () => {
   });
 
   it('refuses personal data anywhere in text', () => {
-    for (const value of ['mail jane@example.com', 'from 203.0.113.7', 'call 555 123 4567', 'at 2001:db8::1']) {
+    for (const value of [
+      'mail jane@example.com',
+      'from 203.0.113.7',
+      'call 555 123 4567',
+      'at 2001:db8::1'
+    ]) {
       const bad = sample() as any;
       bad.pages[0].purpose = value;
       const parsed = parseSiteSpec(bad);
@@ -101,7 +160,10 @@ describe('site spec', () => {
     const b = parseSiteSpec(changed);
     if (!a.ok || !b.ok) throw new Error('invalid');
     const diffs = diffSpecs(a.spec, b.spec);
-    expect(diffs.find((d) => d.section === 'pages')).toMatchObject({ changed: ['pricing'], removed: ['blog-post'] });
+    expect(diffs.find((d) => d.section === 'pages')).toMatchObject({
+      changed: ['pricing'],
+      removed: ['blog-post']
+    });
     expect(diffs.find((d) => d.section === 'events')?.added).toEqual(['buy']);
     expect(describeDiff(diffs)).toContain('pages:');
     expect(diffSpecs(a.spec, a.spec)).toEqual([]);
@@ -114,6 +176,8 @@ describe('site spec', () => {
     const gap = { page: 'cart', role: 'button', landmark: 'banner', name: '', index: 2 };
     expect(findGapDecision(parsed.spec.decisions, gap)?.id).toBe('d-1');
     expect(findGapDecision(parsed.spec.decisions, { ...gap, landmark: 'main' })).toBeUndefined();
-    expect(findConflictDecision(parsed.spec.decisions, 'action', 'start-trial')?.chosen).toBe('Start free trial');
+    expect(findConflictDecision(parsed.spec.decisions, 'action', 'start-trial')?.chosen).toBe(
+      'Start free trial'
+    );
   });
 });

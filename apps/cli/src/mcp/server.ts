@@ -32,13 +32,12 @@ import {
   type McpEnvironments,
   type Target
 } from './environments.js';
+import { backendSpec, collect, LearnRuns, localSpec } from './learn-tools.js';
 import {
-  backendSpec,
-  collect,
-  LearnRuns,
-  localSpec
-} from './learn-tools.js';
-import { buildDigest, evaluateFunnel, SECTION_NAMES } from '../../../ingest-api/src/spec/learn-digest.js';
+  buildDigest,
+  evaluateFunnel,
+  SECTION_NAMES
+} from '../../../ingest-api/src/spec/learn-digest.js';
 import { PRESETS, previousRange, resolveRange, type Range } from './range.js';
 
 export const SERVER_INSTRUCTIONS = `Vizoalica is self-hosted, privacy-first web analytics. These tools are read-only and return aggregates only (no visitor identifiers or raw events).
@@ -1058,31 +1057,65 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         environment: environmentArg,
         project: projectArg,
         website: websiteArg,
-        depth_k: z.number().int().min(1).max(200).optional().describe('Thousands of events to summarise; default 20.'),
-        min_sessions: z.number().int().min(1).max(50).optional().describe('Drop labels seen in fewer page loads; default 3.'),
-        run: z.string().optional().describe('A run id from an earlier learn_start, to continue it.'),
-        time_budget_seconds: z.number().int().min(5).max(300).optional().describe('Stop reading after this long; default 90.')
+        depth_k: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Thousands of events to summarise; default 20.'),
+        min_sessions: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('Drop labels seen in fewer page loads; default 3.'),
+        run: z
+          .string()
+          .optional()
+          .describe('A run id from an earlier learn_start, to continue it.'),
+        time_budget_seconds: z
+          .number()
+          .int()
+          .min(5)
+          .max(300)
+          .optional()
+          .describe('Stop reading after this long; default 90.')
       },
       annotations: READ_ONLY
     },
     ({ environment, project, website, depth_k, run: runId, time_budget_seconds }) =>
       withTarget(environment, async ({ ref, client }) => {
         let run = runId ? learnRuns.get(runId) : undefined;
-        if (runId && !run) throw new EnvironmentProblem(`There is no run "${runId}"; start a new one.`);
+        if (runId && !run)
+          throw new EnvironmentProblem(`There is no run "${runId}"; start a new one.`);
         if (run && run.environment !== ref.name)
-          throw new EnvironmentProblem(`Run ${run.id} belongs to environment "${run.environment}".`);
+          throw new EnvironmentProblem(
+            `Run ${run.id} belongs to environment "${run.environment}".`
+          );
         let found: Awaited<ReturnType<typeof siteOf>> | undefined;
         try {
           if (!run) {
             found = await siteOf(client, project, website);
-            run = learnRuns.create({ environment: ref.name, base: found.base, website: found.site.name });
+            run = learnRuns.create({
+              environment: ref.name,
+              base: found.base,
+              website: found.site.name
+            });
           }
           const depth = (depth_k ?? 20) * 1000;
-          await collect(client, run, depth, (time_budget_seconds ?? 90) * 1000, () => now().getTime());
+          await collect(client, run, depth, (time_budget_seconds ?? 90) * 1000, () =>
+            now().getTime()
+          );
         } catch (error) {
           return oldBackend(ref, error);
         }
-        const state = run.done ? 'all of the available data' : run.sketch.events >= (depth_k ?? 20) * 1000 ? 'the requested depth' : 'the time budget (continue with run)';
+        const state = run.done
+          ? 'all of the available data'
+          : run.sketch.events >= (depth_k ?? 20) * 1000
+            ? 'the requested depth'
+            : 'the time budget (continue with run)';
         return result(
           ref,
           envs.names(),
@@ -1112,8 +1145,17 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         section: z.enum(SECTION_NAMES).describe('Which section to read.'),
         offset: z.number().int().min(0).optional(),
         limit: z.number().int().min(1).max(100).optional().describe('Items per page; default 40.'),
-        min_sessions: z.number().int().min(1).max(50).optional().describe('Drop labels seen in fewer page loads; default 3.'),
-        spec_dir: z.string().optional().describe('Local spec folder whose decisions.json is applied.')
+        min_sessions: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('Drop labels seen in fewer page loads; default 3.'),
+        spec_dir: z
+          .string()
+          .optional()
+          .describe('Local spec folder whose decisions.json is applied.')
       },
       annotations: READ_ONLY
     },
@@ -1165,7 +1207,11 @@ export function createMcpServer(deps: ServerDeps): McpServer {
           .array(
             z.discriminatedUnion('kind', [
               z.object({ kind: z.literal('page'), key: z.string().max(512) }),
-              z.object({ kind: z.literal('action'), page: z.string().max(512), name: z.string().max(80) }),
+              z.object({
+                kind: z.literal('action'),
+                page: z.string().max(512),
+                name: z.string().max(80)
+              }),
               z.object({ kind: z.literal('event'), name: z.string().max(64) })
             ])
           )
@@ -1186,12 +1232,20 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         steps: steps.map((step, at) => ({
           step,
           reached: reached[at],
-          ofPrevious: at === 0 || !reached[at - 1] ? null : Math.round((reached[at]! / reached[at - 1]!) * 1000) / 1000
+          ofPrevious:
+            at === 0 || !reached[at - 1]
+              ? null
+              : Math.round((reached[at]! / reached[at - 1]!) * 1000) / 1000
         })),
         note: 'Sample of page loads, not a report. Journeys are cut at 12 steps.'
       };
       return {
-        content: [{ type: 'text' as const, text: `Environment: ${run.environment}. ${JSON.stringify(data)}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `Environment: ${run.environment}. ${JSON.stringify(data)}`
+          }
+        ],
         structuredContent: data as Record<string, unknown>
       };
     }
@@ -1216,16 +1270,26 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         try {
           const { stored, spec } = await backendSpec(client, base);
           if (!stored.version)
-            return result(ref, envs.names(), `${scopeText(found.project, site)} has no spec on the backend yet. Create one with: vizoalica spec init ${ref.name}`, { version: 0 });
-          return result(ref, envs.names(), `${scopeText(found.project, site)}: spec version ${stored.version}, applied ${stored.appliedAt ?? 'at an unknown time'}${stored.gitSha ? ` from commit ${stored.gitSha.slice(0, 10)}` : ''}.`, {
-            version: stored.version,
-            contentHash: stored.contentHash,
-            gitSha: stored.gitSha || undefined,
-            appliedAt: stored.appliedAt,
-            store: spec?.meta.store,
-            spec: stored.spec,
-            renderedMarkdown: stored.renderedMd
-          });
+            return result(
+              ref,
+              envs.names(),
+              `${scopeText(found.project, site)} has no spec on the backend yet. Create one with: vizoalica spec init ${ref.name}`,
+              { version: 0 }
+            );
+          return result(
+            ref,
+            envs.names(),
+            `${scopeText(found.project, site)}: spec version ${stored.version}, applied ${stored.appliedAt ?? 'at an unknown time'}${stored.gitSha ? ` from commit ${stored.gitSha.slice(0, 10)}` : ''}.`,
+            {
+              version: stored.version,
+              contentHash: stored.contentHash,
+              gitSha: stored.gitSha || undefined,
+              appliedAt: stored.appliedAt,
+              store: spec?.meta.store,
+              spec: stored.spec,
+              renderedMarkdown: stored.renderedMd
+            }
+          );
         } catch (error) {
           return oldBackend(ref, error);
         }

@@ -1,6 +1,6 @@
 ---
 title: 'Learn your website and keep a spec'
-description: 'Let an AI assistant learn your website''s structure and propose a versioned spec: named pages, actions, events, campaigns, funnels and paths. You review it, then apply it.'
+description: "Let an AI assistant learn your website's structure and propose a versioned spec: named pages, actions, events, campaigns, funnels and paths. You review it, then apply it."
 ---
 
 # Learn your website and keep a spec
@@ -34,19 +34,19 @@ numbers or names of people; the validator refuses them).
 
 ## The spec folder
 
-| File | Holds |
-| --- | --- |
-| `spec.json` | version, `store` (`git` or `backend`), environment, project, website |
-| `pages.json` | pages: id, path patterns, name, group, purpose, optional schema.org type |
-| `actions.json` | actions: id, page, the control's label, name, ARIA role, landmark, group |
-| `events.json` | custom events: id, event name, name, description |
-| `groups.json` | named groups the other files refer to |
-| `campaigns.json` | campaigns: UTM label aliases and a channel |
-| `funnels.json` | ordered steps (page, action or event), within a session |
-| `paths.json` | path anchors (start or end page) and groups to collapse |
-| `goals.json` | goals, as in [Goals](/operations/goals) |
-| `decisions.json` | what you decided about gaps and conflicts (see below) |
-| `ONTOLOGY.md` | the same spec in plain words, generated; do not edit |
+| File             | Holds                                                                    |
+| ---------------- | ------------------------------------------------------------------------ |
+| `spec.json`      | version, `store` (`git` or `backend`), environment, project, website     |
+| `pages.json`     | pages: id, path patterns, name, group, purpose, optional schema.org type |
+| `actions.json`   | actions: id, page, the control's label, name, ARIA role, landmark, group |
+| `events.json`    | custom events: id, event name, name, description                         |
+| `groups.json`    | named groups the other files refer to                                    |
+| `campaigns.json` | campaigns: UTM label aliases and a channel                               |
+| `funnels.json`   | ordered steps (page, action or event), within a session                  |
+| `paths.json`     | path anchors (start or end page) and groups to collapse                  |
+| `goals.json`     | goals, as in [Goals](/operations/goals)                                  |
+| `decisions.json` | what you decided about gaps and conflicts (see below)                    |
+| `ONTOLOGY.md`    | the same spec in plain words, generated; do not edit                     |
 
 The JSON files are the only source. `vizoalica spec render` writes `ONTOLOGY.md`, and
 `vizoalica spec validate --check` fails when it is out of date, so a CI check or pre-commit hook keeps the two in
@@ -54,12 +54,12 @@ sync. `spec apply` refuses a stale `ONTOLOGY.md`.
 
 ## With git and without
 
-| | With git (default inside a repository) | Without git |
-| --- | --- | --- |
-| Source of truth | the folder in your repository | the backend (latest version only) |
-| History, review, revert | git | none |
-| Working copy | the folder | `vizoalica spec pull`, edit, `spec apply` |
-| Concurrent change | warns if the backend differs | `apply` refuses if the backend changed since your pull |
+|                         | With git (default inside a repository) | Without git                                            |
+| ----------------------- | -------------------------------------- | ------------------------------------------------------ |
+| Source of truth         | the folder in your repository          | the backend (latest version only)                      |
+| History, review, revert | git                                    | none                                                   |
+| Working copy            | the folder                             | `vizoalica spec pull`, edit, `spec apply`              |
+| Concurrent change       | warns if the backend differs           | `apply` refuses if the backend changed since your pull |
 
 Either way the backend keeps the latest spec and decisions (migration 0012), which is what reports and dashboards
 read later. Back it up with `vizoalica spec export prod --out backup.json`; restore it with
@@ -86,11 +86,11 @@ consent is denied.
 Set these variables on the Worker (Cloudflare dashboard: Workers & Pages, the Worker, Settings, Variables and
 Secrets); `deploy --update` keeps them:
 
-| Variable | Meaning |
-| --- | --- |
-| `VIZOALICA_LEARN_START` | first day, UTC, `YYYY-MM-DD`; unset means off |
-| `VIZOALICA_LEARN_DAYS` | length, 1 to 90, default 14 |
-| `VIZOALICA_LEARN_SAMPLE` | percent of page loads, 1 to 100, default 10 |
+| Variable                 | Meaning                                       |
+| ------------------------ | --------------------------------------------- |
+| `VIZOALICA_LEARN_START`  | first day, UTC, `YYYY-MM-DD`; unset means off |
+| `VIZOALICA_LEARN_DAYS`   | length, 1 to 90, default 14                   |
+| `VIZOALICA_LEARN_SAMPLE` | percent of page loads, 1 to 100, default 10   |
 
 The Worker puts the window into the script it serves (`/vizoalica.js`), so the browser makes no extra request, and
 refuses these events outside it. Check it with `vizoalica learn status prod`. Websites that load the script from your

@@ -18,19 +18,38 @@ const ev = (type: string, session: string, data: Record<string, unknown>) => ({
 });
 const slice = (sessions: string[]) =>
   sessions.flatMap((s) => [
-    ev('com.vizoalica.page_view.v1', s, { page: { url_origin: 'x', url_path: '/pricing', url_query_redacted: false } }),
-    ev('com.vizoalica.action.v1', s, { page: { url_origin: 'x', url_path: '/pricing' }, action: { name: 'Start trial', kind: 'button' } }),
+    ev('com.vizoalica.page_view.v1', s, {
+      page: { url_origin: 'x', url_path: '/pricing', url_query_redacted: false }
+    }),
+    ev('com.vizoalica.action.v1', s, {
+      page: { url_origin: 'x', url_path: '/pricing' },
+      action: { name: 'Start trial', kind: 'button' }
+    }),
     ev('com.vizoalica.custom_event.v1', s, { name: 'signup', page: { url_path: '/pricing' } }),
     ev('com.vizoalica.page_structure.v1', s, {
       page: { url_origin: 'x', url_path: '/pricing' },
-      structure: { title: 'Pricing', controls: [{ role: 'button', name: 'Start trial' }, { role: 'button', landmark: 'banner' }], a11y: { controls: 2, unlabeledControls: 1, imagesWithoutAlt: 0 } }
+      structure: {
+        title: 'Pricing',
+        controls: [
+          { role: 'button', name: 'Start trial' },
+          { role: 'button', landmark: 'banner' }
+        ],
+        a11y: { controls: 2, unlabeledControls: 1, imagesWithoutAlt: 0 }
+      }
     })
   ]);
 const slices = () =>
-  [slice(['a', 'b']), slice(['c', 'd'])].map((events) => ({ sketch: sketchEvents(events as never), objects: 2, done: false }));
+  [slice(['a', 'b']), slice(['c', 'd'])].map((events) => ({
+    sketch: sketchEvents(events as never),
+    objects: 2,
+    done: false
+  }));
 
 describe('learning tools', () => {
-  const backends = () => ({ ...defaultBackends(), prod: { ...defaultBackends().prod!, learnSlices: slices() } });
+  const backends = () => ({
+    ...defaultBackends(),
+    prod: { ...defaultBackends().prod!, learnSlices: slices() }
+  });
   const site = { environment: 'prod', project: 'Acme', website: 'Shop' };
 
   it('summarises the newest events across calls and pages through the digest', async () => {
@@ -47,7 +66,11 @@ describe('learning tools', () => {
     expect((pages.data!.quality as any).labelCoverage).toBeCloseTo(0.5, 1);
 
     const gaps = await h.call('learn_get', { run, section: 'gaps', min_sessions: 2 });
-    expect((gaps.data!.items as any[])[0]).toMatchObject({ page: '/pricing', role: 'button', landmark: 'banner' });
+    expect((gaps.data!.items as any[])[0]).toMatchObject({
+      page: '/pricing',
+      role: 'button',
+      landmark: 'banner'
+    });
     const paged = await h.call('learn_get', { run, section: 'journeys', limit: 1 });
     expect((paged.data!.items as any[]).length).toBe(1);
   });
@@ -59,14 +82,27 @@ describe('learning tools', () => {
     mkdirSync(folder);
     const parsed = parseSiteSpec({
       meta: { version: 1 },
-      decisions: [{ id: 'd-1', type: 'gap', decision: 'ignore', match: { page: '*', role: 'button', landmark: 'banner', name: '' }, reason: 'Logo' }]
+      decisions: [
+        {
+          id: 'd-1',
+          type: 'gap',
+          decision: 'ignore',
+          match: { page: '*', role: 'button', landmark: 'banner', name: '' },
+          reason: 'Logo'
+        }
+      ]
     });
     if (!parsed.ok) throw new Error(parsed.errors.join());
-    for (const [name, content] of Object.entries(specToFiles(parsed.spec))) writeFileSync(join(folder, name), content);
+    for (const [name, content] of Object.entries(specToFiles(parsed.spec)))
+      writeFileSync(join(folder, name), content);
     writeFileSync(join(folder, 'ONTOLOGY.md'), renderOntology(parsed.spec));
     const gaps = await h.call('learn_get', { run, section: 'gaps', spec_dir: folder });
     expect(gaps.data).toMatchObject({ total: 0, decisionsApplied: true });
-    const missing = await h.call('learn_get', { run, section: 'gaps', spec_dir: join(h.home, 'nowhere') });
+    const missing = await h.call('learn_get', {
+      run,
+      section: 'gaps',
+      spec_dir: join(h.home, 'nowhere')
+    });
     expect(missing.isError).toBe(true);
   });
 
@@ -75,10 +111,24 @@ describe('learning tools', () => {
     const run = (await h.call('learn_start', { ...site, depth_k: 1 })).data!.run as string;
     const funnel = await h.call('check_funnel', {
       run,
-      steps: [{ kind: 'page', key: '/pricing' }, { kind: 'action', page: '/pricing', name: 'Start trial' }, { kind: 'event', name: 'signup' }]
+      steps: [
+        { kind: 'page', key: '/pricing' },
+        { kind: 'action', page: '/pricing', name: 'Start trial' },
+        { kind: 'event', name: 'signup' }
+      ]
     });
     expect((funnel.data!.steps as any[]).map((step) => step.reached)).toEqual([4, 4, 4]);
-    expect((await h.call('check_funnel', { run: 'run-nope', steps: [{ kind: 'page', key: '/' }, { kind: 'page', key: '/a' }] })).isError).toBe(true);
+    expect(
+      (
+        await h.call('check_funnel', {
+          run: 'run-nope',
+          steps: [
+            { kind: 'page', key: '/' },
+            { kind: 'page', key: '/a' }
+          ]
+        })
+      ).isError
+    ).toBe(true);
     expect((await h.call('learn_get', { run: 'run-nope', section: 'pages' })).isError).toBe(true);
   });
 
@@ -88,8 +138,16 @@ describe('learning tools', () => {
     expect(failed.isError).toBe(true);
     expect(failed.text).toContain('vizoalica deploy prod --update');
 
-    const spec = { meta: { version: 1, store: 'git' }, pages: [{ id: 'pricing', match: ['/pricing'], name: 'Pricing' }] };
-    const h = await harness({ backends: { ...defaultBackends(), prod: { ...defaultBackends().prod!, specStore: { version: 3, spec } } } });
+    const spec = {
+      meta: { version: 1, store: 'git' },
+      pages: [{ id: 'pricing', match: ['/pricing'], name: 'Pricing' }]
+    };
+    const h = await harness({
+      backends: {
+        ...defaultBackends(),
+        prod: { ...defaultBackends().prod!, specStore: { version: 3, spec } }
+      }
+    });
     const stored = await h.call('get_spec', site);
     expect(stored.data).toMatchObject({ version: 3, store: 'git' });
     const none = await harness({ backends: defaultBackends() });

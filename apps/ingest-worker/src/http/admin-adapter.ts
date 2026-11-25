@@ -1227,8 +1227,7 @@ export async function handleAdminRequest(
       return guarded;
     }
     const body = (await request.json().catch(() => undefined)) as
-      | { spec?: unknown; baseVersion?: unknown; gitSha?: unknown }
-      | undefined;
+      { spec?: unknown; baseVersion?: unknown; gitSha?: unknown } | undefined;
     const baseVersion = body?.baseVersion;
     if (typeof baseVersion !== 'number' || !Number.isInteger(baseVersion) || baseVersion < 0)
       return invalid('baseVersion');
