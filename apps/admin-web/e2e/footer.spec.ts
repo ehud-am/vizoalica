@@ -85,10 +85,16 @@ for (const scheme of ['light', 'dark'] as const) {
 test('is fully keyboard reachable with a visible focus ring', async ({ page }) => {
   await mockConsole(page);
   await page.goto('/');
+  await expect(page.getByRole('contentinfo')).toBeVisible();
   const links = page.getByRole('contentinfo').getByRole('link');
   const count = await links.count();
   expect(count).toBe(3);
-  await links.first().focus();
+  // The console renders its footer again once it has loaded, and a focus() made on the first one
+  // is lost with it (the first Tab then starts at the top of the page). Focus until it holds.
+  await expect(async () => {
+    await links.first().focus();
+    await expect(links.first()).toBeFocused({ timeout: 500 });
+  }).toPass();
   for (let index = 0; index < count; index += 1) {
     const focused = page.locator(':focus');
     await expect(focused).toHaveAttribute('target', '_blank');
