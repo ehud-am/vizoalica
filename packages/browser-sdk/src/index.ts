@@ -87,9 +87,11 @@ export function init(config: VizoalicaConfig): VizoalicaClient {
   // Page structure: only while the learning window is open, never when consent is denied, for a
   // small sample of page loads, once per page key, and at most a few a minute.
   const learnWindow = config.learn?.window;
+  const served = (globalThis as { __vizoalicaLearn?: { rate?: unknown } }).__vizoalicaLearn;
+  const servedRate = typeof served?.rate === 'number' && served.rate > 0 && served.rate <= 1 ? served.rate : undefined;
   const sampled =
     config.consentState !== 'analytics-denied' &&
-    Math.random() < (config.learn?.sampleRate ?? STRUCTURE_SAMPLE_RATE);
+    Math.random() < (config.learn?.sampleRate ?? servedRate ?? STRUCTURE_SAMPLE_RATE);
   const described = new Set<string>();
   const describedAt: number[] = [];
   function describePage(): void {

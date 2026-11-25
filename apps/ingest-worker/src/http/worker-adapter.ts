@@ -19,7 +19,7 @@ function sdkResponse(learnWindow?: LearnWindow): Response {
   // The learning window, when the operator set one, travels inside the script this Worker serves,
   // so the browser makes no extra request. The SDK checks the clock itself.
   const prefix = learnWindow
-    ? `globalThis.__vizoalicaLearn=${JSON.stringify({ start: learnWindow.startUtc, end: learnWindow.endUtc })};\n`
+    ? `globalThis.__vizoalicaLearn=${JSON.stringify({ start: learnWindow.startUtc, end: learnWindow.endUtc, rate: learnWindow.samplePercent / 100 })};\n`
     : '';
   return new Response(`${prefix}${BROWSER_SDK}`, {
     headers: {

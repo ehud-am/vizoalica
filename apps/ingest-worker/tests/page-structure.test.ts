@@ -126,9 +126,10 @@ describe('page structure', () => {
   });
 
   it('serves the window inside the SDK script, and nothing when none is set', async () => {
-    const withWindow = environment({ VIZOALICA_LEARN_START: today, VIZOALICA_LEARN_DAYS: '7' });
+    const withWindow = environment({ VIZOALICA_LEARN_START: today, VIZOALICA_LEARN_DAYS: '7', VIZOALICA_LEARN_SAMPLE: '25' });
     const script = await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), withWindow.env)).text();
     expect(script.startsWith('globalThis.__vizoalicaLearn={"start":"')).toBe(true);
+    expect(script.split('\n')[0]).toContain('"rate":0.25');
     const plain = environment();
     expect(await (await worker.fetch(new Request('https://worker.test/vizoalica.js'), plain.env)).text()).not.toContain('__vizoalicaLearn={');
     const invalid = environment({ VIZOALICA_LEARN_START: 'soon' });

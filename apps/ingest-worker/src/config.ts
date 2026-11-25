@@ -51,7 +51,11 @@ export function loadWorkerConfig(env: Env): {
     requestedMaxPaths >= 1
       ? requestedMaxPaths
       : undefined;
-  const learnWindow = parseLearnWindow(env.VIZOALICA_LEARN_START, env.VIZOALICA_LEARN_DAYS);
+  const learnWindow = parseLearnWindow(
+    env.VIZOALICA_LEARN_START,
+    env.VIZOALICA_LEARN_DAYS,
+    env.VIZOALICA_LEARN_SAMPLE
+  );
   return {
     allowUnsignedDemo: env.VIZOALICA_DEMO_MODE === 'true',
     maxRequestBytes,

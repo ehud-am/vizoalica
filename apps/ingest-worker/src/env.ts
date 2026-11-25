@@ -45,6 +45,8 @@ export interface Env {
   VIZOALICA_LEARN_START?: string;
   /** Learning window length in days (default 14, at most 90). */
   VIZOALICA_LEARN_DAYS?: string;
+  /** Share of page loads (1 to 100, default 10) that describe their pages during the window. */
+  VIZOALICA_LEARN_SAMPLE?: string;
   VIZOALICA_INGEST_LIMITER?: RateLimiter;
   /** The release this Worker was deployed from; unset on an older or hand-run deployment. */
   VIZOALICA_WORKER_VERSION?: string;

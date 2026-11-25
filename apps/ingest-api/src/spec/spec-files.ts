@@ -273,7 +273,7 @@ const globMatch = (pattern: string, value: string): boolean => {
   return value.startsWith(head) && value.endsWith(tail) && value.length >= head.length + tail.length;
 };
 
-export type GapDescriptor = { page: string; role: string; landmark: string; name: string; index: number };
+export type GapDescriptor = { page: string; role: string; landmark: string; name: string; index?: number };
 
 /** The first gap decision whose selector matches the element, if any. */
 export function findGapDecision(decisions: Decision[], gap: GapDescriptor): Extract<Decision, { type: 'gap' }> | undefined {
