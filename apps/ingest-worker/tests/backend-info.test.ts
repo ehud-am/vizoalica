@@ -42,8 +42,8 @@ describe('GET /v1/admin/backend', () => {
     expect(await response.json()).toEqual({
       workerVersion: '0.6.4',
       schema: {
-        applied: 11,
-        expected: 11,
+        applied: 12,
+        expected: 12,
         appliedNames: [
           '0001_initial.sql',
           '0002_access_keys.sql',
@@ -55,7 +55,8 @@ describe('GET /v1/admin/backend', () => {
           '0008_pixel_page_views.sql',
           '0009_goals_grouping_pixel_cap.sql',
           '0010_pixel_path_expiry.sql',
-          '0011_page_labels.sql'
+          '0011_page_labels.sql',
+        '0012_site_specs.sql'
         ],
         status: 'current'
       },

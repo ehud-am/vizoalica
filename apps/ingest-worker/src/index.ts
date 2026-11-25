@@ -45,6 +45,8 @@ export default {
       getGoalsReport: configuration.getGoalsReport.bind(configuration),
       listPageLabels: configuration.listPageLabels.bind(configuration),
       replacePageLabels: configuration.replacePageLabels.bind(configuration),
+      getSiteSpec: configuration.getSiteSpec.bind(configuration),
+      putSiteSpec: configuration.putSiteSpec.bind(configuration),
       getSetupInventory: configuration.getSetupInventory.bind(configuration),
       getPixelPathUsage: configuration.getPixelPathUsage.bind(configuration),
       admitPixelPath: configuration.admitPixelPath.bind(configuration),

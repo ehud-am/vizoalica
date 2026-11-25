@@ -83,6 +83,18 @@ export interface GoalsReport {
 }
 
 /** A display name and optional group for a page key of one website. Never visitor data. */
+/** The latest applied spec of a website, as stored. */
+export interface StoredSiteSpec {
+  version: number;
+  contentHash: string;
+  /** The validated spec as JSON text. */
+  specJson: string;
+  renderedMd: string;
+  gitSha: string;
+  appliedAt: string;
+  appliedBy: string;
+}
+
 export interface PageLabel {
   key: string;
   name: string;
