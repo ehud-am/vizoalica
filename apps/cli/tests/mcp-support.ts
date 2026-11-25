@@ -51,6 +51,8 @@ export type FakeBackend = {
   writes?: Array<{ method: string; path: string; body: unknown }>;
   /** Goals and grouping rules the inventory reports as already set. */
   existing?: { goals?: unknown[]; groupingRules?: unknown[] };
+  /** The stored site spec (version 0 when none); a PUT replaces it when the base version matches. */
+  specStore?: { version: number; spec?: unknown };
   /** Pixel path usage in the website status; absent unless the pixel is on. */
   pixelPaths?: { count: number; max: number; capReached: boolean };
 };
@@ -263,6 +265,24 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         ],
         availability: { state: 'complete', taxonomyVersions: [1] }
       });
+    }
+    if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/spec$/.test(path)) {
+      if (backend.noInventory) return json({ error: 'not_found' }, 404);
+      const store = (backend.specStore ??= { version: 0 });
+      if (init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body)) as { spec: unknown; baseVersion: number };
+        (backend.writes ??= []).push({ method: 'PUT', path, body });
+        if (body.baseVersion !== store.version)
+          return json({ error: 'version_conflict', currentVersion: store.version }, 409);
+        store.version += 1;
+        store.spec = body.spec;
+        return json({ version: store.version, contentHash: 'h'.repeat(64) });
+      }
+      return json(
+        store.version
+          ? { ...store, contentHash: 'h'.repeat(64), renderedMd: '', gitSha: '', appliedAt: 't', appliedBy: '' }
+          : { version: 0 }
+      );
     }
     const site =
       /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)(?:\/(inventory|labels|goals))?$/.exec(

@@ -3,6 +3,7 @@ import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
 import { mappingCommand } from './mapping-command.js';
+import { specCommand } from './spec-command.js';
 import { mcpCommand } from './mcp-command.js';
 import { rotateCommand } from './rotate-command.js';
 import { skillCommand } from './skill-command.js';
@@ -54,6 +55,8 @@ export function help(): string {
     '                        health, read-only, across every environment. Run "vizoalica mcp help"',
     '  mapping export|apply  Let an AI assistant propose page names, groups and goals from collected data;',
     '                        you review the file, then apply it. Run "vizoalica mapping"',
+    '  spec <command>        Keep a website\'s spec (ontology) as versioned files: init, validate, render,',
+    '                        diff, apply, pull, export, import. Run "vizoalica spec"',
     '  skill install         Teach an AI assistant how Vizoalica works. Run "vizoalica skill"',
     '  help                  Show this help',
     '  --verbose             With any command: print what it is doing, for troubleshooting',
@@ -114,6 +117,7 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
   if (command === 'deploy') return deploy(rest);
   if (command === 'mcp') return mcpCommand(rest, { ...deps, trace });
   if (command === 'mapping') return mappingCommand(rest, { ...deps, trace });
+  if (command === 'spec') return specCommand(rest, { ...deps, trace });
   if (command === 'skill') return skillCommand(rest, deps);
   if (command === 'rotate')
     return rotateCommand(rest, { ...deps, trace, ...(deps.deployTestHooks ?? {}) });
