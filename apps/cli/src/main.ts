@@ -3,6 +3,7 @@ import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
 import { mappingCommand } from './mapping-command.js';
+import { learnCommand } from './learn-command.js';
 import { specCommand } from './spec-command.js';
 import { mcpCommand } from './mcp-command.js';
 import { rotateCommand } from './rotate-command.js';
@@ -57,6 +58,8 @@ export function help(): string {
     '                        you review the file, then apply it. Run "vizoalica mapping"',
     '  spec <command>        Keep a website\'s spec (ontology) as versioned files: init, validate, render,',
     '                        diff, apply, pull, export, import. Run "vizoalica spec"',
+    '  learn <command>       Open or close the learning window, in which a small share of page loads',
+    '                        describe their pages for an assistant. Run "vizoalica learn"',
     '  skill install         Teach an AI assistant how Vizoalica works. Run "vizoalica skill"',
     '  help                  Show this help',
     '  --verbose             With any command: print what it is doing, for troubleshooting',
@@ -117,6 +120,7 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
   if (command === 'deploy') return deploy(rest);
   if (command === 'mcp') return mcpCommand(rest, { ...deps, trace });
   if (command === 'mapping') return mappingCommand(rest, { ...deps, trace });
+  if (command === 'learn') return learnCommand(rest, { ...deps, trace });
   if (command === 'spec') return specCommand(rest, { ...deps, trace });
   if (command === 'skill') return skillCommand(rest, deps);
   if (command === 'rotate')

@@ -1,6 +1,9 @@
 name = "vizoalica-ingest"
 main = "../../apps/ingest-worker/src/index.ts"
 compatibility_date = "2026-08-29"
+# Keep variables set in the Cloudflare dashboard (for example the learning window below) when this
+# configuration is deployed again.
+keep_vars = true
 
 [[d1_databases]]
 binding = "VIZOALICA_DB"
@@ -21,6 +24,12 @@ VIZOALICA_WORKER_VERSION = ""
 # Optional: how many different paths the no-script pixel counts per website (default 100). A value that
 # is not a whole number of at least 1 is ignored. See docs/operations/pixel.md.
 # VIZOALICA_PIXEL_MAX_PATHS = "100"
+# Optional learning window: while it is open, a small share of page loads describe their pages (headings,
+# landmarks, control and form-field labels; never values) so an assistant can learn the website's
+# structure. Off unless VIZOALICA_LEARN_START is set. See docs/operations/spec.md.
+# VIZOALICA_LEARN_START = "2026-12-01"   # first day, UTC
+# VIZOALICA_LEARN_DAYS = "14"            # 1 to 90, default 14
+# VIZOALICA_LEARN_SAMPLE = "10"          # percent of page loads, 1 to 100, default 10
 
 # Optional edge throttle for POST /v1/events:batch, keyed per client address.
 # Uncomment to enable; without it the Worker relies on per-source quotas only. `period` may

@@ -51,6 +51,8 @@ export type FakeBackend = {
   writes?: Array<{ method: string; path: string; body: unknown }>;
   /** Goals and grouping rules the inventory reports as already set. */
   existing?: { goals?: unknown[]; groupingRules?: unknown[] };
+  /** The learning window the backend reports; null (absent) when off. */
+  learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number };
   /** Slices the learn sample route returns, one per call, with the cursor to ask for the next. */
   learnSlices?: unknown[];
   /** The stored site spec (version 0 when none); a PUT replaces it when the base version matches. */
@@ -139,7 +141,8 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           appliedNames: [],
           status: 'current'
         },
-        health: backend.health === undefined ? { database: 'ok', storage: 'ok' } : backend.health
+        health: backend.health === undefined ? { database: 'ok', storage: 'ok' } : backend.health,
+        learn: backend.learn ?? null
       });
     if (path === '/v1/admin/projects') return json(backend.projects ?? []);
     const sources = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(path);

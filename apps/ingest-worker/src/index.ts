@@ -83,7 +83,8 @@ export default {
         backendInfo: async () => ({
           workerVersion: workerVersion(env),
           schema: await readSchemaVersion(env.VIZOALICA_DB),
-          health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS)
+          health: await readHealth(env.VIZOALICA_DB, env.VIZOALICA_EVENTS),
+          learn: config.learnWindow ?? null
         }),
         visitorSalts: configuration,
         ...(env.VIZOALICA_EVENTS.get

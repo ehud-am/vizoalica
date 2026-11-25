@@ -43,6 +43,8 @@ export type BackendInfo = {
     status: 'current' | 'behind' | 'ahead' | 'unknown';
   };
   health: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' };
+  /** The learning window, or null when page structure capture is off. */
+  learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number } | null;
 };
 
 type Dependencies = {
