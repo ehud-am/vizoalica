@@ -33,6 +33,8 @@ export type MappingDeps = {
 const USAGE = [
   'Usage: vizoalica mapping <command>',
   '',
+  'export only reads the backend (and writes one local file). apply writes to the backend.',
+  '',
   '  export <environment> [--project <p>] [--website <w>] [--days <1-30>] [--out <file>]',
   '      Write what a website collected (page keys, actions, events, with counts) and its',
   '      current names, grouping rules and goals, as JSON, for an AI assistant to read.',

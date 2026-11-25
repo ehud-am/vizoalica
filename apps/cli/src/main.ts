@@ -44,27 +44,34 @@ export function help(): string {
     '',
     'Usage: vizoalica <command>',
     '',
-    '  env <command>         Create and manage your environments (dev, stage, prod, ...):',
-    '                        add (offers to deploy its backend), list, update, remove, check',
-    '  deploy <name>         Deploy the backend for an environment in your Cloudflare account',
-    '                        (--apply creates it, --update updates it to this version).',
-    '                        Run "vizoalica deploy" for details',
-    '  rotate <name> <secret>  Replace a secret of an environment (admin, token, digest, or all)',
-    '  console [--no-open]   Start the console: websites, results, and access for the',
-    '                        environment you pick',
-    '  mcp install           Let an AI assistant (Claude, Codex, Cursor) read your analytics and',
-    '                        health, read-only, across every environment. Run "vizoalica mcp help"',
-    '  mapping export|apply  Let an AI assistant propose page names, groups and goals from collected data;',
-    '                        you review the file, then apply it. Run "vizoalica mapping"',
-    "  spec <command>        Keep a website's spec (ontology) as versioned files: init, validate, render,",
-    '                        diff, apply, pull, export, import. Run "vizoalica spec"',
-    '  learn <command>       Open or close the learning window, in which a small share of page loads',
-    '                        describe their pages for an assistant. Run "vizoalica learn"',
-    '  skill install         Teach an AI assistant how Vizoalica works. Run "vizoalica skill"',
-    '  help                  Show this help',
+    'Each command says what it changes: [read-only], [this computer], [Cloudflare] (your account, through',
+    'Wrangler), [backend] (your Worker, with an admin or owner key), [AI client] (its config or skills folder),',
+    'or [prints steps] (shows instructions and changes nothing).',
+    '',
+    '  env <command>         Manage your environments (dev, stage, prod, ...): list, check [read-only];',
+    '                        add, update, remove [this computer]; add --deploy also [Cloudflare]',
+    '  deploy <environment>  Create a backend (--apply) or bring one to this version (--update) [Cloudflare];',
+    '                        with no option it shows the plan [read-only]. Run "vizoalica deploy"',
+    '  rotate <environment> <secret>  Replace a secret: admin, token, digest, or all [Cloudflare]',
+    '  console [--no-open]   Start the console on this computer: websites, results, access. Changes made',
+    '                        in it go to the backend [backend]',
+    '  mcp install           Let an AI assistant (Claude, Codex, Cursor) read your analytics and health,',
+    '                        read-only, across every environment [AI client]. Run "vizoalica mcp help"',
+    '  skill install         Teach an AI assistant how Vizoalica works [AI client]. Run "vizoalica skill"',
+    '  mapping export|apply  Page names, groups and goals proposed by an assistant: export [read-only],',
+    '                        apply [backend]. Run "vizoalica mapping"',
+    "  spec <command>        A website's spec (ontology) as versioned files: show, diff [read-only];",
+    '                        init, validate, render, pull, export [this computer]; apply, import [backend].',
+    '                        Run "vizoalica spec"',
+    '  learn <command>       The learning window, where a share of visits describe their pages for an',
+    '                        assistant: status [read-only]; enable-guide, disable-guide [prints steps]',
+    '                        (you set the Worker variables yourself). Run "vizoalica learn"',
+    '  help                  Show this help; "vizoalica <command> --help" shows a command\'s help',
     '  --verbose             With any command: print what it is doing, for troubleshooting',
     '                        (never secrets)',
     '  --version             Print the installed version',
+    '',
+    'Options take their value after a space or an equals sign: --url <address> or --url=<address>.',
     '',
     'Start with: vizoalica env add <name> (deploys a backend or connects an existing one),',
     'then: vizoalica console',
@@ -72,11 +79,21 @@ export function help(): string {
   ].join('\n');
 }
 
+/** `--option=value` means `--option value`; `<command> --help` or `-h` means `<command> help`. */
+function normalize(rest: readonly string[]): string[] {
+  const split = rest.flatMap((arg) => {
+    const at = arg.startsWith('--') ? arg.indexOf('=') : -1;
+    return at > 2 ? [arg.slice(0, at), arg.slice(at + 1)] : [arg];
+  });
+  return split.includes('--help') || split.includes('-h') ? ['help'] : split;
+}
+
 /** Runs the command line and returns the exit code; every failure is a plain message. */
 export async function main(args: readonly string[], deps: MainDeps): Promise<number> {
   const verbose = args.includes('--verbose');
   const argv = args.filter((item) => item !== '--verbose');
-  const [command, ...rest] = argv;
+  const [command, ...rawRest] = argv;
+  const rest = normalize(rawRest);
   // The MCP server's stdout carries only protocol messages, so its trace goes to stderr.
   const trace: Trace = verbose ? makeTrace(command === 'mcp' ? deps.err : deps.out) : noTrace;
   trace(`vizoalica ${deps.version}, Node.js ${deps.nodeVersion}, ${deps.platform}`);
@@ -106,6 +123,12 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
     return 0;
   }
   if (command === 'console' || command === 'run') {
+    if (rest[0] === 'help') {
+      deps.out(
+        'Usage: vizoalica console [--no-open]\n\nStarts the console on this computer (http://127.0.0.1:4318) and opens it in your browser; --no-open skips opening it.\nWebsite and access changes you make in it go to the selected backend. Stop it with Ctrl+C.\n'
+      );
+      return 0;
+    }
     const flags = rest.filter((item) => item !== '--no-open');
     if (flags.length > 0) {
       deps.err(`Unexpected argument: ${flags[0]}\nUsage: vizoalica console [--no-open]\n`);

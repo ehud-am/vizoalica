@@ -24,9 +24,9 @@ const NAMES: Record<SkillClient, string> = { 'claude-code': 'Claude Code', codex
 const USAGE = [
   'Usage: vizoalica skill <command>',
   '',
-  '  path                              Print where the packaged skill is',
+  '  path                              Print where the packaged skill is (changes nothing)',
   '  install --client <claude-code|codex> [--yes]',
-  "                                    Copy the skill into the client's skills folder",
+  "                                    Copy the skill into the client's skills folder (this computer only)",
   '',
   'The skill teaches an AI assistant how Vizoalica works: setup, health, operations, and how to',
   'answer analytics questions with the MCP server (vizoalica mcp install). For Claude Desktop or',

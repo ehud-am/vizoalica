@@ -210,7 +210,7 @@ answer, and never hands a secret to the AI client. See [Use Vizoalica with AI](d
 Instead of hand-maintaining names, groups, and funnels, let an assistant propose them and decide what to keep:
 
 ```sh
-vizoalica learn enable prod            # shows the three Worker variables that open the learning window (optional, better data)
+vizoalica learn enable-guide prod          # shows the three Worker variables that open the learning window (optional, better data)
 vizoalica spec init prod --website Shop
 # in your assistant:  /vizoalica learn 20
 vizoalica spec diff prod               # review

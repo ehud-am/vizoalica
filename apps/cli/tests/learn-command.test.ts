@@ -54,29 +54,42 @@ describe('vizoalica learn', () => {
 
   it('shows the variables to set, with defaults and checks', async () => {
     const t = setup();
-    expect(await learnCommand(['enable', 'prod'], t.deps)).toBe(0);
+    expect(await learnCommand(['enable-guide', 'prod'], t.deps)).toBe(0);
     expect(t.text()).toContain('VIZOALICA_LEARN_START = 2026-12-02');
     expect(t.text()).toContain('VIZOALICA_LEARN_DAYS = 14');
     expect(t.text()).toContain('VIZOALICA_LEARN_SAMPLE = 10');
     const custom = setup();
     expect(
       await learnCommand(
-        ['enable', 'prod', '--start', '2027-01-10', '--days', '30', '--sample', '25'],
+        ['enable-guide', 'prod', '--start', '2027-01-10', '--days', '30', '--sample-percent', '25'],
         custom.deps
       )
     ).toBe(0);
     expect(custom.text()).toContain('VIZOALICA_LEARN_SAMPLE = 25');
     for (const bad of [
       ['--days', '400'],
-      ['--sample', '0'],
+      ['--sample-percent', '0'],
       ['--start', 'soon']
     ]) {
       const refused = setup();
-      expect(await learnCommand(['enable', 'prod', ...bad], refused.deps)).toBe(1);
+      expect(await learnCommand(['enable-guide', 'prod', ...bad], refused.deps)).toBe(1);
     }
     const disable = setup();
-    expect(await learnCommand(['disable', 'prod'], disable.deps)).toBe(0);
+    expect(await learnCommand(['disable-guide', 'prod'], disable.deps)).toBe(0);
     expect(disable.text()).toContain('delete the variable VIZOALICA_LEARN_START');
+    expect(disable.text()).toContain('Nothing was changed');
+  });
+
+  it('points the old command names and --sample at their new names', async () => {
+    const t = setup();
+    expect(await learnCommand(['enable', 'prod'], t.deps)).toBe(1);
+    expect(await learnCommand(['disable', 'prod'], t.deps)).toBe(1);
+    expect(await learnCommand(['enable-guide', 'prod', '--sample', '5'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('"vizoalica learn enable" is now "vizoalica learn enable-guide"');
+    expect(t.errors()).toContain(
+      '"vizoalica learn disable" is now "vizoalica learn disable-guide"'
+    );
+    expect(t.errors()).toContain('--sample is now --sample-percent');
   });
 
   it('prints help, rejects what it does not know, and explains an unreachable backend', async () => {

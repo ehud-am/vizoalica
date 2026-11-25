@@ -149,9 +149,9 @@ Privacy controls:
 - Prompt injection: digest strings are length-capped, control characters stripped, tool descriptions and skill mark
   them as untrusted data.
 
-Capture policy (D3, decided): off until enabled. `vizoalica learn enable <env> [--start <date>] [--days 14]` sets the
+Capture policy (D3, decided): off until enabled. `vizoalica learn enable-guide <env> [--start <date>] [--days 14]` sets the
 two variables (applied with `deploy --update`; no site HTML change for Worker-served scripts); `learn status` shows
-the window; `learn disable` clears it. Privacy docs describe the window explicitly.
+the window; `learn disable-guide` clears it. Privacy docs describe the window explicitly.
 
 ## 7. Sampling, digest and MCP tools
 
@@ -178,7 +178,7 @@ Ordering fix needed: R2 keys are `events/<project>/<source>/<day>/<uuid>.json`, 
 
 ## 8. CLI
 
-`vizoalica spec init|validate|diff <env>|apply <env> [--yes]|export <env>` and `vizoalica learn enable|status <env>`.
+`vizoalica spec init|validate|diff <env>|apply <env> [--yes]|export <env>` and `vizoalica learn enable-guide|status <env>`.
 `apply` mirrors `mapping apply`: environment and website shown, diff, confirmation, nothing deleted without an
 explicit `deprecated` status, limits checked before any write, admin or owner role only (analyst: 403).
 CLI `vizoalica learn` controls the window; the assistant command is `/vizoalica learn`. Example GitHub Actions workflow

@@ -54,6 +54,27 @@ describe('main', () => {
     }
   });
 
+  it("answers <command> --help and -h with that command's usage, and accepts --option=value", async () => {
+    for (const argv of [
+      ['env', '--help'],
+      ['deploy', '-h'],
+      ['rotate', 'prod', 'admin', '--help'],
+      ['spec', '-h'],
+      ['learn', '--help'],
+      ['mapping', '-h'],
+      ['mcp', '--help'],
+      ['skill', '-h'],
+      ['console', '--help']
+    ]) {
+      const d = deps();
+      expect(await main(argv, d)).toBe(0);
+      expect(d.output.join('')).toContain('Usage: vizoalica');
+    }
+    const d = deps();
+    expect(await main(['learn', 'status', 'prod', '--days=3'], d)).toBe(1);
+    expect(d.errors.join('')).toContain('Unexpected argument: --days');
+  });
+
   it('prints help for help, --help, and no command', async () => {
     for (const argv of [['help'], ['--help'], ['-h'], []]) {
       const d = deps();

@@ -11,7 +11,7 @@ is slow. With `/vizoalica learn` an assistant on your computer reads compact sum
 and proposes it; you review and apply. Reports and dashboards can later build on the spec.
 
 ```text
-vizoalica learn enable  ->  /vizoalica learn  ->  you review the spec files  ->  vizoalica spec apply
+vizoalica learn enable-guide  ->  /vizoalica learn  ->  you review the spec files  ->  vizoalica spec apply
 ```
 
 The assistant never writes to your backend. The spec should never hold personal data. The validator refuses email
@@ -33,8 +33,8 @@ recognise names, so you review the proposal before you apply it.
 
 1. **Connect an assistant once:** `vizoalica mcp install --client claude-code` and
    `vizoalica skill install --client claude-code` (see [AI assistants](/operations/ai)).
-2. **Let pages describe themselves for a while** (optional but better): `vizoalica learn enable prod` shows three
-   Worker variables to set. See [the learning window](#the-learning-window).
+2. **Let pages describe themselves for a while** (optional but better): `vizoalica learn enable-guide prod` prints three
+   Worker variables for you to set (it changes nothing; options `--start`, `--days`, `--sample-percent`). See [the learning window](#the-learning-window).
 3. **Create a spec folder:** `vizoalica spec init prod --website Shop` (inside a git repository it is the source of
    truth; add `--no-git` to keep only the backend copy).
 4. **Ask your assistant:** `/vizoalica learn 20` (the number is thousands of events; 20 is the default). It

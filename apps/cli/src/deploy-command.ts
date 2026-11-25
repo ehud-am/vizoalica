@@ -46,11 +46,12 @@ export type DeployDeps = {
 };
 
 const USAGE = [
-  'Usage: vizoalica deploy <name> [--apply | --update] [options]',
+  'Usage: vizoalica deploy <environment> [--apply | --update] [options]',
   '       vizoalica deploy --update --all [options]',
   '',
-  'Creates the backend for the environment <name>: a D1 database, an R2 bucket, and a Worker, all named',
-  '<name>-vizoalica-…, then adds <name> to your environments. Or updates one it created to this version.',
+  'Creates the backend for the environment <environment>: a D1 database, an R2 bucket, and a Worker, all named',
+  '<environment>-vizoalica-…, then adds it to your environments. Or updates one it created to this version.',
+  'Writes to your Cloudflare account only with --apply or --update; without them it changes nothing.',
   '',
   '  (no option)           Show what would be created; nothing is created',
   '  --apply               Create it now in your Cloudflare account',

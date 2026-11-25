@@ -13,6 +13,11 @@ All notable changes to Vizoalica are documented in this file.
 
 ### Changed
 
+- **CLI cleanup**: `vizoalica learn enable | disable` are renamed `enable-guide | disable-guide` because they only print
+  instructions; the old names say so and exit 1. `--sample` is now `--sample-percent`. `--option=value` is accepted by
+  every command, `<command> --help` and `-h` work for every command, usage text uses `<environment>` consistently, and
+  help marks what each command changes (read-only, this computer, Cloudflare, backend, AI client, prints steps).
+  `rotate` lists `--cloudflare-login` with the main options.
 - README, npm README, docs and site cover the learn features; "Why Vizoalica" now leads with self-deployed, data stays
   in your account, free to deploy, and AI-first self-learning. Docs explain how a spec is created, viewed and changed
   without git, and that `VIZOALICA_LEARN_SAMPLE` is a percent of visits.
