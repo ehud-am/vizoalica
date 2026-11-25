@@ -19,6 +19,9 @@ import {
 } from '../../../ingest-api/src/ingestion/grouping-rules.js';
 import { isStorablePageKey } from '../../../ingest-api/src/ingestion/page-key.js';
 import { parsePageLabels } from '../../../ingest-api/src/ingestion/page-labels.js';
+import type { SampleSlice } from '../storage/learn-sample.js';
+import { parseSiteSpec } from '../../../ingest-api/src/spec/site-spec.js';
+import { renderOntology } from '../../../ingest-api/src/spec/spec-files.js';
 import { DEFAULT_MAX_PIXEL_PATHS } from '../../../ingest-api/src/ingestion/pixel.js';
 import { MAX_GOALS_PER_WEBSITE } from '../storage/goal-reports.js';
 import { isMissingSchema } from '../storage/missing-schema.js';
@@ -40,6 +43,8 @@ export type BackendInfo = {
     status: 'current' | 'behind' | 'ahead' | 'unknown';
   };
   health: { database: 'ok' | 'unavailable'; storage: 'ok' | 'unavailable' };
+  /** The learning window, or null when page structure capture is off. */
+  learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number } | null;
 };
 
 type Dependencies = {
@@ -51,6 +56,12 @@ type Dependencies = {
   auditDenial?: DenialAuditGate;
   /** Distinct pixel paths allowed per website; defaults to {@link DEFAULT_MAX_PIXEL_PATHS}. */
   pixelMaxPaths?: number;
+  /** Summarises a slice of a website's newest raw events; absent where raw events cannot be read. */
+  learnSample?: (
+    projectId: string,
+    sourceId: string,
+    cursor: string | undefined
+  ) => Promise<SampleSlice | undefined>;
 };
 
 const safePolicy = (id: string): QuotaPolicy => ({
@@ -1179,6 +1190,111 @@ export async function handleAdminRequest(
       });
       return Response.json(parsed.labels);
     });
+  }
+  const specMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/spec$/.exec(url.pathname);
+  if (specMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = specMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    return needingSchema(async () => {
+      if (!dependencies.repositories.getSiteSpec) return notFound();
+      const stored = await dependencies.repositories.getSiteSpec(projectId!, sourceId!);
+      if (!stored)
+        return Response.json({ version: 0 }, { headers: { 'cache-control': 'no-store' } });
+      return Response.json(
+        {
+          version: stored.version,
+          contentHash: stored.contentHash,
+          spec: JSON.parse(stored.specJson),
+          renderedMd: stored.renderedMd,
+          gitSha: stored.gitSha,
+          appliedAt: stored.appliedAt,
+          appliedBy: stored.appliedBy
+        },
+        { headers: { 'cache-control': 'no-store' } }
+      );
+    });
+  }
+  if (specMatch && request.method === 'PUT') {
+    const [, projectId, sourceId] = specMatch;
+    const guarded = guardSourceWrite(principal, projectId!, sourceId!);
+    if (guarded) {
+      await auditDenied(dependencies, 'update_spec', 'forbidden', {
+        projectId: projectId!,
+        sourceId: sourceId!,
+        actor
+      });
+      return guarded;
+    }
+    const body = (await request.json().catch(() => undefined)) as
+      { spec?: unknown; baseVersion?: unknown; gitSha?: unknown } | undefined;
+    const baseVersion = body?.baseVersion;
+    if (typeof baseVersion !== 'number' || !Number.isInteger(baseVersion) || baseVersion < 0)
+      return invalid('baseVersion');
+    const gitSha = body?.gitSha === undefined ? '' : body.gitSha;
+    if (typeof gitSha !== 'string' || !/^[0-9a-f]{0,64}$/i.test(gitSha)) return invalid('gitSha');
+    const parsed = parseSiteSpec(body?.spec);
+    if (!parsed.ok)
+      return Response.json(
+        { error: 'invalid_request', field: 'spec', errors: parsed.errors.slice(0, 50) },
+        { status: 400 }
+      );
+    return needingSchema(async () => {
+      const source = await dependencies.repositories.getSource(projectId!, sourceId!);
+      if (!source || source.status === 'deleted' || !dependencies.repositories.putSiteSpec)
+        return notFound();
+      const specJson = JSON.stringify(parsed.spec);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(specJson));
+      const contentHash = [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+      const version = await dependencies.repositories.putSiteSpec(
+        projectId!,
+        sourceId!,
+        {
+          contentHash,
+          specJson,
+          renderedMd: renderOntology(parsed.spec),
+          gitSha,
+          appliedAt: new Date().toISOString(),
+          appliedBy: actor ?? ''
+        },
+        baseVersion
+      );
+      await dependencies.repositories.saveAdminAudit({
+        operation: 'update_spec',
+        outcome: version ? 'allowed' : 'denied',
+        reasonCode: version ? 'updated' : 'version_conflict',
+        projectId: projectId!,
+        sourceId: sourceId!,
+        ...(actor ? { actor } : {})
+      });
+      if (!version) {
+        const current = await dependencies.repositories.getSiteSpec?.(projectId!, sourceId!);
+        return Response.json(
+          { error: 'version_conflict', currentVersion: current?.version ?? 0 },
+          { status: 409 }
+        );
+      }
+      return Response.json({ version, contentHash });
+    });
+  }
+  const sampleMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/learn\/sample$/.exec(
+    url.pathname
+  );
+  if (sampleMatch && request.method === 'GET') {
+    const [, projectId, sourceId] = sampleMatch;
+    if (principal.role !== 'admin' && !sourceInScope(principal.scope, projectId!, sourceId!))
+      return notFound();
+    if (!dependencies.learnSample) return notFound();
+    const source = await dependencies.repositories.getSource(projectId!, sourceId!);
+    if (!source || source.status === 'deleted') return notFound();
+    const cursor = url.searchParams.get('cursor') ?? undefined;
+    if (cursor !== undefined && cursor.length > 2048) return invalid('cursor');
+    const slice = await dependencies.learnSample(projectId!, sourceId!, cursor);
+    return slice
+      ? Response.json(slice, { headers: { 'cache-control': 'no-store' } })
+      : invalid('cursor');
   }
   const inventoryMatch = /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)\/inventory$/.exec(
     url.pathname

@@ -2,6 +2,7 @@ import type {
   ActionData,
   CloudEvent,
   CustomEventData,
+  PageStructureData,
   PageViewData
 } from '@vizoalica/event-contracts';
 import { sanitizeProperties, type CampaignLabels } from '@vizoalica/privacy';
@@ -100,6 +101,20 @@ export function buildActionEvent(
       ...(observation.destination ? { destination: observation.destination } : {}),
       ...(observation.rage ? { rage: true as const } : {})
     },
+    visitor: { anonymous_id: context.anonymousId },
+    session: { id: context.sessionId }
+  });
+}
+
+export function buildStructureEvent(
+  config: VizoalicaConfig,
+  context: EventContext,
+  pagePath: string,
+  structure: PageStructureData['structure']
+): CloudEvent<PageStructureData> {
+  return baseEvent(config, context, 'com.vizoalica.page_structure.v1', {
+    page: { url_origin: currentPage().url_origin, url_path: pagePath },
+    structure,
     visitor: { anonymous_id: context.anonymousId },
     session: { id: context.sessionId }
   });

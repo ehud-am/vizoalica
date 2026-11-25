@@ -16,6 +16,8 @@ import { evaluateQuota } from '../quotas/quota-policy.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
 import { isExcluded } from './address-match.js';
+import { dayVisitorToken, isLearnWindowOpen, type LearnWindow } from './learn-window.js';
+import { PAGE_STRUCTURE_EVENT_TYPE } from './page-structure.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
 
 export interface PipelineRequest {
@@ -38,6 +40,8 @@ export interface PipelineDependencies {
   metrics?: MetricsSink;
   logger?: SafeLogger;
   allowUnsignedDemo?: boolean;
+  /** The learning window; page structure events are dropped outside it (and always when unset). */
+  learnWindow?: LearnWindow | undefined;
   verifyAuthorization?: (header: string | null | undefined) => Promise<TokenVerificationResult>;
 }
 
@@ -141,7 +145,30 @@ export async function ingestBatch(
     return { status: 202, decision };
   }
 
-  const privacy = applyPrivacyGuard(validation.events, source.groupingRules);
+  // Page structure is accepted only while the learning window is open. A batch may mix it with
+  // other events, so it is filtered out instead of rejecting the whole batch.
+  const windowOpen = isLearnWindowOpen(dependencies.learnWindow, request.now ?? new Date());
+  // Page structure is kept only inside the window and never for a visitor who denied analytics,
+  // whatever the sender claims.
+  const accepted = validation.events.filter(
+    (event) =>
+      event.type !== PAGE_STRUCTURE_EVENT_TYPE ||
+      (windowOpen && event.vizoalicaconsent !== 'analytics-denied')
+  );
+  if (accepted.length === 0) {
+    const decision: IngestionDecision = {
+      decision: 'accepted',
+      reasonCodes: ['learning_window_closed'],
+      acceptedCount: 0,
+      rejectedCount: validation.events.length,
+      projectId: project.id,
+      sourceId: source.id,
+      receivedAt: request.now ?? new Date()
+    };
+    return { status: 202, decision };
+  }
+
+  const privacy = applyPrivacyGuard(accepted, source.groupingRules);
   if (!privacy.ok) return reject(400, privacy.reason, project, source);
 
   const policy = await dependencies.repositories.findQuotaPolicy(
@@ -151,7 +178,7 @@ export async function ingestBatch(
   const quotaInput: Parameters<typeof evaluateQuota>[0] = {
     policy,
     requestBytes: new TextEncoder().encode(request.body).byteLength,
-    eventCount: validation.events.length
+    eventCount: accepted.length
   };
   if (claims?.max_events !== undefined) quotaInput.tokenMaxEvents = claims.max_events;
   const quota = evaluateQuota(quotaInput);
@@ -162,7 +189,7 @@ export async function ingestBatch(
     const reserved = await dependencies.repositories.reserveQuota({
       projectId: project.id,
       sourceId: source.id,
-      eventCount: validation.events.length,
+      eventCount: accepted.length,
       requestBytes: quotaInput.requestBytes,
       maxEventsPerSecond: policy.maxEventsPerSecond,
       maxEventsPerDay: policy.maxEventsPerDay,
@@ -172,19 +199,27 @@ export async function ingestBatch(
   }
 
   const trustLevel = claims ? 'signed-session' : staticSite ? 'origin-checked' : 'unsigned-demo';
-  const storedEvents: StoredEvent[] = privacy.events.map((event) => ({
-    projectId: project.id,
-    sourceId: source.id,
-    trustLevel,
-    consentState: event.vizoalicaconsent ?? claims?.consent_state ?? 'unknown',
-    event: {
-      ...event,
-      vizoalicaproject: project.id,
-      vizoalicasource: source.id,
-      vizoalicaauth: trustLevel
-    },
-    receivedAt: request.now ?? new Date()
-  }));
+  const visitorDay = windowOpen
+    ? await dayVisitorToken(request.analyticsContext?.dailyVisitorId, source.id)
+    : undefined;
+  const storedEvents: StoredEvent[] = privacy.events.map((event) => {
+    const consentState = event.vizoalicaconsent ?? claims?.consent_state ?? 'unknown';
+    return {
+      projectId: project.id,
+      sourceId: source.id,
+      trustLevel,
+      consentState,
+      event: {
+        ...event,
+        vizoalicaproject: project.id,
+        vizoalicasource: source.id,
+        vizoalicaauth: trustLevel
+      },
+      receivedAt: request.now ?? new Date(),
+      // Never for a visitor who denied analytics.
+      ...(visitorDay && consentState !== 'analytics-denied' ? { visitorDay } : {})
+    };
+  });
   await dependencies.repositories.saveAcceptedEvents(storedEvents);
   const analyticsContext = request.analyticsContext
     ? {

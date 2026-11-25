@@ -1,0 +1,118 @@
+name: Website spec
+
+# Template: copy this file to .github/workflows/vizoalica-spec.yml in the repository that holds
+# your spec folder (the one `vizoalica spec init` created, usually vizoalica-spec/<website>).
+#
+# What it does
+#   - Pull request that touches the spec folder: checks the files (`spec validate --check`, which
+#     also fails when ONTOLOGY.md is out of date). It needs no secret and does not reach the backend,
+#     so a pull request can never read or use your key.
+#   - Push to main that touches the spec folder: stores the folder as the latest spec on the backend
+#     and applies page names, grouping rules and goals (`spec apply --yes`). Nothing is removed.
+#     This job runs in the GitHub environment named below, so you can require a reviewer there.
+#
+# With git the folder is the source of truth: applying from main replaces the spec stored on the
+# backend, including a change made there by hand or from another computer. The log shows what
+# changed (`spec diff` runs first). If you also edit the spec on the backend, run
+# `vizoalica spec pull` before you commit.
+#
+# Setup
+#   1. Create a GitHub environment (Settings, Environments) named vizoalica-spec; add required
+#      reviewers if you want an approval before each apply.
+#   2. In that environment set the variable VIZOALICA_BACKEND_URL (the https address of the Worker)
+#      and the secret VIZOALICA_ACCESS_KEY (a website owner access key made for this job in the
+#      console, under Keys). Optional variables: VIZOALICA_PROJECT and VIZOALICA_WEBSITE (needed
+#      only when the backend has several), VIZOALICA_ROLE (owner by default, or admin when the
+#      secret is the administrator secret).
+#
+# The spec never holds personal data, and this job needs no Cloudflare token.
+
+on:
+  pull_request:
+    paths: ['vizoalica-spec/**']
+  push:
+    branches: [main]
+    paths: ['vizoalica-spec/**']
+  workflow_dispatch:
+
+env:
+  SPEC_DIRECTORY: vizoalica-spec/shop
+  VIZOALICA_ENVIRONMENT: prod
+  # Pin the version you tested with.
+  VIZOALICA_CLI_VERSION: '0.17.0'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the spec files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install the Vizoalica command line
+        run: npm install --global "vizoalica@${VIZOALICA_CLI_VERSION}"
+
+      - name: Check the spec files
+        run: vizoalica spec validate "$SPEC_DIRECTORY" --check
+
+  apply:
+    name: Apply the spec
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: vizoalica-spec
+    concurrency:
+      group: vizoalica-spec-apply
+      cancel-in-progress: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install the Vizoalica command line
+        run: npm install --global "vizoalica@${VIZOALICA_CLI_VERSION}"
+
+      - name: Connect to the backend
+        env:
+          VIZOALICA_BACKEND_URL: ${{ vars.VIZOALICA_BACKEND_URL }}
+          VIZOALICA_ACCESS_KEY: ${{ secrets.VIZOALICA_ACCESS_KEY }}
+          VIZOALICA_ROLE: ${{ vars.VIZOALICA_ROLE }}
+        run: |
+          if [ -z "$VIZOALICA_BACKEND_URL" ] || [ -z "$VIZOALICA_ACCESS_KEY" ]; then
+            echo "::error::Set the VIZOALICA_BACKEND_URL variable and the VIZOALICA_ACCESS_KEY secret in the vizoalica-spec environment."
+            exit 1
+          fi
+          printf '%s' "$VIZOALICA_ACCESS_KEY" | vizoalica env add "$VIZOALICA_ENVIRONMENT" \
+            --connect --url "$VIZOALICA_BACKEND_URL" --role "${VIZOALICA_ROLE:-owner}" --secret-stdin --yes
+
+      - name: Show what the spec changes
+        env:
+          VIZOALICA_PROJECT: ${{ vars.VIZOALICA_PROJECT }}
+          VIZOALICA_WEBSITE: ${{ vars.VIZOALICA_WEBSITE }}
+        run: |
+          vizoalica spec diff "$VIZOALICA_ENVIRONMENT" "$SPEC_DIRECTORY" \
+            ${VIZOALICA_PROJECT:+--project "$VIZOALICA_PROJECT"} \
+            ${VIZOALICA_WEBSITE:+--website "$VIZOALICA_WEBSITE"}
+
+      - name: Apply the spec
+        env:
+          VIZOALICA_PROJECT: ${{ vars.VIZOALICA_PROJECT }}
+          VIZOALICA_WEBSITE: ${{ vars.VIZOALICA_WEBSITE }}
+        run: |
+          vizoalica spec apply "$VIZOALICA_ENVIRONMENT" "$SPEC_DIRECTORY" --yes \
+            ${VIZOALICA_PROJECT:+--project "$VIZOALICA_PROJECT"} \
+            ${VIZOALICA_WEBSITE:+--website "$VIZOALICA_WEBSITE"}

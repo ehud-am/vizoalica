@@ -3,6 +3,7 @@ import type {
   CloudEvent,
   ConsentState,
   CustomEventData,
+  PageStructureData,
   PageViewData
 } from '@vizoalica/event-contracts';
 
@@ -27,6 +28,11 @@ export interface VizoalicaConfig {
    * setting for it; this switch exists only for programmatic use and tests.
    */
   autoActions?: boolean;
+  /**
+   * Describes the accessible structure of pages while a learning window is open. The window
+   * normally comes from the backend that serves the script; these exist for tests.
+   */
+  learn?: { window?: { start: string; end: string }; sampleRate?: number };
   maxQueueSize?: number;
   flushIntervalMs?: number;
   transportTimeoutMs?: number;
@@ -36,4 +42,6 @@ export interface TrackOptions {
   properties?: Record<string, unknown>;
 }
 
-export type VizoalicaEvent = CloudEvent<PageViewData | CustomEventData | ActionData>;
+export type VizoalicaEvent = CloudEvent<
+  PageViewData | CustomEventData | ActionData | PageStructureData
+>;

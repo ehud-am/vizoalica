@@ -21,7 +21,7 @@ export interface ActionObservation {
   rage?: true;
 }
 
-const ELIGIBLE = [
+export const ELIGIBLE = [
   'button',
   'a[href]',
   'input[type="button"]',
@@ -63,14 +63,55 @@ function kindOf(element: Element): ActionKind {
   return tag === 'a' ? 'link' : 'button';
 }
 
+const IGNORE_SELECTOR = '[data-vizoalica-ignore]';
+
+/** The text of an element without anything inside a `data-vizoalica-ignore` descendant. */
+export function visibleText(element: Element): string {
+  if (!element.querySelector(IGNORE_SELECTOR)) return element.textContent ?? '';
+  const copy = element.cloneNode(true) as Element;
+  for (const hidden of Array.from(copy.querySelectorAll(IGNORE_SELECTOR))) hidden.remove();
+  return copy.textContent ?? '';
+}
+
+/** The alt text of the first image of an element that is not inside an ignored area. */
+function imageAlt(element: Element): string | null | undefined {
+  for (const image of Array.from(element.querySelectorAll('img[alt]')))
+    if (!image.closest(IGNORE_SELECTOR)) return image.getAttribute('alt');
+  return undefined;
+}
+
+/** The accessible name of a control, redacted, or undefined when it has none. */
+export function accessibleName(element: Element): string | undefined {
+  const isInput = element.tagName.toLowerCase() === 'input';
+  const candidates = [
+    element.getAttribute('data-vizoalica-action'),
+    element.getAttribute('aria-label'),
+    isInput ? element.getAttribute('value') : visibleText(element),
+    element.getAttribute('title'),
+    imageAlt(element)
+  ];
+  for (const candidate of candidates) {
+    const name = redactLabel(candidate);
+    if (name) return name;
+  }
+  return undefined;
+}
+
+export function roleOf(element: Element): string {
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit.toLowerCase().slice(0, 24);
+  const tag = element.tagName.toLowerCase();
+  return tag === 'a' ? 'link' : 'button';
+}
+
 function nameOf(element: Element, kind: ActionKind): string {
   const isInput = element.tagName.toLowerCase() === 'input';
   const candidates = [
     element.getAttribute('data-vizoalica-action'),
     element.getAttribute('aria-label'),
-    isInput ? element.getAttribute('value') : element.textContent,
+    isInput ? element.getAttribute('value') : visibleText(element),
     element.getAttribute('title'),
-    element.querySelector('img[alt]')?.getAttribute('alt')
+    imageAlt(element)
   ];
   for (const candidate of candidates) {
     const name = redactLabel(candidate);

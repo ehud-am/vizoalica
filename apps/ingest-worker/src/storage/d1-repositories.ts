@@ -22,6 +22,7 @@ import type {
   ExcludedHitsReport,
   Goal,
   PageLabel,
+  StoredSiteSpec,
   SetupInventory,
   GoalsReport,
   GroupingRule,
@@ -191,6 +192,7 @@ const PURGE_SOURCE_TABLES = [
   'goals',
   'pixel_paths',
   'page_labels',
+  'site_specs',
   'quota_windows',
   'ingestion_decisions',
   'administrative_audit'
@@ -366,6 +368,8 @@ export class D1Repositories
         if (item) (item.rage ? rageItems : actionItems).push(item);
         continue;
       }
+      // Page structure is raw-store only: no rollup of any kind.
+      if (eventType === 'com.vizoalica.page_structure.v1') continue;
       const data = stored.event.data as { page?: { url_path?: unknown } };
       const pagePath =
         eventType === 'com.vizoalica.page_view.v1' && typeof data.page?.url_path === 'string'
@@ -1340,6 +1344,79 @@ export class D1Repositories
       )
     ];
     await this.runBatch(statements);
+  }
+
+  async getSiteSpec(projectId: string, sourceId: string): Promise<StoredSiteSpec | undefined> {
+    const row = await this.db
+      .prepare(
+        'SELECT version, content_hash, spec_json, rendered_md, git_sha, applied_at, applied_by FROM site_specs WHERE project_id = ? AND source_id = ?'
+      )
+      .bind(projectId, sourceId)
+      .first<{
+        version: number;
+        content_hash: string;
+        spec_json: string;
+        rendered_md: string;
+        git_sha: string;
+        applied_at: string;
+        applied_by: string;
+      }>();
+    return row
+      ? {
+          version: row.version,
+          contentHash: row.content_hash,
+          specJson: row.spec_json,
+          renderedMd: row.rendered_md,
+          gitSha: row.git_sha,
+          appliedAt: row.applied_at,
+          appliedBy: row.applied_by
+        }
+      : undefined;
+  }
+
+  /** One statement, so two writers cannot both succeed from the same base version. */
+  async putSiteSpec(
+    projectId: string,
+    sourceId: string,
+    spec: Omit<StoredSiteSpec, 'version'>,
+    baseVersion: number
+  ): Promise<number | undefined> {
+    const next = baseVersion + 1;
+    const result =
+      baseVersion === 0
+        ? await this.db
+            .prepare(
+              'INSERT OR IGNORE INTO site_specs (project_id, source_id, version, content_hash, spec_json, rendered_md, git_sha, applied_at, applied_by) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)'
+            )
+            .bind(
+              projectId,
+              sourceId,
+              spec.contentHash,
+              spec.specJson,
+              spec.renderedMd,
+              spec.gitSha,
+              spec.appliedAt,
+              spec.appliedBy
+            )
+            .run()
+        : await this.db
+            .prepare(
+              'UPDATE site_specs SET version = ?, content_hash = ?, spec_json = ?, rendered_md = ?, git_sha = ?, applied_at = ?, applied_by = ? WHERE project_id = ? AND source_id = ? AND version = ?'
+            )
+            .bind(
+              next,
+              spec.contentHash,
+              spec.specJson,
+              spec.renderedMd,
+              spec.gitSha,
+              spec.appliedAt,
+              spec.appliedBy,
+              projectId,
+              sourceId,
+              baseVersion
+            )
+            .run();
+    return (result.meta?.changes ?? 0) === 1 ? next : undefined;
   }
 
   async getSetupInventory(

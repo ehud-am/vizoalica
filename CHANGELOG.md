@@ -4,6 +4,34 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-25
+
+### Added
+
+- **Site spec (ontology)**: versioned JSON files (pages, actions, events, groups, campaigns, funnels, paths, goals,
+  decisions) with a generated `ONTOLOGY.md` kept in sync (`spec validate --check`). `vizoalica spec init | validate |
+render | diff | apply | pull | export | import`. With git the folder is the source of truth; without it the backend
+  keeps the latest version. Personal data (emails, IP addresses, phone numbers) is refused.
+- **`/vizoalica learn [depth]`** in the Vizoalica skill, with MCP tools `learn_start`, `learn_get`, `check_funnel`
+  and `get_spec` (read-only). Operator answers about unlabeled controls and conflicting descriptions are kept in
+  `decisions.json` and reused.
+- **Learning window** (off by default): Worker variables `VIZOALICA_LEARN_START`, `VIZOALICA_LEARN_DAYS`,
+  `VIZOALICA_LEARN_SAMPLE`; a bounded `com.vizoalica.page_structure.v1` event, raw store only; `vizoalica learn
+status | enable | disable`. Worker routes `GET/PUT /spec` and `GET /learn/sample`.
+- **Funnels across pages**: while a learning window is open the raw store keeps a one-way token per visitor and UTC day
+  (cut from the daily visitor identifier; random per-day salt deleted after the day; no address stored; never returned).
+  Funnels may use `"within": "day"`; digest quality adds `linkedShare`.
+- **Privacy hardening from review**: `data-vizoalica-ignore` is honoured inside headings, labels and control names;
+  the spec validator checks path patterns, page keys and decision subjects; rare text is dropped from every digest
+  section (floor of 3 page loads); the day token differs per website; denied-consent structure events are refused.
+- **Example CI workflow** `examples/spec-ci/spec-workflow.yml`: validate and diff on pull requests, apply on main.
+- **One database migration** (additive): `0012_site_specs.sql` (schema 12). Update with
+  `vizoalica deploy <name> --update`.
+
+### Changed
+
+- `wrangler.example.toml` sets `keep_vars = true`, so variables set in the Cloudflare dashboard survive a redeploy.
+
 ## [0.16.0] - 2026-11-22
 
 ### Changed

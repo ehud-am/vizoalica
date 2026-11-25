@@ -5,12 +5,14 @@ import cloudEventBatchSchema from '../schemas/cloudevent-batch.schema.json' with
 import actionSchema from '../schemas/event-data-action.schema.json' with { type: 'json' };
 import customEventSchema from '../schemas/event-data-custom-event.schema.json' with { type: 'json' };
 import pageViewSchema from '../schemas/event-data-page-view.schema.json' with { type: 'json' };
+import pageStructureSchema from '../schemas/event-data-page-structure.schema.json' with { type: 'json' };
 import tokenClaimsSchema from '../schemas/token-claims.schema.json' with { type: 'json' };
 
 export const eventTypes = [
   'com.vizoalica.page_view.v1',
   'com.vizoalica.custom_event.v1',
-  'com.vizoalica.action.v1'
+  'com.vizoalica.action.v1',
+  'com.vizoalica.page_structure.v1'
 ] as const;
 export type VizoalicaEventType = (typeof eventTypes)[number];
 export type TrustLevel = 'signed-session' | 'origin-checked' | 'unsigned-demo' | 'pixel';
@@ -79,6 +81,27 @@ export interface CustomEventData {
   session: { id: string };
 }
 
+/**
+ * The accessible structure of one page, sent only while a learning window is open. Labels and
+ * headings are text the website already shows; there are no field values and no body text.
+ */
+export interface PageStructureData {
+  page: { url_origin: string; url_path: string };
+  structure: {
+    lang?: string;
+    title?: string;
+    description?: string;
+    headings?: Array<{ level: 1 | 2 | 3; text: string }>;
+    landmarks?: Array<{ role: string; label?: string }>;
+    /** A control without a `name` has no accessible name: a gap the operator is asked about. */
+    controls?: Array<{ role: string; name?: string; landmark?: string }>;
+    forms?: Array<{ name?: string; fields?: Array<{ type: string; label?: string }> }>;
+    a11y?: { controls?: number; unlabeledControls?: number; imagesWithoutAlt?: number };
+  };
+  visitor: { anonymous_id: string };
+  session: { id: string };
+}
+
 export interface TokenClaims {
   iss: string;
   aud: 'vizoalica-ingest';
@@ -102,6 +125,7 @@ export const schemas = {
   pageView: pageViewSchema,
   customEvent: customEventSchema,
   action: actionSchema,
+  pageStructure: pageStructureSchema,
   tokenClaims: tokenClaimsSchema
 } as const;
 
@@ -114,6 +138,7 @@ export function createValidator() {
   ajv.addSchema(pageViewSchema, './event-data-page-view.schema.json');
   ajv.addSchema(customEventSchema, './event-data-custom-event.schema.json');
   ajv.addSchema(actionSchema, './event-data-action.schema.json');
+  ajv.addSchema(pageStructureSchema, './event-data-page-structure.schema.json');
   ajv.addSchema(tokenClaimsSchema, 'token-claims');
   return ajv;
 }

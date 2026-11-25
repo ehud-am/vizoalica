@@ -3,6 +3,7 @@ import type {
   ActionKind,
   CloudEvent,
   CustomEventData,
+  PageStructureData,
   PageViewData
 } from '@vizoalica/event-contracts';
 import {
@@ -15,12 +16,17 @@ import {
 } from '@vizoalica/privacy';
 import type { GroupingRule } from '../domain/types.js';
 import { applyGroupingRules } from './grouping-rules.js';
+import { normalizePageStructure, PAGE_STRUCTURE_EVENT_TYPE } from './page-structure.js';
 
 export type PrivacyGuardResult =
   | { ok: true; events: CloudEvent[] }
   | {
       ok: false;
-      reason: 'sensitive_property_name' | 'unredacted_url_query' | 'forbidden_page_content';
+      reason:
+        | 'sensitive_property_name'
+        | 'unredacted_url_query'
+        | 'forbidden_page_content'
+        | 'page_structure_too_large';
     };
 
 function isPageView(event: CloudEvent): event is CloudEvent<PageViewData> {
@@ -29,6 +35,10 @@ function isPageView(event: CloudEvent): event is CloudEvent<PageViewData> {
 
 function isCustomEvent(event: CloudEvent): event is CloudEvent<CustomEventData> {
   return event.type === 'com.vizoalica.custom_event.v1';
+}
+
+function isStructure(event: CloudEvent): event is CloudEvent<PageStructureData> {
+  return event.type === PAGE_STRUCTURE_EVENT_TYPE;
 }
 
 function isAction(event: CloudEvent): event is CloudEvent<ActionData> {
@@ -123,6 +133,9 @@ export function validateEventPrivacy(event: CloudEvent): PrivacyGuardResult {
       return { ok: false, reason: 'unredacted_url_query' };
   }
 
+  if (isStructure(event) && event.data.page.url_path.includes('?'))
+    return { ok: false, reason: 'unredacted_url_query' };
+
   if (isCustomEvent(event)) {
     if (event.data.page?.url_path.includes('?'))
       return { ok: false, reason: 'unredacted_url_query' };
@@ -161,6 +174,10 @@ export function applyPrivacyGuard(
       sanitized.push(normalizePageView(event, group));
     } else if (isAction(event)) {
       sanitized.push(normalizeAction(event, group));
+    } else if (isStructure(event)) {
+      const normalized = normalizePageStructure(event, group);
+      if (!normalized) return { ok: false, reason: 'page_structure_too_large' };
+      sanitized.push(normalized);
     } else {
       sanitized.push(event);
     }

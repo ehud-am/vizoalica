@@ -51,6 +51,12 @@ export type FakeBackend = {
   writes?: Array<{ method: string; path: string; body: unknown }>;
   /** Goals and grouping rules the inventory reports as already set. */
   existing?: { goals?: unknown[]; groupingRules?: unknown[] };
+  /** The learning window the backend reports; null (absent) when off. */
+  learn?: { startUtc: string; endUtc: string; days: number; samplePercent: number };
+  /** Slices the learn sample route returns, one per call, with the cursor to ask for the next. */
+  learnSlices?: unknown[];
+  /** The stored site spec (version 0 when none); a PUT replaces it when the base version matches. */
+  specStore?: { version: number; spec?: unknown };
   /** Pixel path usage in the website status; absent unless the pixel is on. */
   pixelPaths?: { count: number; max: number; capReached: boolean };
 };
@@ -135,7 +141,8 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
           appliedNames: [],
           status: 'current'
         },
-        health: backend.health === undefined ? { database: 'ok', storage: 'ok' } : backend.health
+        health: backend.health === undefined ? { database: 'ok', storage: 'ok' } : backend.health,
+        learn: backend.learn ?? null
       });
     if (path === '/v1/admin/projects') return json(backend.projects ?? []);
     const sources = /^\/v1\/admin\/projects\/([^/]+)\/sources$/.exec(path);
@@ -263,6 +270,42 @@ export function fakeWorkers(backends: Record<string, FakeBackend>) {
         ],
         availability: { state: 'complete', taxonomyVersions: [1] }
       });
+    }
+    if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/learn\/sample$/.test(path)) {
+      if (!backend.learnSlices) return json({ error: 'not_found' }, 404);
+      const at = Number(url.searchParams.get('cursor') ?? 0);
+      const slice = backend.learnSlices[at] as Record<string, unknown>;
+      return json({
+        ...slice,
+        ...(at + 1 < backend.learnSlices.length
+          ? { cursor: String(at + 1), done: false }
+          : { done: true })
+      });
+    }
+    if (/^\/v1\/admin\/projects\/[^/]+\/sources\/[^/]+\/spec$/.test(path)) {
+      if (backend.noInventory) return json({ error: 'not_found' }, 404);
+      const store = (backend.specStore ??= { version: 0 });
+      if (init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body)) as { spec: unknown; baseVersion: number };
+        (backend.writes ??= []).push({ method: 'PUT', path, body });
+        if (body.baseVersion !== store.version)
+          return json({ error: 'version_conflict', currentVersion: store.version }, 409);
+        store.version += 1;
+        store.spec = body.spec;
+        return json({ version: store.version, contentHash: 'h'.repeat(64) });
+      }
+      return json(
+        store.version
+          ? {
+              ...store,
+              contentHash: 'h'.repeat(64),
+              renderedMd: '',
+              gitSha: '',
+              appliedAt: 't',
+              appliedBy: ''
+            }
+          : { version: 0 }
+      );
     }
     const site =
       /^\/v1\/admin\/projects\/([^/]+)\/sources\/([^/]+)(?:\/(inventory|labels|goals))?$/.exec(

@@ -18,6 +18,7 @@ import type {
   Goal,
   GoalsReport,
   PageLabel,
+  StoredSiteSpec,
   SetupInventory,
   GroupingRule,
   ExcludedHitsReport,
@@ -167,6 +168,18 @@ export interface AdminRepository {
     labels: PageLabel[],
     updatedAt: string
   ): Promise<void>;
+  /** The latest spec of a website. Absent on a Worker whose database predates schema 12. */
+  getSiteSpec?(projectId: string, sourceId: string): Promise<StoredSiteSpec | undefined>;
+  /**
+   * Stores a new latest spec. `baseVersion` is the version the caller started from (0 for none);
+   * false when the stored version differs, so a concurrent change is never overwritten.
+   */
+  putSiteSpec?(
+    projectId: string,
+    sourceId: string,
+    spec: Omit<StoredSiteSpec, 'version'>,
+    baseVersion: number
+  ): Promise<number | undefined>;
   getSetupInventory?(
     projectId: string,
     sourceId: string,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { redactReferrer, redactUrl, sanitizeProperties } from '../src/index.js';
+import { redactLabel, redactReferrer, redactUrl, sanitizeProperties } from '../src/index.js';
 
 describe('privacy redaction', () => {
   it('keeps origin/path and redacts query values', () => {
@@ -20,5 +20,14 @@ describe('privacy redaction', () => {
     expect(
       sanitizeProperties({ plan: 'pro', token: 'secret', count: 2, nested: { no: true } })
     ).toEqual({ plan: 'pro', count: 2 });
+  });
+});
+
+describe('redactLabel length', () => {
+  it('cuts to the action-name limit by default and to a longer limit on request', () => {
+    const long = 'word '.repeat(80);
+    expect(redactLabel(long)).toHaveLength(79);
+    expect(redactLabel(long, 256).length).toBeGreaterThan(200);
+    expect(redactLabel(long, 256).length).toBeLessThanOrEqual(256);
   });
 });

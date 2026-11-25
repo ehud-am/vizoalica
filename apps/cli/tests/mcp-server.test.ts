@@ -23,6 +23,7 @@ describe('the vizoalica MCP server', () => {
     const { client } = await start();
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'check_funnel',
       'compare_periods',
       'get_actions',
       'get_campaigns',
@@ -31,8 +32,11 @@ describe('the vizoalica MCP server', () => {
       'get_goals',
       'get_inventory',
       'get_rage_clicks',
+      'get_spec',
       'get_traffic_overview',
       'get_website_status',
+      'learn_get',
+      'learn_start',
       'list_environments',
       'list_websites',
       'use_environment'
