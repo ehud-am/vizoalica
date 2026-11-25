@@ -86,6 +86,7 @@ export default {
         }),
         visitorSalts: configuration,
         ...(config.pixelMaxPaths ? { pixelMaxPaths: config.pixelMaxPaths } : {}),
+        ...(config.learnWindow ? { learnWindow: config.learnWindow } : {}),
         ...(env.VIZOALICA_INGEST_LIMITER ? { rateLimiter: env.VIZOALICA_INGEST_LIMITER } : {})
       },
       config.maxRequestBytes

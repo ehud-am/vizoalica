@@ -15,7 +15,8 @@
         "enum": [
           "com.vizoalica.page_view.v1",
           "com.vizoalica.custom_event.v1",
-          "com.vizoalica.action.v1"
+          "com.vizoalica.action.v1",
+          "com.vizoalica.page_structure.v1"
         ]
       },
       "source": { "type": "string", "format": "uri", "maxLength": 2048 },
@@ -32,7 +33,8 @@
         "oneOf": [
           { "$ref": "./event-data-page-view.schema.json" },
           { "$ref": "./event-data-custom-event.schema.json" },
-          { "$ref": "./event-data-action.schema.json" }
+          { "$ref": "./event-data-action.schema.json" },
+          { "$ref": "./event-data-page-structure.schema.json" }
         ]
       }
     },

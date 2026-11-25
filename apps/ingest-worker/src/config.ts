@@ -1,3 +1,4 @@
+import { parseLearnWindow, type LearnWindow } from '../../ingest-api/src/ingestion/learn-window.js';
 import type { Env } from './env.js';
 
 const MIN_SECRET_LENGTH = 32;
@@ -20,6 +21,8 @@ export function loadWorkerConfig(env: Env): {
   maxRequestBytes: number;
   /** Distinct pixel paths per website; undefined means the built-in default. */
   pixelMaxPaths?: number;
+  /** When page structure may be sent; undefined means never. Invalid values mean off. */
+  learnWindow?: LearnWindow;
 } {
   if (
     !env.VIZOALICA_DB ||
@@ -48,9 +51,11 @@ export function loadWorkerConfig(env: Env): {
     requestedMaxPaths >= 1
       ? requestedMaxPaths
       : undefined;
+  const learnWindow = parseLearnWindow(env.VIZOALICA_LEARN_START, env.VIZOALICA_LEARN_DAYS);
   return {
     allowUnsignedDemo: env.VIZOALICA_DEMO_MODE === 'true',
     maxRequestBytes,
-    ...(pixelMaxPaths !== undefined ? { pixelMaxPaths } : {})
+    ...(pixelMaxPaths !== undefined ? { pixelMaxPaths } : {}),
+    ...(learnWindow ? { learnWindow } : {})
   };
 }

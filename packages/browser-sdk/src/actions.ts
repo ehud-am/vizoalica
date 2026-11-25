@@ -21,7 +21,7 @@ export interface ActionObservation {
   rage?: true;
 }
 
-const ELIGIBLE = [
+export const ELIGIBLE = [
   'button',
   'a[href]',
   'input[type="button"]',
@@ -59,6 +59,30 @@ function kindOf(element: Element): ActionKind {
   if (role === 'link') return 'link';
   if (role === 'button') return 'button';
   if (role === 'menuitem' || role === 'tab') return 'other';
+  const tag = element.tagName.toLowerCase();
+  return tag === 'a' ? 'link' : 'button';
+}
+
+/** The accessible name of a control, redacted, or undefined when it has none. */
+export function accessibleName(element: Element): string | undefined {
+  const isInput = element.tagName.toLowerCase() === 'input';
+  const candidates = [
+    element.getAttribute('data-vizoalica-action'),
+    element.getAttribute('aria-label'),
+    isInput ? element.getAttribute('value') : element.textContent,
+    element.getAttribute('title'),
+    element.querySelector('img[alt]')?.getAttribute('alt')
+  ];
+  for (const candidate of candidates) {
+    const name = redactLabel(candidate);
+    if (name) return name;
+  }
+  return undefined;
+}
+
+export function roleOf(element: Element): string {
+  const explicit = element.getAttribute('role');
+  if (explicit) return explicit.toLowerCase().slice(0, 24);
   const tag = element.tagName.toLowerCase();
   return tag === 'a' ? 'link' : 'button';
 }

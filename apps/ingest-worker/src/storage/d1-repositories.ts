@@ -368,6 +368,8 @@ export class D1Repositories
         if (item) (item.rage ? rageItems : actionItems).push(item);
         continue;
       }
+      // Page structure is raw-store only: no rollup of any kind.
+      if (eventType === 'com.vizoalica.page_structure.v1') continue;
       const data = stored.event.data as { page?: { url_path?: unknown } };
       const pagePath =
         eventType === 'com.vizoalica.page_view.v1' && typeof data.page?.url_path === 'string'

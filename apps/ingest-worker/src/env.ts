@@ -41,6 +41,10 @@ export interface Env {
   VIZOALICA_MAX_REQUEST_BYTES?: string;
   /** Distinct page paths the no-JavaScript pixel counts per website (default 100). */
   VIZOALICA_PIXEL_MAX_PATHS?: string;
+  /** Learning window: first day (UTC, YYYY-MM-DD) page structure may be sent. Unset means off. */
+  VIZOALICA_LEARN_START?: string;
+  /** Learning window length in days (default 14, at most 90). */
+  VIZOALICA_LEARN_DAYS?: string;
   VIZOALICA_INGEST_LIMITER?: RateLimiter;
   /** The release this Worker was deployed from; unset on an older or hand-run deployment. */
   VIZOALICA_WORKER_VERSION?: string;

@@ -8,14 +8,20 @@ import { classifyRequest } from '../analytics/classifier.js';
 import type { RateLimiter } from '../env.js';
 import { dailyVisitorId, type DailySaltStore } from '../analytics/daily-visitor.js';
 import { countPixelHit } from '../../../ingest-api/src/ingestion/pixel.js';
+import type { LearnWindow } from '../../../ingest-api/src/ingestion/learn-window.js';
 import { BROWSER_SDK } from '../generated/browser-sdk.js';
 
 /**
  * The browser SDK this Worker was deployed with, so a static website needs only a script tag. It
  * is public code with no settings in it; the tag's data attributes carry the website's key.
  */
-function sdkResponse(): Response {
-  return new Response(BROWSER_SDK, {
+function sdkResponse(learnWindow?: LearnWindow): Response {
+  // The learning window, when the operator set one, travels inside the script this Worker serves,
+  // so the browser makes no extra request. The SDK checks the clock itself.
+  const prefix = learnWindow
+    ? `globalThis.__vizoalicaLearn=${JSON.stringify({ start: learnWindow.startUtc, end: learnWindow.endUtc })};\n`
+    : '';
+  return new Response(`${prefix}${BROWSER_SDK}`, {
     headers: {
       'content-type': 'text/javascript; charset=utf-8',
       'cache-control': 'public, max-age=3600',
@@ -115,7 +121,7 @@ export async function handleWorkerRequest(
   const url = new URL(request.url);
   if (request.method === 'GET' && url.pathname === '/healthz') return healthResponse();
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/vizoalica.js')
-    return sdkResponse();
+    return sdkResponse(dependencies.learnWindow);
   if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/v1/pixel.gif') {
     const key = url.searchParams.get('website');
     const path = url.searchParams.get('path');

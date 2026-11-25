@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vizoalica.dev/schemas/v0.1.0/event-data-page-structure.schema.json",
+  "title": "Page Structure Event Data",
+  "description": "Data of a com.vizoalica.page_structure.v1 event: the accessible structure of one page (landmarks, headings, control and form labels). Sent only while a learning window is open. Contains no field values, typed text, or page body text, at most 4 KB, and is stored in the raw event store only.",
+  "type": "object",
+  "required": ["page", "structure", "visitor", "session"],
+  "properties": {
+    "page": {
+      "type": "object",
+      "required": ["url_origin", "url_path"],
+      "properties": {
+        "url_origin": { "type": "string", "format": "uri", "maxLength": 512 },
+        "url_path": { "type": "string", "maxLength": 1024 }
+      },
+      "additionalProperties": false
+    },
+    "structure": {
+      "type": "object",
+      "properties": {
+        "lang": { "type": "string", "maxLength": 8 },
+        "title": { "type": "string", "maxLength": 256 },
+        "description": { "type": "string", "maxLength": 160 },
+        "headings": {
+          "type": "array",
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "required": ["level", "text"],
+            "properties": {
+              "level": { "enum": [1, 2, 3] },
+              "text": { "type": "string", "minLength": 1, "maxLength": 80 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "landmarks": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": { "type": "string", "maxLength": 24 },
+              "label": { "type": "string", "maxLength": 60 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "controls": {
+          "type": "array",
+          "maxItems": 25,
+          "items": {
+            "type": "object",
+            "required": ["role"],
+            "properties": {
+              "role": { "type": "string", "maxLength": 24 },
+              "name": { "type": "string", "maxLength": 80 },
+              "landmark": { "type": "string", "maxLength": 24 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "forms": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "maxLength": 60 },
+              "fields": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": { "type": "string", "maxLength": 24 },
+                    "label": { "type": "string", "maxLength": 60 }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "a11y": {
+          "type": "object",
+          "properties": {
+            "controls": { "type": "integer", "minimum": 0, "maximum": 100000 },
+            "unlabeledControls": { "type": "integer", "minimum": 0, "maximum": 100000 },
+            "imagesWithoutAlt": { "type": "integer", "minimum": 0, "maximum": 100000 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "visitor": {
+      "type": "object",
+      "required": ["anonymous_id"],
+      "properties": { "anonymous_id": { "type": "string", "maxLength": 128 } },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["id"],
+      "properties": { "id": { "type": "string", "maxLength": 128 } },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
