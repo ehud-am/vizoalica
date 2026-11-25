@@ -57,7 +57,9 @@ load the script.
 - Raw form input values.
 - Passwords, payment data, access tokens, refresh tokens, API keys, cookies, or authorization headers.
 - Full URL query values, or address fragments that are not routes (anchors, tokens, sign-in data).
-- Raw page text or DOM snapshots.
+- Raw page text or DOM snapshots. The one exception is an optional, off-by-default
+  [learning window](./spec.md#the-learning-window) that describes a page's headings, landmarks and control and
+  form-field labels (never values or body text), for a limited time, for a share of page loads.
 - Session replay, heatmaps, or click recordings: actions are counted, with no position, timeline,
   or replay.
 
