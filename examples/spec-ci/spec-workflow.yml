@@ -1,0 +1,97 @@
+name: Website spec
+
+# Template: copy this file to .github/workflows/vizoalica-spec.yml in the repository that holds
+# your spec folder (the one `vizoalica spec init` created, usually vizoalica-spec/<website>).
+#
+# What it does
+#   - Pull request that touches the spec folder: checks the files (`spec validate --check`, which
+#     also fails when ONTOLOGY.md is out of date) and prints what applying them would change
+#     (`spec diff`). Nothing is changed on the backend.
+#   - Push to main that touches the spec folder: stores the folder as the latest spec on the
+#     backend and applies page names, grouping rules and goals (`spec apply --yes`). Nothing is
+#     removed. A change made on the backend since the last apply stops the run: pull, merge, push.
+#
+# Repository variables
+#   VIZOALICA_BACKEND_URL   The https address of the Worker.
+#   VIZOALICA_PROJECT       The project name (optional when the backend has one project).
+#   VIZOALICA_WEBSITE       The website name (optional when the project has one website).
+#   VIZOALICA_ROLE          owner (default) or admin: the role of the key below.
+# Repository secret
+#   VIZOALICA_ACCESS_KEY    A website owner access key (or the administrator secret with role admin). `spec diff` and `spec validate`
+#                           work with an analyst key too, but applying needs more. Create one in
+#                           the console (Keys) and use a key that exists for this job only.
+#
+# The spec never holds personal data, and this job needs no Cloudflare token.
+
+on:
+  pull_request:
+    paths: ['vizoalica-spec/**']
+  push:
+    branches: [main]
+    paths: ['vizoalica-spec/**']
+  workflow_dispatch:
+
+env:
+  SPEC_DIRECTORY: vizoalica-spec/shop
+  VIZOALICA_ENVIRONMENT: prod
+  # Pin the version you tested with.
+  VIZOALICA_CLI_VERSION: '0.17.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vizoalica-spec-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  spec:
+    name: Check and apply the spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install the Vizoalica command line
+        run: npm install --global "vizoalica@${VIZOALICA_CLI_VERSION}"
+
+      - name: Check the spec files
+        run: vizoalica spec validate "$SPEC_DIRECTORY" --check
+
+      - name: Connect to the backend
+        env:
+          VIZOALICA_BACKEND_URL: ${{ vars.VIZOALICA_BACKEND_URL }}
+          VIZOALICA_ACCESS_KEY: ${{ secrets.VIZOALICA_ACCESS_KEY }}
+          VIZOALICA_ROLE: ${{ vars.VIZOALICA_ROLE }}
+        run: |
+          if [ -z "$VIZOALICA_BACKEND_URL" ] || [ -z "$VIZOALICA_ACCESS_KEY" ]; then
+            echo "::error::Set the VIZOALICA_BACKEND_URL variable and the VIZOALICA_ACCESS_KEY secret."
+            exit 1
+          fi
+          printf '%s' "$VIZOALICA_ACCESS_KEY" | vizoalica env add "$VIZOALICA_ENVIRONMENT" \
+            --connect --url "$VIZOALICA_BACKEND_URL" --role "${VIZOALICA_ROLE:-owner}" --secret-stdin --yes
+
+      - name: Show what the spec would change
+        env:
+          VIZOALICA_PROJECT: ${{ vars.VIZOALICA_PROJECT }}
+          VIZOALICA_WEBSITE: ${{ vars.VIZOALICA_WEBSITE }}
+        run: |
+          vizoalica spec diff "$VIZOALICA_ENVIRONMENT" "$SPEC_DIRECTORY" \
+            ${VIZOALICA_PROJECT:+--project "$VIZOALICA_PROJECT"} \
+            ${VIZOALICA_WEBSITE:+--website "$VIZOALICA_WEBSITE"}
+
+      - name: Apply the spec
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          VIZOALICA_PROJECT: ${{ vars.VIZOALICA_PROJECT }}
+          VIZOALICA_WEBSITE: ${{ vars.VIZOALICA_WEBSITE }}
+        run: |
+          vizoalica spec apply "$VIZOALICA_ENVIRONMENT" "$SPEC_DIRECTORY" --yes \
+            ${VIZOALICA_PROJECT:+--project "$VIZOALICA_PROJECT"} \
+            ${VIZOALICA_WEBSITE:+--website "$VIZOALICA_WEBSITE"}

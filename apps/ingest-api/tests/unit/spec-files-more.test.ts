@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { filesToSpec, findGapDecision, specToFiles } from '../../src/spec/spec-files.js';
-import { emptySpec, type Decision } from '../../src/spec/site-spec.js';
+import {
+  filesToSpec,
+  findGapDecision,
+  renderOntology,
+  specToFiles
+} from '../../src/spec/spec-files.js';
+import { emptySpec, parseSiteSpec, type Decision } from '../../src/spec/site-spec.js';
 
 const gap = (match: Record<string, unknown>): Decision =>
   ({ id: 'd', type: 'gap', decision: 'ignore', match }) as Decision;
@@ -49,5 +54,30 @@ describe('filesToSpec', () => {
   it('round-trips an empty spec', () => {
     const files = specToFiles(emptySpec({ version: 1 }));
     expect(filesToSpec(files).ok).toBe(true);
+  });
+});
+
+describe('renderOntology', () => {
+  it('says when a funnel crosses page loads', () => {
+    const parsed = parseSiteSpec({
+      meta: { version: 1 },
+      pages: [
+        { id: 'a', match: ['/a'], name: 'A' },
+        { id: 'b', match: ['/b'], name: 'B' }
+      ],
+      funnels: [
+        {
+          id: 'f',
+          name: 'Flow',
+          within: 'day',
+          steps: [
+            { kind: 'page', ref: 'a' },
+            { kind: 'page', ref: 'b' }
+          ]
+        }
+      ]
+    });
+    if (!parsed.ok) throw new Error('invalid');
+    expect(renderOntology(parsed.spec)).toContain('across page loads in one day');
   });
 });

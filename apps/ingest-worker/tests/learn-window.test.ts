@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dayVisitorToken,
   isLearnWindowOpen,
   parseLearnWindow
 } from '../../ingest-api/src/ingestion/learn-window.js';
@@ -30,5 +31,20 @@ describe('parseLearnWindow', () => {
     expect(isLearnWindowOpen(w, new Date('2026-12-02T12:00:00Z'))).toBe(true);
     expect(isLearnWindowOpen(w, new Date('2026-12-03T00:00:00Z'))).toBe(false);
     expect(isLearnWindowOpen(undefined, new Date())).toBe(false);
+  });
+});
+
+describe('dayVisitorToken', () => {
+  it('keeps the day and 64 bits of a daily identifier, and nothing else', () => {
+    const id = `daily-v1:2026-12-01:${'ab12'.repeat(16)}`;
+    expect(dayVisitorToken(id)).toBe('2026-12-01:ab12ab12ab12ab12');
+    for (const bad of [
+      undefined,
+      '',
+      'anon-1',
+      'daily-v1:2026-12-01:short',
+      `daily-v1:x:${'a'.repeat(64)}`
+    ])
+      expect(dayVisitorToken(bad)).toBeUndefined();
   });
 });

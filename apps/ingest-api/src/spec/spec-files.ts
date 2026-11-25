@@ -255,7 +255,10 @@ export function renderOntology(spec: SiteSpec): string {
     (kind === 'page' ? pageName : kind === 'action' ? actionName : eventName).get(ref) ?? ref;
   if (spec.funnels.length)
     for (const funnel of byId(spec.funnels)) {
-      lines.push(`### ${funnel.name} (\`${funnel.id}\`)`, '');
+      lines.push(
+        `### ${funnel.name} (\`${funnel.id}\`)${funnel.within === 'day' ? ', across page loads in one day' : ''}`,
+        ''
+      );
       funnel.steps.forEach((step, at) =>
         lines.push(`${at + 1}. ${step.kind}: ${stepName(step.kind, step.ref)}`)
       );

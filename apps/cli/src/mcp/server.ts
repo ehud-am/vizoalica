@@ -1200,7 +1200,7 @@ export function createMcpServer(deps: ServerDeps): McpServer {
     {
       title: 'Check a funnel on the sample',
       description:
-        'How many sampled page loads reached each step of a proposed funnel, in order, in a learning run. Steps: {kind:"page", key}, {kind:"action", page, name}, {kind:"event", name}. The sample is page loads (a visit across several full page loads is several), so this checks a proposal, it is not a report.',
+        'How many sampled page loads reached each step of a proposed funnel, in order, in a learning run. Steps: {kind:"page", key}, {kind:"action", page, name}, {kind:"event", name}. Sessions are page loads, or a visitor\'s UTC day where the capture linked page loads (see linkedShare in the run quality); counts are lower bounds, so this checks a proposal, it is not a report.',
       inputSchema: {
         run: z.string(),
         steps: z

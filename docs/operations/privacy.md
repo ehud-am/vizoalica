@@ -59,7 +59,9 @@ load the script.
 - Full URL query values, or address fragments that are not routes (anchors, tokens, sign-in data).
 - Raw page text or DOM snapshots. The one exception is an optional, off-by-default
   [learning window](./spec.md#the-learning-window) that describes a page's headings, landmarks and control and
-  form-field labels (never values or body text), for a limited time, for a share of page loads.
+  form-field labels (never values or body text), for a limited time, for a share of page loads. While it is open the
+  raw store also keeps a short one-way token per visitor and day (see
+  [funnels across pages](./spec.md#funnels-across-pages)); it holds no address and cannot be linked to another day.
 - Session replay, heatmaps, or click recordings: actions are counted, with no position, timeline,
   or replay.
 

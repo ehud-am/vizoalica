@@ -19,6 +19,8 @@ export type Sketch = {
   v: 1;
   events: number;
   sessions: number;
+  /** Of `sessions`, how many were a visitor's whole day (page loads linked by a daily token). */
+  linked: number;
   days: string[];
   pages: Record<string, number>;
   structure: Record<string, PageStruct>;
@@ -50,6 +52,7 @@ export function emptySketch(): Sketch {
     v: 1,
     events: 0,
     sessions: 0,
+    linked: 0,
     days: [],
     pages: {},
     structure: {},
@@ -68,8 +71,15 @@ const bump = (map: Record<string, number>, key: string, by = 1): void => {
 
 type Data = Record<string, any>;
 
-/** Builds a sketch from raw events (as stored: CloudEvents). */
-export function sketchEvents(events: CloudEvent[]): Sketch {
+/**
+ * Builds a sketch from raw events (as stored: CloudEvents). `visitorDays` maps an event to its
+ * daily visitor token; events of one token form one journey even across page loads. The tokens
+ * are used to order and link events and are never kept in the sketch.
+ */
+export function sketchEvents(
+  events: CloudEvent[],
+  visitorDays?: ReadonlyMap<CloudEvent, string>
+): Sketch {
   const sketch = emptySketch();
   const days = new Set<string>();
   const bySession = new Map<string, Array<{ time: number; token: string; page?: string }>>();
@@ -78,9 +88,11 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
     const data = event.data as Data;
     const time = Date.parse(event.time);
     if (Number.isFinite(time)) days.add(new Date(time).toISOString().slice(0, 10));
-    const session = String(data.session?.id ?? '');
+    const day = visitorDays?.get(event);
+    const session = day ? `v:${day}` : `s:${String(data.session?.id ?? '')}`;
+    const hasSession = day !== undefined || Boolean(data.session?.id);
     const push = (token: string, page?: string) => {
-      if (!session) return;
+      if (!hasSession) return;
       const list = bySession.get(session) ?? [];
       list.push({ time: Number.isFinite(time) ? time : 0, token, ...(page ? { page } : {}) });
       bySession.set(session, list);
@@ -140,7 +152,7 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
       s.a11y.imagesWithoutAlt += structure.a11y?.imagesWithoutAlt ?? 0;
     }
   }
-  for (const steps of bySession.values()) {
+  for (const [group, steps] of bySession) {
     steps.sort((a, b) => a.time - b.time);
     const tokens: string[] = [];
     let lastPage: string | undefined;
@@ -154,6 +166,7 @@ export function sketchEvents(events: CloudEvent[]): Sketch {
       }
     }
     sketch.sessions += 1;
+    if (group.startsWith('v:')) sketch.linked += 1;
     if (tokens.length > 0) bump(sketch.journeys, tokens.slice(0, MAX_JOURNEY_STEPS).join(STEP));
   }
   sketch.days = [...days].sort();
@@ -231,6 +244,7 @@ export function mergeSketches(a: Sketch, b: Sketch): Sketch {
     v: 1,
     events: a.events + b.events,
     sessions: a.sessions + b.sessions,
+    linked: a.linked + b.linked,
     days: [...new Set([...a.days, ...b.days])].sort(),
     pages: addMaps(a.pages, b.pages),
     structure,

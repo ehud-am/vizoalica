@@ -43,3 +43,16 @@ export function isLearnWindowOpen(window: LearnWindow | undefined, now: Date): b
   const time = now.getTime();
   return time >= Date.parse(window.startUtc) && time < Date.parse(window.endUtc);
 }
+
+/**
+ * A short token for one visitor on one UTC day, cut from the Worker's daily identifier. That
+ * identifier is a keyed hash of the visitor's address and browser made with a random salt that is
+ * deleted once the day is over, so the token cannot be turned back into an address, a name, an
+ * email or a place, and cannot be linked to another day or website. Only 64 bits are kept. The
+ * token is written to the raw store while a learning window is open and never leaves the Worker
+ * in a response. Anything that is not a daily identifier gives no token.
+ */
+export function dayVisitorToken(dailyVisitorId: string | undefined): string | undefined {
+  const match = /^daily-v1:(\d{4}-\d{2}-\d{2}):([0-9a-f]{64})$/.exec(dailyVisitorId ?? '');
+  return match ? `${match[1]}:${match[2]!.slice(0, 16)}` : undefined;
+}

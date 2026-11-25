@@ -42,7 +42,7 @@ numbers or names of people; the validator refuses them).
 | `events.json`    | custom events: id, event name, name, description                         |
 | `groups.json`    | named groups the other files refer to                                    |
 | `campaigns.json` | campaigns: UTM label aliases and a channel                               |
-| `funnels.json`   | ordered steps (page, action or event), within a session                  |
+| `funnels.json`   | ordered steps (page, action or event), within a session or a day         |
 | `paths.json`     | path anchors (start or end page) and groups to collapse                  |
 | `goals.json`     | goals, as in [Goals](/operations/goals)                                  |
 | `decisions.json` | what you decided about gaps and conflicts (see below)                    |
@@ -60,6 +60,10 @@ sync. `spec apply` refuses a stale `ONTOLOGY.md`.
 | History, review, revert | git                                    | none                                                   |
 | Working copy            | the folder                             | `vizoalica spec pull`, edit, `spec apply`              |
 | Concurrent change       | warns if the backend differs           | `apply` refuses if the backend changed since your pull |
+
+To check the spec on pull requests and apply it when it reaches main, copy
+[`examples/spec-ci/spec-workflow.yml`](https://github.com/ehud-am/vizoalica/blob/main/examples/spec-ci/spec-workflow.yml)
+into `.github/workflows/` of the repository that holds the folder.
 
 Either way the backend keeps the latest spec and decisions (migration 0012), which is what reports and dashboards
 read later. Back it up with `vizoalica spec export prod --out backup.json`; restore it with
@@ -96,12 +100,32 @@ The Worker puts the window into the script it serves (`/vizoalica.js`), so the b
 refuses these events outside it. Check it with `vizoalica learn status prod`. Websites that load the script from your
 backend pick it up within an hour.
 
+## Funnels across pages
+
+A funnel can say `"within": "day"`: the steps may happen on different page loads of one visitor on one UTC day.
+While a learning window is open, the Worker writes a short token with each stored event. The token is cut from the
+Worker's daily visitor identifier, a keyed hash of the visitor's address and browser made with a random salt that
+the scheduled job deletes when the day ends. So the token:
+
+- is one-way: it cannot be turned back into an address, name, email or place, and the address itself is never stored;
+- cannot be linked to another day or another website, and after the day's salt is deleted nobody can recompute it;
+- is 64 bits, lives only in the raw event store (kept 7 days), is never returned by any route or tool, and is not
+  stored at all once the window closes;
+- is not written for events whose consent is denied;
+- is used by the learning sample only to order and link a day's events; the sample, the digest and the spec hold
+  counts, never a token.
+
+The Worker needs no cookie and nothing is stored in the browser. Where the daily identifier is unavailable (no client
+address, or a database older than schema 3) events carry no token and stay separate page loads.
+
 ## Limits to know
 
 - **Depth.** Raw events are kept 7 days, and the backend reads a few dozen stored batches per call, so
   `/vizoalica learn 100` is hundreds of small calls and takes a while.
-- **Sessions are page loads.** A visit across full page loads is several sessions, so funnels and paths are only
-  visible inside single-page apps. A funnel check is a sample, not a report.
+- **Linking is per slice.** Page loads of one visitor and day link up only when their batches are read in the same
+  call (about 1,000 events), so on a busy site funnels across pages are lower bounds. `linkedShare` in the run's
+  quality figures says how much was linked. Visits on different days are never linked. A funnel check is a sample,
+  not a report.
 - **Rare labels are dropped.** A label seen in fewer than 3 page loads (`min_sessions`) is left out of the digest, so
   text about one visitor never reaches the assistant. Small sites may need a larger `VIZOALICA_LEARN_SAMPLE`.
 - Labels and headings come from your website: the assistant treats them as data, never as instructions.

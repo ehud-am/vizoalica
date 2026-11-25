@@ -326,13 +326,22 @@ Differences from the text above:
   CLI), and `wrangler.example.toml` gets `keep_vars = true` so `deploy --update` keeps them.
 - k-threshold is `min_sessions`, default 3 (not 5): structure is sampled, so 5 would hide most labels on small sites.
 - T0 verified: session id is random per page load (`resolveSessionId`), so sessions are page loads. Multi-page funnels
-  on server-rendered sites cannot be linked; `check_funnel` and docs say so. Linking would need a daily visitor digest
-  stored with raw events (not done; privacy decision).
+  on server-rendered sites cannot be linked by session; see "Funnels across pages" below.
 - Backend read of raw events: 40 stored batches per call (about 40 to 100 events in practice, as batches are small),
   so depth 20k is hundreds of calls; `learn_start` has a time budget and can be continued with `run`.
 - Added `spec export` (backup file `vizoalica-spec-backup`) and `spec import` (restore; replaces the backend spec only,
   does not re-apply names/rules/goals).
 - Personal data: the validator refuses emails, IP addresses (v4/v6) and long numbers in every text field; the backend
   validates again on PUT and never echoes rejected values.
-- Not done: spec `type` (schema.org) is a free optional name, not validated against the vocabulary; no GitHub Actions
-  example workflow yet; no JSON Schema file published for the spec (the validator is code).
+- Funnels across pages (user decision 2026-11-25): while a learning window is open the Worker stamps each stored event
+  with `visitorDay`, `YYYY-MM-DD:` plus the first 16 hex characters (64 bits) of the existing daily visitor identifier
+  (HMAC of address and user agent under a random per-day salt that the scheduled job deletes after the day). No
+  address is stored, the token is unlinkable across days and websites once the salt is gone, it lives in the raw store
+  only (7 days, none outside the window), and no route or tool returns it. The sketch uses it to order and link a
+  day's events into one journey and drops it (counts only). Funnels may say `within: "day"`. Digest quality gains
+  `linkedShare`. Limit: linking happens inside one sampled slice (one call, about 1,000 events), so counts are lower
+  bounds on busy sites; visits on different days never link. No cookie and nothing in the browser.
+- Example CI workflow: `examples/spec-ci/spec-workflow.yml` (validate and diff on pull requests, apply on main, key
+  from a repository secret via `env add --connect --secret-stdin`).
+- Not done: spec `type` (schema.org) is a free optional name, not validated against the vocabulary; no JSON Schema
+  file published for the spec (the validator is code).

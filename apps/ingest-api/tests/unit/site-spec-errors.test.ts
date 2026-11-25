@@ -340,3 +340,27 @@ describe('parseSiteSpec: problems are listed with their position', () => {
     expect(text.length).toBeGreaterThan(0);
   });
 });
+
+describe('funnels across page loads', () => {
+  it('accepts within day and refuses other values', () => {
+    const funnel = (within: string) => ({
+      meta,
+      pages: [{ id: 'p', match: ['/p'], name: 'P' }],
+      events: [{ id: 'e', event: 'signup', name: 'Signup' }],
+      funnels: [
+        {
+          id: 'f',
+          name: 'F',
+          within,
+          steps: [
+            { kind: 'page', ref: 'p' },
+            { kind: 'event', ref: 'e' }
+          ]
+        }
+      ]
+    });
+    const day = parseSiteSpec(funnel('day'));
+    expect(day.ok && day.spec.funnels[0]!.within).toBe('day');
+    expect(errors(funnel('week'))).toContain('"session" or "day"');
+  });
+});

@@ -16,7 +16,7 @@ import { evaluateQuota } from '../quotas/quota-policy.js';
 import type { Repositories } from '../storage/repositories.js';
 import { validateEventBatch } from './event-validator.js';
 import { isExcluded } from './address-match.js';
-import { isLearnWindowOpen, type LearnWindow } from './learn-window.js';
+import { dayVisitorToken, isLearnWindowOpen, type LearnWindow } from './learn-window.js';
 import { PAGE_STRUCTURE_EVENT_TYPE } from './page-structure.js';
 import { applyPrivacyGuard } from './privacy-guard.js';
 
@@ -195,19 +195,27 @@ export async function ingestBatch(
   }
 
   const trustLevel = claims ? 'signed-session' : staticSite ? 'origin-checked' : 'unsigned-demo';
-  const storedEvents: StoredEvent[] = privacy.events.map((event) => ({
-    projectId: project.id,
-    sourceId: source.id,
-    trustLevel,
-    consentState: event.vizoalicaconsent ?? claims?.consent_state ?? 'unknown',
-    event: {
-      ...event,
-      vizoalicaproject: project.id,
-      vizoalicasource: source.id,
-      vizoalicaauth: trustLevel
-    },
-    receivedAt: request.now ?? new Date()
-  }));
+  const visitorDay = windowOpen
+    ? dayVisitorToken(request.analyticsContext?.dailyVisitorId)
+    : undefined;
+  const storedEvents: StoredEvent[] = privacy.events.map((event) => {
+    const consentState = event.vizoalicaconsent ?? claims?.consent_state ?? 'unknown';
+    return {
+      projectId: project.id,
+      sourceId: source.id,
+      trustLevel,
+      consentState,
+      event: {
+        ...event,
+        vizoalicaproject: project.id,
+        vizoalicasource: source.id,
+        vizoalicaauth: trustLevel
+      },
+      receivedAt: request.now ?? new Date(),
+      // Never for a visitor who denied analytics.
+      ...(visitorDay && consentState !== 'analytics-denied' ? { visitorDay } : {})
+    };
+  });
   await dependencies.repositories.saveAcceptedEvents(storedEvents);
   const analyticsContext = request.analyticsContext
     ? {

@@ -451,6 +451,12 @@ export interface StoredEvent {
   consentState: ConsentState;
   event: CloudEvent;
   receivedAt: Date;
+  /**
+   * A short one-way token for the visitor on this UTC day, kept in the raw store only while a
+   * learning window is open. It links page loads of one day for funnels and paths. See
+   * `dayVisitorToken`.
+   */
+  visitorDay?: string;
 }
 
 export interface IngestionDecision {

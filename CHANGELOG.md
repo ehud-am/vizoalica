@@ -18,6 +18,10 @@ render | diff | apply | pull | export | import`. With git the folder is the sour
 - **Learning window** (off by default): Worker variables `VIZOALICA_LEARN_START`, `VIZOALICA_LEARN_DAYS`,
   `VIZOALICA_LEARN_SAMPLE`; a bounded `com.vizoalica.page_structure.v1` event, raw store only; `vizoalica learn
 status | enable | disable`. Worker routes `GET/PUT /spec` and `GET /learn/sample`.
+- **Funnels across pages**: while a learning window is open the raw store keeps a one-way token per visitor and UTC day
+  (cut from the daily visitor identifier; random per-day salt deleted after the day; no address stored; never returned).
+  Funnels may use `"within": "day"`; digest quality adds `linkedShare`.
+- **Example CI workflow** `examples/spec-ci/spec-workflow.yml`: validate and diff on pull requests, apply on main.
 - **One database migration** (additive): `0012_site_specs.sql` (schema 12). Update with
   `vizoalica deploy <name> --update`.
 

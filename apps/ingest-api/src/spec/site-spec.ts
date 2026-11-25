@@ -63,7 +63,12 @@ export type SpecCampaign = {
   aliases: { utm_source?: string[]; utm_medium?: string[]; utm_campaign?: string[] };
 };
 export type FunnelStep = { kind: EntityKind; ref: string };
-export type SpecFunnel = { id: string; name: string; steps: FunnelStep[]; within: 'session' };
+export type SpecFunnel = {
+  id: string;
+  name: string;
+  steps: FunnelStep[];
+  within: 'session' | 'day';
+};
 export type SpecPaths = {
   anchors: Array<{ id: string; name?: string; start?: string; end?: string }>;
   collapse: Array<{ group: string }>;
@@ -532,8 +537,8 @@ export function parseSiteSpec(raw: unknown): SpecResult {
     strictKeys(ctx, where, entry, ['id', 'name', 'steps', 'within']);
     const fid = id(ctx, where, entry.id, funnelIds);
     const name = text(ctx, where, 'name', entry.name, 80);
-    if (entry.within !== undefined && entry.within !== 'session')
-      ctx.errors.push(`${where}: "within" must be "session".`);
+    if (entry.within !== undefined && entry.within !== 'session' && entry.within !== 'day')
+      ctx.errors.push(`${where}: "within" must be "session" or "day".`);
     const steps: FunnelStep[] = [];
     if (
       !Array.isArray(entry.steps) ||
@@ -559,7 +564,12 @@ export function parseSiteSpec(raw: unknown): SpecResult {
         else steps.push({ kind, ref: step.ref });
       }
     if (fid && name && steps.length >= 2)
-      spec.funnels.push({ id: fid, name, steps, within: 'session' });
+      spec.funnels.push({
+        id: fid,
+        name,
+        steps,
+        within: entry.within === 'day' ? 'day' : 'session'
+      });
   }
 
   if (raw.paths !== undefined) {

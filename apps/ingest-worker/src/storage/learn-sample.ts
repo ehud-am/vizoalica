@@ -1,10 +1,6 @@
 import type { CloudEvent } from '@vizoalica/event-contracts';
 import type { StoredEvent } from '../../../ingest-api/src/domain/types.js';
-import {
-  mergeSketches,
-  sketchEvents,
-  type Sketch
-} from '../../../ingest-api/src/spec/learn-sketch.js';
+import { sketchEvents, type Sketch } from '../../../ingest-api/src/spec/learn-sketch.js';
 import type { R2Bucket } from '../env.js';
 import { eventObjectPrefix } from './r2-event-batches.js';
 
@@ -34,7 +30,8 @@ function decode(cursor: string | undefined): Position | undefined {
 /**
  * Summarises the newest raw batches of one website, a slice at a time. The caller passes the
  * returned cursor to continue. Days run newest first; within a day, batches are in storage order.
- * The slice holds counts only: no event ids, visitor ids or session ids.
+ * The slice holds counts only: no event ids, visitor tokens or session ids. Page loads of one
+ * visitor and day link up only when they fall in the same call (about 1,000 events).
  */
 export async function sampleEvents(
   bucket: Pick<R2Bucket, 'list'> & {
@@ -48,7 +45,8 @@ export async function sampleEvents(
 ): Promise<SampleSlice | undefined> {
   const position = decode(cursor);
   if (!position) return undefined;
-  let sketch: Sketch | undefined;
+  const events: CloudEvent[] = [];
+  const visitorDays = new Map<CloudEvent, string>();
   let objects = 0;
   while (position.day <= SAMPLE_DAYS && objects < maxObjects) {
     const day = new Date(now.getTime() - position.day * DAY_MS).toISOString().slice(0, 10);
@@ -67,8 +65,12 @@ export async function sampleEvents(
       } catch {
         continue;
       }
-      const slice = sketchEvents(stored.map((item) => item.event as CloudEvent));
-      sketch = sketch ? mergeSketches(sketch, slice) : slice;
+      for (const item of stored) {
+        const event = item.event as CloudEvent;
+        events.push(event);
+        if (typeof item.visitorDay === 'string' && item.visitorDay)
+          visitorDays.set(event, item.visitorDay);
+      }
     }
     if (listed.truncated && listed.cursor) position.list = listed.cursor;
     else {
@@ -78,7 +80,8 @@ export async function sampleEvents(
   }
   const done = position.day > SAMPLE_DAYS;
   return {
-    sketch: sketch ?? sketchEvents([]),
+    // One sketch for the whole call, so a visitor's page loads in these batches link up.
+    sketch: sketchEvents(events, visitorDays),
     objects,
     done,
     ...(done ? {} : { cursor: encode(position) })
