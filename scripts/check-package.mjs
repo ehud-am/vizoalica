@@ -119,7 +119,10 @@ try {
   check(reported.stdout.trim() === manifest.version, `--version prints ${manifest.version}`);
   check(run(bin, ['help']).stdout.includes('vizoalica console'), 'help names the console command');
   check(run(bin, ['help']).stdout.includes('env <command>'), 'help names the env command');
-  check(run(bin, ['help']).stdout.includes('deploy <environment>'), 'help names the deploy command');
+  check(
+    run(bin, ['help']).stdout.includes('deploy <environment>'),
+    'help names the deploy command'
+  );
   const planned = run(bin, ['deploy', 'smoke'], { env });
   check(
     planned.status === 0 &&
