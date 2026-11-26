@@ -150,6 +150,20 @@ describe('vizoalica spec', () => {
     expect(t.err.join('')).toContain('written for environment "dev"');
   });
 
+  it('show prints the latest stored spec in words or as JSON, and says when there is none', async () => {
+    const t = setup();
+    expect(await specCommand(['show', 'prod', ...site], t.deps)).toBe(0);
+    expect(t.text()).toContain('No spec is stored for prod yet');
+    const folder = await folderWithSpec(t);
+    expect(await specCommand(['apply', 'prod', folder, ...site, '--yes'], t.deps)).toBe(0);
+    t.out.length = 0;
+    expect(await specCommand(['show', 'prod', ...site], t.deps)).toBe(0);
+    expect(t.text()).toContain('Spec version 1 for prod');
+    t.out.length = 0;
+    expect(await specCommand(['show', 'prod', ...site, '--json'], t.deps)).toBe(0);
+    expect(JSON.parse(t.text())).toMatchObject({ pages: expect.any(Array) });
+  });
+
   it('pull writes the backend copy (no git), then export backs up and import restores', async () => {
     const t = setup();
     const folder = await folderWithSpec(t);

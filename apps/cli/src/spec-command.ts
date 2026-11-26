@@ -50,12 +50,15 @@ const USAGE = [
   'funnels and paths, kept as JSON files in a folder (default vizoalica-spec/<website>) with a',
   'generated ONTOLOGY.md beside them. With git the folder is the source of truth; without git the',
   'backend holds the only copy. The spec never holds personal data.',
+  'Changes nothing: show, diff, validate. Writes local files: init, render, pull, export. Writes to the backend: apply, import.',
   '',
   '  init <environment> [--project <p>] [--website <w>] [--dir <folder>] [--no-git]',
   '      Create the folder (an empty spec), or with --no-git a working copy of the backend spec.',
   '  validate [folder] [--check]    Check the files; --check also fails if ONTOLOGY.md is stale.',
   '  render [folder]                Write ONTOLOGY.md from the JSON files.',
   '  diff <environment> [folder]    Show what applying the folder would change.',
+  '  show <environment> [--json]',
+  '      Print the latest spec stored on the backend as plain words (ONTOLOGY.md); --json prints it as JSON.',
   '  apply <environment> [folder] [--yes]',
   '      Store the folder as the latest spec on the backend and apply page names, grouping rules',
   '      and goals. Needs an administrator or website owner credential. Nothing is removed.',
@@ -68,7 +71,7 @@ const USAGE = [
 ].join('\n');
 
 const VALUE_FLAGS = new Set(['--project', '--website', '--dir', '--out']);
-const BOOLEAN_FLAGS = new Set(['--yes', '--no-git', '--check', '--force']);
+const BOOLEAN_FLAGS = new Set(['--json', '--yes', '--no-git', '--check', '--force']);
 const BASE_FILE = '.vizoalica-base.json';
 
 type Parsed =
@@ -200,7 +203,7 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
     deps.out(`${USAGE}\n`);
     return 0;
   }
-  const known = ['init', 'validate', 'render', 'diff', 'apply', 'pull', 'export', 'import'];
+  const known = ['init', 'validate', 'render', 'diff', 'apply', 'pull', 'show', 'export', 'import'];
   if (!known.includes(sub)) {
     deps.err(`Unknown command: ${sub}\n${USAGE}\n`);
     return 1;
@@ -281,6 +284,8 @@ export async function specCommand(args: readonly string[], deps: SpecDeps): Prom
         });
       case 'pull':
         return await pull(ctx, folderArg ?? defaultFolder(cwd, site.name), bool.has('--force'));
+      case 'show':
+        return await show(ctx, bool.has('--json'));
       case 'export':
         return await exportBackup(ctx, flags.get('--out'));
       default:
@@ -353,6 +358,24 @@ async function init(ctx: Ctx, dir: string | undefined, bool: Set<string>): Promi
         ? 'It starts from the spec already on the backend.\n'
         : 'It is empty. Ask your assistant to run /vizoalica learn.\n'
     }`
+  );
+  return 0;
+}
+
+async function show(ctx: Ctx, json: boolean): Promise<number> {
+  const { stored } = await fetchStored(ctx);
+  if (!stored.version) {
+    ctx.deps.out(
+      `No spec is stored for ${ctx.environment} yet. Create one: run /vizoalica learn in your assistant, then vizoalica spec apply ${ctx.environment}.\n`
+    );
+    return 0;
+  }
+  if (json) {
+    ctx.deps.out(`${JSON.stringify(stored.spec, null, 2)}\n`);
+    return 0;
+  }
+  ctx.deps.out(
+    `Spec version ${stored.version} for ${ctx.environment}${stored.appliedAt ? `, applied ${stored.appliedAt}` : ''}.\n\n${stored.renderedMd ?? ''}\n`
   );
   return 0;
 }

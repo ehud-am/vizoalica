@@ -26,7 +26,7 @@ test('groups navigation into Analytics and Manage', async ({ page }) => {
     'Technology',
     'Traffic quality'
   ]);
-  await expect(nav.locator('[data-area="manage"] a')).toHaveText(['Websites', 'Health']);
+  await expect(nav.locator('[data-area="manage"] a')).toHaveText(['Websites', 'Spec', 'Health']);
 });
 
 test('Analytics screens contain no state-changing controls', async ({ page }) => {

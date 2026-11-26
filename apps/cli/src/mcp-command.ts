@@ -48,6 +48,7 @@ const USAGE = [
   '          [--print] [--yes]   --print shows the change without making it; --yes replaces',
   '                              an existing "vizoalica" entry without asking',
   '',
+  "install changes an AI client's config on this computer; --print changes nothing.",
   'The server reads every environment from ~/.config/vizoalica/environments.json. It only reads',
   'analytics and health; it never changes anything, and secrets never reach the AI client.',
   'Guide: https://vizoalica.dev/operations/ai'

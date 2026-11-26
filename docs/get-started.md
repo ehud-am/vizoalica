@@ -111,5 +111,6 @@ Add `--verbose` to any command. It prints each step with timings and never a sec
 - [Add a website](/operations/pages) in detail, including signed tokens
 - [Create a backend](/operations/deploy), or the [full backend guide](/operations/cloudflare) from a source checkout
 - [Start the console day to day](/operations/operator-local)
+- [Learn your website](/operations/spec): let your assistant propose page names, groups, events and funnels from your pages' accessibility markers; you decide
 - [Access keys](/operations/share): give a teammate read-only or manage access
 - Update with `npm update -g vizoalica`, then `vizoalica deploy --update --all` to bring every backend you administer to the same version; remove with `npm uninstall -g vizoalica`. Run `vizoalica help` for every command.

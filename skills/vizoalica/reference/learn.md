@@ -20,7 +20,7 @@ Invoked as `/vizoalica learn [depth]`, where `depth` is thousands of events (`/v
 5. **Learn.** `learn_start` with `depth_k`. If it stopped on its time budget, call it again with `run` until it has
    enough or the data is exhausted. Report events, days, and `quality` (page structure coverage, label coverage).
    If `quality.pagesDescribed` is 0, the learning window may be off: tell the user to run
-   `vizoalica learn status <environment>` and `vizoalica learn enable <environment>`; continue with names from
+   `vizoalica learn status <environment>` and `vizoalica learn enable-guide <environment>`; continue with names from
    actions and paths only, with lower confidence.
 6. **Read the digest.** `learn_get` for `pages`, `actions`, `events`, `campaigns`, `transitions`, `journeys`, always
    with `spec_dir` set to the spec folder so decided gaps and conflicts are left out. Page through with `nextOffset`.

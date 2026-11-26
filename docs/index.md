@@ -27,6 +27,8 @@ hero:
 features:
   - title: Ask your AI assistant
     details: A local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor. One command, <code>vizoalica mcp install</code>, sets it up, and every answer names the environment it came from. <a href="/operations/ai">How it works</a>.
+  - title: It learns your website
+    details: Ask your assistant to learn your site with <code>/vizoalica learn</code>. It uses the accessibility markers your pages already carry as hints, then proposes named pages, groups, events, funnels, and paths as a versioned spec. You review it and decide. <a href="/operations/spec">How learning works</a>.
   - title: Your data, your account
     details: Vizoalica runs on Cloudflare Workers, D1, and R2 in your own account. There is no hosted service between you and your visitors’ data.
   - title: One script tag, no cookies
@@ -40,6 +42,14 @@ features:
   - title: Made to be read by people and agents
     details: Plain Markdown guides and an <a href="/llms.txt">llms.txt</a>, so coding agents can help you set it up.
 ---
+
+## Why Vizoalica
+
+<div class="promo-steps">
+  <div><strong>Self-deployed, your data stays yours</strong>Runs on Cloudflare Workers, D1, and R2 in your own account. No hosted service sits between you and your visitors, and nothing leaves your account.</div>
+  <div><strong>Free to deploy, as often as you like</strong>MIT licensed, with no per-site or per-event fee from Vizoalica. Cloudflare bills only the usage in your own account. <a href="/operations/cost-model">Cost model</a></div>
+  <div><strong>It learns your site, so people do not have to</strong>Instead of people tracking every site change and hand-maintaining names, events, and funnels, your assistant reads the accessibility markers your pages already have as hints to their meaning, then proposes pages, groups, events, funnels, and paths. You review the proposal and decide. <a href="/operations/spec">How learning works</a></div>
+</div>
 
 ## See it answer
 
@@ -69,7 +79,7 @@ vizoalica console
 
 ## Built in the open
 
-Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.17.0).
+Vizoalica is [open source under the MIT license](https://github.com/ehud-am/vizoalica/blob/main/LICENSE). Read how it handles data in the [privacy defaults](/operations/privacy), what it costs to run in the [cost model](/operations/cost-model), and what changed in the [release notes](/releases/v0.17.1).
 
 ## Help shape it
 

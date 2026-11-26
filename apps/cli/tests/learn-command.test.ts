@@ -42,7 +42,7 @@ describe('vizoalica learn', () => {
     const open = setup(window('2026-12-01T00:00:00.000Z', '2026-12-15T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], open.deps);
     expect(open.text()).toContain(
-      'is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of page loads'
+      'is open: 2026-12-01 to 2026-12-15 UTC (14 days), 10% of visits describe their pages'
     );
     const early = setup(window('2026-12-05T00:00:00.000Z', '2026-12-19T00:00:00.000Z'));
     await learnCommand(['status', 'prod'], early.deps);
@@ -54,29 +54,42 @@ describe('vizoalica learn', () => {
 
   it('shows the variables to set, with defaults and checks', async () => {
     const t = setup();
-    expect(await learnCommand(['enable', 'prod'], t.deps)).toBe(0);
+    expect(await learnCommand(['enable-guide', 'prod'], t.deps)).toBe(0);
     expect(t.text()).toContain('VIZOALICA_LEARN_START = 2026-12-02');
     expect(t.text()).toContain('VIZOALICA_LEARN_DAYS = 14');
     expect(t.text()).toContain('VIZOALICA_LEARN_SAMPLE = 10');
     const custom = setup();
     expect(
       await learnCommand(
-        ['enable', 'prod', '--start', '2027-01-10', '--days', '30', '--sample', '25'],
+        ['enable-guide', 'prod', '--start', '2027-01-10', '--days', '30', '--sample-percent', '25'],
         custom.deps
       )
     ).toBe(0);
     expect(custom.text()).toContain('VIZOALICA_LEARN_SAMPLE = 25');
     for (const bad of [
       ['--days', '400'],
-      ['--sample', '0'],
+      ['--sample-percent', '0'],
       ['--start', 'soon']
     ]) {
       const refused = setup();
-      expect(await learnCommand(['enable', 'prod', ...bad], refused.deps)).toBe(1);
+      expect(await learnCommand(['enable-guide', 'prod', ...bad], refused.deps)).toBe(1);
     }
     const disable = setup();
-    expect(await learnCommand(['disable', 'prod'], disable.deps)).toBe(0);
+    expect(await learnCommand(['disable-guide', 'prod'], disable.deps)).toBe(0);
     expect(disable.text()).toContain('delete the variable VIZOALICA_LEARN_START');
+    expect(disable.text()).toContain('Nothing was changed');
+  });
+
+  it('points the old command names and --sample at their new names', async () => {
+    const t = setup();
+    expect(await learnCommand(['enable', 'prod'], t.deps)).toBe(1);
+    expect(await learnCommand(['disable', 'prod'], t.deps)).toBe(1);
+    expect(await learnCommand(['enable-guide', 'prod', '--sample', '5'], t.deps)).toBe(1);
+    expect(t.errors()).toContain('"vizoalica learn enable" is now "vizoalica learn enable-guide"');
+    expect(t.errors()).toContain(
+      '"vizoalica learn disable" is now "vizoalica learn disable-guide"'
+    );
+    expect(t.errors()).toContain('--sample is now --sample-percent');
   });
 
   it('prints help, rejects what it does not know, and explains an unreachable backend', async () => {

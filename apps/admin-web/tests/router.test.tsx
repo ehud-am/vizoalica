@@ -89,10 +89,10 @@ describe('router', () => {
     expect(navKey('manage/health')).toBe('manage/health');
   });
 
-  it('lists only Websites and Health under Manage; Projects, Backend and Access have no sidebar item', () => {
+  it('lists only Websites, Spec and Health under Manage; Projects, Backend and Access have no sidebar item', () => {
     expect(
       NAV_ROUTES.filter((route) => route.area === 'manage').map((route) => route.label)
-    ).toEqual(['Websites', 'Health']);
+    ).toEqual(['Websites', 'Spec', 'Health']);
     // They are still pages: Projects from the project menu, Access keys from a website's Access
     // card and the environment menu, and the old Backend address opens Health.
     for (const path of ['manage/projects', 'manage/backend', 'manage/access'] as const)

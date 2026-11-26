@@ -162,6 +162,14 @@ export const ROUTES = define([
     range: false
   },
   {
+    path: 'manage/spec',
+    area: 'manage',
+    label: 'Spec',
+    nav: true,
+    scope: 'project-website',
+    range: false
+  },
+  {
     path: 'manage/health',
     area: 'manage',
     label: 'Health',

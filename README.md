@@ -20,12 +20,20 @@ and custom events to your own backend. A local console shows traffic over time, 
 browsers, devices, unique visitors, and countries, and a local MCP server lets your AI assistant
 answer questions from the same data. Visitor data stays in your own Cloudflare account.
 
+## Why Vizoalica
+
+- **Self-deployed, and your data never leaves your account.** Vizoalica runs on Cloudflare Workers, D1, and R2 that you own. No hosted service sits between you and your visitors' data, and nothing is sent to a third party.
+- **Free to deploy, as often as you like.** MIT licensed, with no per-site, per-event, or per-seat fee from Vizoalica. Deploy as many environments and websites as you want; Cloudflare bills only the usage in your own account ([cost model](docs/operations/cost-model.md)).
+- **Cookieless and privacy-first.** One script tag, nothing stored in visitors' browsers, and no form values, typed text, or session replay.
+- **It learns your website, so people do not have to keep its metadata current.** Analytics usually needs someone to follow every site change and hand-maintain page names, event definitions, groupings, and funnels. Vizoalica is AI-first instead: you ask your assistant to learn your website (`/vizoalica learn`). It reads the accessibility markers your pages already carry (titles, headings, landmarks, ARIA roles, control labels) as hints to what each page and control means, combines them with what visitors actually did, and proposes the ontology: named pages and groups, the actions and events worth tracking, campaigns, funnels, and paths. You review a detailed, versioned proposal and decide; the assistant remembers your decisions and re-learns as the site changes. The direction is a deep, continuously updated understanding of your site, with the human analyst making every decision.
+
 ## At a glance
 
 <p align="center">
   <img src="docs/assets/at-a-glance.svg" alt="Many websites send privacy-filtered events to a backend in your Cloudflare account (R2 and D1); consoles and AI assistants (through a local MCP server) read the results" width="900">
 </p>
 
+- **Learn your website:** `/vizoalica learn` has your assistant read your pages' accessibility markers and what visitors did, then propose named pages, groups, events, funnels, and paths as a versioned spec for you to review and apply. See [Learn your website](docs/operations/spec.md).
 - **Ask your AI assistant:** a local, read-only MCP server and skill for Claude Code, Claude Desktop, Codex, and Cursor ("How did my websites do last week?"). See [Use Vizoalica with AI](docs/operations/ai.md).
 - **Install on a website:** one script tag, on any host. Nothing is stored in visitors' browsers: no cookies, no local storage. (Only if you opt your own browser out of being counted, with `?vizoalica_ignore=1`, does it store one value on your own device.)
 - **No-script pages:** an optional 1x1 image counts views of a README or any page that cannot run the script. See [Count views of a README](docs/operations/pixel.md).
@@ -197,6 +205,23 @@ vizoalica skill install --client claude-code    # or codex
 The MCP server runs on your computer, works on every environment you have, names the environment in every
 answer, and never hands a secret to the AI client. See [Use Vizoalica with AI](docs/operations/ai.md).
 
+## Learn your website
+
+Instead of hand-maintaining names, groups, and funnels, let an assistant propose them and decide what to keep:
+
+```sh
+vizoalica learn enable-guide prod          # shows the three Worker variables that open the learning window (optional, better data)
+vizoalica spec init prod --website Shop
+# in your assistant:  /vizoalica learn 20
+vizoalica spec diff prod               # review
+vizoalica spec apply prod              # store as the latest spec and apply names, grouping rules, goals
+vizoalica spec show prod               # print the latest spec (the console's Manage > Spec page shows it too)
+```
+
+The spec is a set of JSON files plus a generated `ONTOLOGY.md`. With git the folder is the source of truth; without git
+the backend keeps the latest version (`vizoalica spec pull`, edit, `vizoalica spec apply`). See
+[Learn your website and keep a spec](docs/operations/spec.md).
+
 ## For contributors: build from source
 
 You do not need this to use Vizoalica. It is for contributors and for anyone who deploys a reviewed tag
@@ -307,6 +332,7 @@ goes.
 | Create a backend, and replace its secrets (`deploy`, `rotate`)     | [Create a backend](docs/operations/deploy.md)                                                  |
 | Environments and `vizoalica env`                                   | [Environments](docs/operations/environments.md)                                                |
 | Ask Claude, Codex, or Cursor about your analytics (MCP and skill)  | [Use Vizoalica with AI](docs/operations/ai.md)                                                 |
+| Let an assistant learn your website and keep a spec (ontology)     | [Learn your website](docs/operations/spec.md)                                                  |
 | Deploy, update, and maintain the backend from a source checkout    | [Cloudflare backend](docs/operations/cloudflare.md)                                            |
 | Console from a checkout, private credential file                   | [Without OneCLI](docs/operations/local-analytics.md)                                           |
 | Console, OneCLI-managed credential                                 | [With OneCLI](docs/operations/onecli.md)                                                       |

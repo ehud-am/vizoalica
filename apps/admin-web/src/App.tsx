@@ -18,6 +18,7 @@ import { ThemeToggle } from './components/ThemeToggle.js';
 import { ActionsPage } from './analytics/ActionsPage.js';
 import { CampaignsPage } from './analytics/CampaignsPage.js';
 import { RageClicksPage } from './analytics/RageClicksPage.js';
+import { SpecPage } from './manage/SpecPage.js';
 import { GoalsPage } from './analytics/GoalsPage.js';
 import { EventsPage } from './analytics/EventsPage.js';
 import { AnalyticsProvider } from './analytics/AnalyticsProvider.js';
@@ -104,6 +105,8 @@ function ManageRoute({ route }: { route: Route }) {
       return <InstallPage websiteId={websiteId} />;
     case 'manage/health':
       return <HealthPage />;
+    case 'manage/spec':
+      return <SpecPage />;
     case 'manage/backend':
       // The backend's versions are the first section of Health; the old address still works.
       return <HealthPage />;
