@@ -11,7 +11,7 @@ is slow. With `/vizoalica learn` an assistant on your computer reads compact sum
 and proposes it; you review and apply. Reports and dashboards can later build on the spec.
 
 ```text
-vizoalica learn enable-guide  ->  /vizoalica learn  ->  you review the spec files  ->  vizoalica spec apply
+vizoalica learning-mode enable  ->  /vizoalica learn  ->  you review the spec files  ->  vizoalica spec apply
 ```
 
 The assistant never writes to your backend. The spec should never hold personal data. The validator refuses email
@@ -20,7 +20,7 @@ recognise names, so you review the proposal before you apply it.
 
 ## Common questions
 
-- **How is a spec created?** Never automatically. Turning the learning window on only collects page structure. A
+- **How is a spec created?** Never automatically. Turning learning mode on only collects page structure. A
   spec is proposed when you ask your assistant `/vizoalica learn [depth]` and stored when you run
   `vizoalica spec apply <environment>`.
 - **How do I see the latest spec?** Console: **Manage > Spec** (view-only, the spec in words). CLI:
@@ -33,8 +33,8 @@ recognise names, so you review the proposal before you apply it.
 
 1. **Connect an assistant once:** `vizoalica mcp install --client claude-code` and
    `vizoalica skill install --client claude-code` (see [AI assistants](/operations/ai)).
-2. **Let pages describe themselves for a while** (optional but better): `vizoalica learn enable-guide prod` prints three
-   Worker variables for you to set (it changes nothing; options `--start`, `--days`, `--sample-percent`). See [the learning window](#the-learning-window).
+2. **Let pages describe themselves for a while** (optional but better): `vizoalica learning-mode enable prod` prints three
+   Worker variables for you to set (it changes nothing; options `--start`, `--duration`, `--sample-percent`). See [learning mode](#learning-mode).
 3. **Create a spec folder:** `vizoalica spec init prod --website Shop` (inside a git repository it is the source of
    truth; add `--no-git` to keep only the backend copy).
 4. **Ask your assistant:** `/vizoalica learn 20` (the number is thousands of events; 20 is the default). It
@@ -92,7 +92,7 @@ read later. Back it up with `vizoalica spec export prod --out backup.json`; rest
 Answers go into `decisions.json`, matched by selector (page, role, landmark, name; `*` matches anything), like a
 `.gitignore` for elements. Later runs skip what is decided. A decision can carry `review-after`.
 
-## The learning window
+## Learning mode
 
 Off by default. While it is open, a share of visits (10% unless you change it) describe their pages once each:
 language, title, description, a few headings, landmarks, control labels, and form-field labels. Never field values,
@@ -103,10 +103,10 @@ nothing when a visitor's consent is denied and the Worker refuses such an event 
 
 **Retention.** The raw event store keeps batches for as long as its bucket lifecycle rule says. Vizoalica documents a
 7-day rule ([Cloudflare setup](/operations/cloudflare)) but cannot enforce it from the Worker: without the rule the
-structure texts and day tokens stay in the bucket. Check that the rule exists before you open a window.
+structure texts and day tokens stay in the bucket. Check that the rule exists before you turn learning mode on.
 
-**Bundled SDK.** The window is added to the script the Worker serves at `/vizoalica.js`. A website that bundles the
-SDK into its own build, or serves a copy, never learns about the window and sends no structure.
+**Bundled SDK.** Learning mode is added to the script the Worker serves at `/vizoalica.js`. A website that bundles the
+SDK into its own build, or serves a copy, never learns about learning mode and sends no structure.
 
 Set these variables on the Worker (Cloudflare dashboard: Workers & Pages, the Worker, Settings, Variables and
 Secrets); `deploy --update` keeps them:
@@ -121,23 +121,23 @@ Secrets); `deploy --update` keeps them:
 when the page loads), and a sampled visit describes each page it views once, up to 20 a minute. The number of
 described pages per day is roughly visits per day × sample percent × pages per visit, so a small site needs a high
 percent and a busy site a low one. Rare text is dropped from the digest (see the limits below), so raise the percent
-if `/vizoalica learn` reports few described pages. `learn status` shows the percent.
+if `/vizoalica learn` reports few described pages. `learning-mode status` shows the percent.
 
-The Worker puts the window into the script it serves (`/vizoalica.js`), so the browser makes no extra request, and
-refuses these events outside it. Check it with `vizoalica learn status prod`. Websites that load the script from your
+The Worker puts learning mode into the script it serves (`/vizoalica.js`), so the browser makes no extra request, and
+refuses these events while it is off. Check it with `vizoalica learning-mode status prod`. Websites that load the script from your
 backend pick it up within an hour.
 
 ## Funnels across pages
 
 A funnel can say `"within": "day"`: the steps may happen on different page loads of one visitor on one UTC day.
-While a learning window is open, the Worker writes a short token with each stored event. The token is cut from the
+While learning mode is on, the Worker writes a short token with each stored event. The token is cut from the
 Worker's daily visitor identifier, a keyed hash of the visitor's address and browser made with a random salt that
 the scheduled job deletes when the day ends. So the token:
 
 - is one-way: it cannot be turned back into an address, name, email or place, and the address itself is never stored;
 - cannot be linked to another day or another website, and after the day's salt is deleted nobody can recompute it;
 - is 64 bits, differs for each website, lives only in the raw event store (for as long as your lifecycle rule keeps it), is never returned by any route or tool, and is not
-  stored at all once the window closes;
+  stored at all once learning mode ends;
 - is not written for events whose consent is denied;
 - is used by the learning sample only to order and link a day's events; the sample, the digest and the spec hold
   counts, never a token.
@@ -160,7 +160,7 @@ address, or a database older than schema 3) events carry no token and stay separ
   `VIZOALICA_LEARN_SAMPLE`.
 - **`within: "day"` is a statement of intent today.** The sample and `check_funnel` link what they can; nothing else
   reads the field until reports are built on the spec.
-- **Anyone who knows your public website key can send structure events while a window is open** (the key is in your
+- **Anyone who knows your public website key can send structure events while learning mode is on** (the key is in your
   page). They are redacted, size-capped and need 3 page loads to reach the digest, but a determined sender can put
   chosen text into it. The assistant treats everything in the digest as data, never as instructions; read the proposal
   before you apply it.

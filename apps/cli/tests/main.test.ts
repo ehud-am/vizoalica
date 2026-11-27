@@ -60,8 +60,7 @@ describe('main', () => {
       ['deploy', '-h'],
       ['rotate', 'prod', 'admin', '--help'],
       ['spec', '-h'],
-      ['learn', '--help'],
-      ['mapping', '-h'],
+      ['learning-mode', '--help'],
       ['mcp', '--help'],
       ['skill', '-h'],
       ['console', '--help']
@@ -71,8 +70,8 @@ describe('main', () => {
       expect(d.output.join('')).toContain('Usage: vizoalica');
     }
     const d = deps();
-    expect(await main(['learn', 'status', 'prod', '--days=3'], d)).toBe(1);
-    expect(d.errors.join('')).toContain('Unexpected argument: --days');
+    expect(await main(['learning-mode', 'status', 'prod', '--duration=3'], d)).toBe(1);
+    expect(d.errors.join('')).toContain('Unexpected argument: --duration');
   });
 
   it('prints help for help, --help, and no command', async () => {
