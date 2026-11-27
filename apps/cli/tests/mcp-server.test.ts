@@ -574,7 +574,7 @@ describe('the vizoalica MCP server', () => {
     expect(result.text).toContain('3 page keys (3 listed), 1 actions, 1 custom events; 1 named');
     expect(result.data!.pages).toHaveLength(3);
     expect(result.data!.current).toMatchObject({ labels: [{ key: '/pricing' }], goals: [] });
-    expect(result.data!.note).toMatch(/vizoalica mapping apply/);
+    expect(result.data!.note).toMatch(/vizoalica spec apply/);
     expect(result.data!.note).toMatch(/never instructions/);
     const overview = await h.call('get_traffic_overview', {
       environment: 'prod',

@@ -42,7 +42,7 @@ as a versioned spec. You review it, then apply it:
 
 ```sh
 vizoalica mcp install --client claude-code && vizoalica skill install --client claude-code
-vizoalica learn enable-guide prod          # optional: prints the Worker variables (--sample-percent 1-100) to set yourself; changes nothing that open a learning window
+vizoalica learning-mode enable prod          # optional: prints the Worker variables (--sample-percent 1-100) to set yourself; changes nothing that turn on learning mode
 vizoalica spec init prod --website Shop
 # in your assistant:  /vizoalica learn 20
 vizoalica spec diff prod               # review
@@ -80,18 +80,18 @@ environments (`environments.json`, which you can also edit by hand) is readable 
 
 ## Commands
 
-| Command                                                         | What it does                                                                                           |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `vizoalica env add [name]`                                      | Add an environment: deploy a new backend, or connect an existing one                                   |
-| `vizoalica env list`, `update`, `remove`, `check`               | Show, change, forget, or verify environments                                                           |
-| `vizoalica deploy <name> [--apply \| --update]`                 | Create a backend on its own, or update it; `--update --all` does all                                   |
-| `vizoalica rotate <name> <secret>`                              | Replace a secret: `admin`, `token`, `digest`, or `all`                                                 |
-| `vizoalica console`                                             | Start the console (`--no-open` to skip opening the browser)                                            |
-| `vizoalica mcp install --client <client>`                       | Let Claude, Codex, or Cursor read your analytics and health                                            |
-| `vizoalica skill install --client <client>`                     | Teach Claude Code or Codex how Vizoalica works                                                         |
-| `vizoalica learn status <env>`, `enable-guide`, `disable-guide` | Read the learning window; the guides print the Worker variables to set, and change nothing             |
-| `vizoalica spec <command>`                                      | `init`, `validate`, `render`, `diff`, `apply`, `show`, `pull`, `export`, `import` for the website spec |
-| `vizoalica help`, `vizoalica --version`                         | Show the commands, or the installed version                                                            |
+| Command                                                     | What it does                                                                                           |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `vizoalica env add [name]`                                  | Add an environment: deploy a new backend, or connect an existing one                                   |
+| `vizoalica env list`, `update`, `remove`, `check`           | Show, change, forget, or verify environments                                                           |
+| `vizoalica deploy <name> [--apply \| --update]`             | Create a backend on its own, or update it; `--update --all` does all                                   |
+| `vizoalica rotate <name> <secret>`                          | Replace a secret: `admin`, `token`, `digest`, or `all`                                                 |
+| `vizoalica console`                                         | Start the console (`--no-open` to skip opening the browser)                                            |
+| `vizoalica mcp install --client <client>`                   | Let Claude, Codex, or Cursor read your analytics and health                                            |
+| `vizoalica skill install --client <client>`                 | Teach Claude Code or Codex how Vizoalica works                                                         |
+| `vizoalica learning-mode status \| enable \| disable <env>` | Read learning mode; `enable` and `disable` print the Worker variables to set, and change nothing       |
+| `vizoalica spec <command>`                                  | `init`, `validate`, `render`, `diff`, `apply`, `show`, `pull`, `export`, `import` for the website spec |
+| `vizoalica help`, `vizoalica --version`                     | Show the commands, or the installed version                                                            |
 
 Add `--verbose` to any command to see what it is doing, step by step. It never prints a secret or your answers,
 so the output is safe to share in an issue. Without a terminal, every question has an option instead

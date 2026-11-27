@@ -2,8 +2,7 @@ import { makeTrace, noTrace, type Trace } from '../../local-ops-api/src/trace.js
 import { consoleCommand, type ConsoleDeps } from './console-command.js';
 import { deployCommand } from './deploy-command.js';
 import { envCommand, type EnvDeps } from './env-command.js';
-import { mappingCommand } from './mapping-command.js';
-import { learnCommand } from './learn-command.js';
+import { learningModeCommand } from './learning-mode-command.js';
 import { specCommand } from './spec-command.js';
 import { mcpCommand } from './mcp-command.js';
 import { rotateCommand } from './rotate-command.js';
@@ -58,14 +57,12 @@ export function help(): string {
     '  mcp install           Let an AI assistant (Claude, Codex, Cursor) read your analytics and health,',
     '                        read-only, across every environment [AI client]. Run "vizoalica mcp help"',
     '  skill install         Teach an AI assistant how Vizoalica works [AI client]. Run "vizoalica skill"',
-    '  mapping export|apply  Page names, groups and goals proposed by an assistant: export [read-only],',
-    '                        apply [backend]. Run "vizoalica mapping"',
     "  spec <command>        A website's spec (ontology) as versioned files: show, diff [read-only];",
     '                        init, validate, render, pull, export [this computer]; apply, import [backend].',
     '                        Run "vizoalica spec"',
-    '  learn <command>       The learning window, where a share of visits describe their pages for an',
-    '                        assistant: status [read-only]; enable-guide, disable-guide [prints steps]',
-    '                        (you set the Worker variables yourself). Run "vizoalica learn"',
+    '  learning-mode <command>  The learning window, where a share of visits describe their pages for an',
+    '                        assistant: status [read-only]; enable, disable [prints steps; you set the',
+    '                        Worker variables yourself]. Run "vizoalica learning-mode"',
     '  help                  Show this help; "vizoalica <command> --help" shows a command\'s help',
     '  --verbose             With any command: print what it is doing, for troubleshooting',
     '                        (never secrets)',
@@ -142,8 +139,7 @@ export async function main(args: readonly string[], deps: MainDeps): Promise<num
     return envCommand(rest, { ...deps, trace, deploy: (args) => deploy(args) });
   if (command === 'deploy') return deploy(rest);
   if (command === 'mcp') return mcpCommand(rest, { ...deps, trace });
-  if (command === 'mapping') return mappingCommand(rest, { ...deps, trace });
-  if (command === 'learn') return learnCommand(rest, { ...deps, trace });
+  if (command === 'learning-mode') return learningModeCommand(rest, { ...deps, trace });
   if (command === 'spec') return specCommand(rest, { ...deps, trace });
   if (command === 'skill') return skillCommand(rest, deps);
   if (command === 'rotate')

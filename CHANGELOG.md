@@ -4,6 +4,18 @@ All notable changes to Vizoalica are documented in this file.
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-11-27
+
+### Changed
+
+- **Breaking, no redirects**: `vizoalica learn status | enable-guide | disable-guide` is now
+  `vizoalica learning-mode status | enable | disable` (still prints steps only); `--days` is now `--duration`.
+
+### Removed
+
+- `vizoalica mapping export | apply` and the guided-setup page. `/vizoalica learn` and `vizoalica spec apply` replace
+  them. The MCP tool `get_inventory` stays; its note now points to `vizoalica spec apply`.
+
 ## [0.17.1] - 2026-11-25
 
 ### Added
